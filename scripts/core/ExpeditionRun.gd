@@ -23,14 +23,27 @@ var pending_situation: Dictionary = {} ## 지금 결정해야 할 상황 (비어
 var rng := RandomNumberGenerator.new()
 var _last_situation_id: String = ""
 var _next_situation_leg: int = 0      ## 다음 일반 상황이 뜰 걸음
+var _bridged: Dictionary = {}         ## 로프가 걸린 차단 leg 집합(leg->true). 차단=영구 지형 변화의 런타임 표현.
 
-func _init(starting: Dictionary = {}) -> void:
+## bridged = 과거 원정에서 로프를 고정한 차단 leg 목록(GameState 가 ROPE 흔적에서 뽑아 주입).
+## core 는 GameState 를 참조하지 않는다(순수성) - 영속 데이터는 생성자로 받는다.
+func _init(starting: Dictionary = {}, bridged: Array = []) -> void:
 	resources = starting.duplicate()
+	for lg in bridged:
+		_bridged[int(lg)] = true
 	rng.randomize()
 	_schedule_next()
 
 func get_res(key: String) -> int:
 	return int(resources.get(key, 0))
+
+## 이 걸음의 차단에 이미 로프가 걸려 있나 (과거 원정 + 이번 원정에 새로 건 것 포함).
+func is_bridged(lg: int) -> bool:
+	return _bridged.has(lg)
+
+## 이번 원정에 차단에 로프를 걸었다 - 같은 런의 렌더링이 즉시 반영하도록 표시한다.
+func mark_bridged(lg: int) -> void:
+	_bridged[lg] = true
 
 ## 한 걸음 전진 - 소모 자원을 차감하고 고갈을 판정한다. 살아남으면 랜드마크/일반 상황을 세운다.
 func step() -> void:
@@ -43,9 +56,14 @@ func step() -> void:
 	_check_death()
 	if not alive:
 		return
-	# 랜드마크가 일반 상황보다 우선. 어느 쪽이 떠도 다음 일반 상황 일정을 새로 잡는다.
+	# 랜드마크(고정 지형)가 일반 상황보다 우선. 어느 쪽이 떠도 다음 일반 상황 일정을 새로 잡는다.
 	if Situations.LANDMARKS.has(leg):
-		_set_pending(Situations.landmark(leg))
+		var feat: Dictionary = Situations.landmark(leg)
+		# 이미 로프를 건 차단이면 과거의 내가 길을 열어둔 통과 카드로 대체(self-async 보상).
+		if str(feat.get("kind", "cache")) == "blockage" and _bridged.has(leg):
+			_set_pending(Situations.crossed_blockage(feat))
+		else:
+			_set_pending(feat)
 	elif leg >= _next_situation_leg:
 		_set_pending(Situations.pick(rng, _last_situation_id))
 

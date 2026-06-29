@@ -32,8 +32,9 @@ func go_to_map() -> void:
 	get_tree().change_scene_to_file(SCENE_MAP)
 
 ## 씬 전환 없이 현재 원정만 새로 만든다 (직접 진입 안전장치 / 테스트용).
+## 과거에 로프를 건 차단(bridged_legs)을 주입해, 그 틈을 무료로 건너게 한다(영구 지형 변화).
 func begin_run_in_place() -> void:
-	current_run = ExpeditionRun.new(START_RESOURCES)
+	current_run = ExpeditionRun.new(START_RESOURCES, bridged_legs())
 	expedition_count += 1
 
 ## 다음 원정을 떠난다 (지도 → 횡스크롤). 새 ExpeditionRun 을 만들고 씬을 바꾼다.
@@ -54,6 +55,15 @@ func loaded_traces() -> Array[TraceData]:
 	for raw in traces:
 		if raw is Dictionary:
 			out.append(TraceData.from_dict(raw))
+	return out
+
+## 과거에 로프를 고정한 차단 지점들(ROPE 흔적의 leg). 다음 원정에서 그 틈을 무료로 건넌다.
+## 차단 = "영구 지형 변화"(기획서 §4)의 영속 표현. ExpeditionRun 에 주입된다.
+func bridged_legs() -> Array:
+	var out: Array = []
+	for raw in traces:
+		if raw is Dictionary and int(raw.get("object_kind", -1)) == TraceData.ObjectKind.ROPE:
+			out.append(int(raw.get("leg", 0)))
 	return out
 
 # --- 저장 / 불러오기 (JSON, 웹 IndexedDB) ---

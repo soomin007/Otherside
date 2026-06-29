@@ -9,6 +9,8 @@ const GROUND_RATIO: float = 0.60        ## 지면 y 위치 (화면 높이 비율
 const STEP_PX: float = 90.0             ## 한 걸음의 화면 거리
 const WALKER_SCREEN_RATIO: float = 0.35 ## 걷는 이를 화면 어디에 고정할지 (앞을 보도록 왼쪽)
 const RES_KO: Dictionary = {"water": "물", "food": "식량", "rope": "로프", "shelter": "은신처"}
+const CHASM_COL := Color(0.02, 0.02, 0.03)   ## 차단 틈 — 바닥 없는 어둠
+const STORM_BAND := Color(0.34, 0.36, 0.42)  ## 폭풍 구간 — 회청색 모래바람(반투명으로 그림)
 
 var _run: ExpeditionRun
 
@@ -220,7 +222,7 @@ func _show_situation() -> void:
 		var btn := UITheme.make_button("", false)
 		btn.text = "%s   (%s)" % [str(choice.get("label", "")), _effect_hint(effect)]
 		if Situations.can_choose(choice, _run.resources):
-			btn.pressed.connect(_on_choice.bind(effect))
+			btn.pressed.connect(_on_choice.bind(effect, str(choice.get("action", ""))))
 		else:
 			btn.disabled = true
 			btn.text = "%s   (자원 부족)" % str(choice.get("label", ""))
@@ -230,14 +232,28 @@ func _show_situation() -> void:
 	_end_btn.disabled = true
 	_sit_panel.visible = true
 
-func _on_choice(effect: Dictionary) -> void:
+func _on_choice(effect: Dictionary, action: String = "") -> void:
+	var here: int = _run.leg
 	_run.apply_choice(effect)
+	# 차단에 로프 고정 = 영구 지형 흔적(ROPE). 다음 원정부터 이 틈을 무료로 건넌다(가장 뿌듯한 흔적).
+	if action == "bridge":
+		_bridge_here(here)
 	_sit_panel.visible = false
 	_advance_btn.disabled = false
 	_end_btn.disabled = false
 	_refresh()
 	if not _run.alive:
 		_die(_run.death_cause)
+
+## 지금 선 차단에 로프를 건다 - core 에 표시(같은 런 즉시 반영) + ROPE 흔적을 남기고 저장(다음 원정에 영속).
+## "남김 한 번"과 별개의 부산물 흔적이다(통과의 결과로 길이 영구히 바뀐다).
+func _bridge_here(at_leg: int) -> void:
+	_run.mark_bridged(at_leg)
+	var tags: Array[String] = []
+	tags.assign(["건너"])
+	var trace := TraceData.new(TraceData.ObjectKind.ROPE, at_leg, tags)
+	GameState.leave_trace(trace)
+	GameState.save_game()
 
 func _clear_choices() -> void:
 	for c in _choice_box.get_children():
@@ -326,20 +342,69 @@ func _draw() -> void:
 		if not t.tags.is_empty() and font != null:
 			draw_string(font, Vector2(tx - 16.0, ground_y - 26.0), " ".join(PackedStringArray(t.tags)), HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_SMALL, Color(0.72, 0.62, 0.46))
 
-	# 아이코닉한 장소 (랜드마크) - 다가오는 앵커를 미리 보여준다
+	# 고정 지형 - 종류별로 그린다. 다가오는 걸 미리 보여줘 계획·대비를 만든다(아이코닉함 강화).
 	for lm_leg in Situations.LANDMARKS:
-		var lx: float = lm_leg * STEP_PX + offset
-		if lx < -60.0 or lx > rect.x + 60.0:
-			continue
-		var passed: bool = lm_leg < _run.leg
-		var lm_col: Color = Color(0.5, 0.46, 0.4) if passed else Color(0.84, 0.72, 0.48)
-		draw_line(Vector2(lx, ground_y), Vector2(lx, ground_y - 44.0), lm_col, 2.0)
-		if font != null:
-			var lm: Dictionary = Situations.LANDMARKS[lm_leg]
-			draw_string(font, Vector2(lx - 48.0, ground_y - 54.0), str(lm.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 150, UITheme.FS_SMALL, lm_col)
+		var feat: Dictionary = Situations.LANDMARKS[lm_leg]
+		match str(feat.get("kind", "cache")):
+			"blockage": _draw_blockage(lm_leg, feat, ground_y, offset, rect, font)
+			"storm": _draw_storm(lm_leg, feat, ground_y, offset, rect, font)
+			_: _draw_cache_marker(lm_leg, feat, ground_y, offset, rect, font)
 
 	# 걷는 이
 	_draw_walker(Vector2(walker_x, ground_y), _run.alive)
+
+## 자원형 지형 — 다가오는 앵커를 막대 + 이름으로.
+func _draw_cache_marker(lm_leg: int, feat: Dictionary, ground_y: float, offset: float, rect: Vector2, font: Font) -> void:
+	var lx: float = lm_leg * STEP_PX + offset
+	if lx < -60.0 or lx > rect.x + 60.0:
+		return
+	var passed: bool = lm_leg < _run.leg
+	var col: Color = Color(0.5, 0.46, 0.4) if passed else Color(0.84, 0.72, 0.48)
+	draw_line(Vector2(lx, ground_y), Vector2(lx, ground_y - 44.0), col, 2.0)
+	if font != null:
+		draw_string(font, Vector2(lx - 48.0, ground_y - 54.0), str(feat.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 150, UITheme.FS_SMALL, col)
+
+## 차단 — 지면을 끊는 틈. 로프가 걸렸으면 그 위로 다리(모래색 선)를 얹어 "건널 수 있음"을 보여준다.
+func _draw_blockage(lm_leg: int, feat: Dictionary, ground_y: float, offset: float, rect: Vector2, font: Font) -> void:
+	var lx: float = lm_leg * STEP_PX + offset
+	if lx < -60.0 or lx > rect.x + 60.0:
+		return
+	var passed: bool = lm_leg < _run.leg
+	var bridged: bool = _run.is_bridged(lm_leg)
+	var half: float = 18.0
+	# 틈 — 지면을 끊는 어두운 협곡
+	draw_rect(Rect2(lx - half, ground_y, half * 2.0, rect.y - ground_y), CHASM_COL)
+	draw_line(Vector2(lx - half, ground_y), Vector2(lx - half, ground_y + 16.0), Color(0.3, 0.28, 0.24), 2.0)
+	draw_line(Vector2(lx + half, ground_y), Vector2(lx + half, ground_y + 16.0), Color(0.3, 0.28, 0.24), 2.0)
+	var col: Color
+	var label: String = str(feat.get("name", ""))
+	if bridged:
+		# 과거의 내가 건 로프 — 틈을 가로지른다 (self-async 의 가장 뿌듯한 흔적)
+		col = UITheme.SAND
+		draw_line(Vector2(lx - half - 6.0, ground_y - 3.0), Vector2(lx + half + 6.0, ground_y - 3.0), col, 4.0)
+		label = "%s (로프)" % label
+	else:
+		col = Color(0.5, 0.46, 0.4) if passed else Color(0.86, 0.5, 0.42)  # 미통과 차단은 경고색
+	if font != null:
+		draw_string(font, Vector2(lx - 48.0, ground_y - 30.0), label, HORIZONTAL_ALIGNMENT_LEFT, 150, UITheme.FS_SMALL, col)
+
+## 폭풍 — 구간(span 걸음)을 회청색 반투명 띠로 예고한다. 멀리서 보고 은신처를 준비하게 한다.
+## CPUParticles2D 3층 연출은 별도 세션 — 지금은 분위기 1층(반투명 그라데이션 띠)만.
+func _draw_storm(lm_leg: int, feat: Dictionary, ground_y: float, offset: float, rect: Vector2, font: Font) -> void:
+	var span: int = maxi(1, int(feat.get("span", 1)))
+	var x0: float = lm_leg * STEP_PX + offset
+	var x1: float = (lm_leg + span) * STEP_PX + offset
+	if x1 < -20.0 or x0 > rect.x + 20.0:
+		return
+	var passed: bool = (lm_leg + span) <= _run.leg
+	var alpha: float = 0.14 if passed else 0.30
+	draw_rect(Rect2(x0, 0.0, x1 - x0, rect.y), Color(STORM_BAND.r, STORM_BAND.g, STORM_BAND.b, alpha))
+	var edge := Color(STORM_BAND.r, STORM_BAND.g, STORM_BAND.b, alpha + 0.2)
+	draw_line(Vector2(x0, 0.0), Vector2(x0, rect.y), edge, 2.0)
+	draw_line(Vector2(x1, 0.0), Vector2(x1, rect.y), edge, 2.0)
+	if font != null:
+		var col: Color = Color(0.5, 0.52, 0.58) if passed else Color(0.72, 0.76, 0.84)
+		draw_string(font, Vector2(x0 + 8.0, ground_y - 54.0), "%s (폭풍)" % str(feat.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, int(x1 - x0), UITheme.FS_SMALL, col)
 
 func _draw_walker(foot: Vector2, alive: bool) -> void:
 	var col: Color = Color(0.9, 0.9, 0.92) if alive else Color(0.55, 0.32, 0.32)
