@@ -307,7 +307,10 @@ func _draw() -> void:
 	draw_rect(Rect2(0.0, ground_y, rect.x, rect.y - ground_y), Color(0.11, 0.10, 0.13))
 	draw_line(Vector2(0.0, ground_y), Vector2(rect.x, ground_y), Color(0.3, 0.28, 0.24), 2.0)
 
-	var font: Font = ThemeDB.fallback_font
+	# 캔버스 직접 그리기도 프로젝트 기본 폰트(한글 포함) 사용. 없으면 엔진 폴백.
+	var font: Font = get_theme_default_font()
+	if font == null:
+		font = ThemeDB.fallback_font
 	# 걸음 눈금 (5걸음마다 숫자)
 	var first_leg: int = maxi(int(floor((0.0 - offset) / STEP_PX)) - 1, 0)
 	var last_leg: int = int(ceil((rect.x - offset) / STEP_PX)) + 1

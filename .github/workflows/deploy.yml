@@ -73,6 +73,12 @@ jobs:
             exit 1
           fi
 
+      - name: Import resources
+        run: |
+          # export 전에 리소스 임포트 - cold 캐시에서 custom_font 등 임포트 의존 리소스를 선해결.
+          # 첫 임포트는 임포트 전 리소스 참조로 ERROR 가 찍힐 수 있으나 비치명적(exit 0)이라 || true.
+          godot --headless --path . --import || true
+
       - name: Build Web export
         run: |
           set -e

@@ -20,6 +20,10 @@ config/icon="res://icon.svg"
 
 GameState="*res://scripts/GameState.gd"
 
+[gui]
+
+theme/custom_font="res://assets/fonts/NanumGothic-Regular.ttf"
+
 [display]
 
 window/size/viewport_width=1280

@@ -10,6 +10,10 @@
   **방지:** 한글 글리프 포함 오픈 폰트(Noto Sans KR 등 OFL)를 `assets/fonts/` 에 넣고 프로젝트 기본 테마 폰트로 지정.
   **배포할 때마다 폰 브라우저에서 한글이 실제로 보이는지 확인.**
 
+- **증상:** cold 캐시 export(.godot 없음, 즉 CI)에서 `Error loading custom project font ... .fontdata` 에러.
+  **원인:** `gui/theme/custom_font` 가 프로젝트 로드 시점에 해석되는데, 그때 폰트가 아직 임포트되지 않음(.godot/imported 없음).
+  **방지:** export 전에 `godot --headless --path . --import` 를 먼저 실행(deploy.yml 에 "Import resources" 단계 추가). warm 캐시면 export 깨끗.
+
 - **증상:** 셰이더/GPUParticles 가 웹 빌드에서 깨지거나 안 보임.
   **원인:** GL Compatibility 렌더러 + 웹 export 가 이들을 제대로 지원하지 않음 (EoY 에서 확인).
   **방지:** 셰이더·GPUParticles 절대 금지. 폭풍은 CPUParticles2D + 3층 레이어. `CLAUDE.md` 웹 제약 참고.
