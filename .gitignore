@@ -1,0 +1,54 @@
+# Godot 4+ specific ignores
+.godot/
+.import/
+
+# Imported translations (automatically generated from CSV files)
+*.translation
+
+# Mono-specific ignores
+.mono/
+data_*/
+mono_crash.*.json
+
+# System / IDE
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.vscode/
+.idea/
+
+# Godot export artifacts
+export.cfg
+export_credentials.cfg
+*.tmp
+
+# Build outputs (웹 export는 GitHub Actions가 build/로 보냄 — 소스만 추적)
+build/
+builds/
+exports/
+*.zip
+*.pck
+*.exe
+*.x86_64
+*.x86_32
+*.dmg
+*.app
+*.wasm
+# 웹 export가 루트로 떨어질 때 대비 (워크플로는 build/index.html로 보냄)
+index.html
+index.js
+index.wasm
+index.*.png
+index.audio.worklet.js
+index.audio.position.worklet.js
+index.service.worker.js
+index.offline.html
+*.png.import
+!icon.svg.import
+
+# 작업 조율판 — 로컬 전용, 같은 머신의 여러 터미널이 즉시 공유 (CLAUDE.md 참고)
+ACTIVE_WORK.md
+
+# Local Claude artifacts
+.claude/
