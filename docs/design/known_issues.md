@@ -33,6 +33,16 @@
   **방지:** `_ready` 중에는 씬을 바꾸지 않는다. 씬 전환과 상태 생성을 분리(예: `GameState.begin_run_in_place()` 는
   런만 만들고 전환 안 함). 꼭 _ready 에서 전환해야 하면 `change_scene_to_file.call_deferred(...)`.
 
+## 검증 / 헤드리스
+
+- **증상:** `godot --headless -s res://test.gd` 로 스크립트를 돌리면 `Identifier not found: GameState`(또는 다른 autoload)
+  컴파일 에러가 나고, 프로세스가 종료되지 않고 멈춘다(여러 개 띄우면 프로젝트 락으로 서로 더 막힘). (2026-06-30 확인)
+  **원인:** `-s` 는 커스텀 `SceneTree`/`MainLoop` 를 실행하는데, 이 컨텍스트에선 **autoload 노드가 등록되지 않는다.**
+  그래서 autoload(`GameState` 등)를 참조하는 스크립트는 로드 자체가 실패한다. 정식 부팅 경로(autoload 등록됨)와 다르다.
+  **방지:** autoload 에 의존하는 코드는 `-s` 단독 스크립트로 테스트하지 말 것. 파싱·컴파일은 `--import`,
+  실행 경로는 `--quit-after N`(정식 부팅) 으로 검증한다(둘 다 정상 종료·에러 0 이어야 함). 또 헤드리스 godot 을
+  여러 개 동시에 띄우지 말 것 — 프로젝트 락으로 hang. 멈추면 `Stop-Process -Name godot -Force` 로 정리.
+
 ## GDScript (전역 규칙 위반 흔한 패턴)
 
 - **증상:** 런타임에 `Trying to assign an array of type "Array" to a variable of type "Array[T]"`.
