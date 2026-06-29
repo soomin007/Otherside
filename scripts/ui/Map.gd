@@ -15,20 +15,19 @@ func _ready() -> void:
 	center.add_child(box)
 
 	var head := Label.new()
-	head.text = "지도 — 원정 계획"
+	head.text = "지도 · 원정 계획"
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	head.add_theme_font_size_override("font_size", 28)
+	head.add_theme_font_size_override("font_size", UITheme.FS_HEADING)
 	box.add_child(head)
 
 	var info := Label.new()
 	info.text = "이 세계에 놓인 흔적 %d개 죽은 자리 %d곳" % [GameState.traces.size(), GameState.deaths.size()]
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
+	info.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
+	info.add_theme_color_override("font_color", UITheme.MUTED)
 	box.add_child(info)
 
-	var embark := Button.new()
-	embark.text = "출발"
-	embark.custom_minimum_size = Vector2(220, 56)
+	var embark := UITheme.make_button("출발")
 	embark.pressed.connect(_on_embark_pressed)
 	box.add_child(embark)
 

@@ -37,40 +37,41 @@ func _ready() -> void:
 	_refresh()
 
 func _build_hud() -> void:
-	# 상단 좌측 — 상태/자원 readout
+	# 상단 좌측 — 상태/자원 readout (안전 여백으로 노치/모서리 회피)
 	var top := VBoxContainer.new()
 	top.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	top.position = Vector2(20, 16)
-	top.add_theme_constant_override("separation", 4)
+	top.position = Vector2(UITheme.SAFE_INSET, UITheme.SAFE_INSET)
+	top.add_theme_constant_override("separation", 6)
 	add_child(top)
 
 	_status_label = Label.new()
-	_status_label.add_theme_font_size_override("font_size", 16)
+	_status_label.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
 	_status_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.75))
 	top.add_child(_status_label)
 
 	var res_row := HBoxContainer.new()
-	res_row.add_theme_constant_override("separation", 20)
+	res_row.add_theme_constant_override("separation", 24)
 	top.add_child(res_row)
 
+	# 물·식량 = 가장 자주 보는 생존 수치 → 크게
 	_water_label = Label.new()
-	_water_label.add_theme_font_size_override("font_size", 22)
+	_water_label.add_theme_font_size_override("font_size", UITheme.FS_HEADING)
 	res_row.add_child(_water_label)
 
 	_food_label = Label.new()
-	_food_label.add_theme_font_size_override("font_size", 22)
+	_food_label.add_theme_font_size_override("font_size", UITheme.FS_HEADING)
 	res_row.add_child(_food_label)
 
 	_aux_label = Label.new()
-	_aux_label.add_theme_font_size_override("font_size", 14)
+	_aux_label.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
 	_aux_label.add_theme_color_override("font_color", Color(0.55, 0.55, 0.6))
 	top.add_child(_aux_label)
 
 	# 하단 중앙 — 전진 / 끝 버튼 (터치 우선, 큼직하게)
 	var bar := CenterContainer.new()
 	bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	bar.offset_top = -110
-	bar.offset_bottom = -24
+	bar.offset_top = -120
+	bar.offset_bottom = -UITheme.SAFE_INSET
 	add_child(bar)
 
 	var btns := HBoxContainer.new()
@@ -79,13 +80,13 @@ func _build_hud() -> void:
 
 	_advance_btn = Button.new()
 	_advance_btn.text = "전진 (한 걸음)"
-	_advance_btn.custom_minimum_size = Vector2(220, 64)
+	_advance_btn.custom_minimum_size = Vector2(240, UITheme.BTN_H)
 	_advance_btn.pressed.connect(_on_advance)
 	btns.add_child(_advance_btn)
 
 	_end_btn = Button.new()
 	_end_btn.text = "여기서 끝 (남기고 죽기)"
-	_end_btn.custom_minimum_size = Vector2(240, 64)
+	_end_btn.custom_minimum_size = Vector2(260, UITheme.BTN_H)
 	_end_btn.pressed.connect(_on_end)
 	btns.add_child(_end_btn)
 
@@ -109,26 +110,26 @@ func _build_situation_panel() -> void:
 
 	var box := VBoxContainer.new()
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 14)
-	box.custom_minimum_size = Vector2(520, 0)
+	box.add_theme_constant_override("separation", 16)
+	box.custom_minimum_size = Vector2(560, 0)
 	center.add_child(box)
 
 	_sit_name_label = Label.new()
 	_sit_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_sit_name_label.add_theme_font_size_override("font_size", 26)
+	_sit_name_label.add_theme_font_size_override("font_size", UITheme.FS_HEADING)
 	box.add_child(_sit_name_label)
 
 	_sit_threat_label = Label.new()
 	_sit_threat_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_sit_threat_label.add_theme_font_size_override("font_size", 14)
-	_sit_threat_label.add_theme_color_override("font_color", Color(0.78, 0.64, 0.42))
+	_sit_threat_label.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
+	_sit_threat_label.add_theme_color_override("font_color", UITheme.SAND)
 	box.add_child(_sit_threat_label)
 
 	_sit_text_label = Label.new()
 	_sit_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_sit_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_sit_text_label.custom_minimum_size = Vector2(520, 0)
-	_sit_text_label.add_theme_font_size_override("font_size", 22)
+	_sit_text_label.custom_minimum_size = Vector2(560, 0)
+	_sit_text_label.add_theme_font_size_override("font_size", UITheme.FS_BODY)
 	box.add_child(_sit_text_label)
 
 	_choice_box = VBoxContainer.new()
@@ -158,12 +159,10 @@ func _build_death_panel() -> void:
 
 	_death_label = Label.new()
 	_death_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_death_label.add_theme_font_size_override("font_size", 22)
+	_death_label.add_theme_font_size_override("font_size", UITheme.FS_BODY)
 	dbox.add_child(_death_label)
 
-	var to_map := Button.new()
-	to_map.text = "지도로 돌아가기"
-	to_map.custom_minimum_size = Vector2(220, 56)
+	var to_map := UITheme.make_button("지도로 돌아가기")
 	to_map.pressed.connect(_on_to_map)
 	dbox.add_child(to_map)
 
@@ -220,7 +219,8 @@ func _show_situation() -> void:
 		var choice: Dictionary = c
 		var effect: Dictionary = choice.get("effect", {})
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(360, 52)
+		btn.custom_minimum_size = Vector2(0, UITheme.CHOICE_H)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL  # 카드 폭 꽉 채워 큰 탭 타깃
 		btn.text = "%s   (%s)" % [str(choice.get("label", "")), _effect_hint(effect)]
 		if Situations.can_choose(choice, _run.resources):
 			btn.pressed.connect(_on_choice.bind(effect))
@@ -318,7 +318,7 @@ func _draw() -> void:
 		var x: float = i * STEP_PX + offset
 		draw_line(Vector2(x, ground_y - 6.0), Vector2(x, ground_y + 6.0), Color(0.25, 0.24, 0.21), 1.0)
 		if i % 5 == 0 and font != null:
-			draw_string(font, Vector2(x - 8.0, ground_y + 24.0), str(i), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.4, 0.4, 0.42))
+			draw_string(font, Vector2(x - 8.0, ground_y + 26.0), str(i), HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_TINY, Color(0.4, 0.4, 0.42))
 
 	# 과거의 나 — 남긴 흔적 점 (self-async)
 	for t in GameState.loaded_traces():
@@ -327,7 +327,7 @@ func _draw() -> void:
 			continue
 		draw_circle(Vector2(tx, ground_y - 10.0), 5.0, Color(0.78, 0.64, 0.42))
 		if not t.tags.is_empty() and font != null:
-			draw_string(font, Vector2(tx - 16.0, ground_y - 22.0), " ".join(PackedStringArray(t.tags)), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.7, 0.6, 0.45))
+			draw_string(font, Vector2(tx - 16.0, ground_y - 24.0), " ".join(PackedStringArray(t.tags)), HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_SMALL, Color(0.7, 0.6, 0.45))
 
 	# 아이코닉한 장소 (랜드마크) - 다가오는 앵커를 미리 보여준다
 	for lm_leg in Situations.LANDMARKS:
@@ -339,7 +339,7 @@ func _draw() -> void:
 		draw_line(Vector2(lx, ground_y), Vector2(lx, ground_y - 40.0), lm_col, 2.0)
 		if font != null:
 			var lm: Dictionary = Situations.LANDMARKS[lm_leg]
-			draw_string(font, Vector2(lx - 40.0, ground_y - 48.0), str(lm.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 120, 13, lm_col)
+			draw_string(font, Vector2(lx - 48.0, ground_y - 50.0), str(lm.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 140, UITheme.FS_SMALL, lm_col)
 
 	# 걷는 이
 	_draw_walker(Vector2(walker_x, ground_y), _run.alive)

@@ -20,31 +20,29 @@ func _ready() -> void:
 	var title := Label.new()
 	title.text = "See you on the other side"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 36)
+	title.add_theme_font_size_override("font_size", UITheme.FS_TITLE)
 	box.add_child(title)
 
 	var sub := Label.new()
 	sub.text = "누군가 결국 닿을 것을 알 때,\n미래의 나를 위해 지금의 나는 무엇을 포기하는가."
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.add_theme_color_override("font_color", Color(0.78, 0.64, 0.42))
+	sub.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
+	sub.add_theme_color_override("font_color", UITheme.SAND)
 	box.add_child(sub)
 
 	_stat_label = Label.new()
 	_stat_label.text = _stat_text()
 	_stat_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_stat_label.add_theme_font_size_override("font_size", 14)
-	_stat_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.65))
+	_stat_label.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
+	_stat_label.add_theme_color_override("font_color", UITheme.MUTED)
 	box.add_child(_stat_label)
 
-	var start := Button.new()
-	start.text = "원정 떠나기"
-	start.custom_minimum_size = Vector2(220, 56)  # 터치 우선 — 손가락 기준 큼직하게
+	# 터치 우선 — 손가락 기준 큼직하게 (UITheme 에서 일괄 조절)
+	var start := UITheme.make_button("원정 떠나기")
 	start.pressed.connect(_on_start_pressed)
 	box.add_child(start)
 
-	var settings := Button.new()
-	settings.text = "설정"
-	settings.custom_minimum_size = Vector2(220, 56)
+	var settings := UITheme.make_button("설정")
 	settings.pressed.connect(_on_settings_pressed)
 	box.add_child(settings)
 

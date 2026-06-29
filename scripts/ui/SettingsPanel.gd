@@ -6,9 +6,7 @@ extends Control
 
 signal data_reset  ## 데이터 초기화가 끝났을 때 (부모가 통계 라벨 등을 갱신)
 
-const SAND := Color(0.78, 0.64, 0.42)    # 모래색 — 강조 라벨
-const MUTED := Color(0.6, 0.6, 0.65)     # 흐린 회색 — 설명문
-const DANGER := Color(0.82, 0.36, 0.32)  # 위험 — 데이터 초기화
+## 색·사이즈는 UITheme 에서 일괄 관리 (폰 우선)
 
 var _confirm: ConfirmationDialog
 
@@ -44,13 +42,13 @@ func _ready() -> void:
 
 	var title := Label.new()
 	title.text = "설정"
-	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_font_size_override("font_size", UITheme.FS_HEADING)
 	box.add_child(title)
 
 	# --- 소리 (placeholder: master bus 에 연결, 저장은 아직 안 함) ---
 	var sound_label := Label.new()
 	sound_label.text = "소리"
-	sound_label.add_theme_color_override("font_color", SAND)
+	sound_label.add_theme_color_override("font_color", UITheme.SAND)
 	box.add_child(sound_label)
 
 	var slider := HSlider.new()
@@ -58,7 +56,7 @@ func _ready() -> void:
 	slider.max_value = 1.0
 	slider.step = 0.01
 	slider.value = _current_master_volume()
-	slider.custom_minimum_size = Vector2(0, 40)  # 터치 우선 — 손가락 기준 두툼하게
+	slider.custom_minimum_size = Vector2(0, UITheme.SLIDER_H)  # 터치 우선 — 손가락 기준 두툼하게
 	slider.value_changed.connect(_on_volume_changed)
 	box.add_child(slider)
 
@@ -67,23 +65,19 @@ func _ready() -> void:
 	# --- 데이터 초기화 ---
 	var warn := Label.new()
 	warn.text = "저장된 세계를 모두 지웁니다.\n원정 기록, 흔적, 죽은 자리가 사라지고 처음부터 시작합니다."
-	warn.add_theme_color_override("font_color", MUTED)
-	warn.add_theme_font_size_override("font_size", 13)
+	warn.add_theme_color_override("font_color", UITheme.MUTED)
+	warn.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
 	warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(warn)
 
-	var reset_btn := Button.new()
-	reset_btn.text = "데이터 초기화"
-	reset_btn.custom_minimum_size = Vector2(0, 56)
-	reset_btn.add_theme_color_override("font_color", DANGER)
+	var reset_btn := UITheme.make_button("데이터 초기화", true)
+	reset_btn.add_theme_color_override("font_color", UITheme.DANGER)
 	reset_btn.pressed.connect(_on_reset_pressed)
 	box.add_child(reset_btn)
 
 	box.add_child(HSeparator.new())
 
-	var close_btn := Button.new()
-	close_btn.text = "닫기"
-	close_btn.custom_minimum_size = Vector2(0, 56)
+	var close_btn := UITheme.make_button("닫기", true)
 	close_btn.pressed.connect(_close)
 	box.add_child(close_btn)
 
