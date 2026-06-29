@@ -13,6 +13,13 @@
   **원인:** Threads 지원 ON 이면 COOP/COEP cross-origin isolation 헤더가 필요한데 Pages 설정이 까다로움.
   **방지:** export 프리셋 "Web" 에서 Threads Support **끄기** + `ensure_cross_origin_isolation_headers` ON (반영됨).
 
+## 씬 전환 / 노드 트리
+
+- **증상:** `Parent node is busy adding/removing children, remove_child() can't be called at this time`.
+  **원인:** 노드의 `_ready()` 안에서 `get_tree().change_scene_to_file()` 를 호출 — 트리가 씬을 붙이는 중이라 충돌.
+  **방지:** `_ready` 중에는 씬을 바꾸지 않는다. 씬 전환과 상태 생성을 분리(예: `GameState.begin_run_in_place()` 는
+  런만 만들고 전환 안 함). 꼭 _ready 에서 전환해야 하면 `change_scene_to_file.call_deferred(...)`.
+
 ## GDScript (전역 규칙 위반 흔한 패턴)
 
 - **증상:** 런타임에 `Trying to assign an array of type "Array" to a variable of type "Array[T]"`.

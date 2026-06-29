@@ -19,8 +19,9 @@ var traces: Array = []         ## 남긴 흔적들 — TraceData.to_dict() 의 �
 var deaths: Array = []         ## 죽은 자리 기록 — 지도 표식용
 
 # --- 현재 원정 한정 상태 (죽으면 리셋) ---
-var current_leg: int = 0
-var carried: Dictionary = {}   ## 자원 인벤토리 {"water": n, ...}. 자원 = 수명 (남기면 그만큼 잃는다)
+## 초기 자원 — 임시치. 자원 = 수명 (남기면 그만큼 잃는다). 밸런스는 폰 테스트로 검증 예정.
+const START_RESOURCES: Dictionary = {"water": 10, "food": 7, "rope": 1, "shelter": 1}
+var current_run: ExpeditionRun = null  ## 진행 중인 원정의 순수 상태·로직 (core/ExpeditionRun)
 
 func _ready() -> void:
 	load_game()
@@ -30,11 +31,14 @@ func _ready() -> void:
 func go_to_map() -> void:
 	get_tree().change_scene_to_file(SCENE_MAP)
 
-## 다음 원정을 떠난다 (지도 → 횡스크롤). 초기 자원은 임시치 — 밸런스는 폰 테스트로 검증 예정.
-func start_expedition() -> void:
-	current_leg = 0
-	carried = {"water": 3, "food": 2, "rope": 1, "shelter": 1}
+## 씬 전환 없이 현재 원정만 새로 만든다 (직접 진입 안전장치 / 테스트용).
+func begin_run_in_place() -> void:
+	current_run = ExpeditionRun.new(START_RESOURCES)
 	expedition_count += 1
+
+## 다음 원정을 떠난다 (지도 → 횡스크롤). 새 ExpeditionRun 을 만들고 씬을 바꾼다.
+func start_expedition() -> void:
+	begin_run_in_place()
 	get_tree().change_scene_to_file(SCENE_EXPEDITION)
 
 ## 죽기 전 단 한 번 흔적을 남긴다 (기획서 §3). 남김 = 자기 수명 깎기.
@@ -90,6 +94,5 @@ func reset_save() -> void:
 	expedition_count = 0
 	traces = []
 	deaths = []
-	current_leg = 0
-	carried = {}
+	current_run = null
 	save_game()
