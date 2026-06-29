@@ -1,13 +1,13 @@
 extends Control
 
-## 횡스크롤 단면 — 현재 원정의 체험. 한 걸음씩 전진, 자원 소모, 흔적.
-## 핵심 동사: 관리·판독·대비·남기기 (턴제 사색형). 이 프로토타입의 목적은 "걸음마다 닳는 자원"
-## 페이싱이 작동하는지, 한 걸음마다 결정할 게 있는지 체감하는 것.
-## 로직은 core/ExpeditionRun(순수), 여기선 렌더링·입력만 한다. 그림은 _draw 로 그려 웹 안전(셰이더/GPUParticles 없음).
+## 횡스크롤 단면 — 현재 원정의 체험. 한 걸음씩 전진, 자원 소모, 상황 읽기, 흔적.
+## 핵심 동사: 관리·판독·대비·남기기 (턴제 사색형). 페이싱은 "걸음마다 닳는 자원" + "몇 걸음마다 상황 결정".
+## 로직은 core(ExpeditionRun·Situations), 여기선 렌더링·입력만. 그림은 _draw 로 그려 웹 안전(셰이더/GPUParticles 없음).
 
 const GROUND_RATIO: float = 0.62        ## 지면 y 위치 (화면 높이 비율)
 const STEP_PX: float = 90.0             ## 한 걸음의 화면 거리
 const WALKER_SCREEN_RATIO: float = 0.35 ## 걷는 이를 화면 어디에 고정할지 (앞을 보도록 왼쪽)
+const RES_KO: Dictionary = {"water": "물", "food": "식량", "rope": "로프", "shelter": "은신처"}
 
 var _run: ExpeditionRun
 
@@ -17,8 +17,14 @@ var _food_label: Label
 var _aux_label: Label
 var _advance_btn: Button
 var _end_btn: Button
+
 var _death_panel: Control
 var _death_label: Label
+
+var _sit_panel: Control
+var _sit_threat_label: Label
+var _sit_text_label: Label
+var _choice_box: VBoxContainer
 
 func _ready() -> void:
 	_run = GameState.current_run
@@ -82,7 +88,49 @@ func _build_hud() -> void:
 	_end_btn.pressed.connect(_on_end)
 	btns.add_child(_end_btn)
 
-	# 죽음 패널 (처음엔 숨김)
+	_build_situation_panel()
+	_build_death_panel()
+
+func _build_situation_panel() -> void:
+	_sit_panel = Control.new()
+	_sit_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sit_panel.visible = false
+	add_child(_sit_panel)
+
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.04, 0.04, 0.06, 0.72)
+	_sit_panel.add_child(dim)
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sit_panel.add_child(center)
+
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 14)
+	box.custom_minimum_size = Vector2(520, 0)
+	center.add_child(box)
+
+	_sit_threat_label = Label.new()
+	_sit_threat_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sit_threat_label.add_theme_font_size_override("font_size", 14)
+	_sit_threat_label.add_theme_color_override("font_color", Color(0.78, 0.64, 0.42))
+	box.add_child(_sit_threat_label)
+
+	_sit_text_label = Label.new()
+	_sit_text_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sit_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_sit_text_label.custom_minimum_size = Vector2(520, 0)
+	_sit_text_label.add_theme_font_size_override("font_size", 22)
+	box.add_child(_sit_text_label)
+
+	_choice_box = VBoxContainer.new()
+	_choice_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_choice_box.add_theme_constant_override("separation", 10)
+	box.add_child(_choice_box)
+
+func _build_death_panel() -> void:
 	_death_panel = Control.new()
 	_death_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_death_panel.visible = false
@@ -130,12 +178,15 @@ func _res_color(value: int, low: int, base: Color) -> Color:
 # --- 입력 ---
 
 func _on_advance() -> void:
-	if not _run.alive:
+	if not _run.alive or not _run.pending_situation.is_empty():
 		return
 	_run.step()
 	_refresh()
 	if not _run.alive:
 		_die(_run.death_cause)
+		return
+	if not _run.pending_situation.is_empty():
+		_show_situation()
 
 func _on_end() -> void:
 	if not _run.alive:
@@ -144,6 +195,59 @@ func _on_end() -> void:
 
 func _on_to_map() -> void:
 	GameState.go_to_map()
+
+# --- 상황 읽기 (결정 카드) ---
+
+func _show_situation() -> void:
+	var sit: Dictionary = _run.pending_situation
+	var threat_kind: int = int(sit.get("threat", Threats.Kind.CONSUMPTION))
+	var threat_info: Dictionary = Threats.info(threat_kind)
+	_sit_threat_label.text = "[ %s ]" % str(threat_info.get("label", "상황"))
+	_sit_text_label.text = str(sit.get("text", ""))
+
+	_clear_choices()
+	var choices: Array = sit.get("choices", [])
+	for c in choices:
+		var choice: Dictionary = c
+		var effect: Dictionary = choice.get("effect", {})
+		var btn := Button.new()
+		btn.custom_minimum_size = Vector2(360, 52)
+		btn.text = "%s   (%s)" % [str(choice.get("label", "")), _effect_hint(effect)]
+		if Situations.can_choose(choice, _run.resources):
+			btn.pressed.connect(_on_choice.bind(effect))
+		else:
+			btn.disabled = true
+			btn.text = "%s   (자원 부족)" % str(choice.get("label", ""))
+		_choice_box.add_child(btn)
+
+	_advance_btn.disabled = true
+	_end_btn.disabled = true
+	_sit_panel.visible = true
+
+func _on_choice(effect: Dictionary) -> void:
+	_run.apply_choice(effect)
+	_sit_panel.visible = false
+	_advance_btn.disabled = false
+	_end_btn.disabled = false
+	_refresh()
+	if not _run.alive:
+		_die(_run.death_cause)
+
+func _clear_choices() -> void:
+	for c in _choice_box.get_children():
+		_choice_box.remove_child(c)
+		c.queue_free()
+
+## 자원 델타를 읽기 쉬운 한 줄로 ("물 -2 · 식량 -1"). 빈 효과는 "그대로".
+func _effect_hint(effect: Dictionary) -> String:
+	if effect.is_empty():
+		return "그대로"
+	var parts: PackedStringArray = []
+	for key in effect:
+		var v: int = int(effect[key])
+		var sign_str: String = "+" if v > 0 else ""
+		parts.append("%s %s%d" % [str(RES_KO.get(key, key)), sign_str, v])
+	return " · ".join(parts)
 
 # --- 죽음 / 남김 한 번 ---
 
@@ -175,6 +279,7 @@ func _death_message(cause: String) -> String:
 func _show_death(cause: String, tags: Array[String]) -> void:
 	_advance_btn.disabled = true
 	_end_btn.disabled = true
+	_sit_panel.visible = false
 	_death_label.text = "%s\n\n남긴 흔적: [ %s ]" % [_death_message(cause), " · ".join(PackedStringArray(tags))]
 	_death_panel.visible = true
 	queue_redraw()
