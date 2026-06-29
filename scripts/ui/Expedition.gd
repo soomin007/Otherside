@@ -22,6 +22,7 @@ var _death_panel: Control
 var _death_label: Label
 
 var _sit_panel: Control
+var _sit_name_label: Label
 var _sit_threat_label: Label
 var _sit_text_label: Label
 var _choice_box: VBoxContainer
@@ -112,6 +113,11 @@ func _build_situation_panel() -> void:
 	box.custom_minimum_size = Vector2(520, 0)
 	center.add_child(box)
 
+	_sit_name_label = Label.new()
+	_sit_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sit_name_label.add_theme_font_size_override("font_size", 26)
+	box.add_child(_sit_name_label)
+
 	_sit_threat_label = Label.new()
 	_sit_threat_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_sit_threat_label.add_theme_font_size_override("font_size", 14)
@@ -200,6 +206,9 @@ func _on_to_map() -> void:
 
 func _show_situation() -> void:
 	var sit: Dictionary = _run.pending_situation
+	var place_name: String = str(sit.get("name", ""))
+	_sit_name_label.text = place_name
+	_sit_name_label.visible = place_name != ""
 	var threat_kind: int = int(sit.get("threat", Threats.Kind.CONSUMPTION))
 	var threat_info: Dictionary = Threats.info(threat_kind)
 	_sit_threat_label.text = "[ %s ]" % str(threat_info.get("label", "상황"))
@@ -316,6 +325,18 @@ func _draw() -> void:
 		draw_circle(Vector2(tx, ground_y - 10.0), 5.0, Color(0.78, 0.64, 0.42))
 		if not t.tags.is_empty() and font != null:
 			draw_string(font, Vector2(tx - 16.0, ground_y - 22.0), " ".join(PackedStringArray(t.tags)), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.7, 0.6, 0.45))
+
+	# 아이코닉한 장소 (랜드마크) - 다가오는 앵커를 미리 보여준다
+	for lm_leg in Situations.LANDMARKS:
+		var lx: float = lm_leg * STEP_PX + offset
+		if lx < -40.0 or lx > rect.x + 40.0:
+			continue
+		var passed: bool = lm_leg < _run.leg
+		var lm_col: Color = Color(0.5, 0.46, 0.4) if passed else Color(0.82, 0.7, 0.46)
+		draw_line(Vector2(lx, ground_y), Vector2(lx, ground_y - 40.0), lm_col, 2.0)
+		if font != null:
+			var lm: Dictionary = Situations.LANDMARKS[lm_leg]
+			draw_string(font, Vector2(lx - 40.0, ground_y - 48.0), str(lm.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 120, 13, lm_col)
 
 	# 걷는 이
 	_draw_walker(Vector2(walker_x, ground_y), _run.alive)
