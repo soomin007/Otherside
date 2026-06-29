@@ -14,6 +14,10 @@
   **원인:** `gui/theme/custom_font` 가 프로젝트 로드 시점에 해석되는데, 그때 폰트가 아직 임포트되지 않음(.godot/imported 없음).
   **방지:** export 전에 `godot --headless --path . --import` 를 먼저 실행(deploy.yml 에 "Import resources" 단계 추가). warm 캐시면 export 깨끗.
 
+- **증상:** 재배포했는데 브라우저(특히 데스크톱)에서 옛 빌드가 보임. 폰은 되는데 데스크톱만 안 되는 등 기기별 차이. (2026-06-30 폰트 적용 후 확인)
+  **원인:** Godot 웹 export 산출물 파일명이 매 빌드 동일(index.wasm/index.pck) → 브라우저·CDN 이 옛 파일을 캐시. 기기마다 캐시 상태가 달라 차이 발생.
+  **방지:** 폰트 문제가 아님. 강력 새로고침(Ctrl+Shift+R) 또는 시크릿 창으로 확인. 빌드 변경(폰트·에셋) 후 기기별 차이가 보이면 캐시부터 의심.
+
 - **증상:** 셰이더/GPUParticles 가 웹 빌드에서 깨지거나 안 보임.
   **원인:** GL Compatibility 렌더러 + 웹 export 가 이들을 제대로 지원하지 않음 (EoY 에서 확인).
   **방지:** 셰이더·GPUParticles 절대 금지. 폭풍은 CPUParticles2D + 3층 레이어. `CLAUDE.md` 웹 제약 참고.
