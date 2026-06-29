@@ -1,55 +1,41 @@
 extends Control
 
 ## 설정창 — 타이틀 위에 띄우는 오버레이. 씬 전환 없이 add_child 로 표시한다.
-## Phase 0 패턴: UI 는 코드로 구성. 음량은 master bus 에 연결(placeholder, 저장은 아직 안 함),
-## 핵심은 데이터 초기화 — GameState.reset_save() 백엔드를 확인 다이얼로그와 함께 노출한다.
+## 모바일 우선: 어두운 배경 + 가운데 카드 + 풀폭 버튼. 사이즈·색은 UITheme.
+## 음량은 master bus 에 연결(placeholder, 저장은 아직 안 함). 핵심은 데이터 초기화 — 확인 다이얼로그와 함께.
 
 signal data_reset  ## 데이터 초기화가 끝났을 때 (부모가 통계 라벨 등을 갱신)
-
-## 색·사이즈는 UITheme 에서 일괄 관리 (폰 우선)
 
 var _confirm: ConfirmationDialog
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
-	# 반투명 배경 — 뒤 입력 차단 + 집중. 빈 곳을 누르면 닫힌다.
+	# 어두운 배경 — 뒤 입력 차단 + 집중. 빈 곳을 누르면 닫힌다.
 	var dim := ColorRect.new()
-	dim.color = Color(0.0, 0.0, 0.0, 0.6)
+	dim.color = UITheme.SCRIM
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	dim.gui_input.connect(_on_dim_input)
 	add_child(dim)
 
-	# 중앙 정렬 — 클릭이 통과하도록 IGNORE (빈 곳 클릭은 dim 이 받아 닫기)
+	# 가운데 카드 — 클릭이 통과하도록 IGNORE (빈 곳 클릭은 dim 이 받아 닫기)
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
 
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(420, 0)
-	center.add_child(panel)
-
-	var margin := MarginContainer.new()
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 28)
-	panel.add_child(margin)
+	var card := UITheme.make_card()
+	center.add_child(card)
 
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 16)
-	margin.add_child(box)
+	box.add_theme_constant_override("separation", UITheme.GAP)
+	card.add_child(box)
 
-	var title := Label.new()
-	title.text = "설정"
-	title.add_theme_font_size_override("font_size", UITheme.FS_HEADING)
-	box.add_child(title)
+	box.add_child(UITheme.make_label("설정", UITheme.FS_H1, UITheme.FG, false))
 
 	# --- 소리 (placeholder: master bus 에 연결, 저장은 아직 안 함) ---
-	var sound_label := Label.new()
-	sound_label.text = "소리"
-	sound_label.add_theme_color_override("font_color", UITheme.SAND)
-	box.add_child(sound_label)
+	box.add_child(UITheme.make_label("소리", UITheme.FS_LABEL, UITheme.SAND, false))
 
 	var slider := HSlider.new()
 	slider.min_value = 0.0
@@ -63,21 +49,18 @@ func _ready() -> void:
 	box.add_child(HSeparator.new())
 
 	# --- 데이터 초기화 ---
-	var warn := Label.new()
-	warn.text = "저장된 세계를 모두 지웁니다.\n원정 기록, 흔적, 죽은 자리가 사라지고 처음부터 시작합니다."
-	warn.add_theme_color_override("font_color", UITheme.MUTED)
-	warn.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
-	warn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(warn)
+	box.add_child(UITheme.make_label(
+		"저장된 세계를 모두 지웁니다.\n원정 기록, 흔적, 죽은 자리가 사라지고 처음부터 시작합니다.",
+		UITheme.FS_SMALL, UITheme.MUTED, false))
 
-	var reset_btn := UITheme.make_button("데이터 초기화", true)
+	var reset_btn := UITheme.make_button("데이터 초기화", false)
 	reset_btn.add_theme_color_override("font_color", UITheme.DANGER)
 	reset_btn.pressed.connect(_on_reset_pressed)
 	box.add_child(reset_btn)
 
 	box.add_child(HSeparator.new())
 
-	var close_btn := UITheme.make_button("닫기", true)
+	var close_btn := UITheme.make_button("닫기")
 	close_btn.pressed.connect(_close)
 	box.add_child(close_btn)
 

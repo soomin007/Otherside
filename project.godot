@@ -23,12 +23,14 @@ GameState="*res://scripts/GameState.gd"
 [gui]
 
 theme/custom_font="res://assets/fonts/NanumGothic-Regular.ttf"
-theme/default_font_size=20
+theme/default_font_size=24
 
 [display]
 
-window/size/viewport_width=1280
+window/size/viewport_width=600
 window/size/viewport_height=720
+window/size/window_width_override=1280
+window/size/window_height_override=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 

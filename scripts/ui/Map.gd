@@ -5,31 +5,21 @@ extends Control
 ## Phase 0 플레이스홀더 — 안개 걷힘 / 경로 / 죽은 자리 / 흔적 점 렌더링은 추후.
 
 func _ready() -> void:
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
+	var col := UITheme.build_column(self, 20)
 
-	var box := VBoxContainer.new()
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 16)
-	center.add_child(box)
+	col.add_child(UITheme.make_label("지도 · 원정 계획", UITheme.FS_H1))
 
-	var head := Label.new()
-	head.text = "지도 · 원정 계획"
-	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	head.add_theme_font_size_override("font_size", UITheme.FS_HEADING)
-	box.add_child(head)
+	col.add_child(UITheme.make_label(
+		"이 세계에 놓인 흔적 %d개\n죽은 자리 %d곳" % [GameState.traces.size(), GameState.deaths.size()],
+		UITheme.FS_LABEL, UITheme.MUTED))
 
-	var info := Label.new()
-	info.text = "이 세계에 놓인 흔적 %d개 죽은 자리 %d곳" % [GameState.traces.size(), GameState.deaths.size()]
-	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
-	info.add_theme_color_override("font_color", UITheme.MUTED)
-	box.add_child(info)
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 10)
+	col.add_child(spacer)
 
 	var embark := UITheme.make_button("출발")
 	embark.pressed.connect(_on_embark_pressed)
-	box.add_child(embark)
+	col.add_child(embark)
 
 func _on_embark_pressed() -> void:
 	GameState.start_expedition()
