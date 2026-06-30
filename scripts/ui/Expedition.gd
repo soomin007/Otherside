@@ -252,7 +252,7 @@ func _show_situation() -> void:
 		if Situations.can_choose(choice, _run.resources):
 			var sets: Array = choice.get("sets", [])
 			var sets_p: Array = choice.get("sets_persist", [])
-			btn.pressed.connect(_on_choice.bind(effect, str(choice.get("action", "")), sets, sets_p))
+			btn.pressed.connect(_on_choice.bind(effect, str(choice.get("action", "")), sets, sets_p, int(choice.get("trace_kind", -1))))
 		else:
 			btn.disabled = true
 			btn.text = "%s   (자원 부족)" % str(choice.get("label", ""))
@@ -262,12 +262,15 @@ func _show_situation() -> void:
 	_end_btn.disabled = true
 	_sit_panel.visible = true
 
-func _on_choice(effect: Dictionary, action: String = "", sets: Array = [], sets_persist: Array = []) -> void:
+func _on_choice(effect: Dictionary, action: String = "", sets: Array = [], sets_persist: Array = [], trace_kind: int = -1) -> void:
 	var here: int = _run.leg
 	_run.apply_choice(effect)
 	# 차단에 로프 고정 = 영구 지형 흔적(ROPE). 다음 원정부터 이 틈을 무료로 건넌다(가장 뿌듯한 흔적).
 	if action == "bridge":
 		_bridge_here(here)
+	# 과거 흔적 줍기 — 자원 보충 후 그 흔적의 uses 를 깎는다(소진되면 사라짐).
+	if action == "pickup" and trace_kind >= 0:
+		GameState.use_trace(here, trace_kind)
 	# 선택 반영 — 플래그를 켠다. sets(같은 런 즉시) + sets_persist(다음 원정에도, GameState 영속).
 	for f in sets:
 		_run.set_flag(str(f))
@@ -399,9 +402,14 @@ func _toggle_tag(word: String) -> void:
 			_picked_tags.remove_at(0)
 	_bequeath_step_tags()
 
+## 줍기형(자원) 흔적인가 — 물통/식량/은신막만 다음 원정대가 집어 쓸 수 있다(uses 부여).
+func _is_pickup_kind(kind: int) -> bool:
+	return kind == TraceData.ObjectKind.WATER or kind == TraceData.ObjectKind.FOOD or kind == TraceData.ObjectKind.SHELTER
+
 ## 결정 확정 — 흔적을 남기고(죽음으로 자원은 사라진다) 죽음 화면으로.
 func _commit_bequeath() -> void:
-	var trace := TraceData.new(_picked_kind, _run.leg, _picked_tags)
+	var uses: int = TraceData.PICKUP_USES if _is_pickup_kind(_picked_kind) else 0
+	var trace := TraceData.new(_picked_kind, _run.leg, _picked_tags, uses)
 	GameState.leave_trace(trace)
 	GameState.record_death(_run.leg)
 	GameState.save_game()

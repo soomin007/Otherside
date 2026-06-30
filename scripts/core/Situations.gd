@@ -312,6 +312,37 @@ static func crossed_blockage(feat: Dictionary) -> Dictionary:
 		],
 	}
 
+## 과거 흔적을 마주친 줍기 카드 — 자원 종류별 보충. 집으면 GameState 가 uses 를 1 깎는다(action="pickup").
+## 남겨두면 다음 원정대 몫으로 남는다(uses 유지). 흔적은 유한해서 몇 원정에 걸쳐 나눠 쓰다 소진된다.
+static func pickup_trace(info: Dictionary) -> Dictionary:
+	var kind: int = int(info.get("kind", TraceData.ObjectKind.WATER))
+	var tags: Array = info.get("tags", [])
+	var res_key: String = "water"
+	var amount: int = 4
+	var obj_name: String = "물통"
+	match kind:
+		TraceData.ObjectKind.FOOD:
+			res_key = "food"
+			amount = 3
+			obj_name = "식량 자루"
+		TraceData.ObjectKind.SHELTER:
+			res_key = "shelter"
+			amount = 1
+			obj_name = "은신막"
+	var tag_str: String = ""
+	if not tags.is_empty():
+		tag_str = "  곁의 표식: [ %s ]" % " · ".join(PackedStringArray(tags))
+	return {
+		"id": "pickup",
+		"kind": "pickup",
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "이전 원정대가 남긴 %s. 아직 쓸 만하다.%s" % [obj_name, tag_str],
+		"choices": [
+			{"label": "집는다", "effect": {res_key: amount}, "action": "pickup", "trace_kind": kind},
+			{"label": "남겨둔다 (다음 원정대에게)", "effect": {}},
+		],
+	}
+
 ## 선택지가 지금 가능한지 (needs 충족 여부).
 static func can_choose(choice: Dictionary, resources: Dictionary) -> bool:
 	var needs: Dictionary = choice.get("needs", {})

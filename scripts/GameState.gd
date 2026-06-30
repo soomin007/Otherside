@@ -35,7 +35,7 @@ func go_to_map() -> void:
 ## 씬 전환 없이 현재 원정만 새로 만든다 (직접 진입 안전장치 / 테스트용).
 ## 과거에 로프를 건 차단(bridged_legs)을 주입해, 그 틈을 무료로 건너게 한다(영구 지형 변화).
 func begin_run_in_place() -> void:
-	current_run = ExpeditionRun.new(START_RESOURCES, bridged_legs(), flags)
+	current_run = ExpeditionRun.new(START_RESOURCES, bridged_legs(), flags, pickup_traces_map())
 	expedition_count += 1
 
 ## 다음 원정을 떠난다 (지도 → 횡스크롤). 새 ExpeditionRun 을 만들고 씬을 바꾼다.
@@ -66,6 +66,41 @@ func bridged_legs() -> Array:
 		if raw is Dictionary and int(raw.get("object_kind", -1)) == TraceData.ObjectKind.ROPE:
 			out.append(int(raw.get("leg", 0)))
 	return out
+
+## 줍을 수 있는 흔적(자원 종류 WATER/FOOD/SHELTER + uses>0)을 leg→{kind,tags} 로. leg 당 첫 흔적.
+## ExpeditionRun 에 주입돼 그 걸음에서 줍기 카드를 띄운다.
+func pickup_traces_map() -> Dictionary:
+	var out: Dictionary = {}
+	for raw in traces:
+		if not (raw is Dictionary):
+			continue
+		var kind: int = int(raw.get("object_kind", -1))
+		if kind != TraceData.ObjectKind.WATER and kind != TraceData.ObjectKind.FOOD and kind != TraceData.ObjectKind.SHELTER:
+			continue
+		if int(raw.get("uses", 0)) <= 0:
+			continue
+		var lg: int = int(raw.get("leg", 0))
+		if out.has(lg):
+			continue
+		var tg: Array = raw.get("tags", [])
+		out[lg] = {"kind": kind, "tags": tg.duplicate()}
+	return out
+
+## 흔적을 한 번 쓴다 — uses 를 1 깎고, 0 이 되면 제거한다(leg+kind 첫 매칭). 줍기 보충 직후 호출.
+func use_trace(leg: int, kind: int) -> void:
+	for i in range(traces.size()):
+		var t: Variant = traces[i]
+		if not (t is Dictionary):
+			continue
+		if int(t.get("leg", -1)) == leg and int(t.get("object_kind", -1)) == kind:
+			var u: int = int(t.get("uses", 0)) - 1
+			if u <= 0:
+				traces.remove_at(i)
+			else:
+				t["uses"] = u
+				traces[i] = t
+			save_game()
+			return
 
 ## 영속 플래그를 켠다(다음 원정의 변형 이벤트용). 선택의 sets_persist 가 여기로 쌓인다(중복 제외).
 func add_persist_flags(new_flags: Array) -> void:

@@ -17,14 +17,18 @@ enum ObjectKind {
 	MARK,     ## 빈 표식 — 물건 없이 태그만
 }
 
+const PICKUP_USES: int = 3   ## 줍기형 흔적의 기본 사용 횟수 (다음 원정들이 나눠 쓰다 소진)
+
 var object_kind: int = ObjectKind.MARK
 var leg: int = 0              ## 몇 구간째에 남겼나 (횡스크롤 전진 거리)
 var position: float = 0.0    ## 구간 내 위치 (0.0~1.0, 추후 정의)
 var tags: Array[String] = [] ## WordPool 에서 고른 태그들 (한두 개)
+var uses: int = 0            ## 줍기 가능 횟수 (자원 흔적만, 0=줍기 대상 아님). 집을 때마다 1씩 소진.
 
-func _init(p_kind: int = ObjectKind.MARK, p_leg: int = 0, p_tags: Array[String] = []) -> void:
+func _init(p_kind: int = ObjectKind.MARK, p_leg: int = 0, p_tags: Array[String] = [], p_uses: int = 0) -> void:
 	object_kind = p_kind
 	leg = p_leg
+	uses = p_uses
 	tags.clear()
 	for w in p_tags:
 		tags.append(str(w))
@@ -35,6 +39,7 @@ func to_dict() -> Dictionary:
 		"leg": leg,
 		"position": position,
 		"tags": tags.duplicate(),
+		"uses": uses,
 	}
 
 ## Dictionary(또는 JSON 파싱 결과)에서 흔적을 복원한다.
@@ -43,6 +48,7 @@ static func from_dict(d: Dictionary) -> TraceData:
 	t.object_kind = int(d.get("object_kind", ObjectKind.MARK))
 	t.leg = int(d.get("leg", 0))
 	t.position = float(d.get("position", 0.0))
+	t.uses = int(d.get("uses", 0))
 	# Dictionary 에서 꺼낸 Array 는 untyped — Array[String] 에 직접 대입 금지 (전역 규칙 #4).
 	t.tags.clear()
 	for w in d.get("tags", []):

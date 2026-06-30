@@ -26,16 +26,17 @@ var _last_situation_id: String = ""
 var _next_situation_leg: int = 0      ## 다음 일반 상황이 뜰 걸음
 var _bridged: Dictionary = {}  ## 로프가 걸린 차단 leg 집합(leg->true). 차단=영구 지형 변화의 런타임 표현.
 var _flags: Dictionary = {}    ## 켜진 플래그(run ∪ persist). 런 시작 시 영속 플래그 로드, 런 중 sets 로 추가.
+var _traces: Dictionary = {}   ## 줍을 수 있는 과거 흔적 {leg: {kind, tags}} (GameState 주입). 그 걸음에서 줍기 카드.
 
-## bridged = 과거 원정에서 로프를 고정한 차단 leg 목록(GameState 가 ROPE 흔적에서 뽑아 주입).
-## persist_flags = 과거 원정에서 켜진 영속 플래그(GameState 가 들고 주입) — 런 시작 시 _flags 에 로드.
+## bridged = 과거 원정의 로프 고정 차단 leg. persist_flags = 과거 영속 플래그. pickup_traces = 줍을 수 있는 과거 흔적.
 ## core 는 GameState 를 참조하지 않는다(순수성) - 영속 데이터는 생성자로 받는다.
-func _init(starting: Dictionary = {}, bridged: Array = [], persist_flags: Array = []) -> void:
+func _init(starting: Dictionary = {}, bridged: Array = [], persist_flags: Array = [], pickup_traces: Dictionary = {}) -> void:
 	resources = starting.duplicate()
 	for lg in bridged:
 		_bridged[int(lg)] = true
 	for f in persist_flags:
 		_flags[str(f)] = true
+	_traces = pickup_traces.duplicate(true)
 	rng.randomize()
 	_schedule_next()
 
@@ -82,6 +83,9 @@ func step() -> void:
 		else:
 			# 이벤트 풀에서 하나 — 켜진 플래그(_flags)에 맞는 변형 이벤트 우선.
 			_set_pending(Situations.pick_event(feat, _flags, rng))
+	elif _traces.has(leg):
+		# 과거 흔적이 있는 걸음 — 줍기 카드(랜드마크 다음 우선).
+		_set_pending(Situations.pickup_trace(_traces[leg]))
 	elif leg >= _next_situation_leg:
 		# 일반 상황도 플래그 조건(requires)을 받는다 — 같은 런 연쇄.
 		_set_pending(Situations.pick(rng, _last_situation_id, _flags))
