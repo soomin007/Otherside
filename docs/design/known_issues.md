@@ -26,6 +26,14 @@
   **원인:** Threads 지원 ON 이면 COOP/COEP cross-origin isolation 헤더가 필요한데 Pages 설정이 까다로움.
   **방지:** export 프리셋 "Web" 에서 Threads Support **끄기** + `ensure_cross_origin_isolation_headers` ON (반영됨).
 
+## 렌더링 / 텍스트
+
+- **증상:** 한글 글씨가 뜨긴 하나 가장자리가 약간 깨져/계단져 보임(특히 폰·고해상도). (2026-07-01 1차 조치)
+  **원인:** `rendering/textures/canvas_textures/default_texture_filter=0`(Nearest) + `stretch=canvas_items`/`aspect=expand`.
+  폰 해상도마다 논리 캔버스(600폭)가 **비정수 배율**로 확대되는데, 폰트 글리프 아틀라스를 Nearest 로 샘플링하면 확대된 글자가 계단처럼 깨진다.
+  **방지:** `default_texture_filter=1`(Linear). 이 프로젝트는 픽셀아트 스프라이트가 없어(전부 절차적 `draw_*`+폰트+부드러운 절차 텍스처) Linear 가 모든 요소에 더 낫다. 픽셀아트를 도입하면 그 스프라이트만 노드별 `texture_filter`로 Nearest 지정.
+  여전히 흐리면 폰트 MSDF 임포트가 다음 레버(웹/GL Compatibility 실기기 검증 필수).
+
 ## 씬 전환 / 노드 트리
 
 - **증상:** `Parent node is busy adding/removing children, remove_child() can't be called at this time`.

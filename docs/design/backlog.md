@@ -5,9 +5,9 @@
 
 ## 데스크톱 (구현 — 귀한 시간)
 
-- [ ] **글씨 흐림/깨짐 해결.** 시크릿 창에서 한글은 뜨나 약간 깨져 보임(해상도/스케일 추정). 후보 원인:
-      stretch(canvas_items+expand) 비정수 배율, `rendering/.../default_texture_filter=0`(Nearest)이 폰트 글리프 샘플링에 영향,
-      폰트 oversampling 또는 MSDF 임포트 옵션. 비주얼 작업과 함께 손보면 좋음.
+- [ ] **글씨 흐림/깨짐 — 배포 후 재확인.** 1차 조치 적용: `default_texture_filter` Nearest(0)→Linear(1)
+      (비정수 캔버스 배율에서 글리프 가장자리 계단 깨짐의 직접 원인). 배포 후 폰/시크릿 창에서 글씨가 또렷한지 확인.
+      여전히 흐리면 다음 레버: 폰트 MSDF 임포트(`multichannel_signed_distance_field=true`) — 단 웹/GL Compatibility 실기기 검증 필수.
 - [ ] **그래픽/비주얼 전면 교체.** 현재 플레이스홀더 UI가 EoY와 흡사 — 고유 비주얼 디렉션 필요.
       모래폭풍/원정/흔적 정서에 맞는 팔레트·타이포·레이아웃. (`scripts/ui/*` 코드 UI를 테마/씬으로 분리하며 진행)
 - [ ] **페이싱·밸런스 튜닝 (폰 테스트).** 런 길이·거리 곡선 구현됨(START 물20·식량13, `water_cost` 거리 비례, 랜드마크 4~28 풍요→척박, ~24걸음).
