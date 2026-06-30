@@ -18,6 +18,7 @@ var expedition_count: int = 0  ## 지금까지 보낸 원정 수
 var traces: Array = []         ## 남긴 흔적들 — TraceData.to_dict() 의 배열 (self-async)
 var deaths: Array = []         ## 죽은 자리 기록 — 지도 표식용
 var flags: Array = []  ## 영속 플래그(self-async). choice 의 sets_persist 가 쌓여 다음 원정 변형 이벤트를 깬다.
+var visited_nodes: Array = []  ## 방문한 노드 id (영속). 지도 안개 — 가본 곳 + 그 인접만 보인다(원정마다 더 드러남).
 
 # --- 현재 원정 한정 상태 (죽으면 리셋) ---
 ## 초기 자원 — 임시치. 자원 = 수명 (남기면 그만큼 잃는다). 밸런스는 폰 테스트로 검증 예정.
@@ -37,6 +38,7 @@ func go_to_map() -> void:
 func begin_run_in_place() -> void:
 	current_run = ExpeditionRun.new(START_RESOURCES, bridged_legs(), flags, pickup_traces_map())
 	expedition_count += 1
+	_mark_visited(MapGraph.START_ID)
 
 ## 지도에서 고른 노드로 향한다 (지도 → 횡스크롤). 그 엣지를 시작하고 씬을 바꾼다.
 func travel_to(target_id: String) -> void:
@@ -48,7 +50,14 @@ func travel_to(target_id: String) -> void:
 func arrive_node() -> void:
 	if current_run != null:
 		current_run.arrive()
+		_mark_visited(current_run.current_node)
 	get_tree().change_scene_to_file(SCENE_MAP)
+
+## 노드를 방문 기록에 더한다(영속). 지도 안개를 걷는다.
+func _mark_visited(node_id: String) -> void:
+	if node_id != "" and not visited_nodes.has(node_id):
+		visited_nodes.append(node_id)
+		save_game()
 
 ## 죽기 전 단 한 번 흔적을 남긴다 (기획서 §3). 남김 = 자기 수명 깎기.
 func leave_trace(trace: TraceData) -> void:
@@ -129,6 +138,7 @@ func save_game() -> void:
 		"traces": traces,
 		"deaths": deaths,
 		"flags": flags,
+		"visited_nodes": visited_nodes,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
@@ -154,6 +164,7 @@ func load_game() -> void:
 	traces = data.get("traces", [])
 	deaths = data.get("deaths", [])
 	flags = data.get("flags", [])
+	visited_nodes = data.get("visited_nodes", [])
 
 ## 세이브 초기화 (새 세계). 빈 상태로 덮어쓴다 — 웹/데스크톱 모두 안전.
 func reset_save() -> void:
@@ -161,5 +172,6 @@ func reset_save() -> void:
 	traces = []
 	deaths = []
 	flags = []
+	visited_nodes = []
 	current_run = null
 	save_game()

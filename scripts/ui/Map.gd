@@ -1,8 +1,9 @@
 extends Control
 
-## 탑뷰 지도 — Slay the Spire 식 분기 노드 맵. 현재 노드에서 갈 수 있는 다음 노드를 골라 떠난다.
-## 루프: 지도에서 노드 선택 → 그 엣지를 횡스크롤로 전진 → 도착 노드 이벤트 → 지도 복귀.
-## 노드 맵 비주얼은 임시(플레이스홀더) — 모양 다듬기는 그래픽 작업 때.
+## 탑뷰 지도 — Slay the Spire 식 분기 노드 맵. 현재 노드에서 갈 수 있는(밝게 빛나는) 다음 노드를 골라 떠난다.
+## 루프: 지도에서 노드 선택 → 그 길을 가다(이동) → 랜드마크 도착 → (다음 단계: 단면 탐색 씬) → 지도 복귀.
+## 안개: 가본 곳 + 그 인접만 보인다. 미지의 노드는 흐린 "?". 원정마다 더 드러난다(self-async).
+## 노드 맵 비주얼·이동 연출·랜드마크 단면은 다음 단계 — 지금은 맵 정비(클릭 표시·안개).
 
 const TOP_Y: float = 96.0
 const BOT_Y: float = 120.0
@@ -38,15 +39,23 @@ func _ready() -> void:
 	queue_redraw()
 
 func _guide_text() -> String:
-	var cur: String = _current_node_id()
-	if cur == "end":
+	if _current_node_id() == "end":
 		return "목적지에 닿았다. (여기까지가 Phase 0)"
-	return "갈 곳을 고르세요"
+	return "밝게 빛나는 곳을 눌러 떠나세요"
 
 func _current_node_id() -> String:
 	if GameState.current_run != null:
 		return GameState.current_run.current_node
 	return MapGraph.START_ID
+
+## 안개 — 가본 노드, 또는 가본 노드에 인접한 노드만 보인다. 나머지는 미지("?").
+func _is_visible(id: String) -> bool:
+	if GameState.visited_nodes.has(id):
+		return true
+	for v in GameState.visited_nodes:
+		if id in MapGraph.node(str(v)).get("next", []):
+			return true
+	return false
 
 # --- 노드 선택(클릭) ---
 
@@ -59,7 +68,7 @@ func _gui_input(event: InputEvent) -> void:
 	var area := _map_area()
 	for nx in MapGraph.node(_current_node_id()).get("next", []):
 		var p: Vector2 = _node_screen(MapGraph.node(str(nx)), area)
-		if pos.distance_to(p) <= NODE_R + 16.0:
+		if pos.distance_to(p) <= NODE_R + 18.0:
 			GameState.travel_to(str(nx))
 			return
 
@@ -100,28 +109,41 @@ func _draw() -> void:
 	var cur: String = _current_node_id()
 	var nexts: Array = MapGraph.node(cur).get("next", [])
 
-	# 엣지 — 현재 노드에서 갈 수 있는 길은 또렷이, 나머지는 흐리게
+	# 엣지 — 양 끝이 보이는 경우만. 지금 갈 수 있는 길(현재→next)은 또렷이.
 	for id in MapGraph.NODES:
+		if not _is_visible(id):
+			continue
 		var node: Dictionary = MapGraph.NODES[id]
 		var from: Vector2 = _node_screen(node, area)
-		var reachable: bool = (id == cur)
+		var reachable_edge: bool = (id == cur)
 		for nx in node.get("next", []):
-			var nn: Dictionary = MapGraph.node(str(nx))
-			if nn.is_empty():
+			if not _is_visible(str(nx)):
 				continue
-			var col: Color = Color(0.78, 0.66, 0.45, 0.9) if reachable else Color(0.40, 0.38, 0.36, 0.5)
-			draw_line(from, _node_screen(nn, area), col, 2.5 if reachable else 1.5)
+			var nn: Dictionary = MapGraph.node(str(nx))
+			var col: Color = Color(0.80, 0.68, 0.46, 0.95) if reachable_edge else Color(0.40, 0.38, 0.36, 0.5)
+			draw_line(from, _node_screen(nn, area), col, 3.0 if reachable_edge else 1.5)
 
-	# 노드 — 현재(굵은 테두리)·선택 가능(반짝 테두리)·나머지
+	# 노드 — 안개는 흐린 "?", 보이는 곳은 종류색. 현재(굵은 테두리)·갈 수 있는 곳(밝게 빛남) 강조.
 	for id in MapGraph.NODES:
 		var node: Dictionary = MapGraph.NODES[id]
 		var p: Vector2 = _node_screen(node, area)
+		if not _is_visible(id):
+			draw_circle(p, 5.0, Color(0.30, 0.30, 0.34, 0.5))
+			if font != null:
+				draw_string(font, p - Vector2(4.0, -5.0), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_SMALL, Color(0.45, 0.45, 0.5))
+			continue
 		var kind: String = str(node.get("kind", ""))
 		var col: Color = _kind_color(kind)
-		draw_circle(p, NODE_R, col)
+		var selectable: bool = id in nexts
+		if selectable:
+			# 갈 수 있는 곳 — 밝은 후광 + 큰 테두리로 "여기 누르세요"
+			draw_circle(p, NODE_R + 6.0, Color(col.r, col.g, col.b, 0.22))
+			draw_arc(p, NODE_R + 5.0, 0.0, TAU, 28, UITheme.SAND, 2.5)
+			draw_circle(p, NODE_R + 1.0, col)
+		else:
+			draw_circle(p, NODE_R, col)
 		if id == cur:
-			draw_arc(p, NODE_R + 5.0, 0.0, TAU, 28, UITheme.FG, 3.0)
-		elif id in nexts:
-			draw_arc(p, NODE_R + 4.0, 0.0, TAU, 28, UITheme.SAND, 2.0)
+			draw_arc(p, NODE_R + 6.0, 0.0, TAU, 28, UITheme.FG, 3.0)
 		if font != null:
-			draw_string(font, p + Vector2(NODE_R + 8.0, 5.0), str(node.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 150.0, UITheme.FS_TINY, col)
+			var name_col: Color = col if (selectable or id == cur) else Color(col.r, col.g, col.b, 0.7)
+			draw_string(font, p + Vector2(NODE_R + 9.0, 5.0), str(node.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 150.0, UITheme.FS_TINY, name_col)
