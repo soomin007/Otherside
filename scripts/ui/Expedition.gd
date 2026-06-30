@@ -250,7 +250,7 @@ func _show_situation() -> void:
 		var btn := UITheme.make_button("", false)
 		btn.text = "%s   (%s)" % [str(choice.get("label", "")), _effect_hint(effect)]
 		if Situations.can_choose(choice, _run.resources):
-			btn.pressed.connect(_on_choice.bind(effect, str(choice.get("action", ""))))
+			btn.pressed.connect(_on_choice.bind(effect, str(choice.get("action", "")), str(choice.get("choice_id", ""))))
 		else:
 			btn.disabled = true
 			btn.text = "%s   (자원 부족)" % str(choice.get("label", ""))
@@ -260,12 +260,15 @@ func _show_situation() -> void:
 	_end_btn.disabled = true
 	_sit_panel.visible = true
 
-func _on_choice(effect: Dictionary, action: String = "") -> void:
+func _on_choice(effect: Dictionary, action: String = "", choice_id: String = "") -> void:
 	var here: int = _run.leg
 	_run.apply_choice(effect)
 	# 차단에 로프 고정 = 영구 지형 흔적(ROPE). 다음 원정부터 이 틈을 무료로 건넌다(가장 뿌듯한 흔적).
 	if action == "bridge":
 		_bridge_here(here)
+	# 랜드마크 선택 기록 — 다음 원정에서 변형 이벤트를 깬다(self-async).
+	if choice_id != "":
+		GameState.record_landmark_choice(here, choice_id)
 	_sit_panel.visible = false
 	_advance_btn.disabled = false
 	_end_btn.disabled = false

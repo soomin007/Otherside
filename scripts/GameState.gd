@@ -17,6 +17,7 @@ const SCENE_EXPEDITION: String = "res://scenes/expedition.tscn"
 var expedition_count: int = 0  ## 지금까지 보낸 원정 수
 var traces: Array = []         ## 남긴 흔적들 — TraceData.to_dict() 의 배열 (self-async)
 var deaths: Array = []         ## 죽은 자리 기록 — 지도 표식용
+var landmark_log: Dictionary = {}  ## 과거 랜드마크 선택 {str(leg): choice_id}. 재방문 변형 이벤트용(self-async).
 
 # --- 현재 원정 한정 상태 (죽으면 리셋) ---
 ## 초기 자원 — 임시치. 자원 = 수명 (남기면 그만큼 잃는다). 밸런스는 폰 테스트로 검증 예정.
@@ -34,7 +35,7 @@ func go_to_map() -> void:
 ## 씬 전환 없이 현재 원정만 새로 만든다 (직접 진입 안전장치 / 테스트용).
 ## 과거에 로프를 건 차단(bridged_legs)을 주입해, 그 틈을 무료로 건너게 한다(영구 지형 변화).
 func begin_run_in_place() -> void:
-	current_run = ExpeditionRun.new(START_RESOURCES, bridged_legs())
+	current_run = ExpeditionRun.new(START_RESOURCES, bridged_legs(), landmark_log)
 	expedition_count += 1
 
 ## 다음 원정을 떠난다 (지도 → 횡스크롤). 새 ExpeditionRun 을 만들고 씬을 바꾼다.
@@ -66,6 +67,13 @@ func bridged_legs() -> Array:
 			out.append(int(raw.get("leg", 0)))
 	return out
 
+## 랜드마크에서 한 선택을 기록한다(다음 원정의 변형 이벤트 판정용). leg 별 마지막 선택만 남긴다.
+func record_landmark_choice(leg: int, choice_id: String) -> void:
+	if choice_id == "":
+		return
+	landmark_log[str(leg)] = choice_id
+	save_game()
+
 # --- 저장 / 불러오기 (JSON, 웹 IndexedDB) ---
 
 func save_game() -> void:
@@ -74,6 +82,7 @@ func save_game() -> void:
 		"expedition_count": expedition_count,
 		"traces": traces,
 		"deaths": deaths,
+		"landmark_log": landmark_log,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
@@ -98,11 +107,13 @@ func load_game() -> void:
 	expedition_count = int(data.get("expedition_count", 0))
 	traces = data.get("traces", [])
 	deaths = data.get("deaths", [])
+	landmark_log = data.get("landmark_log", {})
 
 ## 세이브 초기화 (새 세계). 빈 상태로 덮어쓴다 — 웹/데스크톱 모두 안전.
 func reset_save() -> void:
 	expedition_count = 0
 	traces = []
 	deaths = []
+	landmark_log = {}
 	current_run = null
 	save_game()

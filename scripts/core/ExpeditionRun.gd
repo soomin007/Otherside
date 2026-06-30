@@ -24,13 +24,16 @@ var rng := RandomNumberGenerator.new()
 var _last_situation_id: String = ""
 var _next_situation_leg: int = 0      ## 다음 일반 상황이 뜰 걸음
 var _bridged: Dictionary = {}         ## 로프가 걸린 차단 leg 집합(leg->true). 차단=영구 지형 변화의 런타임 표현.
+var _landmark_log: Dictionary = {}    ## 과거 랜드마크 선택 {str(leg): choice_id}. 재방문 변형 이벤트 판정용.
 
 ## bridged = 과거 원정에서 로프를 고정한 차단 leg 목록(GameState 가 ROPE 흔적에서 뽑아 주입).
+## landmark_log = 과거 랜드마크 선택 기록(GameState 가 들고 주입). 둘 다 영속 데이터.
 ## core 는 GameState 를 참조하지 않는다(순수성) - 영속 데이터는 생성자로 받는다.
-func _init(starting: Dictionary = {}, bridged: Array = []) -> void:
+func _init(starting: Dictionary = {}, bridged: Array = [], landmark_log: Dictionary = {}) -> void:
 	resources = starting.duplicate()
 	for lg in bridged:
 		_bridged[int(lg)] = true
+	_landmark_log = landmark_log.duplicate()
 	rng.randomize()
 	_schedule_next()
 
@@ -63,7 +66,9 @@ func step() -> void:
 		if str(feat.get("kind", "cache")) == "blockage" and _bridged.has(leg):
 			_set_pending(Situations.crossed_blockage(feat))
 		else:
-			_set_pending(feat)
+			# 이벤트 풀에서 하나 — 과거 선택(landmark_log)에 맞는 변형 이벤트 우선.
+			var past: String = str(_landmark_log.get(str(leg), ""))
+			_set_pending(Situations.pick_event(feat, past, rng))
 	elif leg >= _next_situation_leg:
 		_set_pending(Situations.pick(rng, _last_situation_id))
 
