@@ -34,9 +34,10 @@ func go_to_map() -> void:
 	get_tree().change_scene_to_file(SCENE_MAP)
 
 ## 씬 전환 없이 현재 원정만 새로 만든다 (직접 진입 안전장치 / 테스트용).
-## 과거에 로프를 건 차단(bridged_legs)을 주입해, 그 틈을 무료로 건너게 한다(영구 지형 변화).
+## 과거에 로프를 건 차단 노드(bridged_nodes)·줍을 수 있는 흔적(pickup_traces_by_node)을 주입해,
+## 그 노드에 도착하면 무료 통과·줍기 카드가 뜨게 한다(self-async, 영구 지형 변화).
 func begin_run_in_place() -> void:
-	current_run = ExpeditionRun.new(START_RESOURCES, bridged_legs(), flags, pickup_traces_map())
+	current_run = ExpeditionRun.new(START_RESOURCES, bridged_nodes(), flags, pickup_traces_by_node())
 	expedition_count += 1
 	_mark_visited(MapGraph.START_ID)
 
@@ -66,8 +67,8 @@ func _mark_visited(node_id: String) -> void:
 func leave_trace(trace: TraceData) -> void:
 	traces.append(trace.to_dict())
 
-func record_death(leg: int) -> void:
-	deaths.append({"leg": leg, "expedition": expedition_count})
+func record_death(leg: int, node_id: String = "") -> void:
+	deaths.append({"leg": leg, "node_id": node_id, "expedition": expedition_count})
 
 ## 복원된 흔적을 TraceData 로 돌려준다 (지도/횡스크롤 렌더링용).
 func loaded_traces() -> Array[TraceData]:
@@ -77,18 +78,20 @@ func loaded_traces() -> Array[TraceData]:
 			out.append(TraceData.from_dict(raw))
 	return out
 
-## 과거에 로프를 고정한 차단 지점들(ROPE 흔적의 leg). 다음 원정에서 그 틈을 무료로 건넌다.
+## 과거에 로프를 고정한 차단 노드들(ROPE 흔적의 node_id). 다음 원정에서 그 노드에 도착하면 무료로 건넌다.
 ## 차단 = "영구 지형 변화"(기획서 §4)의 영속 표현. ExpeditionRun 에 주입된다.
-func bridged_legs() -> Array:
+func bridged_nodes() -> Array:
 	var out: Array = []
 	for raw in traces:
 		if raw is Dictionary and int(raw.get("object_kind", -1)) == TraceData.ObjectKind.ROPE:
-			out.append(int(raw.get("leg", 0)))
+			var nid: String = str(raw.get("node_id", ""))
+			if nid != "" and not out.has(nid):
+				out.append(nid)
 	return out
 
-## 줍을 수 있는 흔적(자원 종류 WATER/FOOD/SHELTER + uses>0)을 leg→{kind,tags} 로. leg 당 첫 흔적.
-## ExpeditionRun 에 주입돼 그 걸음에서 줍기 카드를 띄운다.
-func pickup_traces_map() -> Dictionary:
+## 줍을 수 있는 흔적(자원 종류 WATER/FOOD/SHELTER + uses>0)을 node_id→{kind,tags} 로. 노드당 첫 흔적.
+## ExpeditionRun 에 주입돼 그 노드 도착 시 줍기 카드를 띄운다.
+func pickup_traces_by_node() -> Dictionary:
 	var out: Dictionary = {}
 	for raw in traces:
 		if not (raw is Dictionary):
@@ -98,20 +101,20 @@ func pickup_traces_map() -> Dictionary:
 			continue
 		if int(raw.get("uses", 0)) <= 0:
 			continue
-		var lg: int = int(raw.get("leg", 0))
-		if out.has(lg):
+		var nid: String = str(raw.get("node_id", ""))
+		if nid == "" or out.has(nid):
 			continue
 		var tg: Array = raw.get("tags", [])
-		out[lg] = {"kind": kind, "tags": tg.duplicate()}
+		out[nid] = {"kind": kind, "tags": tg.duplicate()}
 	return out
 
-## 흔적을 한 번 쓴다 — uses 를 1 깎고, 0 이 되면 제거한다(leg+kind 첫 매칭). 줍기 보충 직후 호출.
-func use_trace(leg: int, kind: int) -> void:
+## 흔적을 한 번 쓴다 — uses 를 1 깎고, 0 이 되면 제거한다(node_id+kind 첫 매칭). 줍기 보충 직후 호출.
+func use_trace(node_id: String, kind: int) -> void:
 	for i in range(traces.size()):
 		var t: Variant = traces[i]
 		if not (t is Dictionary):
 			continue
-		if int(t.get("leg", -1)) == leg and int(t.get("object_kind", -1)) == kind:
+		if str(t.get("node_id", "")) == node_id and int(t.get("object_kind", -1)) == kind:
 			var u: int = int(t.get("uses", 0)) - 1
 			if u <= 0:
 				traces.remove_at(i)

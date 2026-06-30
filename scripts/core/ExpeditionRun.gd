@@ -5,8 +5,8 @@ extends RefCounted
 ## 루프: 지도에서 다음 노드를 고르면 begin_edge → step 으로 그 노드까지 전진 → 도착 시 노드 이벤트 → 지도 복귀(arrive).
 ## 자원 = 수명(기획서 §3): 걸음마다 닳고(거리 비례), 바닥나면 고갈사. leg = 원정 전체 누적 걸음(거리 곡선의 기준).
 ##
-## ⚠️ 노드화 진행 중: 흔적 줍기·차단 영구화의 노드 연동은 다음 단계. 이번 단계는 핵심 흐름(엣지 전진 + 도착 이벤트 + 일반 상황).
-##   (생성자가 받는 bridged/pickup_traces 는 다음 단계용으로 보존만 한다.)
+## 도착 노드 카드 우선순위(self-async): ① 로프 걸린 차단=무료 통과 ② 이전 원정대 흔적=줍기 ③ 노드 이벤트.
+## 흔적/차단은 node_id 로 키잉된 과거 데이터(GameState 주입)를 본다. core 는 GameState 미참조(순수성 유지).
 
 const WATER_PER_STEP: int = 1     ## 물 기본 소모 (출발지 근처). 거리에 따라 늘어난다(water_cost).
 const DESOLATION_EVERY: int = 16  ## 이 걸음마다 물 소모 +1 (멀수록 척박 — 거리 곡선)
@@ -29,18 +29,18 @@ var current_node: String = ""         ## 지금 서 있는 노드(지도 복귀�
 var rng := RandomNumberGenerator.new()
 var _last_situation_id: String = ""
 var _next_situation_leg: int = 0      ## 다음 일반 상황이 뜰 걸음
-var _bridged: Dictionary = {}         ## (보존) 로프가 걸린 차단 leg — 차단 노드화에서 사용 예정
+var _bridged: Dictionary = {}         ## 로프가 걸린 차단 노드(node_id→true) — 그 노드 도착 시 무료 통과
 var _flags: Dictionary = {}           ## 켜진 플래그(run ∪ persist). 런 시작 시 영속 플래그 로드, 런 중 sets 로 추가.
-var _traces: Dictionary = {}          ## (보존) 줍을 수 있는 과거 흔적 — 흔적 노드화에서 사용 예정
+var _traces: Dictionary = {}          ## 줍을 수 있는 과거 흔적(node_id→{kind,tags}) — 그 노드 도착 시 줍기 카드
 var _target_node: String = ""         ## 이번 엣지의 목표 노드
 var _edge_step: int = 0               ## 이번 엣지에서 전진한 걸음
 var _edge_len: int = 0
 
-## bridged/persist_flags/pickup_traces = 과거 원정에서 누적된 영속 데이터(GameState 주입). core 는 GameState 미참조(순수성).
-func _init(starting: Dictionary = {}, bridged: Array = [], persist_flags: Array = [], pickup_traces: Dictionary = {}) -> void:
+## bridged_nodes/persist_flags/pickup_traces = 과거 원정에서 누적된 영속 데이터(GameState 주입). core 는 GameState 미참조(순수성).
+func _init(starting: Dictionary = {}, bridged_nodes: Array = [], persist_flags: Array = [], pickup_traces: Dictionary = {}) -> void:
 	resources = starting.duplicate()
-	for lg in bridged:
-		_bridged[int(lg)] = true
+	for nid in bridged_nodes:
+		_bridged[str(nid)] = true
 	for f in persist_flags:
 		_flags[str(f)] = true
 	_traces = pickup_traces.duplicate(true)
@@ -54,11 +54,11 @@ func get_res(key: String) -> int:
 func water_cost() -> int:
 	return WATER_PER_STEP + int(leg / DESOLATION_EVERY)
 
-func is_bridged(lg: int) -> bool:
-	return _bridged.has(lg)
+func is_bridged(node_id: String) -> bool:
+	return _bridged.has(node_id)
 
-func mark_bridged(lg: int) -> void:
-	_bridged[lg] = true
+func mark_bridged(node_id: String) -> void:
+	_bridged[node_id] = true
 
 func has_flag(f: String) -> bool:
 	return _flags.has(f)
@@ -113,9 +113,14 @@ func arrive() -> void:
 func at_end() -> bool:
 	return current_node == "end"
 
-## 이번 엣지의 목표 노드 id (엣지 진행 중이 아니면 빈 문자열).
+## 이번 엣지의 목표 노드 id = 지금 결정 중인 "도착한 노드"(엣지 진행 중이 아니면 빈 문자열).
+## 흔적/로프/줍기를 어느 노드에 기록·적용할지의 기준.
 func target_node_id() -> String:
 	return _target_node
+
+## 죽은 위치의 노드 — 도착해서 죽었으면 그 노드(_target_node), 이동 중(엣지) 죽었으면 떠나온 노드(current_node).
+func death_node_id() -> String:
+	return _target_node if arrived() else current_node
 
 ## 목표 노드까지 남은 걸음.
 func edge_remaining() -> int:
@@ -136,12 +141,26 @@ func step() -> void:
 	if not alive:
 		return
 	if _edge_step >= _edge_len:
-		# 목표 노드 도착 — 노드 이벤트(events 있으면. start/end 는 없음 → 바로 복귀 대기).
-		var node: Dictionary = MapGraph.node(_target_node)
-		var ev: Dictionary = Situations.pick_event(node, _flags, rng)
-		if not ev.is_empty():
-			_set_pending(ev)
-	# 엣지 중 일반 상황(이동 중 자잘한 상황)은 다음 단계에서 맵 카드로 부활 — 지금은 도착 이벤트만.
+		_arrive_event()
+	# 엣지 중 일반 상황(이동 중 자잘한 상황)은 다음 단계에서 맵 카드로 부활 — 지금은 도착 카드만.
+
+## 도착 노드의 카드를 정한다 — 우선순위: ① 로프 걸린 차단(무료 통과) ② 이전 원정대 흔적(줍기) ③ 노드 이벤트.
+## start/end 처럼 events 도 흔적도 로프도 없으면 빈 채로 둔다(바로 복귀 대기).
+func _arrive_event() -> void:
+	var node: Dictionary = MapGraph.node(_target_node)
+	# ① 차단 영구화: 이전 원정대가 로프를 걸어둔 차단이면 무료 통과 카드(가장 뿌듯한 흔적).
+	if str(node.get("kind", "")) == "blockage" and is_bridged(_target_node):
+		_set_pending(Situations.crossed_blockage(node))
+		return
+	# ② 흔적 줍기: 이 노드에 이전 원정대가 남긴 자원 흔적이 있으면 줍기 카드(노드 이벤트보다 우선).
+	if _traces.has(_target_node):
+		var info: Dictionary = _traces[_target_node]
+		_set_pending(Situations.pickup_trace(info))
+		return
+	# ③ 노드 이벤트(events 있으면).
+	var ev: Dictionary = Situations.pick_event(node, _flags, rng)
+	if not ev.is_empty():
+		_set_pending(ev)
 
 ## 상황의 한 선택지를 적용한다 — 자원 델타 반영 후 고갈 판정. 선택이 곧 죽음일 수도 있다.
 func apply_choice(effect: Dictionary) -> void:

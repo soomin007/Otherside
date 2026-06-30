@@ -192,7 +192,39 @@ func _draw() -> void:
 			if font != null:
 				draw_string(font, p - Vector2(4.0, -6.0), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_BODY, UITheme.SAND)
 
+	# 흔적 — 이전 원정대들이 노드에 남긴 것(누적된 길/죽음의 역사, self-async).
+	_draw_traces(area)
+
 	# 플레이어 마커 — 현재 위치(이동 중이면 길 위를 나아간다).
 	var mp: Vector2 = _marker_pos(area)
 	draw_circle(mp, 7.0, UITheme.FG)
 	draw_arc(mp, 11.0, 0.0, TAU, 22, UITheme.FG, 2.0)
+
+## 노드별 흔적 마커 — 죽음 X·로프 다리·자원 점. 가본 노드에만(흔적은 가본 곳에서만 생긴다). 한 노드에 여러 개면 옆으로 쌓는다.
+func _draw_traces(area: Rect2) -> void:
+	var per_node: Dictionary = {}
+	for tr in GameState.loaded_traces():
+		var nid: String = tr.node_id
+		if nid == "" or not MapGraph.NODES.has(nid) or not _is_revealed(nid):
+			continue
+		var idx: int = int(per_node.get(nid, 0))
+		per_node[nid] = idx + 1
+		var base: Vector2 = _node_screen(MapGraph.node(nid), area)
+		_draw_trace_marker(base + Vector2(-NODE_R - 7.0 - idx * 11.0, NODE_R + 11.0), tr.object_kind)
+
+func _draw_trace_marker(p: Vector2, kind: int) -> void:
+	match kind:
+		TraceData.ObjectKind.BODY:
+			var s: float = 4.5  # 죽은 자리 — 작은 X
+			draw_line(p + Vector2(-s, -s), p + Vector2(s, s), UITheme.DANGER, 2.0)
+			draw_line(p + Vector2(-s, s), p + Vector2(s, -s), UITheme.DANGER, 2.0)
+		TraceData.ObjectKind.ROPE:
+			draw_line(p + Vector2(-5.0, 0.0), p + Vector2(5.0, 0.0), UITheme.SAND, 2.5)  # 로프 다리
+		TraceData.ObjectKind.WATER:
+			draw_circle(p, 3.5, Color(0.55, 0.78, 0.97))
+		TraceData.ObjectKind.FOOD:
+			draw_circle(p, 3.5, Color(0.88, 0.72, 0.42))
+		TraceData.ObjectKind.SHELTER:
+			draw_circle(p, 3.5, Color(0.70, 0.85, 0.70))
+		_:
+			draw_circle(p, 2.5, UITheme.MUTED)

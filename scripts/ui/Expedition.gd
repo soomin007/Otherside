@@ -1,20 +1,13 @@
 extends Control
 
-## 횡스크롤 단면 — 현재 원정의 체험. 한 걸음씩 전진, 자원 소모, 상황 읽기, 흔적.
-## 핵심 동사: 관리·판독·대비·남기기 (턴제 사색형). 페이싱은 "걸음마다 닳는 자원" + "몇 걸음마다 상황 결정".
-## 로직은 core(ExpeditionRun·Situations), 여기선 렌더링·입력만. 그림은 _draw 로 그려 웹 안전(셰이더/GPUParticles 없음).
-## 모바일 우선: 상단 HUD 바(가독성 배경 + 큰 자원 수치), 하단 큰 전진 버튼 + 보조 끝 버튼, 모달은 카드.
+## 도착한 노드 화면 — 이동은 맵에서 끝났다(맵이 곧 탐험 인터페이스). 여긴 도착 카드(이벤트/줍기/로프 통과)·죽음·남기기 결정.
+## 핵심 동사: 관리·판독·대비·남기기 (턴제 사색형). 로직은 core(ExpeditionRun·Situations), 여기선 렌더링·입력만.
+## 그림은 _draw 로 그려 웹 안전(셰이더/GPUParticles 없음). 모바일 우선: 상단 HUD 바, 하단 큰 전진 버튼, 모달은 카드.
+## (지형 비주얼·랜드마크 단면 탐색(TWoM)·폭풍 파티클 연출은 다음 단계 — StormFX.gd 는 그때 쓰려고 보존.)
 
-const GROUND_RATIO: float = 0.60        ## 지면 y 위치 (화면 높이 비율)
-const STEP_PX: float = 90.0             ## 한 걸음의 화면 거리
-const WALKER_SCREEN_RATIO: float = 0.35 ## 걷는 이를 화면 어디에 고정할지 (앞을 보도록 왼쪽)
 const RES_KO: Dictionary = {"water": "물", "food": "식량", "rope": "로프", "shelter": "은신처"}
-const CHASM_COL := Color(0.02, 0.02, 0.03)   ## 차단 틈 — 바닥 없는 어둠
-const STORM_BAND := Color(0.34, 0.36, 0.42)  ## 폭풍 구간 — 회청색 모래바람(반투명으로 그림)
 
 var _run: ExpeditionRun
-
-var _stormfx: StormFX  ## 폭풍 2·3층 파티클 연출 (웹 안전 CPUParticles2D)
 
 var _status_label: Label
 var _water_label: Label
@@ -52,11 +45,6 @@ func _ready() -> void:
 		_show_situation()
 
 func _build_hud() -> void:
-	# 폭풍 2·3층 파티클 — 맨 먼저 add 해 _draw(지면·걷는 이) 위, HUD/모달 아래에 렌더된다.
-	_stormfx = StormFX.new()
-	add_child(_stormfx)
-	resized.connect(_update_storm_fx)  # 방향 전환·리사이즈 시 폭풍 영역 재계산
-
 	# 상단 HUD 바 — 가독성을 위해 반투명 어두운 배경 위에 텍스트. 전체 폭.
 	var hud := PanelContainer.new()
 	hud.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -218,7 +206,6 @@ func _refresh() -> void:
 	_aux_label.text = "로프 %d · 은신처 %d  (남길 수 있는 것)" % [_run.get_res("rope"), _run.get_res("shelter")]
 	_advance_btn.text = "도착 · 지도로" if _run.arrived() else "전진 (한 걸음)"
 	_update_leave_btn()
-	_update_storm_fx()
 	queue_redraw()
 
 ## "남기기" 버튼 상태 — 이미 남겼으면 잠그고("남겼다"), 아니면 남길 수 있는 자원이 하나라도 있을 때만 활성.
@@ -237,29 +224,6 @@ func _any_leavable() -> bool:
 		if _run.can_leave(key):
 			return true
 	return false
-
-## 화면에 보이는 폭풍 구간을 찾아 StormFX 영역을 갱신한다(걸음마다 + 리사이즈 시). _draw_storm 의 띠와 같은 좌표.
-func _update_storm_fx() -> void:
-	if _stormfx == null:
-		return
-	var rect: Vector2 = size
-	if rect.x <= 0.0 or rect.y <= 0.0 or _run == null:
-		_stormfx.set_band(Rect2())
-		return
-	var walker_x: float = rect.x * WALKER_SCREEN_RATIO
-	var offset: float = walker_x - _run.leg * STEP_PX
-	var band := Rect2()
-	for lm_leg in Situations.LANDMARKS:
-		var feat: Dictionary = Situations.LANDMARKS[lm_leg]
-		if str(feat.get("kind", "cache")) != "storm":
-			continue
-		var span: int = maxi(1, int(feat.get("span", 1)))
-		var x0: float = maxf(lm_leg * STEP_PX + offset, 0.0)
-		var x1: float = minf((lm_leg + span) * STEP_PX + offset, rect.x)
-		if x1 - x0 > 1.0:
-			band = Rect2(x0, 0.0, x1 - x0, rect.y)
-			break  # 보통 한 번에 폭풍 하나만 화면에 보인다
-	_stormfx.set_band(band)
 
 func _res_color(value: int, low: int, base: Color) -> Color:
 	return UITheme.DANGER if value <= low else base
@@ -314,14 +278,15 @@ func _show_situation() -> void:
 	_sit_panel.visible = true
 
 func _on_choice(effect: Dictionary, action: String = "", sets: Array = [], sets_persist: Array = [], trace_kind: int = -1) -> void:
-	var here: int = _run.leg
+	var here_leg: int = _run.leg
+	var here_node: String = _run.target_node_id()  # 지금 결정 중인 도착 노드
 	_run.apply_choice(effect)
-	# 차단에 로프 고정 = 영구 지형 흔적(ROPE). 다음 원정부터 이 틈을 무료로 건넌다(가장 뿌듯한 흔적).
+	# 차단에 로프 고정 = 영구 지형 흔적(ROPE). 다음 원정부터 이 노드를 무료로 건넌다(가장 뿌듯한 흔적).
 	if action == "bridge":
-		_bridge_here(here)
-	# 과거 흔적 줍기 — 자원 보충 후 그 흔적의 uses 를 깎는다(소진되면 사라짐).
+		_bridge_here(here_node, here_leg)
+	# 과거 흔적 줍기 — 자원 보충 후 그 노드 흔적의 uses 를 깎는다(소진되면 사라짐).
 	if action == "pickup" and trace_kind >= 0:
-		GameState.use_trace(here, trace_kind)
+		GameState.use_trace(here_node, trace_kind)
 	# 선택 반영 — 플래그를 켠다. sets(같은 런 즉시) + sets_persist(다음 원정에도, GameState 영속).
 	for f in sets:
 		_run.set_flag(str(f))
@@ -335,13 +300,14 @@ func _on_choice(effect: Dictionary, action: String = "", sets: Array = [], sets_
 	if not _run.alive:
 		_die(_run.death_cause)
 
-## 지금 선 차단에 로프를 건다 - core 에 표시(같은 런 즉시 반영) + ROPE 흔적을 남기고 저장(다음 원정에 영속).
+## 지금 선 차단 노드에 로프를 건다 - core 에 표시(같은 런 즉시 반영) + ROPE 흔적(node_id)을 남기고 저장(다음 원정에 영속).
 ## "남김 한 번"과 별개의 부산물 흔적이다(통과의 결과로 길이 영구히 바뀐다).
-func _bridge_here(at_leg: int) -> void:
-	_run.mark_bridged(at_leg)
+func _bridge_here(node_id: String, at_leg: int) -> void:
+	_run.mark_bridged(node_id)
 	var tags: Array[String] = []
 	tags.assign(["건너"])
 	var trace := TraceData.new(TraceData.ObjectKind.ROPE, at_leg, tags)
+	trace.node_id = node_id
 	GameState.leave_trace(trace)
 	GameState.save_game()
 
@@ -463,6 +429,7 @@ func _commit_bequeath() -> void:
 	_run.do_leave(res_key)  # 자원 -비용 + 토큰 소진 (can_leave 가 생존 보장 → 안 죽음)
 	var uses: int = TraceData.PICKUP_USES if _is_pickup_kind(_picked_kind) else 0
 	var trace := TraceData.new(_picked_kind, _run.leg, _picked_tags, uses)
+	trace.node_id = _run.target_node_id()  # 도착한 노드에 남긴다 — 다음 원정이 그 노드에서 줍는다
 	GameState.leave_trace(trace)
 	GameState.save_game()
 	_bequeath_panel.visible = false
@@ -502,9 +469,11 @@ func _clear_box(box: Node) -> void:
 
 func _die(cause: String) -> void:
 	var tags: Array[String] = _death_tags(cause)
+	var node_id: String = _run.death_node_id()  # 도착 죽음=그 노드, 이동 중 죽음=떠나온 노드
 	var trace := TraceData.new(TraceData.ObjectKind.BODY, _run.leg, tags)
+	trace.node_id = node_id
 	GameState.leave_trace(trace)
-	GameState.record_death(_run.leg)
+	GameState.record_death(_run.leg, node_id)
 	GameState.save_game()
 	_show_death(cause, tags)
 
@@ -556,75 +525,3 @@ func _draw() -> void:
 	else:
 		draw_string(font, Vector2(0.0, cy), "미지를 향해 가는 중", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_BODY, UITheme.MUTED)
 		draw_string(font, Vector2(0.0, cy + 38.0), "%d / %d 걸음" % [done, total], HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, UITheme.MUTED)
-
-## 노드 종류별 색 (지도와 같은 팔레트).
-func _node_kind_color(kind: String) -> Color:
-	match kind:
-		"cache": return UITheme.SAND
-		"blockage": return Color(0.62, 0.52, 0.42)
-		"storm": return Color(0.55, 0.60, 0.72)
-		"end": return UITheme.DANGER
-		_: return UITheme.FG
-
-## 자원형 지형 — 다가오는 앵커를 막대 + 이름으로.
-func _draw_cache_marker(lm_leg: int, feat: Dictionary, ground_y: float, offset: float, rect: Vector2, font: Font) -> void:
-	var lx: float = lm_leg * STEP_PX + offset
-	if lx < -60.0 or lx > rect.x + 60.0:
-		return
-	var passed: bool = lm_leg < _run.leg
-	var col: Color = Color(0.5, 0.46, 0.4) if passed else Color(0.84, 0.72, 0.48)
-	draw_line(Vector2(lx, ground_y), Vector2(lx, ground_y - 44.0), col, 2.0)
-	if font != null:
-		draw_string(font, Vector2(lx - 48.0, ground_y - 54.0), str(feat.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 150, UITheme.FS_SMALL, col)
-
-## 차단 — 지면을 끊는 틈. 로프가 걸렸으면 그 위로 다리(모래색 선)를 얹어 "건널 수 있음"을 보여준다.
-func _draw_blockage(lm_leg: int, feat: Dictionary, ground_y: float, offset: float, rect: Vector2, font: Font) -> void:
-	var lx: float = lm_leg * STEP_PX + offset
-	if lx < -60.0 or lx > rect.x + 60.0:
-		return
-	var passed: bool = lm_leg < _run.leg
-	var bridged: bool = _run.is_bridged(lm_leg)
-	var half: float = 18.0
-	# 틈 — 지면을 끊는 어두운 협곡
-	draw_rect(Rect2(lx - half, ground_y, half * 2.0, rect.y - ground_y), CHASM_COL)
-	draw_line(Vector2(lx - half, ground_y), Vector2(lx - half, ground_y + 16.0), Color(0.3, 0.28, 0.24), 2.0)
-	draw_line(Vector2(lx + half, ground_y), Vector2(lx + half, ground_y + 16.0), Color(0.3, 0.28, 0.24), 2.0)
-	var col: Color
-	var label: String = str(feat.get("name", ""))
-	if bridged:
-		# 이전 원정대가 건 로프 — 틈을 가로지른다 (self-async 의 가장 뿌듯한 흔적)
-		col = UITheme.SAND
-		draw_line(Vector2(lx - half - 6.0, ground_y - 3.0), Vector2(lx + half + 6.0, ground_y - 3.0), col, 4.0)
-		label = "%s (로프)" % label
-	else:
-		col = Color(0.5, 0.46, 0.4) if passed else Color(0.86, 0.5, 0.42)  # 미통과 차단은 경고색
-	if font != null:
-		draw_string(font, Vector2(lx - 48.0, ground_y - 30.0), label, HORIZONTAL_ALIGNMENT_LEFT, 150, UITheme.FS_SMALL, col)
-
-## 폭풍 — 구간(span 걸음)을 회청색 반투명 띠로 예고한다. 멀리서 보고 은신처를 준비하게 한다.
-## CPUParticles2D 3층 연출은 별도 세션 — 지금은 분위기 1층(반투명 그라데이션 띠)만.
-func _draw_storm(lm_leg: int, feat: Dictionary, ground_y: float, offset: float, rect: Vector2, font: Font) -> void:
-	var span: int = maxi(1, int(feat.get("span", 1)))
-	var x0: float = lm_leg * STEP_PX + offset
-	var x1: float = (lm_leg + span) * STEP_PX + offset
-	if x1 < -20.0 or x0 > rect.x + 20.0:
-		return
-	var passed: bool = (lm_leg + span) <= _run.leg
-	var alpha: float = 0.14 if passed else 0.30
-	draw_rect(Rect2(x0, 0.0, x1 - x0, rect.y), Color(STORM_BAND.r, STORM_BAND.g, STORM_BAND.b, alpha))
-	var edge := Color(STORM_BAND.r, STORM_BAND.g, STORM_BAND.b, alpha + 0.2)
-	draw_line(Vector2(x0, 0.0), Vector2(x0, rect.y), edge, 2.0)
-	draw_line(Vector2(x1, 0.0), Vector2(x1, rect.y), edge, 2.0)
-	if font != null:
-		var col: Color = Color(0.5, 0.52, 0.58) if passed else Color(0.72, 0.76, 0.84)
-		draw_string(font, Vector2(x0 + 8.0, ground_y - 54.0), "%s (폭풍)" % str(feat.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, int(x1 - x0), UITheme.FS_SMALL, col)
-
-func _draw_walker(foot: Vector2, alive: bool) -> void:
-	var col: Color = Color(0.9, 0.9, 0.92) if alive else Color(0.55, 0.32, 0.32)
-	if alive:
-		draw_line(Vector2(foot.x, foot.y), Vector2(foot.x, foot.y - 30.0), col, 3.0)
-		draw_circle(Vector2(foot.x, foot.y - 39.0), 8.0, col)
-	else:
-		# 쓰러진 자리 — 가로로 누움
-		draw_line(Vector2(foot.x - 16.0, foot.y - 4.0), Vector2(foot.x + 16.0, foot.y - 4.0), col, 3.0)
-		draw_circle(Vector2(foot.x - 20.0, foot.y - 4.0), 8.0, col)

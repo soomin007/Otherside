@@ -20,7 +20,8 @@ enum ObjectKind {
 const PICKUP_USES: int = 3   ## 줍기형 흔적의 기본 사용 횟수 (다음 원정들이 나눠 쓰다 소진)
 
 var object_kind: int = ObjectKind.MARK
-var leg: int = 0              ## 몇 구간째에 남겼나 (횡스크롤 전진 거리)
+var node_id: String = ""     ## 어느 노드에 남겼나 (지도 그래프의 공간 키 — 흔적 줍기·차단 영구화·죽음 표식이 이걸로 노드에 붙는다)
+var leg: int = 0             ## 몇 걸음째에 남겼나 (거리 — 표시·정렬용. 분기 맵에선 node_id 가 위치의 진실)
 var position: float = 0.0    ## 구간 내 위치 (0.0~1.0, 추후 정의)
 var tags: Array[String] = [] ## WordPool 에서 고른 태그들 (한두 개)
 var uses: int = 0            ## 줍기 가능 횟수 (자원 흔적만, 0=줍기 대상 아님). 집을 때마다 1씩 소진.
@@ -36,6 +37,7 @@ func _init(p_kind: int = ObjectKind.MARK, p_leg: int = 0, p_tags: Array[String] 
 func to_dict() -> Dictionary:
 	return {
 		"object_kind": object_kind,
+		"node_id": node_id,
 		"leg": leg,
 		"position": position,
 		"tags": tags.duplicate(),
@@ -46,6 +48,7 @@ func to_dict() -> Dictionary:
 static func from_dict(d: Dictionary) -> TraceData:
 	var t := TraceData.new()
 	t.object_kind = int(d.get("object_kind", ObjectKind.MARK))
+	t.node_id = str(d.get("node_id", ""))
 	t.leg = int(d.get("leg", 0))
 	t.position = float(d.get("position", 0.0))
 	t.uses = int(d.get("uses", 0))
