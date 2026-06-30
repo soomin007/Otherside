@@ -21,8 +21,7 @@ var _water_label: Label
 var _food_label: Label
 var _aux_label: Label
 var _advance_btn: Button
-var _leave_btn: Button   ## "남기기" — 물건 하나 두고 계속 (런당 1회)
-var _end_btn: Button
+var _leave_btn: Button   ## "남기기" — 물건 하나 두고 계속 (런당 1회). 자발적 죽음은 없다(모든 죽음 비자발적).
 
 var _death_panel: Control
 var _death_label: Label
@@ -108,19 +107,10 @@ func _build_hud() -> void:
 	_advance_btn.pressed.connect(_on_advance)
 	bcol.add_child(_advance_btn)
 
-	# 보조 두 개 한 줄: 남기기(물건 하나 두고 계속) + 여기서 끝(자발적 죽음)
-	var sub_row := HBoxContainer.new()
-	sub_row.add_theme_constant_override("separation", 12)
-	bcol.add_child(sub_row)
-
+	# 보조: 남기기(물건 하나 두고 계속, 런당 1회). 자발적 죽음은 없다 — 모든 죽음은 비자발적(고갈/위협).
 	_leave_btn = UITheme.make_button("남기기", false)
 	_leave_btn.pressed.connect(_on_leave_pressed)
-	sub_row.add_child(_leave_btn)
-
-	_end_btn = UITheme.make_button("여기서 끝", false)
-	_end_btn.add_theme_color_override("font_color", UITheme.MUTED)
-	_end_btn.pressed.connect(_on_end)
-	sub_row.add_child(_end_btn)
+	bcol.add_child(_leave_btn)
 
 	_build_situation_panel()
 	_build_death_panel()
@@ -285,12 +275,6 @@ func _on_advance() -> void:
 	if not _run.pending_situation.is_empty():
 		_show_situation()
 
-func _on_end() -> void:
-	# 여기서 끝 — 자발적 죽음(시체만 남는다). 물건 남김은 "남기기"로 따로, 죽지 않고.
-	if not _run.alive or _bequeath_panel.visible:
-		return
-	_die("chosen")
-
 ## 남기기 — 물건 하나를 두고(자원 -비용) 계속 간다(런당 1회). 죽음과 분리.
 func _on_leave_pressed() -> void:
 	if not _run.alive or _run.bequeathed or _bequeath_panel.visible or _sit_panel.visible:
@@ -330,7 +314,6 @@ func _show_situation() -> void:
 
 	_advance_btn.disabled = true
 	_leave_btn.disabled = true
-	_end_btn.disabled = true
 	_sit_panel.visible = true
 
 func _on_choice(effect: Dictionary, action: String = "", sets: Array = [], sets_persist: Array = [], trace_kind: int = -1) -> void:
@@ -351,7 +334,6 @@ func _on_choice(effect: Dictionary, action: String = "", sets: Array = [], sets_
 		GameState.add_persist_flags(sets_persist)
 	_sit_panel.visible = false
 	_advance_btn.disabled = false
-	_end_btn.disabled = false
 	_refresh()
 	if not _run.alive:
 		_die(_run.death_cause)
@@ -390,7 +372,6 @@ func _show_bequeath() -> void:
 	_picked_tags = []
 	_advance_btn.disabled = true
 	_leave_btn.disabled = true
-	_end_btn.disabled = true
 	_sit_panel.visible = false
 	_bequeath_step_what()
 	_bequeath_panel.visible = true
@@ -489,14 +470,12 @@ func _commit_bequeath() -> void:
 	GameState.save_game()
 	_bequeath_panel.visible = false
 	_advance_btn.disabled = false
-	_end_btn.disabled = false
 	_refresh()  # 줄어든 자원·소진된 남기기 버튼 반영. 계속 전진.
 
 ## 남김 취소 — 결정 화면을 닫고 계속 간다.
 func _cancel_bequeath() -> void:
 	_bequeath_panel.visible = false
 	_advance_btn.disabled = false
-	_end_btn.disabled = false
 	_refresh()
 
 ## 남길 물건 종류 → 자원 키 ("" = 자원 아님/없음).
@@ -538,7 +517,6 @@ func _death_tags(cause: String) -> Array[String]:
 	match cause:
 		"thirst": out.assign(["갈증", "끝"])
 		"hunger": out.assign(["없다", "끝"])
-		"chosen": out.assign(["또", "봐"])
 		_: out.assign(["끝"])
 	return out
 
@@ -546,12 +524,10 @@ func _death_message(cause: String) -> String:
 	match cause:
 		"thirst": return "물이 떨어졌다. 여기서 갈증으로 끝났다."
 		"hunger": return "식량이 떨어졌다. 더 가지 못했다."
-		"chosen": return "여기서 멈추기로 했다. 더 가지 않기로."
 		_: return "여기서 끝났다."
 
 func _show_death(cause: String, tags: Array[String], kind: int = TraceData.ObjectKind.BODY) -> void:
 	_advance_btn.disabled = true
-	_end_btn.disabled = true
 	_sit_panel.visible = false
 	_bequeath_panel.visible = false
 	var left: String = _obj_name(kind)
