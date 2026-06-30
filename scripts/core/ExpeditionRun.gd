@@ -76,7 +76,7 @@ func step() -> void:
 	# 랜드마크(고정 지형)가 일반 상황보다 우선. 어느 쪽이 떠도 다음 일반 상황 일정을 새로 잡는다.
 	if Situations.LANDMARKS.has(leg):
 		var feat: Dictionary = Situations.landmark(leg)
-		# 이미 로프를 건 차단이면 과거의 내가 길을 열어둔 통과 카드로 대체(self-async 보상).
+		# 이미 로프를 건 차단이면 이전 원정대가 길을 열어둔 통과 카드로 대체(self-async 보상).
 		if str(feat.get("kind", "cache")) == "blockage" and _bridged.has(leg):
 			_set_pending(Situations.crossed_blockage(feat))
 		else:

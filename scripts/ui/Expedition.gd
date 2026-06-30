@@ -324,7 +324,7 @@ func _show_bequeath() -> void:
 func _bequeath_step_what() -> void:
 	_clear_box(_bequeath_box)
 	_bequeath_box.add_child(UITheme.make_label("무엇을 남길까", UITheme.FS_H1))
-	_bequeath_box.add_child(UITheme.make_label("여기서 멈춘다. 미래의 나에게 하나만 남길 수 있다.", UITheme.FS_SMALL, UITheme.MUTED))
+	_bequeath_box.add_child(UITheme.make_label("여기서 멈춘다. 다음 원정대에게 하나만 남길 수 있다.", UITheme.FS_SMALL, UITheme.MUTED))
 	var opts: Array = [
 		[TraceData.ObjectKind.WATER, "물통", "water"],
 		[TraceData.ObjectKind.FOOD, "식량 자루", "food"],
@@ -452,7 +452,7 @@ func _death_message(cause: String) -> String:
 	match cause:
 		"thirst": return "물이 떨어졌다. 여기서 갈증으로 끝났다."
 		"hunger": return "식량이 떨어졌다. 더 가지 못했다."
-		"chosen": return "여기서 멈추기로 했다. 다음 나에게 남긴다."
+		"chosen": return "여기서 멈추기로 했다. 다음 원정대에게 남긴다."
 		_: return "여기서 끝났다."
 
 func _show_death(cause: String, tags: Array[String], kind: int = TraceData.ObjectKind.BODY) -> void:
@@ -495,7 +495,7 @@ func _draw() -> void:
 		if i % 5 == 0 and font != null:
 			draw_string(font, Vector2(x - 8.0, ground_y + 28.0), str(i), HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_TINY, Color(0.4, 0.4, 0.42))
 
-	# 과거의 나 — 남긴 흔적 점 (self-async). ROPE 는 차단의 다리로 따로 그리므로 건너뛴다.
+	# 이전 원정대 — 남긴 흔적 점 (self-async). ROPE 는 차단의 다리로 따로 그리므로 건너뛴다.
 	for t in GameState.loaded_traces():
 		if t.object_kind == TraceData.ObjectKind.ROPE:
 			continue
@@ -543,7 +543,7 @@ func _draw_blockage(lm_leg: int, feat: Dictionary, ground_y: float, offset: floa
 	var col: Color
 	var label: String = str(feat.get("name", ""))
 	if bridged:
-		# 과거의 내가 건 로프 — 틈을 가로지른다 (self-async 의 가장 뿌듯한 흔적)
+		# 이전 원정대가 건 로프 — 틈을 가로지른다 (self-async 의 가장 뿌듯한 흔적)
 		col = UITheme.SAND
 		draw_line(Vector2(lx - half - 6.0, ground_y - 3.0), Vector2(lx + half + 6.0, ground_y - 3.0), col, 4.0)
 		label = "%s (로프)" % label

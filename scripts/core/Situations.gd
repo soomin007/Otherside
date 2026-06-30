@@ -48,10 +48,10 @@ const CATALOG: Array = [
 	{
 		"id": "past_flask",
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "과거의 내가 물통을 두고 갔다. 곁의 표식: [ 또 · 봐 ]",
+		"text": "이전 원정대가 물통을 두고 갔다. 곁의 표식: [ 또 · 봐 ]",
 		"choices": [
 			{"label": "집는다", "effect": {"water": 4}},
-			{"label": "남겨둔다 (다음 나에게)", "effect": {}},
+			{"label": "남겨둔다 (다음 원정대에게)", "effect": {}},
 		],
 	},
 ]
@@ -298,7 +298,7 @@ static func pick_event(feat: Dictionary, flags: Dictionary, rng: RandomNumberGen
 		out["threat"] = feat.get("threat", Threats.Kind.CONSUMPTION)
 	return out
 
-## 이미 로프가 걸린 차단 지점에 다시 왔을 때의 카드 - 과거의 내가 길을 열어뒀다(self-async 보상).
+## 이미 로프가 걸린 차단 지점에 다시 왔을 때의 카드 - 이전 원정대가 길을 열어뒀다(self-async 보상).
 ## 자원 소모 없이 통과한다. 차단의 정체성("가장 뿌듯한 흔적")을 죽음 너머에서 되돌려받는 순간.
 static func crossed_blockage(feat: Dictionary) -> Dictionary:
 	return {
@@ -306,7 +306,7 @@ static func crossed_blockage(feat: Dictionary) -> Dictionary:
 		"name": str(feat.get("name", "")),
 		"kind": "bridged",
 		"threat": Threats.Kind.BLOCKAGE,
-		"text": "과거의 내가 여기 로프를 걸어뒀다. 그대로 건넌다.",
+		"text": "이전 원정대가 여기 로프를 걸어뒀다. 그대로 건넌다.",
 		"choices": [
 			{"label": "고맙게 건넌다", "effect": {}},
 		],
