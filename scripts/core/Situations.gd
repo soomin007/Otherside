@@ -54,6 +54,24 @@ const CATALOG: Array = [
 			{"label": "남겨둔다 (다음 원정대에게)", "effect": {}},
 		],
 	},
+	{
+		"id": "old_tracks",
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "모래에 반쯤 지워진 발자국. 이전 원정대도 여기까지는 왔던 모양이다. 자국은 한쪽으로 휘어 사라진다.",
+		"choices": [
+			{"label": "발자국을 따라간다", "effect": {"water": -1}},
+			{"label": "곧장 내 길로 간다", "effect": {}},
+		],
+	},
+	{
+		"id": "scavenge_wreck",
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "부서진 수레가 모래에 처박혀 있다. 뒤지면 뭔가 나올지도, 시간만 버릴지도.",
+		"choices": [
+			{"label": "뒤져 본다", "effect": {"food": 2, "water": -1}},
+			{"label": "지나친다", "effect": {}},
+		],
+	},
 ]
 
 ## 아이코닉한 고정 지형. 키 = leg(int). 각 랜드마크는 events 풀을 가진다(같은 장소, 다른 사건).
@@ -86,7 +104,7 @@ const LANDMARKS: Dictionary = {
 				"id": "river_dug_again",
 				"requires": "river_dug",
 				"threat": Threats.Kind.CONSUMPTION,
-				"text": "지난번 내가 파둔 구덩이가 그대로 있다. 더 깊이 파볼까.",
+				"text": "이전 원정대가 파둔 구덩이가 그대로 있다. 더 깊이 파볼까.",
 				"choices": [
 					{"label": "더 깊이 판다", "effect": {"water": 5, "food": -2}, "sets_persist": ["river_dug"]},
 					{"label": "이번엔 지나친다", "effect": {}},
@@ -122,7 +140,7 @@ const LANDMARKS: Dictionary = {
 				"id": "camp_revisit_shelter",
 				"requires": "camp_shelter",
 				"threat": Threats.Kind.CONSUMPTION,
-				"text": "내가 은신막을 떼어간 자리. 남은 천 조각이 바람에 떤다. 식량 자루는 아직 있다.",
+				"text": "이전 원정대가 은신막을 떼어간 자리. 남은 천 조각이 바람에 떤다. 식량 자루는 아직 있다.",
 				"choices": [
 					{"label": "식량 자루를 챙긴다", "effect": {"food": 3}},
 					{"label": "지나친다", "effect": {}},
@@ -141,8 +159,17 @@ const LANDMARKS: Dictionary = {
 				"threat": Threats.Kind.BLOCKAGE,
 				"text": "땅이 쩍 갈라졌다. 바닥은 보이지 않는다. 로프를 걸면 다음에도 건널 수 있다.",
 				"choices": [
-					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge"},
+					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge", "sets": ["rope_spent_now"]},
 					{"label": "맨몸으로 무리해서 건넌다", "effect": {"water": -3, "food": -2}},
+				],
+			},
+			{
+				"id": "cracked_floor_gust",
+				"threat": Threats.Kind.BLOCKAGE,
+				"text": "갈라진 틈에서 모래바람이 솟구쳐 건너편이 흐릿하다. 로프를 걸면 다음에도 건널 수 있다.",
+				"choices": [
+					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge", "sets": ["rope_spent_now"]},
+					{"label": "바람 잦아들 때 맨몸으로 건넌다", "effect": {"water": -2, "food": -2}},
 				],
 			},
 		],
@@ -226,6 +253,16 @@ const LANDMARKS: Dictionary = {
 					{"label": "맨몸으로 무리해서 넘는다", "effect": {"water": -3, "food": -2}},
 				],
 			},
+			{
+				# 같은 런 연쇄: 앞 차단(12)에서 로프를 이미 썼으면(rope_spent_now) 로프가 없다 — 맨몸뿐.
+				"id": "collapsed_wall_noropeleft",
+				"requires": "rope_spent_now",
+				"threat": Threats.Kind.BLOCKAGE,
+				"text": "또 막혔다. 로프는 앞선 틈에서 다 썼다. 이번엔 몸으로 부딪는 수밖에 없다.",
+				"choices": [
+					{"label": "맨몸으로 무리해서 넘는다", "effect": {"water": -3, "food": -2}},
+				],
+			},
 		],
 	},
 	28: {
@@ -242,6 +279,15 @@ const LANDMARKS: Dictionary = {
 				"choices": [
 					{"label": "은신처 치고 잦아들길 기다린다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
 					{"label": "눈 감고 뚫고 간다", "effect": {"water": -5, "food": -2}},
+				],
+			},
+			{
+				"id": "storm_gate_eye",
+				"threat": Threats.Kind.STORM,
+				"text": "폭풍 한가운데 바람이 잠깐 멎는 눈이 보인다. 지금 달리면 통과할 수 있을지도.",
+				"choices": [
+					{"label": "은신처 치고 안전하게 간다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
+					{"label": "폭풍의 눈으로 달린다", "effect": {"water": -3, "food": -1}},
 				],
 			},
 		],
