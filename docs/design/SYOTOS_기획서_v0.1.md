@@ -123,16 +123,17 @@
 > 수치(소모량·span·보충량)는 임시치 — 폰 테스트로 체감 밸런스를 잡는다. 자원 = 수명이므로 START 자원(물20·식량13·로프1·은신처1)에서
 > 차단 2곳·폭풍 2곳을 "전부 대비"하기는 불가능하게 두어, 무엇을 포기할지 강요한다.
 
-### 4.2 랜드마크 이벤트 풀 + 선택 반영(플래그) (Phase 0)
+### 4.2 노드 이벤트 풀 + 선택 반영(플래그) (Phase 0)
 
-각 랜드마크는 단일 이벤트가 아니라 **이벤트 풀**(`events`)을 가진다. 도착할 때마다 하나가 뜬다(같은 장소, 다른 사건).
+각 노드(`MapGraph.NODES`)는 단일 이벤트가 아니라 **이벤트 풀**(`events`)을 가진다. 도착할 때마다 하나가 뜬다(같은 장소, 다른 사건).
+(⑤ 일원화: 옛 leg 기반 `Situations.LANDMARKS` 폐기 — 콘텐츠의 집은 노드 하나. `Situations.pick_event` 가 노드 events 를 읽는다.)
 선택 반영(§1 제일 중요한 축)은 **명명 플래그**로 일반화한다:
 - **플래그를 켠다.** choice 에 `sets`(런 한정 플래그) / `sets_persist`(영속 플래그, 세이브).
 - **조건.** 이벤트·일반 상황의 `requires` 가 그 플래그를 요구 → 켜져 있으면 그 변형이 우선/등장.
 - **같은 런 연쇄.** `sets` 플래그가 같은 원정의 뒤 이벤트를 바꾼다. (데모: 야영지서 여분 은신막 챙김 → 뒤 폭풍이 한결 든든.)
 - **다음 원정 반영.** `sets_persist` 플래그가 세이브돼 다음 원정의 변형을 깬다(self-async). (데모: 마른 강 판 자리 → 다음엔 더 깊이.)
 - **core 순수성.** `ExpeditionRun` 은 영속 플래그를 생성자 주입, run 플래그는 `set_flag` 로 누적(GameState 미참조).
-- **Phase 0 데모.** 재방문 변형 3종(river_dug/camp_shelter/bones_mourned) + 같은 런 연쇄 1종(camp_shelter_now → 폭풍). 콘텐츠 확충은 데이터(`events`/`sets`/`requires`)만 추가하면 된다.
+- **Phase 0 데모.** 노드 events 에 산다 — 재방문 변형(a1 `river_dug_again`·b1 `camp_revisit_shelter`·d1 `bones_revisit_mourn`) + 같은 런 연쇄(b1 `camp_shelter_now`→폭풍 변형, b2 `rope_spent_now`→후반 차단 e1 `collapsed_wall_noropeleft`). 콘텐츠 확충은 노드 `events`/`sets`/`requires` 만 추가하면 된다.
 
 ### 4.3 거리 곡선 + 런 길이 (Phase 0)
 
