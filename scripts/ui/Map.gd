@@ -11,6 +11,14 @@ const NODE_R: float = 13.0
 const STEP_INTERVAL: float = 0.28  ## 이동 한 걸음의 시간(초)
 const RES_KO: Dictionary = {"water": "물", "food": "식량", "rope": "로프", "shelter": "은신처"}
 
+# 고지도·양피지 팔레트 (③ 지형 비주얼). 전부 절차적 draw — 웹 안전(셰이더/이미지 없음).
+const PAPER: Color = Color(0.82, 0.74, 0.57)       ## 빛바랜 양피지 바탕
+const PAPER_EDGE: Color = Color(0.58, 0.48, 0.32)  ## 가장자리(낡아 그을린)
+const INK: Color = Color(0.27, 0.19, 0.11)         ## 세피아 잉크 — 심볼·이름·테두리
+const INK_FADE: Color = Color(0.50, 0.41, 0.29)    ## 빛바랜 — 미방문 길·미지
+const ROUTE: Color = Color(0.38, 0.28, 0.16)       ## 밟은 길(트레일)
+const MARKER_INK: Color = Color(0.55, 0.20, 0.12)  ## 원정대 마커(붉은 세피아 — 양피지에서 도드라지게)
+
 var _hud: Label
 var _guide: Label
 var _moving: bool = false
@@ -208,15 +216,6 @@ func _node_screen(node: Dictionary, area: Rect2) -> Vector2:
 		area.position.x + col * area.size.x,
 		area.position.y + (row / float(mr)) * area.size.y)
 
-func _kind_color(kind: String) -> Color:
-	match kind:
-		"start": return UITheme.FG
-		"cache": return UITheme.SAND
-		"blockage": return Color(0.62, 0.52, 0.42)
-		"storm": return Color(0.55, 0.60, 0.72)
-		"end": return UITheme.DANGER
-		_: return UITheme.MUTED
-
 ## 플레이어 마커 위치 — 이동 중이면 현재→목표 노드 보간, 아니면 현재 노드.
 func _marker_pos(area: Rect2) -> Vector2:
 	var run: ExpeditionRun = GameState.current_run
@@ -240,10 +239,15 @@ func _draw() -> void:
 	if font == null:
 		font = ThemeDB.fallback_font
 
+	# 양피지 바탕 + 은은한 지형결 + 낡은 가장자리(전부 절차적 — 웹 안전).
+	draw_rect(area, PAPER)
+	_draw_terrain(area)
+	_draw_paper_edge(area)
+
 	var cur: String = _current_node_id()
 	var nexts: Array = MapGraph.node(cur).get("next", [])
 
-	# 엣지 — 가본 노드에서 나가는 길만(끝이 가봤거나 지금 갈 수 있는 곳일 때).
+	# 길 — 가본 노드에서 나가는 트레일. 밟은 길은 진한 실선, 미지로 향하는 길은 점선.
 	for id in MapGraph.NODES:
 		if not _is_revealed(id):
 			continue
@@ -253,39 +257,95 @@ func _draw() -> void:
 			var nx_s: String = str(nx)
 			if not (_is_revealed(nx_s) or nx_s in nexts):
 				continue
-			var col: Color = Color(0.80, 0.68, 0.46, 0.95) if from_cur else Color(0.42, 0.40, 0.38, 0.55)
-			draw_line(from, _node_screen(MapGraph.node(nx_s), area), col, 3.0 if from_cur else 1.5)
+			var to: Vector2 = _node_screen(MapGraph.node(nx_s), area)
+			if _is_revealed(nx_s):
+				draw_line(from, to, ROUTE, 3.0 if from_cur else 2.0)
+			else:
+				_draw_dashed(from, to, INK_FADE, 2.0)
 
-	# 노드 — 가본 곳은 정체, 갈 수 있는 미지는 "?", 나머지는 안 보임.
+	# 노드 — 가본 곳은 손그림 장소 심볼+이름, 갈 수 있는 미지는 "?", 나머지는 안 보임.
 	for id in MapGraph.NODES:
 		var revealed: bool = _is_revealed(id)
 		var reachable: bool = id in nexts
 		if not (revealed or reachable):
 			continue
 		var p: Vector2 = _node_screen(MapGraph.NODES[id], area)
+		if reachable and not _moving:
+			draw_arc(p, NODE_R + 6.0, 0.0, TAU, 28, INK, 2.0)  # 누를 수 있는 곳
 		if revealed:
-			var col: Color = _kind_color(str(MapGraph.NODES[id].get("kind", "")))
-			if reachable and not _moving:
-				draw_circle(p, NODE_R + 6.0, Color(col.r, col.g, col.b, 0.22))
-				draw_arc(p, NODE_R + 5.0, 0.0, TAU, 28, UITheme.SAND, 2.5)
-			draw_circle(p, NODE_R, col)
+			_draw_landmark_symbol(str(MapGraph.NODES[id].get("kind", "")), p)
 			if font != null:
-				draw_string(font, p + Vector2(NODE_R + 9.0, 5.0), str(MapGraph.NODES[id].get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 150.0, UITheme.FS_TINY, col)
+				draw_string(font, p + Vector2(NODE_R + 8.0, 5.0), str(MapGraph.NODES[id].get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 150.0, UITheme.FS_TINY, INK)
 		else:
-			if not _moving:
-				draw_circle(p, NODE_R + 5.0, Color(0.84, 0.70, 0.47, 0.18))
-				draw_arc(p, NODE_R + 4.0, 0.0, TAU, 28, UITheme.SAND, 2.0)
-			draw_circle(p, NODE_R, Color(0.32, 0.31, 0.35))
+			draw_circle(p, NODE_R - 2.0, Color(INK_FADE.r, INK_FADE.g, INK_FADE.b, 0.22))
 			if font != null:
-				draw_string(font, p - Vector2(4.0, -6.0), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_BODY, UITheme.SAND)
+				draw_string(font, p - Vector2(4.0, -6.0), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_BODY, INK_FADE)
 
 	# 흔적 — 이전 원정대들이 노드에 남긴 것(누적된 길/죽음의 역사, self-async).
 	_draw_traces(area)
 
-	# 플레이어 마커 — 현재 위치(이동 중이면 길 위를 나아간다).
+	# 원정대 마커 — 현재 위치(이동 중이면 길 위를 나아간다). 붉은 세피아로 도드라지게.
 	var mp: Vector2 = _marker_pos(area)
-	draw_circle(mp, 7.0, UITheme.FG)
-	draw_arc(mp, 11.0, 0.0, TAU, 22, UITheme.FG, 2.0)
+	draw_circle(mp, 6.0, MARKER_INK)
+	draw_arc(mp, 10.0, 0.0, TAU, 22, MARKER_INK, 2.0)
+
+## 양피지 지형결 — 은은한 등고선(결정론 sin 곡선). 사막 지도의 결.
+func _draw_terrain(area: Rect2) -> void:
+	var line_col := Color(INK.r, INK.g, INK.b, 0.06)
+	var rows: int = 7
+	for i in range(1, rows):
+		var base_y: float = area.position.y + area.size.y * float(i) / float(rows)
+		var pts: PackedVector2Array = []
+		var steps: int = 24
+		for s in range(steps + 1):
+			var t: float = float(s) / float(steps)
+			var x: float = area.position.x + area.size.x * t
+			var y: float = base_y + sin(t * TAU * 1.5 + float(i) * 1.3) * 7.0 + sin(t * TAU * 3.0) * 3.0
+			pts.append(Vector2(x, y))
+		draw_polyline(pts, line_col, 1.5)
+
+## 양피지 가장자리 — 낡아 그을린 테두리(비네팅 대용, 셰이더 없이).
+func _draw_paper_edge(area: Rect2) -> void:
+	draw_rect(area, PAPER_EDGE, false, 3.0)
+	var inset: float = 6.0
+	draw_rect(Rect2(area.position + Vector2(inset, inset), area.size - Vector2(inset, inset) * 2.0), Color(PAPER_EDGE.r, PAPER_EDGE.g, PAPER_EDGE.b, 0.3), false, 1.5)
+
+## 손그림 장소 심볼 (kind별) — 세피아 잉크. 점이 아니라 "장소"로 읽히게.
+func _draw_landmark_symbol(kind: String, p: Vector2) -> void:
+	match kind:
+		"start":  # 마을 — 작은 천막
+			var roof: PackedVector2Array = [p + Vector2(-9, 6), p + Vector2(0, -9), p + Vector2(9, 6)]
+			draw_polyline(roof, INK, 2.0)
+			draw_line(p + Vector2(-9, 6), p + Vector2(9, 6), INK, 2.0)
+		"cache":  # 자원 — 우물(이중 원)
+			draw_arc(p, 8.0, 0.0, TAU, 20, INK, 2.0)
+			draw_circle(p, 2.5, INK)
+		"blockage":  # 차단 — 갈라진 틈(지그재그)
+			var zz: PackedVector2Array = [p + Vector2(-8, -7), p + Vector2(-2, 0), p + Vector2(-6, 3), p + Vector2(2, 8)]
+			draw_polyline(zz, INK, 2.0)
+		"storm":  # 폭풍 — 소용돌이(나선 두 겹)
+			draw_arc(p, 8.0, 0.4, 0.4 + TAU * 0.8, 18, INK, 2.0)
+			draw_arc(p, 4.5, 1.0, 1.0 + TAU * 0.7, 14, INK, 2.0)
+		"end":  # 목적지 — 깃발
+			draw_line(p + Vector2(-1, 9), p + Vector2(-1, -9), INK, 2.0)
+			var flag: PackedVector2Array = [p + Vector2(-1, -9), p + Vector2(9, -5), p + Vector2(-1, -1)]
+			draw_colored_polygon(flag, INK)
+		_:
+			draw_circle(p, 5.0, INK)
+
+## 점선 — 미지로 향하는 길(아직 안 밟음).
+func _draw_dashed(a: Vector2, b: Vector2, col: Color, w: float) -> void:
+	var dist: float = a.distance_to(b)
+	if dist < 0.5:
+		return
+	var dir: Vector2 = (b - a) / dist
+	var dash: float = 7.0
+	var gap: float = 5.0
+	var d: float = 0.0
+	while d < dist:
+		var seg_end: float = minf(d + dash, dist)
+		draw_line(a + dir * d, a + dir * seg_end, col, w)
+		d = seg_end + gap
 
 ## 노드별 흔적 마커 — 죽음 X·로프 다리·자원 점. 가본 노드에만(흔적은 가본 곳에서만 생긴다). 한 노드에 여러 개면 옆으로 쌓는다.
 func _draw_traces(area: Rect2) -> void:
