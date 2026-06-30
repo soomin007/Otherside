@@ -544,40 +544,21 @@ func _draw() -> void:
 	var rect: Vector2 = size
 	if rect.x <= 0.0 or rect.y <= 0.0 or _run == null:
 		return
-	var ground_y: float = rect.y * GROUND_RATIO
-	var walker_x: float = rect.x * WALKER_SCREEN_RATIO
-	var offset: float = walker_x - _run.leg * STEP_PX
-
-	# 지면 — 단색 (웹 안전)
-	draw_rect(Rect2(0.0, ground_y, rect.x, rect.y - ground_y), Color(0.11, 0.10, 0.13))
-	draw_line(Vector2(0.0, ground_y), Vector2(rect.x, ground_y), Color(0.3, 0.28, 0.24), 2.0)
-
-	# 캔버스 직접 그리기도 프로젝트 기본 폰트(한글 포함) 사용. 없으면 엔진 폴백.
 	var font: Font = get_theme_default_font()
 	if font == null:
 		font = ThemeDB.fallback_font
-	# 걸음 눈금 (5걸음마다 숫자)
-	var first_leg: int = maxi(int(floor((0.0 - offset) / STEP_PX)) - 1, 0)
-	var last_leg: int = int(ceil((rect.x - offset) / STEP_PX)) + 1
-	for i in range(first_leg, last_leg + 1):
-		var x: float = i * STEP_PX + offset
-		draw_line(Vector2(x, ground_y - 6.0), Vector2(x, ground_y + 6.0), Color(0.25, 0.24, 0.21), 1.0)
-		if i % 5 == 0 and font != null:
-			draw_string(font, Vector2(x - 8.0, ground_y + 28.0), str(i), HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_TINY, Color(0.4, 0.4, 0.42))
-
-	# 목표 노드 — 이번 엣지의 도착점이 앞에서 다가온다(남은 걸음만큼 오른쪽). 노드화로 흔적/지형 마커는 다음 단계.
-	var dest_id: String = _run.target_node_id()
-	if dest_id != "":
-		var dx: float = walker_x + float(_run.edge_remaining()) * STEP_PX
-		var dnode: Dictionary = MapGraph.node(dest_id)
-		var dcol: Color = _node_kind_color(str(dnode.get("kind", "")))
-		draw_line(Vector2(dx, ground_y), Vector2(dx, ground_y - 48.0), dcol, 2.0)
-		draw_circle(Vector2(dx, ground_y - 54.0), 7.0, dcol)
-		if font != null:
-			draw_string(font, Vector2(dx - 50.0, ground_y - 64.0), str(dnode.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 160, UITheme.FS_SMALL, dcol)
-
-	# 걷는 이
-	_draw_walker(Vector2(walker_x, ground_y), _run.alive)
+	# 이동 화면 — 막대 걷기 폐기. 미지로 향하는 진행만 담담히 보여준다.
+	# (랜드마크 도착 시 단면 탐색 씬 + 이동을 맵으로 완전 이전은 다음 단계.)
+	if _run.target_node_id() == "":
+		return
+	var total: int = ExpeditionRun.EDGE_LEN
+	var done: int = total - _run.edge_remaining()
+	var cy: float = rect.y * 0.48
+	if _run.arrived():
+		draw_string(font, Vector2(0.0, cy), "도착했다", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_BODY, UITheme.SAND)
+	else:
+		draw_string(font, Vector2(0.0, cy), "미지를 향해 가는 중", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_BODY, UITheme.MUTED)
+		draw_string(font, Vector2(0.0, cy + 38.0), "%d / %d 걸음" % [done, total], HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, UITheme.MUTED)
 
 ## 노드 종류별 색 (지도와 같은 팔레트).
 func _node_kind_color(kind: String) -> Color:
