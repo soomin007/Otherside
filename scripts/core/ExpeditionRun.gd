@@ -15,11 +15,15 @@ const FOOD_EVERY: int = 2         ## 식량은 이 걸음 수마다 1 소모 (�
 const GAP_MIN: int = 2         ## 일반 상황 최소 간격 (걸음)
 const GAP_MAX: int = 4         ## 일반 상황 최대 간격 (걸음)
 
+## 남길 때 잃는 양 = 다음 원정대가 줍기로 얻는 양(Situations.pickup_trace 와 대칭). 물건 하나 = 그만큼의 희생.
+const LEAVE_COST: Dictionary = {"water": 4, "food": 3, "shelter": 1, "rope": 1}
+
 var resources: Dictionary = {}        ## {"water": int, "food": int, "rope": int, "shelter": int}
 var leg: int = 0                      ## 전진한 걸음 수
 var alive: bool = true
 var death_cause: String = ""          ## "" | "thirst" | "hunger"
 var pending_situation: Dictionary = {} ## 지금 결정해야 할 상황 (비어 있으면 없음)
+var bequeathed: bool = false          ## 이번 원정에 "남김 한 번"을 이미 썼나 (런당 1회)
 
 var rng := RandomNumberGenerator.new()
 var _last_situation_id: String = ""
@@ -62,6 +66,27 @@ func has_flag(f: String) -> bool:
 ## 플래그를 켠다 (UI 가 선택의 sets/sets_persist 를 반영). 영속 저장은 GameState 가 따로 한다.
 func set_flag(f: String) -> void:
 	_flags[f] = true
+
+## 이 물건(자원)을 남길 때 잃는 양.
+func leave_cost(key: String) -> int:
+	return int(LEAVE_COST.get(key, 0))
+
+## 지금 이 자원을 남길 수 있나 — 토큰 미사용 + 보유량 충분 + 생존 자원(물/식량)은 남기고도 살아남아야(>=1).
+func can_leave(key: String) -> bool:
+	if bequeathed:
+		return false
+	var cost: int = leave_cost(key)
+	if cost <= 0 or get_res(key) < cost:
+		return false
+	if (key == "water" or key == "food") and get_res(key) - cost < 1:
+		return false
+	return true
+
+## 물건을 남긴다 — 자원을 비용만큼 잃고(자기 수명 깎기) 토큰을 소진한다. 흔적 자체는 UI/GameState 가 만든다.
+## can_leave 가 보장하므로 이로 인해 죽지 않는다(전진은 계속).
+func do_leave(key: String) -> void:
+	resources[key] = get_res(key) - leave_cost(key)
+	bequeathed = true
 
 ## 한 걸음 전진 - 소모 자원을 차감하고 고갈을 판정한다. 살아남으면 랜드마크/일반 상황을 세운다.
 func step() -> void:

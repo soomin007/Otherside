@@ -21,6 +21,7 @@ var _water_label: Label
 var _food_label: Label
 var _aux_label: Label
 var _advance_btn: Button
+var _leave_btn: Button   ## "남기기" — 물건 하나 두고 계속 (런당 1회)
 var _end_btn: Button
 
 var _death_panel: Control
@@ -107,10 +108,19 @@ func _build_hud() -> void:
 	_advance_btn.pressed.connect(_on_advance)
 	bcol.add_child(_advance_btn)
 
-	_end_btn = UITheme.make_button("여기서 끝 (남기고 죽기)", false)
+	# 보조 두 개 한 줄: 남기기(물건 하나 두고 계속) + 여기서 끝(자발적 죽음)
+	var sub_row := HBoxContainer.new()
+	sub_row.add_theme_constant_override("separation", 12)
+	bcol.add_child(sub_row)
+
+	_leave_btn = UITheme.make_button("남기기", false)
+	_leave_btn.pressed.connect(_on_leave_pressed)
+	sub_row.add_child(_leave_btn)
+
+	_end_btn = UITheme.make_button("여기서 끝", false)
 	_end_btn.add_theme_color_override("font_color", UITheme.MUTED)
 	_end_btn.pressed.connect(_on_end)
-	bcol.add_child(_end_btn)
+	sub_row.add_child(_end_btn)
 
 	_build_situation_panel()
 	_build_death_panel()
@@ -211,8 +221,26 @@ func _refresh() -> void:
 	_water_label.add_theme_color_override("font_color", _res_color(water, 3, Color(0.55, 0.78, 0.97)))
 	_food_label.add_theme_color_override("font_color", _res_color(food, 2, Color(0.88, 0.72, 0.42)))
 	_aux_label.text = "로프 %d · 은신처 %d  (남길 수 있는 것)" % [_run.get_res("rope"), _run.get_res("shelter")]
+	_update_leave_btn()
 	_update_storm_fx()
 	queue_redraw()
+
+## "남기기" 버튼 상태 — 이미 남겼으면 잠그고("남겼다"), 아니면 남길 수 있는 자원이 하나라도 있을 때만 활성.
+func _update_leave_btn() -> void:
+	if _leave_btn == null:
+		return
+	if _run.bequeathed:
+		_leave_btn.disabled = true
+		_leave_btn.text = "남겼다"
+	else:
+		_leave_btn.disabled = not _any_leavable()
+		_leave_btn.text = "남기기"
+
+func _any_leavable() -> bool:
+	for key in ["water", "food", "rope", "shelter"]:
+		if _run.can_leave(key):
+			return true
+	return false
 
 ## 화면에 보이는 폭풍 구간을 찾아 StormFX 영역을 갱신한다(걸음마다 + 리사이즈 시). _draw_storm 의 띠와 같은 좌표.
 func _update_storm_fx() -> void:
@@ -254,7 +282,14 @@ func _on_advance() -> void:
 		_show_situation()
 
 func _on_end() -> void:
+	# 여기서 끝 — 자발적 죽음(시체만 남는다). 물건 남김은 "남기기"로 따로, 죽지 않고.
 	if not _run.alive or _bequeath_panel.visible:
+		return
+	_die("chosen")
+
+## 남기기 — 물건 하나를 두고(자원 -비용) 계속 간다(런당 1회). 죽음과 분리.
+func _on_leave_pressed() -> void:
+	if not _run.alive or _run.bequeathed or _bequeath_panel.visible or _sit_panel.visible:
 		return
 	_show_bequeath()
 
@@ -290,6 +325,7 @@ func _show_situation() -> void:
 		_choice_box.add_child(btn)
 
 	_advance_btn.disabled = true
+	_leave_btn.disabled = true
 	_end_btn.disabled = true
 	_sit_panel.visible = true
 
@@ -342,23 +378,24 @@ func _effect_hint(effect: Dictionary) -> String:
 		parts.append("%s %s%d" % [str(RES_KO.get(key, key)), sign_str, v])
 	return " · ".join(parts)
 
-# --- 남김 한 번 (자발적 종료) ---
+# --- 남김 한 번 (물건 두고 계속) ---
 
-## "남김 한 번" 결정 화면을 연다. 무엇을(자원 1종/시체) 고른 뒤 태그를 얹는다.
+## "남김 한 번" 결정 화면을 연다 — 물건 하나를 골라 태그를 얹는다. 죽지 않고 계속 간다(그 자원만 그만큼 잃음).
 func _show_bequeath() -> void:
-	_picked_kind = TraceData.ObjectKind.BODY
+	_picked_kind = TraceData.ObjectKind.MARK
 	_picked_tags = []
 	_advance_btn.disabled = true
+	_leave_btn.disabled = true
 	_end_btn.disabled = true
 	_sit_panel.visible = false
 	_bequeath_step_what()
 	_bequeath_panel.visible = true
 
-## 1단계 — 무엇을 남길까. 들고 있는 자원만 고를 수 있다(없으면 시체만). 남김 = 자기 수명 깎기.
+## 1단계 — 무엇을 남길까. 남기면 그만큼 잃는다(자기 수명 깎기). 생존 자원(물/식량)은 죽지 않을 만큼만 남길 수 있다.
 func _bequeath_step_what() -> void:
 	_clear_box(_bequeath_box)
 	_bequeath_box.add_child(UITheme.make_label("무엇을 남길까", UITheme.FS_H1))
-	_bequeath_box.add_child(UITheme.make_label("여기서 멈춘다. 다음 원정대에게 하나만 남길 수 있다.", UITheme.FS_SMALL, UITheme.MUTED))
+	_bequeath_box.add_child(UITheme.make_label("물건 하나를 여기 둔다. 그만큼 잃지만, 계속 갈 수 있다.", UITheme.FS_SMALL, UITheme.MUTED))
 	var opts: Array = [
 		[TraceData.ObjectKind.WATER, "물통", "water"],
 		[TraceData.ObjectKind.FOOD, "식량 자루", "food"],
@@ -369,20 +406,17 @@ func _bequeath_step_what() -> void:
 		var kind: int = o[0]
 		var label: String = o[1]
 		var res_key: String = o[2]
-		var n: int = _run.get_res(res_key)
-		var btn := UITheme.make_button("%s  (%s %d)" % [label, str(RES_KO.get(res_key, res_key)), n], false)
-		if n > 0:
+		var cost: int = _run.leave_cost(res_key)
+		var have: int = _run.get_res(res_key)
+		var btn := UITheme.make_button("%s  (%s -%d / 보유 %d)" % [label, str(RES_KO.get(res_key, res_key)), cost, have], false)
+		if _run.can_leave(res_key):
 			btn.pressed.connect(_pick_object.bind(kind))
 		else:
 			btn.disabled = true
 		_bequeath_box.add_child(btn)
-	var body_btn := UITheme.make_button("아무것도 남기지 않는다 (시체만)", false)
-	body_btn.add_theme_color_override("font_color", UITheme.MUTED)
-	body_btn.pressed.connect(_pick_object.bind(TraceData.ObjectKind.BODY))
-	_bequeath_box.add_child(body_btn)
 
 	_bequeath_box.add_child(HSeparator.new())
-	var cancel := UITheme.make_button("아직 더 간다", false)
+	var cancel := UITheme.make_button("그냥 간다", false)
 	cancel.add_theme_color_override("font_color", UITheme.MUTED)
 	cancel.pressed.connect(_cancel_bequeath)
 	_bequeath_box.add_child(cancel)
@@ -418,7 +452,7 @@ func _bequeath_step_tags() -> void:
 	var back := UITheme.make_button("뒤로", false)
 	back.pressed.connect(_bequeath_step_what)
 	row.add_child(back)
-	var done := UITheme.make_button("남기고 떠난다", false)
+	var done := UITheme.make_button("남기고 계속 간다", false)
 	done.pressed.connect(_commit_bequeath)
 	row.add_child(done)
 	_bequeath_box.add_child(row)
@@ -437,21 +471,38 @@ func _toggle_tag(word: String) -> void:
 func _is_pickup_kind(kind: int) -> bool:
 	return kind == TraceData.ObjectKind.WATER or kind == TraceData.ObjectKind.FOOD or kind == TraceData.ObjectKind.SHELTER
 
-## 결정 확정 — 흔적을 남기고(죽음으로 자원은 사라진다) 죽음 화면으로.
+## 결정 확정 — 물건을 그 자리에 남기고(자원 그만큼 잃음) 계속 간다. 죽지 않는다.
+## 남긴 자원 흔적은 줍기 가능(uses) — 다음 원정대가 집어 쓴다(루프가 닫힌다).
 func _commit_bequeath() -> void:
+	var res_key: String = _kind_to_key(_picked_kind)
+	if res_key == "":
+		_cancel_bequeath()
+		return
+	_run.do_leave(res_key)  # 자원 -비용 + 토큰 소진 (can_leave 가 생존 보장 → 안 죽음)
 	var uses: int = TraceData.PICKUP_USES if _is_pickup_kind(_picked_kind) else 0
 	var trace := TraceData.new(_picked_kind, _run.leg, _picked_tags, uses)
 	GameState.leave_trace(trace)
-	GameState.record_death(_run.leg)
 	GameState.save_game()
 	_bequeath_panel.visible = false
-	_show_death("chosen", _picked_tags, _picked_kind)
+	_advance_btn.disabled = false
+	_end_btn.disabled = false
+	_refresh()  # 줄어든 자원·소진된 남기기 버튼 반영. 계속 전진.
 
-## 남김 취소 — 아직 안 죽었으니 결정 화면을 닫고 계속 간다.
+## 남김 취소 — 결정 화면을 닫고 계속 간다.
 func _cancel_bequeath() -> void:
 	_bequeath_panel.visible = false
 	_advance_btn.disabled = false
 	_end_btn.disabled = false
+	_refresh()
+
+## 남길 물건 종류 → 자원 키 ("" = 자원 아님/없음).
+func _kind_to_key(kind: int) -> String:
+	match kind:
+		TraceData.ObjectKind.WATER: return "water"
+		TraceData.ObjectKind.FOOD: return "food"
+		TraceData.ObjectKind.ROPE: return "rope"
+		TraceData.ObjectKind.SHELTER: return "shelter"
+		_: return ""
 
 func _obj_name(kind: int) -> String:
 	match kind:
@@ -491,7 +542,7 @@ func _death_message(cause: String) -> String:
 	match cause:
 		"thirst": return "물이 떨어졌다. 여기서 갈증으로 끝났다."
 		"hunger": return "식량이 떨어졌다. 더 가지 못했다."
-		"chosen": return "여기서 멈추기로 했다. 다음 원정대에게 남긴다."
+		"chosen": return "여기서 멈추기로 했다. 더 가지 않기로."
 		_: return "여기서 끝났다."
 
 func _show_death(cause: String, tags: Array[String], kind: int = TraceData.ObjectKind.BODY) -> void:
