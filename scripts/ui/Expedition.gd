@@ -366,7 +366,7 @@ func _bequeath_step_tags() -> void:
 	_bequeath_box.add_child(UITheme.make_label("남길 것: %s" % _obj_name(_picked_kind), UITheme.FS_BODY, UITheme.SAND))
 	var picked_str: String = (" · ".join(PackedStringArray(_picked_tags))) if not _picked_tags.is_empty() else "(없음)"
 	_bequeath_box.add_child(UITheme.make_label("표식: %s" % picked_str, UITheme.FS_SMALL, UITheme.MUTED))
-	_bequeath_box.add_child(UITheme.make_label("한두 마디. 미래의 내가 읽는다.", UITheme.FS_SMALL, UITheme.MUTED))
+	_bequeath_box.add_child(UITheme.make_label("한두 마디. 다음 원정대가 읽는다.", UITheme.FS_SMALL, UITheme.MUTED))
 	for cat in [WordPool.DIRECTION, WordPool.WARNING, WordPool.TIME, WordPool.GREETING]:
 		var flow := HFlowContainer.new()
 		flow.add_theme_constant_override("h_separation", 8)
