@@ -97,3 +97,75 @@ static func make_label(text: String, size: int = FS_BODY, color: Color = FG, cen
 static func _set_margin(mc: MarginContainer, v: int) -> void:
 	for s in ["left", "right", "top", "bottom"]:
 		mc.add_theme_constant_override("margin_" + s, v)
+
+# --- 다듬기 헬퍼 (설정 등 정적 화면용) ---
+
+## 얇은 가로 구분선(ColorRect) — 기본 HSeparator 대신 색·두께를 통제한다.
+static func make_hairline(color: Color = Color(SAND.r, SAND.g, SAND.b, 0.18), thickness: float = 1.0) -> ColorRect:
+	var r := ColorRect.new()
+	r.color = color
+	r.custom_minimum_size = Vector2(0, thickness)
+	r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return r
+
+## 면/테두리를 가진 버튼(pill) — 기본 회색 크롬 대신 의도된 모양. fill 을 투명하게 주면 외곽선 버튼.
+static func make_pill(text: String, fg: Color, fill: Color, border: Color, primary: bool = false) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(0, BTN_H if primary else BTN_H_SM)
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.add_theme_font_size_override("font_size", FS_BODY if primary else FS_LABEL)
+	b.clip_text = true
+	for st in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(st, fg)
+	b.add_theme_color_override("font_disabled_color", Color(fg.r, fg.g, fg.b, 0.35))
+	var solid: bool = fill.a > 0.05
+	b.add_theme_stylebox_override("normal", _pill_sb(fill, border))
+	b.add_theme_stylebox_override("hover", _pill_sb(
+		fill.lightened(0.07) if solid else Color(border.r, border.g, border.b, 0.12),
+		border.lightened(0.12)))
+	b.add_theme_stylebox_override("pressed", _pill_sb(
+		fill.darkened(0.10) if solid else Color(border.r, border.g, border.b, 0.20), border))
+	b.add_theme_stylebox_override("disabled", _pill_sb(
+		Color(fill.r, fill.g, fill.b, fill.a * 0.4), Color(border.r, border.g, border.b, border.a * 0.4)))
+	b.add_theme_stylebox_override("focus", _pill_sb(Color(0, 0, 0, 0), SAND))
+	return b
+
+static func _pill_sb(fill: Color, border: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = fill
+	sb.border_color = border
+	sb.set_border_width_all(1 if border.a > 0.01 else 0)
+	sb.set_corner_radius_all(12)
+	sb.set_content_margin_all(12)
+	return sb
+
+## 모래색 슬라이더 — 얇은 트랙 + 채움(모래) + 모래알 그래버. 기본 밋밋한 슬라이더 대체.
+static func style_slider(s: HSlider) -> void:
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(SAND.r, SAND.g, SAND.b, 0.16)
+	track.set_corner_radius_all(4)
+	track.content_margin_top = 3.0
+	track.content_margin_bottom = 3.0
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = SAND
+	fill.set_corner_radius_all(4)
+	fill.content_margin_top = 3.0
+	fill.content_margin_bottom = 3.0
+	s.add_theme_stylebox_override("slider", track)
+	s.add_theme_stylebox_override("grabber_area", fill)
+	s.add_theme_stylebox_override("grabber_area_highlight", fill)
+	var dot: ImageTexture = _grain_texture(22, SAND)
+	s.add_theme_icon_override("grabber", dot)
+	s.add_theme_icon_override("grabber_highlight", dot)
+
+## 모래알(부드러운 원) 텍스처 — 셰이더 없이 절차적. 슬라이더 그래버 등.
+static func _grain_texture(sz: int, col: Color) -> ImageTexture:
+	var img := Image.create(sz, sz, false, Image.FORMAT_RGBA8)
+	var c: float = sz * 0.5
+	for y in sz:
+		for x in sz:
+			var d: float = Vector2(x - c + 0.5, y - c + 0.5).length() / c
+			var a: float = smoothstep(0.0, 1.0, clampf(1.0 - d, 0.0, 1.0) * 1.3)
+			img.set_pixel(x, y, Color(col.r, col.g, col.b, a))
+	return ImageTexture.create_from_image(img)
