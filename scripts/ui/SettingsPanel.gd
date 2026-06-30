@@ -41,7 +41,7 @@ func _ready() -> void:
 	slider.min_value = 0.0
 	slider.max_value = 1.0
 	slider.step = 0.01
-	slider.value = _current_master_volume()
+	slider.value = AppSettings.load_master_volume()
 	slider.custom_minimum_size = Vector2(0, UITheme.SLIDER_H)  # 터치 우선 — 손가락 기준 두툼하게
 	slider.value_changed.connect(_on_volume_changed)
 	box.add_child(slider)
@@ -73,24 +73,10 @@ func _ready() -> void:
 	_confirm.confirmed.connect(_on_reset_confirmed)
 	add_child(_confirm)
 
-# --- 소리 ---
-
-func _current_master_volume() -> float:
-	var idx := AudioServer.get_bus_index("Master")
-	if idx < 0:
-		return 1.0
-	if AudioServer.is_bus_mute(idx):
-		return 0.0
-	return db_to_linear(AudioServer.get_bus_volume_db(idx))
+# --- 소리 (적용 + 저장은 AppSettings 가 담당, user://settings.cfg) ---
 
 func _on_volume_changed(value: float) -> void:
-	var idx := AudioServer.get_bus_index("Master")
-	if idx < 0:
-		return
-	var muted := value <= 0.0001
-	AudioServer.set_bus_mute(idx, muted)
-	if not muted:
-		AudioServer.set_bus_volume_db(idx, linear_to_db(value))
+	AppSettings.set_master_volume(value)
 
 # --- 데이터 초기화 ---
 
