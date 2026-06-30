@@ -40,10 +40,13 @@ func begin_run_in_place() -> void:
 	expedition_count += 1
 	_mark_visited(MapGraph.START_ID)
 
-## 지도에서 고른 노드로 향한다 (지도 → 횡스크롤). 그 엣지를 시작하고 씬을 바꾼다.
-func travel_to(target_id: String) -> void:
+## 지도에서 고른 노드로 향하기 시작한다(엣지 시작, 씬 전환 없음). 마커 이동·소모는 Map 이 처리한다.
+func begin_travel(target_id: String) -> void:
 	if current_run != null:
 		current_run.begin_edge(target_id)
+
+## 목표 노드에 도착했을 때 그 노드 화면으로 전환한다 (Map 이 호출).
+func go_to_expedition() -> void:
 	get_tree().change_scene_to_file(SCENE_EXPEDITION)
 
 ## 노드에 도착해 지도로 돌아간다 (횡스크롤 → 지도). 현재 노드를 목표로 옮긴다.

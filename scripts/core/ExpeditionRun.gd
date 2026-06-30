@@ -141,9 +141,7 @@ func step() -> void:
 		var ev: Dictionary = Situations.pick_event(node, _flags, rng)
 		if not ev.is_empty():
 			_set_pending(ev)
-	elif leg >= _next_situation_leg:
-		# 엣지 중 일반 상황 — 플래그 조건(requires)도 받는다(같은 런 연쇄).
-		_set_pending(Situations.pick(rng, _last_situation_id, _flags))
+	# 엣지 중 일반 상황(이동 중 자잘한 상황)은 다음 단계에서 맵 카드로 부활 — 지금은 도착 이벤트만.
 
 ## 상황의 한 선택지를 적용한다 — 자원 델타 반영 후 고갈 판정. 선택이 곧 죽음일 수도 있다.
 func apply_choice(effect: Dictionary) -> void:

@@ -45,6 +45,11 @@ func _ready() -> void:
 		_run = GameState.current_run
 	_build_hud()
 	_refresh()
+	# 도착해서 들어온 노드 화면 — 이동은 맵에서 끝났다. 죽었으면 죽음, 도착 이벤트가 있으면 표시.
+	if not _run.alive:
+		_die(_run.death_cause)
+	elif not _run.pending_situation.is_empty():
+		_show_situation()
 
 func _build_hud() -> void:
 	# 폭풍 2·3층 파티클 — 맨 먼저 add 해 _draw(지면·걷는 이) 위, HUD/모달 아래에 렌더된다.
@@ -262,18 +267,10 @@ func _res_color(value: int, low: int, base: Color) -> Color:
 # --- 입력 ---
 
 func _on_advance() -> void:
+	# 이동은 맵에서 끝났다. 이 화면은 도착한 노드 — 결정을 마쳤으면 지도로 복귀한다.
 	if not _run.alive or not _run.pending_situation.is_empty():
 		return
-	if _run.arrived():
-		GameState.arrive_node()  # 목표 노드 도착 → 지도로 복귀(다음 분기 선택)
-		return
-	_run.step()
-	_refresh()
-	if not _run.alive:
-		_die(_run.death_cause)
-		return
-	if not _run.pending_situation.is_empty():
-		_show_situation()
+	GameState.arrive_node()
 
 ## 남기기 — 물건 하나를 두고(자원 -비용) 계속 간다(런당 1회). 죽음과 분리.
 func _on_leave_pressed() -> void:
