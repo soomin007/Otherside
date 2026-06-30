@@ -14,6 +14,8 @@ const STORM_BAND := Color(0.34, 0.36, 0.42)  ## 폭풍 구간 — 회청색 모�
 
 var _run: ExpeditionRun
 
+var _stormfx: StormFX  ## 폭풍 2·3층 파티클 연출 (웹 안전 CPUParticles2D)
+
 var _status_label: Label
 var _water_label: Label
 var _food_label: Label
@@ -45,6 +47,11 @@ func _ready() -> void:
 	_refresh()
 
 func _build_hud() -> void:
+	# 폭풍 2·3층 파티클 — 맨 먼저 add 해 _draw(지면·걷는 이) 위, HUD/모달 아래에 렌더된다.
+	_stormfx = StormFX.new()
+	add_child(_stormfx)
+	resized.connect(_update_storm_fx)  # 방향 전환·리사이즈 시 폭풍 영역 재계산
+
 	# 상단 HUD 바 — 가독성을 위해 반투명 어두운 배경 위에 텍스트. 전체 폭.
 	var hud := PanelContainer.new()
 	hud.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -204,7 +211,31 @@ func _refresh() -> void:
 	_water_label.add_theme_color_override("font_color", _res_color(water, 3, Color(0.55, 0.78, 0.97)))
 	_food_label.add_theme_color_override("font_color", _res_color(food, 2, Color(0.88, 0.72, 0.42)))
 	_aux_label.text = "로프 %d · 은신처 %d  (남길 수 있는 것)" % [_run.get_res("rope"), _run.get_res("shelter")]
+	_update_storm_fx()
 	queue_redraw()
+
+## 화면에 보이는 폭풍 구간을 찾아 StormFX 영역을 갱신한다(걸음마다 + 리사이즈 시). _draw_storm 의 띠와 같은 좌표.
+func _update_storm_fx() -> void:
+	if _stormfx == null:
+		return
+	var rect: Vector2 = size
+	if rect.x <= 0.0 or rect.y <= 0.0 or _run == null:
+		_stormfx.set_band(Rect2())
+		return
+	var walker_x: float = rect.x * WALKER_SCREEN_RATIO
+	var offset: float = walker_x - _run.leg * STEP_PX
+	var band := Rect2()
+	for lm_leg in Situations.LANDMARKS:
+		var feat: Dictionary = Situations.LANDMARKS[lm_leg]
+		if str(feat.get("kind", "cache")) != "storm":
+			continue
+		var span: int = maxi(1, int(feat.get("span", 1)))
+		var x0: float = maxf(lm_leg * STEP_PX + offset, 0.0)
+		var x1: float = minf((lm_leg + span) * STEP_PX + offset, rect.x)
+		if x1 - x0 > 1.0:
+			band = Rect2(x0, 0.0, x1 - x0, rect.y)
+			break  # 보통 한 번에 폭풍 하나만 화면에 보인다
+	_stormfx.set_band(band)
 
 func _res_color(value: int, low: int, base: Color) -> Color:
 	return UITheme.DANGER if value <= low else base
