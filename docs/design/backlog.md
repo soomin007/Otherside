@@ -20,9 +20,10 @@
       갈 수 있는 다음은 "?" 도착해야 드러남, 그 너머 안 보임 — `visited_nodes` 영속), **막대 걷기 폐기**, **① 이동을 맵으로 이전**(노드 클릭 →
       `Map._process` 가 마커를 보간 이동시키며 한 걸음씩 `step()`(자원 소모, 상단 HUD) → 도착/고갈사 → 그 노드 화면. 별도 이동 씬 폐기 — Expedition 은 "도착 노드 화면"이 됨),
       **④ 흔적/차단/죽음 노드화**(흔적 위치 키를 leg → `node_id` 로. 도착 카드 우선순위 = 차단 무료 통과 > 줍기 > 이벤트, `death_node_id`=도착사 목표 노드·이동 중 사 떠나온 노드, 맵에 노드별 흔적 마커 X/로프/자원점) + **횡스크롤 죽은 코드 정리**(Expedition `_draw_walker/blockage/storm` 등·StormFX 배선 제거, StormFX.gd 는 ③ 위해 보존),
-      **⑤ LANDMARKS(leg) 폐기 → 노드 events 일원화**(`Situations.LANDMARKS`(255줄)+`landmark()` 제거, 변형·`sets`/`sets_persist` 콘텐츠 *전체*를 노드 events 로 이전 → 선택 반영 체인을 노드에서 복원. `crossed_blockage`/`pickup_trace` 는 ④ 의존이라 유지).
+      **⑤ LANDMARKS(leg) 폐기 → 노드 events 일원화**(`Situations.LANDMARKS`(255줄)+`landmark()` 제거, 변형·`sets`/`sets_persist` 콘텐츠 *전체*를 노드 events 로 이전 → 선택 반영 체인을 노드에서 복원. `crossed_blockage`/`pickup_trace` 는 ④ 의존이라 유지),
+      **이동 중 자잘한 상황(맵 카드)**(`step()` 이 엣지 중 `_next_situation_leg` 마다 일반 상황(`Situations.pick`)을 띄우고 `Map` 이 카드 모달로 결정받아 이동을 잇는다 — 한 걸음마다 결정).
       남은 것(사용자 확정 방향): ② **랜드마크 단면 탐색 씬(TWoM)**: 도착 시 그 장소 단면을 둘러보며 자원 찾기·선택(단면 내 상호작용 엔진 — 가장 큰 작업, 설계 대화 필요).
-      ③ **지형 비주얼**(실제 지도 느낌 — 지금은 점·선·"?" 플레이스홀더). ⑥ 목적지(end) 도달 처리(승리 미정). **이동 중 자잘한 상황(맵 카드)** 부활(현재 도착 이벤트만).
+      ③ **지형 비주얼**(실제 지도 느낌 — 지금은 점·선·"?" 플레이스홀더). ⑥ 목적지(end) 도달 처리(승리 미정).
 - [ ] **지도 비주얼 다듬기.** 노드 칩 스타일·팔레트, 긴 그래프 카메라/스크롤, 이름 겹침 정리. (그래픽 전면 교체와 함께)
 - [ ] **폭풍 CPUParticles2D 3층 연출 + 성능 테스트.** 폭풍 메커니즘은 본구현됨(구간형+예고, 은신처/강행).
       반투명 그라데이션 띠(1층)는 `Expedition._draw_storm` 에 들어감. 남은 것: 중경 스프라이트 몇 장(2층) + 전경 CPUParticles2D 소량(3층).

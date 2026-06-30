@@ -9,11 +9,14 @@ const TOP_Y: float = 140.0   ## 제목 + 자원 HUD 아래(지도 시작 y)
 const BOT_Y: float = 110.0
 const NODE_R: float = 13.0
 const STEP_INTERVAL: float = 0.28  ## 이동 한 걸음의 시간(초)
+const RES_KO: Dictionary = {"water": "물", "food": "식량", "rope": "로프", "shelter": "은신처"}
 
 var _hud: Label
 var _guide: Label
 var _moving: bool = false
 var _move_timer: float = 0.0
+var _sit_panel: Control       ## 이동 중 상황 카드 모달
+var _sit_box: VBoxContainer   ## 카드 내용(매번 갈아끼움)
 
 func _ready() -> void:
 	if GameState.current_run == null or not GameState.current_run.alive:
@@ -44,6 +47,7 @@ func _ready() -> void:
 		"흔적 %d개 · 죽은 자리 %d곳 · 원정 %d회" % [GameState.traces.size(), GameState.deaths.size(), GameState.expedition_count],
 		UITheme.FS_SMALL, UITheme.MUTED))
 
+	_build_situation_panel()
 	_refresh_hud()
 	queue_redraw()
 
@@ -87,9 +91,12 @@ func _process(delta: float) -> void:
 	if not run.alive or run.arrived():
 		_moving = false
 		GameState.go_to_expedition()  # 도착(또는 도중 고갈사) → 그 노드 화면
+	elif not run.pending_situation.is_empty():
+		_moving = false
+		_show_situation_card()  # 이동 중 마주친 상황 — 결정하면 이동을 잇는다
 
 func _gui_input(event: InputEvent) -> void:
-	if _moving:
+	if _moving or (_sit_panel != null and _sit_panel.visible):
 		return
 	var clicked: bool = (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
 		or (event is InputEventScreenTouch and event.pressed)
@@ -106,6 +113,86 @@ func _gui_input(event: InputEvent) -> void:
 			if _guide != null:
 				_guide.text = "나아가는 중..."
 			return
+
+# --- 이동 중 상황 카드 ---
+
+func _build_situation_panel() -> void:
+	_sit_panel = Control.new()
+	_sit_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sit_panel.visible = false
+	add_child(_sit_panel)
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = UITheme.SCRIM
+	_sit_panel.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_sit_panel.add_child(center)
+	var card := UITheme.make_card()
+	center.add_child(card)
+	_sit_box = VBoxContainer.new()
+	_sit_box.add_theme_constant_override("separation", UITheme.GAP)
+	card.add_child(_sit_box)
+
+## 이동 중 마주친 상황 카드 — 읽고 한 가지를 고른다(관리·대비). 결정하면 이동을 잇는다(죽으면 그 자리 노드 화면).
+func _show_situation_card() -> void:
+	var run: ExpeditionRun = GameState.current_run
+	if run == null:
+		return
+	var sit: Dictionary = run.pending_situation
+	for c in _sit_box.get_children():
+		_sit_box.remove_child(c)
+		c.queue_free()
+	if _guide != null:
+		_guide.text = "멈춰 선다."
+	var threat_kind: int = int(sit.get("threat", Threats.Kind.CONSUMPTION))
+	var threat_info: Dictionary = Threats.info(threat_kind)
+	_sit_box.add_child(UITheme.make_label("[ %s ]" % str(threat_info.get("label", "상황")), UITheme.FS_SMALL, UITheme.SAND))
+	_sit_box.add_child(UITheme.make_label(str(sit.get("text", "")), UITheme.FS_BODY))
+	for c in sit.get("choices", []):
+		var choice: Dictionary = c
+		var effect: Dictionary = choice.get("effect", {})
+		var btn := UITheme.make_button("", false)
+		if Situations.can_choose(choice, run.resources):
+			btn.text = "%s   (%s)" % [str(choice.get("label", "")), _effect_hint(effect)]
+			btn.pressed.connect(_on_situation_choice.bind(effect, choice.get("sets", []), choice.get("sets_persist", [])))
+		else:
+			btn.disabled = true
+			btn.text = "%s   (자원 부족)" % str(choice.get("label", ""))
+		_sit_box.add_child(btn)
+	_sit_panel.visible = true
+
+func _on_situation_choice(effect: Dictionary, sets: Array, sets_persist: Array) -> void:
+	var run: ExpeditionRun = GameState.current_run
+	if run == null:
+		return
+	run.apply_choice(effect)
+	for f in sets:
+		run.set_flag(str(f))
+	for f in sets_persist:
+		run.set_flag(str(f))
+	if not sets_persist.is_empty():
+		GameState.add_persist_flags(sets_persist)
+	_sit_panel.visible = false
+	_refresh_hud()
+	if not run.alive:
+		GameState.go_to_expedition()  # 결정이 곧 죽음 → 그 자리 노드 화면
+		return
+	_moving = true   # 아직 도착 전 — 이동을 잇는다
+	_move_timer = 0.0
+	if _guide != null:
+		_guide.text = "나아가는 중..."
+
+## 자원 델타를 한 줄로 ("물 -2 · 식량 -1"). 빈 효과는 "그대로".
+func _effect_hint(effect: Dictionary) -> String:
+	if effect.is_empty():
+		return "그대로"
+	var parts: PackedStringArray = []
+	for key in effect:
+		var v: int = int(effect[key])
+		var sign_str: String = "+" if v > 0 else ""
+		parts.append("%s %s%d" % [str(RES_KO.get(key, key)), sign_str, v])
+	return " · ".join(parts)
 
 # --- 렌더 ---
 

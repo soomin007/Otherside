@@ -142,7 +142,11 @@ func step() -> void:
 		return
 	if _edge_step >= _edge_len:
 		_arrive_event()
-	# 엣지 중 일반 상황(이동 중 자잘한 상황)은 다음 단계에서 맵 카드로 부활 — 지금은 도착 카드만.
+	elif leg >= _next_situation_leg:
+		# 엣지 중(도착 전) 일반 상황 — 이동 중 자잘한 결정(맵 카드로 뜬다). 직전과 같은 id 는 피한다.
+		var sit: Dictionary = Situations.pick(rng, _last_situation_id, _flags)
+		if not sit.is_empty():
+			_set_pending(sit)
 
 ## 도착 노드의 카드를 정한다 — 우선순위: ① 로프 걸린 차단(무료 통과) ② 이전 원정대 흔적(줍기) ③ 노드 이벤트.
 ## start/end 처럼 events 도 흔적도 로프도 없으면 빈 채로 둔다(바로 복귀 대기).
