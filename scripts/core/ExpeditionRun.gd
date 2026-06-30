@@ -24,17 +24,18 @@ var pending_situation: Dictionary = {} ## 지금 결정해야 할 상황 (비어
 var rng := RandomNumberGenerator.new()
 var _last_situation_id: String = ""
 var _next_situation_leg: int = 0      ## 다음 일반 상황이 뜰 걸음
-var _bridged: Dictionary = {}         ## 로프가 걸린 차단 leg 집합(leg->true). 차단=영구 지형 변화의 런타임 표현.
-var _landmark_log: Dictionary = {}    ## 과거 랜드마크 선택 {str(leg): choice_id}. 재방문 변형 이벤트 판정용.
+var _bridged: Dictionary = {}  ## 로프가 걸린 차단 leg 집합(leg->true). 차단=영구 지형 변화의 런타임 표현.
+var _flags: Dictionary = {}    ## 켜진 플래그(run ∪ persist). 런 시작 시 영속 플래그 로드, 런 중 sets 로 추가.
 
 ## bridged = 과거 원정에서 로프를 고정한 차단 leg 목록(GameState 가 ROPE 흔적에서 뽑아 주입).
-## landmark_log = 과거 랜드마크 선택 기록(GameState 가 들고 주입). 둘 다 영속 데이터.
+## persist_flags = 과거 원정에서 켜진 영속 플래그(GameState 가 들고 주입) — 런 시작 시 _flags 에 로드.
 ## core 는 GameState 를 참조하지 않는다(순수성) - 영속 데이터는 생성자로 받는다.
-func _init(starting: Dictionary = {}, bridged: Array = [], landmark_log: Dictionary = {}) -> void:
+func _init(starting: Dictionary = {}, bridged: Array = [], persist_flags: Array = []) -> void:
 	resources = starting.duplicate()
 	for lg in bridged:
 		_bridged[int(lg)] = true
-	_landmark_log = landmark_log.duplicate()
+	for f in persist_flags:
+		_flags[str(f)] = true
 	rng.randomize()
 	_schedule_next()
 
@@ -52,6 +53,14 @@ func is_bridged(lg: int) -> bool:
 ## 이번 원정에 차단에 로프를 걸었다 - 같은 런의 렌더링이 즉시 반영하도록 표시한다.
 func mark_bridged(lg: int) -> void:
 	_bridged[lg] = true
+
+## 이 원정에 플래그가 켜져 있나 (run 또는 과거 영속 둘 다 _flags 에 들어 있음).
+func has_flag(f: String) -> bool:
+	return _flags.has(f)
+
+## 플래그를 켠다 (UI 가 선택의 sets/sets_persist 를 반영). 영속 저장은 GameState 가 따로 한다.
+func set_flag(f: String) -> void:
+	_flags[f] = true
 
 ## 한 걸음 전진 - 소모 자원을 차감하고 고갈을 판정한다. 살아남으면 랜드마크/일반 상황을 세운다.
 func step() -> void:
@@ -71,11 +80,11 @@ func step() -> void:
 		if str(feat.get("kind", "cache")) == "blockage" and _bridged.has(leg):
 			_set_pending(Situations.crossed_blockage(feat))
 		else:
-			# 이벤트 풀에서 하나 — 과거 선택(landmark_log)에 맞는 변형 이벤트 우선.
-			var past: String = str(_landmark_log.get(str(leg), ""))
-			_set_pending(Situations.pick_event(feat, past, rng))
+			# 이벤트 풀에서 하나 — 켜진 플래그(_flags)에 맞는 변형 이벤트 우선.
+			_set_pending(Situations.pick_event(feat, _flags, rng))
 	elif leg >= _next_situation_leg:
-		_set_pending(Situations.pick(rng, _last_situation_id))
+		# 일반 상황도 플래그 조건(requires)을 받는다 — 같은 런 연쇄.
+		_set_pending(Situations.pick(rng, _last_situation_id, _flags))
 
 ## 상황의 한 선택지를 적용한다 - 자원 델타 반영 후 고갈 판정. 선택이 곧 죽음일 수도 있다.
 func apply_choice(effect: Dictionary) -> void:

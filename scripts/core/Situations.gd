@@ -13,13 +13,17 @@ extends RefCounted
 ## 거리 곡선(기획서 §1): 출발지(마을) 근처는 평화·풍요(cache 위주), 멀어질수록 척박·고달픔(위협 위주).
 ##  배치: 4 마른 강·8 야영지(풍요) → 12 차단·16 폭풍(중반) → 20 뼈의 들판·24 차단·28 폭풍의 문(척박).
 ##
+## 선택 반영(기획서 §1, 제일 중요한 축): 한 선택이 "플래그"를 켜고, 그게 이후 이벤트를 바꾼다.
+##  - sets: 런 한정 플래그(이번 원정 안에서만) — 같은 런 연쇄(앞 선택이 뒤 이벤트를 바꿈).
+##  - sets_persist: 영속 플래그(세이브) — 다음 원정에 반영(재방문 변형 등). self-async.
+##  - requires: 그 플래그(run 또는 persist)가 켜져 있을 때만 뜨는 변형 이벤트/상황.
+##
 ## 이벤트 = {id, threat, text, choices, requires?}.
-##  - requires: 과거에 이 랜드마크에서 그 choice_id 를 골랐을 때만 뜨는 변형 이벤트(재방문 반영). 없으면 일반 풀.
-## choice = {label, effect, needs?, action?, choice_id?}.
+## choice = {label, effect, needs?, action?, sets?, sets_persist?}.
 ##  - effect: 자원 델타 {water/food/rope/shelter: int}.
 ##  - needs: 그 자원이 모자라면 못 고름(대비 자원의 희소성 -> 결정의 무게).
 ##  - action: 자원 델타를 넘는 부수효과("bridge" = 차단에 로프 고정 -> UI 가 그 leg 에 ROPE 흔적을 남긴다).
-##  - choice_id: 이 선택을 GameState.landmark_log 에 기록 -> 다음 원정에서 requires 로 변형 이벤트를 깬다(self-async).
+##  - sets / sets_persist: 켤 플래그 목록(런 / 영속).
 ## 단일 진실: docs/design/SYOTOS_기획서_v0.1.md §4 위협 삼각형.
 
 const CATALOG: Array = [
@@ -65,8 +69,8 @@ const LANDMARKS: Dictionary = {
 				"threat": Threats.Kind.CONSUMPTION,
 				"text": "한때 강이 흐르던 자리. 바닥이 쩍쩍 갈라졌다. 깊이 파면 물기가 남았을지도.",
 				"choices": [
-					{"label": "바닥을 판다", "effect": {"water": 4, "food": -1}, "choice_id": "dug"},
-					{"label": "그냥 지나친다", "effect": {}, "choice_id": "passed"},
+					{"label": "바닥을 판다", "effect": {"water": 4, "food": -1}, "sets_persist": ["river_dug"]},
+					{"label": "그냥 지나친다", "effect": {}},
 				],
 			},
 			{
@@ -74,18 +78,18 @@ const LANDMARKS: Dictionary = {
 				"threat": Threats.Kind.CONSUMPTION,
 				"text": "마른 강바닥에 부서진 수레와 빈 물통들이 박혀 있다.",
 				"choices": [
-					{"label": "물통을 뒤진다", "effect": {"water": 2}, "choice_id": "scavenged"},
-					{"label": "건드리지 않는다", "effect": {}, "choice_id": "passed"},
+					{"label": "물통을 뒤진다", "effect": {"water": 2}},
+					{"label": "건드리지 않는다", "effect": {}},
 				],
 			},
 			{
 				"id": "river_dug_again",
-				"requires": "dug",
+				"requires": "river_dug",
 				"threat": Threats.Kind.CONSUMPTION,
 				"text": "지난번 내가 파둔 구덩이가 그대로 있다. 더 깊이 파볼까.",
 				"choices": [
-					{"label": "더 깊이 판다", "effect": {"water": 5, "food": -2}, "choice_id": "dug"},
-					{"label": "이번엔 지나친다", "effect": {}, "choice_id": "passed"},
+					{"label": "더 깊이 판다", "effect": {"water": 5, "food": -2}, "sets_persist": ["river_dug"]},
+					{"label": "이번엔 지나친다", "effect": {}},
 				],
 			},
 		],
@@ -100,8 +104,9 @@ const LANDMARKS: Dictionary = {
 				"threat": Threats.Kind.CONSUMPTION,
 				"text": "지난 원정대의 야영지. 천막이 모래에 반쯤 묻혔다. 한 곳만 뒤질 시간이 있다.",
 				"choices": [
-					{"label": "식량 자루를 챙긴다", "effect": {"food": 3}, "choice_id": "took_food"},
-					{"label": "버려진 은신막을 챙긴다", "effect": {"shelter": 1}, "choice_id": "took_shelter"},
+					{"label": "식량 자루를 챙긴다", "effect": {"food": 3}},
+					# 은신막을 챙기면 이번 런 폭풍이 든든해진다(같은 런 연쇄) + 다음 원정 야영지 변형(영속).
+					{"label": "버려진 은신막을 챙긴다", "effect": {"shelter": 1}, "sets": ["camp_shelter_now"], "sets_persist": ["camp_shelter"]},
 				],
 			},
 			{
@@ -109,18 +114,18 @@ const LANDMARKS: Dictionary = {
 				"threat": Threats.Kind.CONSUMPTION,
 				"text": "식은 모닥불 자리. 누군가 최근까지 여기 있었다. 온기가 가신 재뿐.",
 				"choices": [
-					{"label": "재를 헤집어 쓸 것을 찾는다", "effect": {"food": 2}, "choice_id": "took_food"},
-					{"label": "묵념하고 지나친다", "effect": {}, "choice_id": "mourned"},
+					{"label": "재를 헤집어 쓸 것을 찾는다", "effect": {"food": 2}},
+					{"label": "묵념하고 지나친다", "effect": {}},
 				],
 			},
 			{
 				"id": "camp_revisit_shelter",
-				"requires": "took_shelter",
+				"requires": "camp_shelter",
 				"threat": Threats.Kind.CONSUMPTION,
 				"text": "내가 은신막을 떼어간 자리. 남은 천 조각이 바람에 떤다. 식량 자루는 아직 있다.",
 				"choices": [
-					{"label": "식량 자루를 챙긴다", "effect": {"food": 3}, "choice_id": "took_food"},
-					{"label": "지나친다", "effect": {}, "choice_id": "mourned"},
+					{"label": "식량 자루를 챙긴다", "effect": {"food": 3}},
+					{"label": "지나친다", "effect": {}},
 				],
 			},
 		],
@@ -158,6 +163,17 @@ const LANDMARKS: Dictionary = {
 					{"label": "강행 돌파한다", "effect": {"water": -4, "food": -2}},
 				],
 			},
+			{
+				# 같은 런 연쇄: 야영지(8)에서 여분 은신막을 챙겼으면(camp_shelter_now) 이 변형이 뜬다.
+				"id": "sand_wall_sheltered",
+				"requires": "camp_shelter_now",
+				"threat": Threats.Kind.STORM,
+				"text": "야영지에서 챙긴 여분 은신막이 있다. 이번 폭풍은 한결 든든하게 버틴다.",
+				"choices": [
+					{"label": "여분 은신막을 친다", "effect": {}},
+					{"label": "그래도 강행한다", "effect": {"water": -3}},
+				],
+			},
 		],
 	},
 	20: {
@@ -170,8 +186,8 @@ const LANDMARKS: Dictionary = {
 				"threat": Threats.Kind.CONSUMPTION,
 				"text": "원정대 여럿이 여기서 끝났다. 모래에 반쯤 묻힌 뼈와 물통들.",
 				"choices": [
-					{"label": "물통을 거둔다", "effect": {"water": 2, "food": 2}, "choice_id": "gathered"},
-					{"label": "두 손 모으고 지나친다", "effect": {}, "choice_id": "mourned"},
+					{"label": "물통을 거둔다", "effect": {"water": 2, "food": 2}},
+					{"label": "두 손 모으고 지나친다", "effect": {}, "sets_persist": ["bones_mourned"]},
 				],
 			},
 			{
@@ -179,18 +195,18 @@ const LANDMARKS: Dictionary = {
 				"threat": Threats.Kind.CONSUMPTION,
 				"text": "뼈 무더기 위에 누군가 돌을 쌓아 표식을 남겼다. 글씨는 모래에 지워졌다.",
 				"choices": [
-					{"label": "돌탑에 하나 더 얹는다", "effect": {}, "choice_id": "stacked"},
-					{"label": "물통만 거두고 간다", "effect": {"water": 2}, "choice_id": "gathered"},
+					{"label": "돌탑에 하나 더 얹는다", "effect": {}},
+					{"label": "물통만 거두고 간다", "effect": {"water": 2}},
 				],
 			},
 			{
 				"id": "bones_revisit_mourn",
-				"requires": "mourned",
+				"requires": "bones_mourned",
 				"threat": Threats.Kind.CONSUMPTION,
 				"text": "지난번 그냥 보낸 들판. 뼈들은 더 깊이 묻혔고, 물통 몇은 아직 빛난다.",
 				"choices": [
-					{"label": "이번엔 거둔다", "effect": {"water": 2, "food": 2}, "choice_id": "gathered"},
-					{"label": "또 두 손 모은다", "effect": {}, "choice_id": "mourned"},
+					{"label": "이번엔 거둔다", "effect": {"water": 2, "food": 2}},
+					{"label": "또 두 손 모은다", "effect": {}, "sets_persist": ["bones_mourned"]},
 				],
 			},
 		],
@@ -232,12 +248,21 @@ const LANDMARKS: Dictionary = {
 	},
 }
 
-## 다음 일반 상황을 고른다. 직전과 같은 id 는 피한다(연속 중복 방지).
-static func pick(rng: RandomNumberGenerator, last_id: String = "") -> Dictionary:
+## 다음 일반 상황을 고른다. 직전과 같은 id 는 피하고, requires 가 있으면 그 플래그가 켜졌을 때만 후보에 넣는다.
+static func pick(rng: RandomNumberGenerator, last_id: String = "", flags: Dictionary = {}) -> Dictionary:
 	var pool: Array = []
 	for s in CATALOG:
-		if str(s.get("id", "")) != last_id:
-			pool.append(s)
+		if str(s.get("id", "")) == last_id:
+			continue
+		var req: String = str(s.get("requires", ""))
+		if req != "" and not flags.has(req):
+			continue
+		pool.append(s)
+	if pool.is_empty():
+		# 모두 걸러졌으면 requires 없는 일반 상황으로 폴백
+		for s in CATALOG:
+			if str(s.get("requires", "")) == "":
+				pool.append(s)
 	if pool.is_empty():
 		pool = CATALOG
 	var picked: Dictionary = pool[rng.randi_range(0, pool.size() - 1)]
@@ -247,10 +272,10 @@ static func pick(rng: RandomNumberGenerator, last_id: String = "") -> Dictionary
 static func landmark(leg: int) -> Dictionary:
 	return LANDMARKS.get(leg, {})
 
-## 랜드마크 이벤트 풀에서 하나를 고른다. 과거 선택(past = 그 leg 의 지난 choice_id)에 맞는
-## 변형 이벤트(requires == past)가 있으면 그것을 우선, 없으면 requires 없는 일반 풀에서 랜덤.
+## 랜드마크 이벤트 풀에서 하나를 고른다. 켜진 플래그(flags = run ∪ persist)에 맞는
+## 변형 이벤트(requires in flags)가 있으면 그것을 우선, 없으면 requires 없는 일반 풀에서 랜덤.
 ## 반환 Dictionary 에는 랜드마크 메타(name/kind/threat)를 머지해 카드 렌더가 그대로 쓰게 한다.
-static func pick_event(feat: Dictionary, past: String, rng: RandomNumberGenerator) -> Dictionary:
+static func pick_event(feat: Dictionary, flags: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
 	var events: Array = feat.get("events", [])
 	if events.is_empty():
 		return {}
@@ -260,7 +285,7 @@ static func pick_event(feat: Dictionary, past: String, rng: RandomNumberGenerato
 		var req: String = str(ev.get("requires", ""))
 		if req == "":
 			base.append(ev)
-		elif past != "" and req == past:
+		elif flags.has(req):
 			matched.append(ev)
 	var pool: Array = matched if not matched.is_empty() else base
 	if pool.is_empty():
