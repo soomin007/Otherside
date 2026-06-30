@@ -1,17 +1,12 @@
 class_name Situations
 extends RefCounted
 
-## 횡스크롤 중 마주치는 "상황" 카드 - 읽고(판독) 한 가지 행동을 고른다(관리·대비).
+## 횡스크롤/맵 중 마주치는 "상황" 카드 - 읽고(판독) 한 가지 행동을 고른다(관리·대비).
 ## This War of Mine 식 정적 결정 화면. 페이싱: 걸음마다 동일 전진 대신 몇 걸음마다 결정을 얹는다.
 ##
-## 두 종류:
-##  1) CATALOG - 일반 상황(주로 소모). 2~4걸음 랜덤 간격으로 떠 잔잔한 결정을 깐다.
-##  2) LANDMARKS - 아이코닉한 고정 지형. 정해진 걸음(leg)에 떠 페이싱의 앵커이자 위협 삼각형의 무대.
-##     랜드마크 = 정체성(id/name/kind) + 이벤트 풀(events). 도착할 때마다 풀에서 하나가 뜬다(같은 장소, 다른 사건).
-##     kind: "cache"(자원 보충형) / "blockage"(차단, 틈) / "storm"(폭풍 구간, span 걸음).
-##
-## 거리 곡선(기획서 §1): 출발지(마을) 근처는 평화·풍요(cache 위주), 멀어질수록 척박·고달픔(위협 위주).
-##  배치: 4 마른 강·8 야영지(풍요) → 12 차단·16 폭풍(중반) → 20 뼈의 들판·24 차단·28 폭풍의 문(척박).
+## 아이코닉한 고정 지형(랜드마크)은 이제 노드(`MapGraph.NODES`)가 events 풀로 직접 소유한다 — 여긴 그 보조다:
+##  - CATALOG: 이동 중 떠는 일반 상황(주로 소모). 잔잔한 결정을 깐다(이동 중 맵 카드로 쓸 예정).
+##  - pickup_trace: 과거 흔적 줍기 카드. pick_event/can_choose: 노드 events 풀을 고르고 게이트하는 공유 헬퍼.
 ##
 ## 선택 반영(기획서 §1, 제일 중요한 축): 한 선택이 "플래그"를 켜고, 그게 이후 이벤트를 바꾼다.
 ##  - sets: 런 한정 플래그(이번 원정 안에서만) — 같은 런 연쇄(앞 선택이 뒤 이벤트를 바꿈).
@@ -74,226 +69,6 @@ const CATALOG: Array = [
 	},
 ]
 
-## 아이코닉한 고정 지형. 키 = leg(int). 각 랜드마크는 events 풀을 가진다(같은 장소, 다른 사건).
-## 거리 곡선대로 leg 순 배치: 가까울수록 풍요(cache), 멀수록 척박(위협). CATALOG 와 leg 가 겹치지 않게 둔다.
-const LANDMARKS: Dictionary = {
-	4: {
-		"id": "dry_river",
-		"name": "마른 강",
-		"kind": "cache",
-		"events": [
-			{
-				"id": "river_dig",
-				"threat": Threats.Kind.CONSUMPTION,
-				"text": "한때 강이 흐르던 자리. 바닥이 쩍쩍 갈라졌다. 깊이 파면 물기가 남았을지도.",
-				"choices": [
-					{"label": "바닥을 판다", "effect": {"water": 4, "food": -1}, "sets_persist": ["river_dug"]},
-					{"label": "그냥 지나친다", "effect": {}},
-				],
-			},
-			{
-				"id": "river_remains",
-				"threat": Threats.Kind.CONSUMPTION,
-				"text": "마른 강바닥에 부서진 수레와 빈 물통들이 박혀 있다.",
-				"choices": [
-					{"label": "물통을 뒤진다", "effect": {"water": 2}},
-					{"label": "건드리지 않는다", "effect": {}},
-				],
-			},
-			{
-				"id": "river_dug_again",
-				"requires": "river_dug",
-				"threat": Threats.Kind.CONSUMPTION,
-				"text": "이전 원정대가 파둔 구덩이가 그대로 있다. 더 깊이 파볼까.",
-				"choices": [
-					{"label": "더 깊이 판다", "effect": {"water": 5, "food": -2}, "sets_persist": ["river_dug"]},
-					{"label": "이번엔 지나친다", "effect": {}},
-				],
-			},
-		],
-	},
-	8: {
-		"id": "ruined_camp",
-		"name": "버려진 야영지",
-		"kind": "cache",
-		"events": [
-			{
-				"id": "camp_search",
-				"threat": Threats.Kind.CONSUMPTION,
-				"text": "지난 원정대의 야영지. 천막이 모래에 반쯤 묻혔다. 한 곳만 뒤질 시간이 있다.",
-				"choices": [
-					{"label": "식량 자루를 챙긴다", "effect": {"food": 3}},
-					# 은신막을 챙기면 이번 런 폭풍이 든든해진다(같은 런 연쇄) + 다음 원정 야영지 변형(영속).
-					{"label": "버려진 은신막을 챙긴다", "effect": {"shelter": 1}, "sets": ["camp_shelter_now"], "sets_persist": ["camp_shelter"]},
-				],
-			},
-			{
-				"id": "camp_ashes",
-				"threat": Threats.Kind.CONSUMPTION,
-				"text": "식은 모닥불 자리. 누군가 최근까지 여기 있었다. 온기가 가신 재뿐.",
-				"choices": [
-					{"label": "재를 헤집어 쓸 것을 찾는다", "effect": {"food": 2}},
-					{"label": "묵념하고 지나친다", "effect": {}},
-				],
-			},
-			{
-				"id": "camp_revisit_shelter",
-				"requires": "camp_shelter",
-				"threat": Threats.Kind.CONSUMPTION,
-				"text": "이전 원정대가 은신막을 떼어간 자리. 남은 천 조각이 바람에 떤다. 식량 자루는 아직 있다.",
-				"choices": [
-					{"label": "식량 자루를 챙긴다", "effect": {"food": 3}},
-					{"label": "지나친다", "effect": {}},
-				],
-			},
-		],
-	},
-	12: {
-		"id": "cracked_floor",
-		"name": "갈라진 바닥",
-		"kind": "blockage",
-		"threat": Threats.Kind.BLOCKAGE,
-		"events": [
-			{
-				"id": "cracked_floor",
-				"threat": Threats.Kind.BLOCKAGE,
-				"text": "땅이 쩍 갈라졌다. 바닥은 보이지 않는다. 로프를 걸면 다음에도 건널 수 있다.",
-				"choices": [
-					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge", "sets": ["rope_spent_now"]},
-					{"label": "맨몸으로 무리해서 건넌다", "effect": {"water": -3, "food": -2}},
-				],
-			},
-			{
-				"id": "cracked_floor_gust",
-				"threat": Threats.Kind.BLOCKAGE,
-				"text": "갈라진 틈에서 모래바람이 솟구쳐 건너편이 흐릿하다. 로프를 걸면 다음에도 건널 수 있다.",
-				"choices": [
-					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge", "sets": ["rope_spent_now"]},
-					{"label": "바람 잦아들 때 맨몸으로 건넌다", "effect": {"water": -2, "food": -2}},
-				],
-			},
-		],
-	},
-	16: {
-		"id": "sand_wall",
-		"name": "모래의 벽",
-		"kind": "storm",
-		"span": 3,
-		"threat": Threats.Kind.STORM,
-		"events": [
-			{
-				"id": "sand_wall",
-				"threat": Threats.Kind.STORM,
-				"text": "앞이 온통 모래바람이다. 폭풍 구간이 길게 이어진다.",
-				"choices": [
-					{"label": "은신처를 치고 버틴다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
-					{"label": "강행 돌파한다", "effect": {"water": -4, "food": -2}},
-				],
-			},
-			{
-				# 같은 런 연쇄: 야영지(8)에서 여분 은신막을 챙겼으면(camp_shelter_now) 이 변형이 뜬다.
-				"id": "sand_wall_sheltered",
-				"requires": "camp_shelter_now",
-				"threat": Threats.Kind.STORM,
-				"text": "야영지에서 챙긴 여분 은신막이 있다. 이번 폭풍은 한결 든든하게 버틴다.",
-				"choices": [
-					{"label": "여분 은신막을 친다", "effect": {}},
-					{"label": "그래도 강행한다", "effect": {"water": -3}},
-				],
-			},
-		],
-	},
-	20: {
-		"id": "field_of_bones",
-		"name": "뼈의 들판",
-		"kind": "cache",
-		"events": [
-			{
-				"id": "bones_gather",
-				"threat": Threats.Kind.CONSUMPTION,
-				"text": "원정대 여럿이 여기서 끝났다. 모래에 반쯤 묻힌 뼈와 물통들.",
-				"choices": [
-					{"label": "물통을 거둔다", "effect": {"water": 2, "food": 2}},
-					{"label": "두 손 모으고 지나친다", "effect": {}, "sets_persist": ["bones_mourned"]},
-				],
-			},
-			{
-				"id": "bones_marker",
-				"threat": Threats.Kind.CONSUMPTION,
-				"text": "뼈 무더기 위에 누군가 돌을 쌓아 표식을 남겼다. 글씨는 모래에 지워졌다.",
-				"choices": [
-					{"label": "돌탑에 하나 더 얹는다", "effect": {}},
-					{"label": "물통만 거두고 간다", "effect": {"water": 2}},
-				],
-			},
-			{
-				"id": "bones_revisit_mourn",
-				"requires": "bones_mourned",
-				"threat": Threats.Kind.CONSUMPTION,
-				"text": "지난번 그냥 보낸 들판. 뼈들은 더 깊이 묻혔고, 물통 몇은 아직 빛난다.",
-				"choices": [
-					{"label": "이번엔 거둔다", "effect": {"water": 2, "food": 2}},
-					{"label": "또 두 손 모은다", "effect": {}, "sets_persist": ["bones_mourned"]},
-				],
-			},
-		],
-	},
-	24: {
-		"id": "collapsed_wall",
-		"name": "무너진 담",
-		"kind": "blockage",
-		"threat": Threats.Kind.BLOCKAGE,
-		"events": [
-			{
-				"id": "collapsed_wall",
-				"threat": Threats.Kind.BLOCKAGE,
-				"text": "거대한 담이 길을 막았다. 틈은 좁고 깊다. 로프를 걸면 다음에도 건널 수 있다.",
-				"choices": [
-					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge"},
-					{"label": "맨몸으로 무리해서 넘는다", "effect": {"water": -3, "food": -2}},
-				],
-			},
-			{
-				# 같은 런 연쇄: 앞 차단(12)에서 로프를 이미 썼으면(rope_spent_now) 로프가 없다 — 맨몸뿐.
-				"id": "collapsed_wall_noropeleft",
-				"requires": "rope_spent_now",
-				"threat": Threats.Kind.BLOCKAGE,
-				"text": "또 막혔다. 로프는 앞선 틈에서 다 썼다. 이번엔 몸으로 부딪는 수밖에 없다.",
-				"choices": [
-					{"label": "맨몸으로 무리해서 넘는다", "effect": {"water": -3, "food": -2}},
-				],
-			},
-		],
-	},
-	28: {
-		"id": "storm_gate",
-		"name": "폭풍의 문",
-		"kind": "storm",
-		"span": 4,
-		"threat": Threats.Kind.STORM,
-		"events": [
-			{
-				"id": "storm_gate",
-				"threat": Threats.Kind.STORM,
-				"text": "협곡 입구를 폭풍이 가로막았다. 모래가 살을 벤다.",
-				"choices": [
-					{"label": "은신처 치고 잦아들길 기다린다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
-					{"label": "눈 감고 뚫고 간다", "effect": {"water": -5, "food": -2}},
-				],
-			},
-			{
-				"id": "storm_gate_eye",
-				"threat": Threats.Kind.STORM,
-				"text": "폭풍 한가운데 바람이 잠깐 멎는 눈이 보인다. 지금 달리면 통과할 수 있을지도.",
-				"choices": [
-					{"label": "은신처 치고 안전하게 간다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
-					{"label": "폭풍의 눈으로 달린다", "effect": {"water": -3, "food": -1}},
-				],
-			},
-		],
-	},
-}
-
 ## 다음 일반 상황을 고른다. 직전과 같은 id 는 피하고, requires 가 있으면 그 플래그가 켜졌을 때만 후보에 넣는다.
 static func pick(rng: RandomNumberGenerator, last_id: String = "", flags: Dictionary = {}) -> Dictionary:
 	var pool: Array = []
@@ -314,13 +89,9 @@ static func pick(rng: RandomNumberGenerator, last_id: String = "", flags: Dictio
 	var picked: Dictionary = pool[rng.randi_range(0, pool.size() - 1)]
 	return picked
 
-## 해당 걸음의 고정 지형 (없으면 빈 Dictionary).
-static func landmark(leg: int) -> Dictionary:
-	return LANDMARKS.get(leg, {})
-
-## 랜드마크 이벤트 풀에서 하나를 고른다. 켜진 플래그(flags = run ∪ persist)에 맞는
+## 노드(또는 상황) 이벤트 풀에서 하나를 고른다. 켜진 플래그(flags = run ∪ persist)에 맞는
 ## 변형 이벤트(requires in flags)가 있으면 그것을 우선, 없으면 requires 없는 일반 풀에서 랜덤.
-## 반환 Dictionary 에는 랜드마크 메타(name/kind/threat)를 머지해 카드 렌더가 그대로 쓰게 한다.
+## 반환 Dictionary 에는 노드 메타(name/kind/threat)를 머지해 카드 렌더가 그대로 쓰게 한다.
 static func pick_event(feat: Dictionary, flags: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
 	var events: Array = feat.get("events", [])
 	if events.is_empty():
@@ -343,20 +114,6 @@ static func pick_event(feat: Dictionary, flags: Dictionary, rng: RandomNumberGen
 	if not out.has("threat"):
 		out["threat"] = feat.get("threat", Threats.Kind.CONSUMPTION)
 	return out
-
-## 이미 로프가 걸린 차단 지점에 다시 왔을 때의 카드 - 이전 원정대가 길을 열어뒀다(self-async 보상).
-## 자원 소모 없이 통과한다. 차단의 정체성("가장 뿌듯한 흔적")을 죽음 너머에서 되돌려받는 순간.
-static func crossed_blockage(feat: Dictionary) -> Dictionary:
-	return {
-		"id": str(feat.get("id", "")) + "_bridged",
-		"name": str(feat.get("name", "")),
-		"kind": "bridged",
-		"threat": Threats.Kind.BLOCKAGE,
-		"text": "이전 원정대가 여기 로프를 걸어뒀다. 그대로 건넌다.",
-		"choices": [
-			{"label": "고맙게 건넌다", "effect": {}},
-		],
-	}
 
 ## 과거 흔적을 마주친 줍기 카드 — 자원 종류별 보충. 집으면 GameState 가 uses 를 1 깎는다(action="pickup").
 ## 남겨두면 다음 원정대 몫으로 남는다(uses 유지). 흔적은 유한해서 몇 원정에 걸쳐 나눠 쓰다 소진된다.
