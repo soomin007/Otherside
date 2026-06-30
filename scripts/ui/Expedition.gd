@@ -221,6 +221,7 @@ func _refresh() -> void:
 	_water_label.add_theme_color_override("font_color", _res_color(water, 3, Color(0.55, 0.78, 0.97)))
 	_food_label.add_theme_color_override("font_color", _res_color(food, 2, Color(0.88, 0.72, 0.42)))
 	_aux_label.text = "로프 %d · 은신처 %d  (남길 수 있는 것)" % [_run.get_res("rope"), _run.get_res("shelter")]
+	_advance_btn.text = "도착 · 지도로" if _run.arrived() else "전진 (한 걸음)"
 	_update_leave_btn()
 	_update_storm_fx()
 	queue_redraw()
@@ -272,6 +273,9 @@ func _res_color(value: int, low: int, base: Color) -> Color:
 
 func _on_advance() -> void:
 	if not _run.alive or not _run.pending_situation.is_empty():
+		return
+	if _run.arrived():
+		GameState.arrive_node()  # 목표 노드 도착 → 지도로 복귀(다음 분기 선택)
 		return
 	_run.step()
 	_refresh()
@@ -585,27 +589,28 @@ func _draw() -> void:
 		if i % 5 == 0 and font != null:
 			draw_string(font, Vector2(x - 8.0, ground_y + 28.0), str(i), HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_TINY, Color(0.4, 0.4, 0.42))
 
-	# 이전 원정대 — 남긴 흔적 점 (self-async). ROPE 는 차단의 다리로 따로 그리므로 건너뛴다.
-	for t in GameState.loaded_traces():
-		if t.object_kind == TraceData.ObjectKind.ROPE:
-			continue
-		var tx: float = t.leg * STEP_PX + offset
-		if tx < -20.0 or tx > rect.x + 20.0:
-			continue
-		draw_circle(Vector2(tx, ground_y - 10.0), 6.0, UITheme.SAND)
-		if not t.tags.is_empty() and font != null:
-			draw_string(font, Vector2(tx - 16.0, ground_y - 26.0), " ".join(PackedStringArray(t.tags)), HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_SMALL, Color(0.72, 0.62, 0.46))
-
-	# 고정 지형 - 종류별로 그린다. 다가오는 걸 미리 보여줘 계획·대비를 만든다(아이코닉함 강화).
-	for lm_leg in Situations.LANDMARKS:
-		var feat: Dictionary = Situations.LANDMARKS[lm_leg]
-		match str(feat.get("kind", "cache")):
-			"blockage": _draw_blockage(lm_leg, feat, ground_y, offset, rect, font)
-			"storm": _draw_storm(lm_leg, feat, ground_y, offset, rect, font)
-			_: _draw_cache_marker(lm_leg, feat, ground_y, offset, rect, font)
+	# 목표 노드 — 이번 엣지의 도착점이 앞에서 다가온다(남은 걸음만큼 오른쪽). 노드화로 흔적/지형 마커는 다음 단계.
+	var dest_id: String = _run.target_node_id()
+	if dest_id != "":
+		var dx: float = walker_x + float(_run.edge_remaining()) * STEP_PX
+		var dnode: Dictionary = MapGraph.node(dest_id)
+		var dcol: Color = _node_kind_color(str(dnode.get("kind", "")))
+		draw_line(Vector2(dx, ground_y), Vector2(dx, ground_y - 48.0), dcol, 2.0)
+		draw_circle(Vector2(dx, ground_y - 54.0), 7.0, dcol)
+		if font != null:
+			draw_string(font, Vector2(dx - 50.0, ground_y - 64.0), str(dnode.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 160, UITheme.FS_SMALL, dcol)
 
 	# 걷는 이
 	_draw_walker(Vector2(walker_x, ground_y), _run.alive)
+
+## 노드 종류별 색 (지도와 같은 팔레트).
+func _node_kind_color(kind: String) -> Color:
+	match kind:
+		"cache": return UITheme.SAND
+		"blockage": return Color(0.62, 0.52, 0.42)
+		"storm": return Color(0.55, 0.60, 0.72)
+		"end": return UITheme.DANGER
+		_: return UITheme.FG
 
 ## 자원형 지형 — 다가오는 앵커를 막대 + 이름으로.
 func _draw_cache_marker(lm_leg: int, feat: Dictionary, ground_y: float, offset: float, rect: Vector2, font: Font) -> void:

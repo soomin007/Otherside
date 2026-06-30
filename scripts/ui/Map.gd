@@ -1,16 +1,18 @@
 extends Control
 
-## 탑뷰 지도 — Slay the Spire 식 분기 노드 맵. 여기서 길을 골라 원정을 떠난다.
-## 총괄자가 거듭 보낸 원정대들의 누적(길/죽음/흔적)을 보여주는 창 — 주제의 시각화.
-##
-## 1단계(현재): 고정 노드 그래프(MapGraph)를 시각화 — 노드·엣지·분기. 위(마을)→아래(목적지).
-## 다음 단계: 현재 노드/선택, 노드 선택 → 횡스크롤 엣지 전진, 안개(누적), 죽음·흔적 노드 마커.
+## 탑뷰 지도 — Slay the Spire 식 분기 노드 맵. 현재 노드에서 갈 수 있는 다음 노드를 골라 떠난다.
+## 루프: 지도에서 노드 선택 → 그 엣지를 횡스크롤로 전진 → 도착 노드 이벤트 → 지도 복귀.
+## 노드 맵 비주얼은 임시(플레이스홀더) — 모양 다듬기는 그래픽 작업 때.
 
-const TOP_Y: float = 96.0    ## 제목 아래(지도 시작 y)
-const BOT_Y: float = 168.0   ## 하단 출발 영역 높이
-const NODE_R: float = 11.0
+const TOP_Y: float = 96.0
+const BOT_Y: float = 120.0
+const NODE_R: float = 13.0
 
 func _ready() -> void:
+	# 새 원정이면(run 없음 또는 직전 원정이 죽음) 마을부터 새로 시작한다. 도착 복귀(살아있는 run)는 유지.
+	if GameState.current_run == null or not GameState.current_run.alive:
+		GameState.begin_run_in_place()
+
 	var title := UITheme.make_label("지도 · 원정 계획", UITheme.FS_H1)
 	title.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	title.offset_top = UITheme.SAFE + 10.0
@@ -20,27 +22,52 @@ func _ready() -> void:
 	bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	bottom.offset_top = -BOT_Y
 	bottom.offset_bottom = -UITheme.SAFE
+	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bottom)
 
 	var bcol := VBoxContainer.new()
 	bcol.custom_minimum_size = Vector2(UITheme.COLUMN_W, 0)
-	bcol.add_theme_constant_override("separation", 10)
+	bcol.add_theme_constant_override("separation", 8)
 	bottom.add_child(bcol)
 
+	bcol.add_child(UITheme.make_label(_guide_text(), UITheme.FS_LABEL, UITheme.SAND))
 	bcol.add_child(UITheme.make_label(
-		"이 세계에 놓인 흔적 %d개 · 죽은 자리 %d곳 · 원정 %d회" % [GameState.traces.size(), GameState.deaths.size(), GameState.expedition_count],
+		"흔적 %d개 · 죽은 자리 %d곳 · 원정 %d회" % [GameState.traces.size(), GameState.deaths.size(), GameState.expedition_count],
 		UITheme.FS_SMALL, UITheme.MUTED))
-
-	var embark := UITheme.make_button("출발")
-	embark.pressed.connect(_on_embark_pressed)
-	bcol.add_child(embark)
 
 	queue_redraw()
 
-func _on_embark_pressed() -> void:
-	GameState.start_expedition()
+func _guide_text() -> String:
+	var cur: String = _current_node_id()
+	if cur == "end":
+		return "목적지에 닿았다. (여기까지가 Phase 0)"
+	return "갈 곳을 고르세요"
 
-# --- 노드 맵 렌더 ---
+func _current_node_id() -> String:
+	if GameState.current_run != null:
+		return GameState.current_run.current_node
+	return MapGraph.START_ID
+
+# --- 노드 선택(클릭) ---
+
+func _gui_input(event: InputEvent) -> void:
+	var clicked: bool = (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
+		or (event is InputEventScreenTouch and event.pressed)
+	if not clicked:
+		return
+	var pos: Vector2 = event.position
+	var area := _map_area()
+	for nx in MapGraph.node(_current_node_id()).get("next", []):
+		var p: Vector2 = _node_screen(MapGraph.node(str(nx)), area)
+		if pos.distance_to(p) <= NODE_R + 16.0:
+			GameState.travel_to(str(nx))
+			return
+
+# --- 렌더 ---
+
+func _map_area() -> Rect2:
+	var rect: Vector2 = size
+	return Rect2(UITheme.PAD, TOP_Y, rect.x - UITheme.PAD * 2.0, rect.y - TOP_Y - BOT_Y)
 
 func _node_screen(node: Dictionary, area: Rect2) -> Vector2:
 	var mr: int = maxi(1, MapGraph.max_row())
@@ -63,32 +90,38 @@ func _draw() -> void:
 	var rect: Vector2 = size
 	if rect.x <= 0.0 or rect.y <= 0.0:
 		return
-	var area := Rect2(UITheme.PAD, TOP_Y, rect.x - UITheme.PAD * 2.0, rect.y - TOP_Y - BOT_Y)
+	var area := _map_area()
 	if area.size.y < 60.0 or area.size.x < 60.0:
 		return
 	var font: Font = get_theme_default_font()
 	if font == null:
 		font = ThemeDB.fallback_font
 
-	# 엣지(분기) 먼저 — 노드 뒤에 깔린다.
+	var cur: String = _current_node_id()
+	var nexts: Array = MapGraph.node(cur).get("next", [])
+
+	# 엣지 — 현재 노드에서 갈 수 있는 길은 또렷이, 나머지는 흐리게
 	for id in MapGraph.NODES:
 		var node: Dictionary = MapGraph.NODES[id]
 		var from: Vector2 = _node_screen(node, area)
+		var reachable: bool = (id == cur)
 		for nx in node.get("next", []):
 			var nn: Dictionary = MapGraph.node(str(nx))
 			if nn.is_empty():
 				continue
-			draw_line(from, _node_screen(nn, area), Color(0.42, 0.40, 0.38, 0.7), 2.0)
+			var col: Color = Color(0.78, 0.66, 0.45, 0.9) if reachable else Color(0.40, 0.38, 0.36, 0.5)
+			draw_line(from, _node_screen(nn, area), col, 2.5 if reachable else 1.5)
 
-	# 노드 + 이름
+	# 노드 — 현재(굵은 테두리)·선택 가능(반짝 테두리)·나머지
 	for id in MapGraph.NODES:
 		var node: Dictionary = MapGraph.NODES[id]
 		var p: Vector2 = _node_screen(node, area)
 		var kind: String = str(node.get("kind", ""))
 		var col: Color = _kind_color(kind)
-		# 시작/끝은 테두리로 강조
-		if kind == "start" or kind == "end":
-			draw_arc(p, NODE_R + 4.0, 0.0, TAU, 24, col, 2.0)
 		draw_circle(p, NODE_R, col)
+		if id == cur:
+			draw_arc(p, NODE_R + 5.0, 0.0, TAU, 28, UITheme.FG, 3.0)
+		elif id in nexts:
+			draw_arc(p, NODE_R + 4.0, 0.0, TAU, 28, UITheme.SAND, 2.0)
 		if font != null:
-			draw_string(font, p + Vector2(NODE_R + 7.0, 5.0), str(node.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 150.0, UITheme.FS_TINY, col)
+			draw_string(font, p + Vector2(NODE_R + 8.0, 5.0), str(node.get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 150.0, UITheme.FS_TINY, col)

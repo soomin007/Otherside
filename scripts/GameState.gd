@@ -38,10 +38,17 @@ func begin_run_in_place() -> void:
 	current_run = ExpeditionRun.new(START_RESOURCES, bridged_legs(), flags, pickup_traces_map())
 	expedition_count += 1
 
-## 다음 원정을 떠난다 (지도 → 횡스크롤). 새 ExpeditionRun 을 만들고 씬을 바꾼다.
-func start_expedition() -> void:
-	begin_run_in_place()
+## 지도에서 고른 노드로 향한다 (지도 → 횡스크롤). 그 엣지를 시작하고 씬을 바꾼다.
+func travel_to(target_id: String) -> void:
+	if current_run != null:
+		current_run.begin_edge(target_id)
 	get_tree().change_scene_to_file(SCENE_EXPEDITION)
+
+## 노드에 도착해 지도로 돌아간다 (횡스크롤 → 지도). 현재 노드를 목표로 옮긴다.
+func arrive_node() -> void:
+	if current_run != null:
+		current_run.arrive()
+	get_tree().change_scene_to_file(SCENE_MAP)
 
 ## 죽기 전 단 한 번 흔적을 남긴다 (기획서 §3). 남김 = 자기 수명 깎기.
 func leave_trace(trace: TraceData) -> void:
