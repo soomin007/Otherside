@@ -21,7 +21,7 @@ var landmark_log: Dictionary = {}  ## 과거 랜드마크 선택 {str(leg): choi
 
 # --- 현재 원정 한정 상태 (죽으면 리셋) ---
 ## 초기 자원 — 임시치. 자원 = 수명 (남기면 그만큼 잃는다). 밸런스는 폰 테스트로 검증 예정.
-const START_RESOURCES: Dictionary = {"water": 10, "food": 7, "rope": 1, "shelter": 1}
+const START_RESOURCES: Dictionary = {"water": 20, "food": 13, "rope": 1, "shelter": 1}
 var current_run: ExpeditionRun = null  ## 진행 중인 원정의 순수 상태·로직 (core/ExpeditionRun)
 
 func _ready() -> void:

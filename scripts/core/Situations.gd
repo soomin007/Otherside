@@ -10,6 +10,9 @@ extends RefCounted
 ##     랜드마크 = 정체성(id/name/kind) + 이벤트 풀(events). 도착할 때마다 풀에서 하나가 뜬다(같은 장소, 다른 사건).
 ##     kind: "cache"(자원 보충형) / "blockage"(차단, 틈) / "storm"(폭풍 구간, span 걸음).
 ##
+## 거리 곡선(기획서 §1): 출발지(마을) 근처는 평화·풍요(cache 위주), 멀어질수록 척박·고달픔(위협 위주).
+##  배치: 4 마른 강·8 야영지(풍요) → 12 차단·16 폭풍(중반) → 20 뼈의 들판·24 차단·28 폭풍의 문(척박).
+##
 ## 이벤트 = {id, threat, text, choices, requires?}.
 ##  - requires: 과거에 이 랜드마크에서 그 choice_id 를 골랐을 때만 뜨는 변형 이벤트(재방문 반영). 없으면 일반 풀.
 ## choice = {label, effect, needs?, action?, choice_id?}.
@@ -50,7 +53,7 @@ const CATALOG: Array = [
 ]
 
 ## 아이코닉한 고정 지형. 키 = leg(int). 각 랜드마크는 events 풀을 가진다(같은 장소, 다른 사건).
-## 자원형(cache)과 위협형(blockage/storm)이 번갈아 페이싱을 만든다. CATALOG 와 leg 가 겹치지 않게 둔다.
+## 거리 곡선대로 leg 순 배치: 가까울수록 풍요(cache), 멀수록 척박(위협). CATALOG 와 leg 가 겹치지 않게 둔다.
 const LANDMARKS: Dictionary = {
 	4: {
 		"id": "dry_river",
@@ -87,24 +90,7 @@ const LANDMARKS: Dictionary = {
 			},
 		],
 	},
-	7: {
-		"id": "cracked_floor",
-		"name": "갈라진 바닥",
-		"kind": "blockage",
-		"threat": Threats.Kind.BLOCKAGE,
-		"events": [
-			{
-				"id": "cracked_floor",
-				"threat": Threats.Kind.BLOCKAGE,
-				"text": "땅이 쩍 갈라졌다. 바닥은 보이지 않는다. 로프를 걸면 다음에도 건널 수 있다.",
-				"choices": [
-					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge"},
-					{"label": "맨몸으로 무리해서 건넌다", "effect": {"water": -3, "food": -2}},
-				],
-			},
-		],
-	},
-	10: {
+	8: {
 		"id": "ruined_camp",
 		"name": "버려진 야영지",
 		"kind": "cache",
@@ -139,7 +125,24 @@ const LANDMARKS: Dictionary = {
 			},
 		],
 	},
-	13: {
+	12: {
+		"id": "cracked_floor",
+		"name": "갈라진 바닥",
+		"kind": "blockage",
+		"threat": Threats.Kind.BLOCKAGE,
+		"events": [
+			{
+				"id": "cracked_floor",
+				"threat": Threats.Kind.BLOCKAGE,
+				"text": "땅이 쩍 갈라졌다. 바닥은 보이지 않는다. 로프를 걸면 다음에도 건널 수 있다.",
+				"choices": [
+					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge"},
+					{"label": "맨몸으로 무리해서 건넌다", "effect": {"water": -3, "food": -2}},
+				],
+			},
+		],
+	},
+	16: {
 		"id": "sand_wall",
 		"name": "모래의 벽",
 		"kind": "storm",
@@ -157,7 +160,7 @@ const LANDMARKS: Dictionary = {
 			},
 		],
 	},
-	17: {
+	20: {
 		"id": "field_of_bones",
 		"name": "뼈의 들판",
 		"kind": "cache",
@@ -192,7 +195,7 @@ const LANDMARKS: Dictionary = {
 			},
 		],
 	},
-	21: {
+	24: {
 		"id": "collapsed_wall",
 		"name": "무너진 담",
 		"kind": "blockage",
@@ -209,7 +212,7 @@ const LANDMARKS: Dictionary = {
 			},
 		],
 	},
-	25: {
+	28: {
 		"id": "storm_gate",
 		"name": "폭풍의 문",
 		"kind": "storm",

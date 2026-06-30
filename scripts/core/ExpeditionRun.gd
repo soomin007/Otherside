@@ -9,8 +9,9 @@ extends RefCounted
 ##  - 랜드마크: 정해진 걸음에 고정 등장(Situations.LANDMARKS) - 아이코닉한 장소가 페이싱의 앵커.
 ## 물은 걸음마다, 식량은 천천히 닳아 서로 다른 속도의 두 시계. 물이 보통 먼저 바닥나는 긴급한 시계.
 
-const WATER_PER_STEP: int = 1  ## 물은 매 걸음 소모 (갈증의 시계)
-const FOOD_EVERY: int = 2      ## 식량은 이 걸음 수마다 1 소모 (느린 배고픔)
+const WATER_PER_STEP: int = 1     ## 물 기본 소모 (출발지 근처). 거리에 따라 늘어난다(water_cost).
+const DESOLATION_EVERY: int = 16  ## 이 걸음마다 물 소모 +1 (멀수록 척박 — 거리 곡선)
+const FOOD_EVERY: int = 2         ## 식량은 이 걸음 수마다 1 소모 (느린 배고픔)
 const GAP_MIN: int = 2         ## 일반 상황 최소 간격 (걸음)
 const GAP_MAX: int = 4         ## 일반 상황 최대 간격 (걸음)
 
@@ -40,6 +41,10 @@ func _init(starting: Dictionary = {}, bridged: Array = [], landmark_log: Diction
 func get_res(key: String) -> int:
 	return int(resources.get(key, 0))
 
+## 한 걸음의 물 소모 — 멀어질수록 커진다(거리 = 척박함의 기울기). 출발지 근처 1, 무인지대로 갈수록 늘어난다.
+func water_cost() -> int:
+	return WATER_PER_STEP + int(leg / DESOLATION_EVERY)
+
 ## 이 걸음의 차단에 이미 로프가 걸려 있나 (과거 원정 + 이번 원정에 새로 건 것 포함).
 func is_bridged(lg: int) -> bool:
 	return _bridged.has(lg)
@@ -53,7 +58,7 @@ func step() -> void:
 	if not alive or not pending_situation.is_empty():
 		return
 	leg += 1
-	resources["water"] = get_res("water") - WATER_PER_STEP
+	resources["water"] = get_res("water") - water_cost()
 	if leg % FOOD_EVERY == 0:
 		resources["food"] = get_res("food") - 1
 	_check_death()

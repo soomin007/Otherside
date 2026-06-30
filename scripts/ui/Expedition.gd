@@ -196,7 +196,7 @@ func _build_bequeath_panel() -> void:
 	card.add_child(_bequeath_box)
 
 func _refresh() -> void:
-	_status_label.text = "원정 %d째 · %d걸음 전진" % [GameState.expedition_count, _run.leg]
+	_status_label.text = "원정 %d째 · %d걸음 · 물 -%d/걸음" % [GameState.expedition_count, _run.leg, _run.water_cost()]
 	var water: int = maxi(0, _run.get_res("water"))
 	var food: int = maxi(0, _run.get_res("food"))
 	_water_label.text = "물 %d" % water
