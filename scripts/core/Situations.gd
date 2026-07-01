@@ -72,6 +72,56 @@ const CATALOG: Array = [
 			{"label": "지나친다", "effect": {}},
 		],
 	},
+	{
+		"id": "sun_hammer",
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "해가 정수리를 두드린다. 그늘 한 점 없다. 잠깐 쉴지 계속 밀어붙일지.",
+		"choices": [
+			{"label": "그늘 없이 계속 간다", "effect": {"water": -2}},
+			{"label": "천을 둘러쓰고 천천히 간다", "effect": {"water": -1, "food": -1}},
+		],
+	},
+	{
+		"id": "loose_sand",
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "발이 푹푹 빠지는 고운 모래밭. 한 걸음이 두 걸음 같다.",
+		"choices": [
+			{"label": "곧장 가로지른다", "effect": {"water": -1, "food": -1}},
+			{"label": "단단한 가장자리로 돌아간다", "effect": {"food": -2}},
+		],
+	},
+	{
+		"id": "mirage",
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "멀리 물빛이 어른거린다. 아지랑이인지 진짜인지 알 수 없다.",
+		"choices": [
+			{"label": "혹시 몰라 다가가 본다", "effect": {"water": -2}},
+			{"label": "속지 않고 길을 지킨다", "effect": {}},
+		],
+	},
+	# --- requires 연쇄: 앞선 선택이 켠 런 플래그가 있을 때만 뜨는 이동 중 상황 ---
+	{
+		# 독 웅덩이(d2)에서 탁한 물을 마셨으면(pool_drank) 이동 중 탈이 난다.
+		"id": "gut_turn",
+		"requires": "pool_drank",
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "아까 그 물이 속에서 뒤척인다. 식은땀이 난다. 멈춰 게워낼지 참고 갈지.",
+		"choices": [
+			{"label": "멈춰서 게워내고 간다", "effect": {"food": -2}},
+			{"label": "이 악물고 계속 간다", "effect": {"water": -2}},
+		],
+	},
+	{
+		# 앞선 차단(b2)에서 로프를 이미 썼으면(rope_spent_now) 로프가 아쉬운 얕은 골을 만난다.
+		"id": "no_rope_ledge",
+		"requires": "rope_spent_now",
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "얕은 골이 앞을 가른다. 로프가 있었으면 단숨에 건넜을 텐데, 앞선 틈에서 다 썼다.",
+		"choices": [
+			{"label": "돌아서 얕은 데로 건넌다", "effect": {"water": -1, "food": -1}},
+			{"label": "미끄러운 벽을 조심조심 내려간다", "effect": {"water": -2}},
+		],
+	},
 ]
 
 ## 아이코닉한 고정 지형. 키 = leg(int). 각 랜드마크는 events 풀을 가진다(같은 장소, 다른 사건).
