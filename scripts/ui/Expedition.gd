@@ -36,6 +36,9 @@ var _probe_label: Label            ## "살필 틈 N"
 var _banner_label: Label           ## 조사 결과 배너("식량 +2")
 var _banner_timer: float = 0.0     ## 배너 표시 시간
 
+var _ending_panel: Control         ## end 도달 결말 화면(순환/재회)
+var _ending_box: VBoxContainer
+
 func _ready() -> void:
 	_run = GameState.current_run
 	if _run == null:
@@ -44,9 +47,11 @@ func _ready() -> void:
 		_run = GameState.current_run
 	_build_hud()
 	_refresh()
-	# 도착해서 들어온 노드 화면 — 그 장소의 단면을 탐색한다(지점 조사). 죽었으면 죽음.
+	# 도착해서 들어온 노드 화면 — 죽음 / 목적지(결말) / 단면 탐색.
 	if not _run.alive:
 		_die(_run.death_cause)
+	elif _run.target_node_id() == "end":
+		_show_ending()
 	else:
 		_section = SectionRun.new(_run, MapGraph.node(_run.target_node_id()))
 		_refresh()
@@ -124,6 +129,7 @@ func _build_hud() -> void:
 	_build_situation_panel()
 	_build_death_panel()
 	_build_bequeath_panel()
+	_build_ending_panel()
 
 func _build_situation_panel() -> void:
 	_sit_panel = Control.new()
@@ -628,3 +634,57 @@ func _draw() -> void:
 		SectionArt.draw_spot(self, font, _spot_screen(at), str(spot.get("label", "")), st)
 	if _section.spot_count() == 0:
 		draw_string(font, Vector2(_section_rect.position.x, _section_rect.position.y + _section_rect.size.y * 0.5), "둘러볼 것이 없다. 떠난다.", HORIZONTAL_ALIGNMENT_CENTER, _section_rect.size.x, UITheme.FS_BODY, UITheme.MUTED)
+
+# --- 결말 (목적지 도달: 순환과 재회) ---
+
+func _build_ending_panel() -> void:
+	_ending_panel = Control.new()
+	_ending_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ending_panel.visible = false
+	add_child(_ending_panel)
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.03, 0.03, 0.06, 0.95)
+	_ending_panel.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ending_panel.add_child(center)
+	var card := UITheme.make_card()
+	center.add_child(card)
+	_ending_box = VBoxContainer.new()
+	_ending_box.add_theme_constant_override("separation", UITheme.GAP + 6)
+	card.add_child(_ending_box)
+
+## 목적지(end) 도달 — 순환(기본) 또는 재회(흔적 충분 축적 + 무사 도달). 기획서 §3 결말.
+func _show_ending() -> void:
+	var kind: String = GameState.ending_kind()
+	if _advance_btn != null:
+		_advance_btn.disabled = true
+	if _leave_btn != null:
+		_leave_btn.disabled = true
+	_clear_box(_ending_box)
+
+	var title_txt: String
+	var body_txt: String
+	var btn_txt: String
+	var to_title: bool
+	if kind == "reunion":
+		title_txt = "재회"
+		body_txt = "목적지에 닿았다. 죽지 않고, 온전히.\n\n밀어내지 않아도 되었다. 먼저 간 모든 원정대가 건너편에서 기다리고 있었다.\n\n릴레이가 멈춘다. 드디어 그쪽에서 만난다."
+		btn_txt = "여기까지"
+		to_title = true
+	else:
+		title_txt = "도달"
+		body_txt = "재앙의 자리엔, 먼저 간 원정대가 서 있었다.\n\n멈추려면 그를 밀어내야 했다. 이제 이 자리에 선 것은 우리다. 곧 다음 원정대가 이곳을 향해 온다.\n\n릴레이는 멈추지 않는다."
+		btn_txt = "다음 원정을 보낸다"
+		to_title = false
+
+	_ending_box.add_child(UITheme.make_label(title_txt, UITheme.FS_H1, UITheme.SAND))
+	_ending_box.add_child(UITheme.make_label(body_txt, UITheme.FS_BODY))
+	var btn := UITheme.make_button(btn_txt)
+	if to_title:
+		btn.pressed.connect(GameState.go_to_title)
+	else:
+		btn.pressed.connect(GameState.next_expedition)
+	_ending_box.add_child(btn)
+	_ending_panel.visible = true

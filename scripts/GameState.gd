@@ -23,6 +23,7 @@ var visited_nodes: Array = []  ## 방문한 노드 id (영속). 지도 안개 �
 # --- 현재 원정 한정 상태 (죽으면 리셋) ---
 ## 초기 자원 — 임시치. 자원 = 수명 (남기면 그만큼 잃는다). 밸런스는 폰 테스트로 검증 예정.
 const START_RESOURCES: Dictionary = {"water": 20, "food": 13, "rope": 1, "shelter": 1}
+const REUNION_TRACES: int = 8  ## 재회 엔딩 흔적 축적 임계(임시 — 밸런싱 핵심 튜닝, 기획서 §3 결말)
 var current_run: ExpeditionRun = null  ## 진행 중인 원정의 순수 상태·로직 (core/ExpeditionRun)
 
 func _ready() -> void:
@@ -56,6 +57,25 @@ func arrive_node() -> void:
 		current_run.arrive()
 		_mark_visited(current_run.current_node)
 	get_tree().change_scene_to_file(SCENE_MAP)
+
+# --- 결말 (기획서 §3 결말: 순환과 재회) ---
+
+## end 도달 시 엔딩 종류 — "reunion"(재회) = 흔적 충분 축적 + 무사 도달(alive), 아니면 "cycle"(순환).
+## 밸런싱 북극성: 승리 = 한 번의 런이 아니라 여러 원정에 걸친 흔적 축적. REUNION_TRACES 가 돌파 난이도.
+func ending_kind() -> String:
+	if current_run != null and current_run.alive and traces.size() >= REUNION_TRACES:
+		return "reunion"
+	return "cycle"
+
+## 순환 — 이 원정을 닫고 다음 원정을 처음부터 준비한다(흔적·방문 누적은 유지 → 다음이 더 멀리 간다).
+func next_expedition() -> void:
+	current_run = null
+	go_to_map()
+
+## 재회(진짜 엔딩) 후 — 타이틀로 돌아간다. 세이브(축적)는 유지된다.
+func go_to_title() -> void:
+	current_run = null
+	get_tree().change_scene_to_file(SCENE_TITLE)
 
 ## 노드를 방문 기록에 더한다(영속). 지도 안개를 걷는다.
 func _mark_visited(node_id: String) -> void:
