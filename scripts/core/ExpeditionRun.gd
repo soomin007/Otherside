@@ -8,12 +8,16 @@ extends RefCounted
 ## 도착 노드 카드 우선순위(self-async): ① 로프 걸린 차단=무료 통과 ② 이전 원정대 흔적=줍기 ③ 노드 이벤트.
 ## 흔적/차단은 node_id 로 키잉된 과거 데이터(GameState 주입)를 본다. core 는 GameState 미참조(순수성 유지).
 
-const WATER_PER_STEP: int = 1     ## 물 기본 소모 (출발지 근처). 거리에 따라 늘어난다(water_cost).
-const DESOLATION_EVERY: int = 16  ## 이 걸음마다 물 소모 +1 (멀수록 척박 — 거리 곡선)
-const FOOD_EVERY: int = 2         ## 식량은 이 걸음 수마다 1 소모 (느린 배고픔)
-const GAP_MIN: int = 2            ## 엣지 안 일반 상황 최소 간격 (걸음)
-const GAP_MAX: int = 4            ## 엣지 안 일반 상황 최대 간격 (걸음)
-const EDGE_LEN: int = 5           ## 노드 사이 한 엣지의 걸음 수 (임시 고정 — 다음에 노드 간 거리로)
+## 튜닝 손잡이 — 게임 중엔 아래 기본값으로 고정(정식 플레이는 절대 바꾸지 않는다).
+## const 가 아니라 static var 인 이유: 밸런스 시뮬(tests/balance_sim.gd)이 값을 스윕해
+## end 도달률·거리 곡선을 정량 비교할 수 있게 하기 위함. 시뮬은 스윕 후 반드시 기본값으로 원복한다.
+## 수치를 바꾸면 docs/design/balance_notes.md·기획서 §4.3(거리 곡선)도 같은 커밋에서 갱신.
+static var WATER_PER_STEP: int = 1     ## 물 기본 소모 (출발지 근처). 거리에 따라 늘어난다(water_cost).
+static var DESOLATION_EVERY: int = 30  ## 이 걸음마다 물 소모 +1 (멀수록 척박 — 거리 곡선)
+static var FOOD_EVERY: int = 2         ## 식량은 이 걸음 수마다 1 소모 (느린 배고픔)
+static var GAP_MIN: int = 2            ## 엣지 안 일반 상황 최소 간격 (걸음)
+static var GAP_MAX: int = 4            ## 엣지 안 일반 상황 최대 간격 (걸음)
+static var EDGE_LEN: int = 5           ## 노드 사이 한 엣지의 걸음 수 (임시 고정 — 다음에 노드 간 거리로)
 
 ## 남길 때 잃는 양 = 다음 원정대가 줍기로 얻는 양(Situations.pickup_trace 와 대칭). 물건 하나 = 그만큼의 희생.
 const LEAVE_COST: Dictionary = {"water": 4, "food": 3, "shelter": 1, "rope": 1}

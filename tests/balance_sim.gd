@@ -37,8 +37,21 @@ func _init() -> void:
 		print("  물 %2d → end 도달 %5.1f%% · 중앙 leg %2d · 평균 최종 노드 row %.1f · 갈증사 %.0f%%" % [
 			w, st["reach_pct"], st["median_leg"], st["avg_row"], st["thirst_pct"]])
 
-	print("\n[3] 파라미터 스윕 — 거리 소모 가속 DESOLATION_EVERY 체감(시작 물 고정 20)")
-	print("  (코드 상수라 시뮬은 현재값 %d 만 반영 — 바꾸려면 ExpeditionRun.DESOLATION_EVERY 수정 후 재실행)" % ExpeditionRun.DESOLATION_EVERY)
+	print("\n[3] 2D 스윕 — DESOLATION_EVERY × EDGE_LEN (손잡이 static var 오버라이드 → 끝에 원복)")
+	print("     각 칸: GREEDY end% (중앙leg · 최종row · 갈증%) | RECKLESS end%   [★=현재 기본값]")
+	var deso_orig: int = ExpeditionRun.DESOLATION_EVERY
+	var edge_orig: int = ExpeditionRun.EDGE_LEN
+	for edge_len in [5, 4]:
+		for deso in [24, 28, 30, 32]:
+			ExpeditionRun.DESOLATION_EVERY = deso
+			ExpeditionRun.EDGE_LEN = edge_len
+			var g: Dictionary = _batch(Policy.GREEDY, BASE_START, 70000 + deso * 100 + edge_len)
+			var rk: Dictionary = _batch(Policy.RECKLESS, BASE_START, 75000 + deso * 100 + edge_len)
+			var star: String = " ★" if (deso == deso_orig and edge_len == edge_orig) else ""
+			print("  EDGE %d · DESO %2d → GREEDY %5.1f%% (leg %2d · row %.1f · 갈증 %2.0f%%) | RECKLESS %4.1f%%%s" % [
+				edge_len, deso, g["reach_pct"], g["median_leg"], g["avg_row"], g["thirst_pct"], rk["reach_pct"], star])
+	ExpeditionRun.DESOLATION_EVERY = deso_orig
+	ExpeditionRun.EDGE_LEN = edge_orig
 
 	print("\n[4] 콘텐츠 커버리지 — GREEDY 500판에서 각 도착 이벤트가 뜬 횟수(0 = 죽은 콘텐츠 의심)")
 	_coverage_report()

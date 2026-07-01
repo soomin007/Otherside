@@ -86,10 +86,10 @@ func _test_water_cost_curve() -> void:
 	var run: ExpeditionRun = _fresh()
 	run.leg = 0
 	_ok(run.water_cost() == 1, "물 소모 곡선: leg0 → 1")
-	run.leg = ExpeditionRun.DESOLATION_EVERY      # 16
-	_ok(run.water_cost() == 2, "물 소모 곡선: leg16 → 2 (멀수록 척박)")
-	run.leg = ExpeditionRun.DESOLATION_EVERY * 2  # 32
-	_ok(run.water_cost() == 3, "물 소모 곡선: leg32 → 3")
+	run.leg = ExpeditionRun.DESOLATION_EVERY      # 현재 기본값 30 (튜닝 손잡이)
+	_ok(run.water_cost() == 2, "물 소모 곡선: leg=DESOLATION_EVERY → 2 (멀수록 척박)")
+	run.leg = ExpeditionRun.DESOLATION_EVERY * 2
+	_ok(run.water_cost() == 3, "물 소모 곡선: leg=DESOLATION_EVERY*2 → 3")
 
 func _test_edge_progression() -> void:
 	var run: ExpeditionRun = _fresh()
