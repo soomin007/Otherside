@@ -75,10 +75,11 @@ core 가 노드 트리를 만지거나 ui 를 참조하면 그건 버그다.
 ### 세션 시작 루틴 (본격 작업 전 가장 먼저)
 다음을 읽고 "직전까지 한 것 / 다음 후보 / 추천 한 가지"를 정리해 제안한 뒤 시작한다:
 0. **`ACTIVE_WORK.md` (작업 조율판) — 가장 먼저.** 다른 세션이 claim 한 범위를 피해 내 블록을 추가한 뒤 시작.
-1. `docs/design/backlog.md` — 다음 작업의 단일 소스
-2. 최신 `session_logs/YYYY-MM-DD.md` — 직전 세션 상태·결정·미해결
-3. `docs/design/known_issues.md` — 반복 금지 함정/오류
-4. `git status` + `git log --oneline -10`
+1. **`docs/design/00_START_HERE.md` — 프로젝트 현재 상태·전체 맥락의 단일 진실.** 오해 없이 시작하려면 반드시 먼저 읽는다(특히 §9 "자주 오해하는 것").
+2. `docs/design/backlog.md` — 다음 작업의 단일 소스
+3. 최신 `session_logs/YYYY-MM-DD.md` — 직전 세션 상태·결정·미해결
+4. `docs/design/known_issues.md` — 반복 금지 함정/오류
+5. `git status` + `git log --oneline -10`
 
 ### Git push 루틴
 의미 있는 작업 단위(기능·시스템 변경·문서 대량 갱신·세션 로그)가 끝나면 **즉시 commit + push origin main**.
@@ -86,7 +87,7 @@ core 가 노드 트리를 만지거나 ui 를 참조하면 그건 버그다.
 - 커밋 메시지: 한국어, `prefix(scope): 설명` (feat/fix/refactor/docs/chore), 이모지 없음, 본문은 변경 항목 bullet.
 - `main` 에 직접 push (branch/PR 안 씀). destructive 작업(force push, reset --hard)은 먼저 확인.
 - **`git add -A`/`git add .` 금지** — 내가 바꾼 파일만 경로로 명시 스테이징(동시 세션 보호). 커밋 전 `git status` 확인.
-- ⚠️ **아직 GitHub 원격·Pages 미설정** (외부 작업). 원격이 붙기 전까진 로컬 커밋만. 설정은 사용자 몫.
+- ✅ GitHub 원격 연결됨 (`origin` = github.com/soomin007/Otherside). 커밋 후 `git push origin main`. (Pages 배포 설정은 사용자 몫.)
 
 ### 동시 세션 루틴 (여러 터미널 병행 시)
 `ACTIVE_WORK.md` 가 겹침 방지의 단일 진실 (git 미추적·로컬 실시간 공유). 시작 전 읽고, 내 블록만 편집,
