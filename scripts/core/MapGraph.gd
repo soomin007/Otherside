@@ -53,6 +53,10 @@ const NODES: Dictionary = {
 				],
 			},
 		],
+		"spots": [
+			{"id": "river_puddle", "label": "갈라진 바닥", "at": Vector2(0.26, 0.64), "source": "cache", "effect": {"water": 2}, "text": "금 간 바닥 틈에 흙탕물이 조금 고였다. 걸러서 담는다."},
+			{"id": "river_wreck", "label": "부서진 수레", "at": Vector2(0.72, 0.6), "source": "empty", "text": "수레는 오래전에 부서졌다. 쓸 만한 건 이미 누가 가져갔다."},
+		],
 	},
 	"b1": {
 		"kind": "cache", "name": "버려진 야영지", "row": 2, "col": 0.28, "next": ["c1", "c2"],
@@ -124,6 +128,14 @@ const NODES: Dictionary = {
 					{"label": "몸을 적시고 쉰다", "effect": {"water": 3, "food": 1}},
 				],
 			},
+			{
+				"id": "oasis_calm", "threat": Threats.Kind.CONSUMPTION,
+				"text": "샘가에 바람이 자고, 물낯이 거울처럼 고요하다. 잠시 숨을 고른다.",
+				"choices": [
+					{"label": "물통을 채우고 간다", "effect": {"water": 4}},
+					{"label": "충분히 쉬었다 간다", "effect": {"water": 2, "food": 2}},
+				],
+			},
 		],
 		"spots": [
 			{"id": "oasis_shade", "label": "야자 그늘", "at": Vector2(0.72, 0.55), "source": "cache", "effect": {"food": 1}, "text": "그늘에서 숨을 고른다. 마른 대추야자 몇 알."},
@@ -149,6 +161,10 @@ const NODES: Dictionary = {
 					{"label": "그래도 강행한다", "effect": {"water": -3}},
 				],
 			},
+		],
+		"spots": [
+			{"id": "wall_tarp", "label": "바람에 걸린 천", "at": Vector2(0.24, 0.62), "source": "cache", "effect": {"food": 1}, "text": "모래 둔덕에 걸린 천 자락. 마른 열매 몇 알이 싸여 있었다."},
+			{"id": "wall_roar", "label": "모래바람 속", "at": Vector2(0.74, 0.58), "source": "empty", "text": "바람이 앞을 삼킨다. 발을 들일 엄두가 안 난다."},
 		],
 	},
 	"d1": {
@@ -179,6 +195,10 @@ const NODES: Dictionary = {
 				],
 			},
 		],
+		"spots": [
+			{"id": "bones_flask", "label": "흩어진 물통", "at": Vector2(0.28, 0.66), "source": "cache", "effect": {"water": 2}, "text": "뼈 사이에 굴러다니는 물통. 아직 한 모금 남았다."},
+			{"id": "bones_pile", "label": "뼈 무더기", "at": Vector2(0.7, 0.62), "source": "empty", "text": "모래에 반쯤 묻힌 뼈들. 두 손을 모으고 지나친다."},
+		],
 	},
 	"d2": {
 		"kind": "cache", "name": "독 웅덩이", "row": 4, "col": 0.7, "next": ["e1"],
@@ -187,10 +207,22 @@ const NODES: Dictionary = {
 				"id": "poison_pool", "threat": Threats.Kind.CONSUMPTION,
 				"text": "고인 물에서 단내가 올라온다. 갈증엔 유혹이지만 탈이 날지도 모른다.",
 				"choices": [
-					{"label": "걸러서 조금만 마신다", "effect": {"water": 2}},
+					{"label": "걸러서 조금만 마신다", "effect": {"water": 2}, "sets": ["pool_drank"]},
 					{"label": "위험하다, 지나친다", "effect": {}},
 				],
 			},
+			{
+				"id": "pool_carcass", "threat": Threats.Kind.CONSUMPTION,
+				"text": "웅덩이 옆에 짐승 사체가 삭고 있다. 물맛이 왜 그런지 알 것 같다.",
+				"choices": [
+					{"label": "그래도 조금 걸러 마신다", "effect": {"water": 2}, "sets": ["pool_drank"]},
+					{"label": "미련 없이 지나친다", "effect": {}},
+				],
+			},
+		],
+		"spots": [
+			{"id": "pool_reeds", "label": "마른 갈대", "at": Vector2(0.26, 0.66), "source": "cache", "effect": {"food": 1}, "text": "웅덩이 가장자리 마른 갈대. 뿌리를 씹으면 요기는 된다."},
+			{"id": "pool_sweet", "label": "단내 나는 물", "at": Vector2(0.72, 0.6), "source": "empty", "text": "가까이서 보니 물빛이 탁하다. 손대지 않는 게 낫겠다."},
 		],
 	},
 	"e1": {
@@ -213,6 +245,10 @@ const NODES: Dictionary = {
 				],
 			},
 		],
+		"spots": [
+			{"id": "wall_pack", "label": "틈에 낀 배낭", "at": Vector2(0.26, 0.68), "source": "cache", "effect": {"food": 2}, "text": "무너진 틈에 배낭이 끼어 있다. 식량 몇 줌이 남았다."},
+			{"id": "wall_beyond", "label": "담 너머", "at": Vector2(0.74, 0.64), "source": "empty", "text": "담 너머는 보이지 않는다. 넘어봐야 안다."},
+		],
 	},
 	"f1": {
 		"kind": "storm", "name": "폭풍의 문", "row": 6, "col": 0.5, "next": ["end"],
@@ -233,6 +269,19 @@ const NODES: Dictionary = {
 					{"label": "폭풍의 눈으로 달린다", "effect": {"water": -3, "food": -1}},
 				],
 			},
+			{
+				# 같은 런 연쇄: 앞서 독 웅덩이(d2)의 탁한 물을 마셨으면(pool_drank) 탈이 나 폭풍이 더 가혹하다.
+				"id": "storm_gate_ill", "requires": "pool_drank", "threat": Threats.Kind.STORM,
+				"text": "속이 뒤집힌다. 아까 그 물이 탈이 났다. 폭풍 앞에서 다리가 풀린다.",
+				"choices": [
+					{"label": "은신처 치고 최대한 버틴다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
+					{"label": "이 악물고 뚫는다", "effect": {"water": -6, "food": -3}},
+				],
+			},
+		],
+		"spots": [
+			{"id": "gate_relic", "label": "앞선 이의 유품", "at": Vector2(0.24, 0.62), "source": "cache", "effect": {"water": 2}, "text": "협곡 입구에 반쯤 묻힌 물통. 여기까지 온 원정대가 있었다."},
+			{"id": "gate_mouth", "label": "협곡 입구", "at": Vector2(0.74, 0.58), "source": "empty", "text": "폭풍이 입구를 삼켰다. 그 너머는 아무도 모른다."},
 		],
 	},
 	"end": {
