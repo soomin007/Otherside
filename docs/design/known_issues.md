@@ -34,6 +34,10 @@
   **방지:** `default_texture_filter=1`(Linear). 이 프로젝트는 픽셀아트 스프라이트가 없어(전부 절차적 `draw_*`+폰트+부드러운 절차 텍스처) Linear 가 모든 요소에 더 낫다. 픽셀아트를 도입하면 그 스프라이트만 노드별 `texture_filter`로 Nearest 지정.
   여전히 흐리면 폰트 MSDF 임포트가 다음 레버(웹/GL Compatibility 실기기 검증 필수).
 
+- **증상:** UI 텍스트에 넣은 특수문자(`✕` U+2715, `−` U+2212 등)가 두부(□)로 뜬다. (2026-07-01)
+  **원인:** 임베드 폰트(NanumGothic)에 그 글리프가 없음. 게임 폰트는 한글 + 기본 라틴/기호 위주라 장식 유니코드가 빠질 수 있다.
+  **방지:** UI 문구는 **한글/기본 ASCII** 로. 아이콘이 필요하면 절차적 draw(`draw_line` 등)로 그리거나, 넣기 전 폰트에 글리프가 있는지 확인. (예: 가방 빼기를 `✕` 대신 "탭해서 빼기" 안내로 처리.)
+
 ## 씬 전환 / 노드 트리
 
 - **증상:** `Parent node is busy adding/removing children, remove_child() can't be called at this time`.

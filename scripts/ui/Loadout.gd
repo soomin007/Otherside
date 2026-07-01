@@ -19,7 +19,9 @@ var _preview: Label
 var _depart_btn: Button
 
 func _ready() -> void:
-	add_child(Backdrop.new())  # 사막 밤 공통 배경(맨 뒤)
+	var bg := Backdrop.new()  # 사막 밤 + 마을 실루엣(맨 뒤)
+	bg.scene_kind = "village"
+	add_child(bg)
 	var col := UITheme.build_column(self, 14)
 
 	col.add_child(UITheme.make_label("마을 · 원정 준비", UITheme.FS_H1))
@@ -37,7 +39,7 @@ func _ready() -> void:
 		desk.add_child(btn)
 	col.add_child(desk)
 
-	col.add_child(UITheme.make_label("가방", UITheme.FS_LABEL, UITheme.MUTED))
+	col.add_child(UITheme.make_label("가방  (탭해서 빼기)", UITheme.FS_LABEL, UITheme.MUTED))
 	_bag_box = HFlowContainer.new()
 	_bag_box.add_theme_constant_override("h_separation", 8)
 	_bag_box.add_theme_constant_override("v_separation", 8)
@@ -83,7 +85,7 @@ func _refresh() -> void:
 		c.queue_free()
 	for i in range(_bag.size()):
 		var key: String = _bag[i]
-		var btn := UITheme.make_button("%s  ✕" % _item_label(key), false)
+		var btn := UITheme.make_button(_item_label(key), false)
 		btn.custom_minimum_size = Vector2(150, UITheme.BTN_H_SM)
 		btn.pressed.connect(_remove_item.bind(i))
 		_bag_box.add_child(btn)
