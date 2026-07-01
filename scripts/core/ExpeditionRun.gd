@@ -126,7 +126,7 @@ func death_node_id() -> String:
 func edge_remaining() -> int:
 	return maxi(0, _edge_len - _edge_step)
 
-## 한 걸음 전진 — 소모 자원을 차감하고 고갈을 판정한다. 엣지 중엔 일반 상황, 끝에선 도착 노드 이벤트.
+## 한 걸음 전진 — 소모 자원을 차감하고 고갈을 판정한다. 엣지 중엔 이동 중 상황, 도착하면 arrived()만 true(카드는 단면이 낸다).
 func step() -> void:
 	if not alive or not pending_situation.is_empty():
 		return
@@ -140,29 +140,25 @@ func step() -> void:
 	_check_death()
 	if not alive:
 		return
-	if _edge_step >= _edge_len:
-		_arrive_event()
-	elif leg >= _next_situation_leg:
+	if _edge_step < _edge_len and leg >= _next_situation_leg:
 		# 엣지 중(도착 전) 일반 상황 — 이동 중 자잘한 결정(맵 카드로 뜬다). 직전과 같은 id 는 피한다.
 		var sit: Dictionary = Situations.pick(rng, _last_situation_id, _flags)
 		if not sit.is_empty():
 			_set_pending(sit)
+	# 도착(_edge_step >= _edge_len)이면 카드를 자동으로 안 띄운다 — 그 노드 단면(SectionRun)이 지점으로 낸다.
 
-## 도착 노드의 카드를 정한다 — 우선순위: ① 로프 걸린 차단(무료 통과) ② 이전 원정대 흔적(줍기) ③ 노드 이벤트.
-## start/end 처럼 events 도 흔적도 로프도 없으면 빈 채로 둔다(바로 복귀 대기).
-func _arrive_event() -> void:
+## 도착 노드의 "주요 지점" 카드를 계산해 반환한다 (부작용 없음 — 단면 SectionRun 이 쓴다).
+## 우선순위: ① 로프 걸린 차단 무료 통과 ② 이전 원정대 흔적 줍기 ③ 노드 이벤트. 셋 다 없으면 빈 Dictionary.
+func arrival_event() -> Dictionary:
 	var node: Dictionary = MapGraph.node(_target_node)
-	# ① 차단 영구화: 이전 원정대가 로프를 걸어둔 차단이면 무료 통과 카드(가장 뿌듯한 흔적).
 	if str(node.get("kind", "")) == "blockage" and is_bridged(_target_node):
-		_set_pending(Situations.crossed_blockage(node))
-		return
-	# ② 흔적 줍기: 이 노드에 이전 원정대가 남긴 자원 흔적이 있으면 줍기 카드(노드 이벤트보다 우선).
+		return Situations.crossed_blockage(node)
 	if _traces.has(_target_node):
-		var info: Dictionary = _traces[_target_node]
-		_set_pending(Situations.pickup_trace(info))
-		return
-	# ③ 노드 이벤트(events 있으면).
-	var ev: Dictionary = Situations.pick_event(node, _flags, rng)
+		return Situations.pickup_trace(_traces[_target_node])
+	return Situations.pick_event(node, _flags, rng)
+
+## 카드 하나를 결정 대기로 올린다 — 단면의 주요 지점을 탭했을 때 ui 가 호출한다.
+func raise_situation(ev: Dictionary) -> void:
 	if not ev.is_empty():
 		_set_pending(ev)
 

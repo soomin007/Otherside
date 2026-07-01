@@ -21,6 +21,14 @@ const PANEL := Color(0.10, 0.105, 0.13)          ## 카드 배경
 const PANEL_BORDER := Color(0.27, 0.26, 0.33)    ## 카드 테두리
 const SCRIM := Color(0.02, 0.02, 0.04, 0.8)      ## 모달 뒤 어둡게
 
+# --- 고지도·양피지 팔레트 (지도·단면이 공유) ---
+const PAPER := Color(0.82, 0.74, 0.57)       ## 빛바랜 양피지 바탕
+const PAPER_EDGE := Color(0.58, 0.48, 0.32)  ## 가장자리(낡아 그을린)
+const INK := Color(0.27, 0.19, 0.11)         ## 세피아 잉크 — 심볼·이름·테두리
+const INK_FADE := Color(0.50, 0.41, 0.29)    ## 빛바랜 — 미방문·미지
+const ROUTE := Color(0.38, 0.28, 0.16)       ## 밟은 길(트레일)
+const MARKER_INK := Color(0.55, 0.20, 0.12)  ## 원정대 마커(붉은 세피아)
+
 # --- 타입 스케일 (base 600 세로 기준, 폰에서 읽기 편한 크기) ---
 const FS_DISPLAY: int = 46   ## 타이틀 로고
 const FS_H1: int = 34        ## 화면 제목 / 상황 이름

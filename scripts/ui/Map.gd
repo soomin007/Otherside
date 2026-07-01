@@ -11,13 +11,13 @@ const NODE_R: float = 13.0
 const STEP_INTERVAL: float = 0.28  ## 이동 한 걸음의 시간(초)
 const RES_KO: Dictionary = {"water": "물", "food": "식량", "rope": "로프", "shelter": "은신처"}
 
-# 고지도·양피지 팔레트 (③ 지형 비주얼). 전부 절차적 draw — 웹 안전(셰이더/이미지 없음).
-const PAPER: Color = Color(0.82, 0.74, 0.57)       ## 빛바랜 양피지 바탕
-const PAPER_EDGE: Color = Color(0.58, 0.48, 0.32)  ## 가장자리(낡아 그을린)
-const INK: Color = Color(0.27, 0.19, 0.11)         ## 세피아 잉크 — 심볼·이름·테두리
-const INK_FADE: Color = Color(0.50, 0.41, 0.29)    ## 빛바랜 — 미방문 길·미지
-const ROUTE: Color = Color(0.38, 0.28, 0.16)       ## 밟은 길(트레일)
-const MARKER_INK: Color = Color(0.55, 0.20, 0.12)  ## 원정대 마커(붉은 세피아 — 양피지에서 도드라지게)
+# 고지도·양피지 팔레트 — UITheme 로 승격(지도·단면 공유). alias 로 기존 참조 유지.
+const PAPER: Color = UITheme.PAPER
+const PAPER_EDGE: Color = UITheme.PAPER_EDGE
+const INK: Color = UITheme.INK
+const INK_FADE: Color = UITheme.INK_FADE
+const ROUTE: Color = UITheme.ROUTE
+const MARKER_INK: Color = UITheme.MARKER_INK
 
 var _hud: Label
 var _guide: Label

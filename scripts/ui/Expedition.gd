@@ -30,6 +30,12 @@ var _bequeath_box: VBoxContainer           ## 단계별 내용을 갈아끼우�
 var _picked_kind: int = TraceData.ObjectKind.BODY  ## 남길 물건 종류
 var _picked_tags: Array[String] = []       ## 얹을 태그(WordPool, 최대 2개)
 
+var _section: SectionRun            ## 도착 노드의 단면 탐색 상태(예산·지점)
+var _section_rect: Rect2            ## 단면 그림 영역(지점 히트테스트 기준)
+var _probe_label: Label            ## "살필 틈 N"
+var _banner_label: Label           ## 조사 결과 배너("식량 +2")
+var _banner_timer: float = 0.0     ## 배너 표시 시간
+
 func _ready() -> void:
 	_run = GameState.current_run
 	if _run == null:
@@ -38,11 +44,13 @@ func _ready() -> void:
 		_run = GameState.current_run
 	_build_hud()
 	_refresh()
-	# 도착해서 들어온 노드 화면 — 이동은 맵에서 끝났다. 죽었으면 죽음, 도착 이벤트가 있으면 표시.
+	# 도착해서 들어온 노드 화면 — 그 장소의 단면을 탐색한다(지점 조사). 죽었으면 죽음.
 	if not _run.alive:
 		_die(_run.death_cause)
-	elif not _run.pending_situation.is_empty():
-		_show_situation()
+	else:
+		_section = SectionRun.new(_run, MapGraph.node(_run.target_node_id()))
+		_refresh()
+		queue_redraw()
 
 func _build_hud() -> void:
 	# 상단 HUD 바 — 가독성을 위해 반투명 어두운 배경 위에 텍스트. 전체 폭.
@@ -84,6 +92,11 @@ func _build_hud() -> void:
 	_aux_label.add_theme_color_override("font_color", Color(0.56, 0.56, 0.62))
 	top.add_child(_aux_label)
 
+	_probe_label = Label.new()  # "살필 틈 N" — 남은 조사 예산
+	_probe_label.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
+	_probe_label.add_theme_color_override("font_color", UITheme.SAND)
+	top.add_child(_probe_label)
+
 	# 하단 — 큰 전진 버튼(주) + 보조 끝 버튼. 가운데 최대폭 컬럼(가로에선 카드처럼).
 	var bar := CenterContainer.new()
 	bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -96,7 +109,10 @@ func _build_hud() -> void:
 	bcol.custom_minimum_size = Vector2(UITheme.COLUMN_W, 0)
 	bar.add_child(bcol)
 
-	_advance_btn = UITheme.make_button("전진 (한 걸음)")
+	_banner_label = UITheme.make_label("", UITheme.FS_LABEL, UITheme.SAND)  # 조사 결과 배너
+	bcol.add_child(_banner_label)
+
+	_advance_btn = UITheme.make_button("떠난다 · 지도로")
 	_advance_btn.pressed.connect(_on_advance)
 	bcol.add_child(_advance_btn)
 
@@ -204,7 +220,9 @@ func _refresh() -> void:
 	_water_label.add_theme_color_override("font_color", _res_color(water, 3, Color(0.55, 0.78, 0.97)))
 	_food_label.add_theme_color_override("font_color", _res_color(food, 2, Color(0.88, 0.72, 0.42)))
 	_aux_label.text = "로프 %d · 은신처 %d  (남길 수 있는 것)" % [_run.get_res("rope"), _run.get_res("shelter")]
-	_advance_btn.text = "도착 · 지도로" if _run.arrived() else "전진 (한 걸음)"
+	_advance_btn.text = "떠난다 · 지도로"
+	if _probe_label != null:
+		_probe_label.text = ("살필 틈 %d" % _section.budget_left()) if (_section != null and _section.spot_count() > 0) else ""
 	_update_leave_btn()
 	queue_redraw()
 
@@ -504,7 +522,80 @@ func _show_death(cause: String, tags: Array[String], kind: int = TraceData.Objec
 	_death_panel.visible = true
 	queue_redraw()
 
-# --- 횡스크롤 단면 렌더링 (_draw) ---
+# --- 단면 탐색 (그림 + 지점 조사) ---
+
+func _process(delta: float) -> void:
+	if _banner_timer > 0.0:
+		_banner_timer -= delta
+		if _banner_timer <= 0.0 and _banner_label != null:
+			_banner_label.text = ""
+
+func _gui_input(event: InputEvent) -> void:
+	if _section == null or _sit_panel.visible or _bequeath_panel.visible or _death_panel.visible:
+		return
+	var clicked: bool = (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
+		or (event is InputEventScreenTouch and event.pressed)
+	if not clicked:
+		return
+	var pos: Vector2 = event.position
+	for i in range(_section.spot_count()):
+		if not _section.can_probe(i):
+			continue
+		var spot: Dictionary = _section.get_spot(i)
+		var at: Vector2 = spot.get("at", Vector2(0.5, 0.5))
+		if pos.distance_to(_spot_screen(at)) <= 40.0:
+			_probe_spot(i)
+			return
+
+## 지점을 조사한다 — 결과 디스패치. event=모달 카드, delta/empty=경량 배너.
+func _probe_spot(i: int) -> void:
+	var res: Dictionary = _section.probe(i)
+	if res.is_empty():
+		return
+	var t: String = str(res.get("type", ""))
+	if t == "event":
+		_run.raise_situation(res.get("event", {}))
+		_refresh()
+		queue_redraw()
+		if not _run.pending_situation.is_empty():
+			_show_situation()
+		return
+	if t == "delta":
+		var effect: Dictionary = res.get("effect", {})
+		_run.apply_choice(effect)
+		for f in res.get("sets", []):
+			_run.set_flag(str(f))
+		var sp: Array = res.get("sets_persist", [])
+		for f in sp:
+			_run.set_flag(str(f))
+		if not sp.is_empty():
+			GameState.add_persist_flags(sp)
+		_show_banner(_probe_text(str(res.get("text", "")), effect))
+		_refresh()
+		queue_redraw()
+		if not _run.alive:
+			_die(_run.death_cause)
+		return
+	# empty
+	_show_banner(str(res.get("text", "아무것도 없다.")))
+	_refresh()
+	queue_redraw()
+
+## 조사 결과 한 줄 — 묘사 + 자원 변화 힌트.
+func _probe_text(txt: String, effect: Dictionary) -> String:
+	if effect.is_empty():
+		return txt
+	var hint: String = _effect_hint(effect)
+	return hint if txt == "" else "%s  (%s)" % [txt, hint]
+
+func _show_banner(text: String) -> void:
+	if _banner_label != null:
+		_banner_label.text = text
+		_banner_timer = 2.5
+
+## 단면 내용 rect 안의 정규화 좌표(0..1) → 화면 좌표.
+func _spot_screen(at: Vector2) -> Vector2:
+	return _section_rect.position + Vector2(at.x * _section_rect.size.x, at.y * _section_rect.size.y)
 
 func _draw() -> void:
 	var rect: Vector2 = size
@@ -513,15 +604,27 @@ func _draw() -> void:
 	var font: Font = get_theme_default_font()
 	if font == null:
 		font = ThemeDB.fallback_font
-	# 이동 화면 — 막대 걷기 폐기. 미지로 향하는 진행만 담담히 보여준다.
-	# (랜드마크 도착 시 단면 탐색 씬 + 이동을 맵으로 완전 이전은 다음 단계.)
-	if _run.target_node_id() == "":
+	var top_y: float = 150.0
+	var bot_y: float = 240.0
+	_section_rect = Rect2(UITheme.PAD, top_y, rect.x - UITheme.PAD * 2.0, rect.y - top_y - bot_y)
+	if _section_rect.size.y < 40.0 or _section_rect.size.x < 40.0:
 		return
-	var total: int = ExpeditionRun.EDGE_LEN
-	var done: int = total - _run.edge_remaining()
-	var cy: float = rect.y * 0.48
-	if _run.arrived():
-		draw_string(font, Vector2(0.0, cy), "도착했다", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_BODY, UITheme.SAND)
-	else:
-		draw_string(font, Vector2(0.0, cy), "미지를 향해 가는 중", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_BODY, UITheme.MUTED)
-		draw_string(font, Vector2(0.0, cy + 38.0), "%d / %d 걸음" % [done, total], HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, UITheme.MUTED)
+	var node_id: String = _run.target_node_id()
+	var kind: String = _section.kind if _section != null else ""
+	SectionArt.draw_section(self, kind, _section_rect, node_id)
+	if node_id != "":
+		var nm: String = str(MapGraph.node(node_id).get("name", ""))
+		draw_string(font, Vector2(_section_rect.position.x + 12.0, _section_rect.position.y + 30.0), nm, HORIZONTAL_ALIGNMENT_LEFT, _section_rect.size.x - 24.0, UITheme.FS_H2, UITheme.INK)
+	if _section == null:
+		return
+	for i in range(_section.spot_count()):
+		var spot: Dictionary = _section.get_spot(i)
+		var at: Vector2 = spot.get("at", Vector2(0.5, 0.5))
+		var st: int = 0
+		if bool(spot.get("done", false)):
+			st = 1
+		elif _section.budget_left() <= 0:
+			st = 2
+		SectionArt.draw_spot(self, font, _spot_screen(at), str(spot.get("label", "")), st)
+	if _section.spot_count() == 0:
+		draw_string(font, Vector2(_section_rect.position.x, _section_rect.position.y + _section_rect.size.y * 0.5), "둘러볼 것이 없다. 떠난다.", HORIZONTAL_ALIGNMENT_CENTER, _section_rect.size.x, UITheme.FS_BODY, UITheme.MUTED)

@@ -83,6 +83,10 @@ const NODES: Dictionary = {
 				],
 			},
 		],
+		"spots": [
+			{"id": "camp_sacks", "label": "식량 자루", "at": Vector2(0.26, 0.66), "source": "cache", "effect": {"food": 2}, "text": "모래에 반쯤 묻힌 자루. 아직 상하지 않았다."},
+			{"id": "camp_cold", "label": "식은 재", "at": Vector2(0.72, 0.6), "source": "empty", "text": "불은 오래전에 꺼졌다. 쓸 것이 없다."},
+		],
 	},
 	"b2": {
 		"kind": "blockage", "name": "갈라진 바닥", "row": 2, "col": 0.72, "next": ["c2"],
@@ -104,6 +108,10 @@ const NODES: Dictionary = {
 				],
 			},
 		],
+		"spots": [
+			{"id": "crack_flask", "label": "틈 아래", "at": Vector2(0.3, 0.66), "source": "cache", "effect": {"water": 2}, "text": "균열 턱에 걸린 물통. 조심히 집어 올린다."},
+			{"id": "crack_dark", "label": "틈 속 어둠", "at": Vector2(0.68, 0.62), "source": "empty", "text": "바닥이 보이지 않는다. 손을 넣을 엄두가 안 난다."},
+		],
 	},
 	"c1": {
 		"kind": "cache", "name": "오아시스", "row": 3, "col": 0.3, "next": ["d1"],
@@ -116,6 +124,10 @@ const NODES: Dictionary = {
 					{"label": "몸을 적시고 쉰다", "effect": {"water": 3, "food": 1}},
 				],
 			},
+		],
+		"spots": [
+			{"id": "oasis_shade", "label": "야자 그늘", "at": Vector2(0.72, 0.55), "source": "cache", "effect": {"food": 1}, "text": "그늘에서 숨을 고른다. 마른 대추야자 몇 알."},
+			{"id": "oasis_edge", "label": "물가", "at": Vector2(0.24, 0.68), "source": "cache", "effect": {"water": 2}, "text": "가장자리에 고인 맑은 물. 물통을 조금 더 채운다."},
 		],
 	},
 	"c2": {
