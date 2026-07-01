@@ -88,6 +88,7 @@
 - **커밋:** 의미 단위마다 `main` 에 직접 push. 한국어 `prefix(scope): 설명`. **`git add -A` 금지 — 내가 바꾼 파일만 경로 명시.** 트레일러 Co-Authored-By + Claude-Session.
 - **병렬 세션:** `ACTIVE_WORK.md` 에 내 파일 범위 claim(끝나면 삭제). 트랙 분업은 `parallel_tracks.md`. 공유 문서(backlog·session_logs)는 **해당 항목만/끝에 append** — `git add <file>` 이 남의 미커밋 변경을 삼키지 않게 상대 커밋 후 편집.
 - **검증(헤드리스):** 파싱·컴파일 `godot --headless --path . --import`, 정식 부팅 `--quit-after 5`(에러/경고 0). 순수 core 는 `-s` 단위 테스트 가능(autoload 참조 금지 — 그러면 hang, `known_issues` 참고). **UI 미감은 헤드리스로 못 본다** → 필요 시 임시 autoload 로 GUI 1프레임 스크린샷 후 제거(세이브 안 건드리게 `current_run` 직접 세팅).
+- **회귀 가드(커밋된 테스트):** `godot --headless --path . -s tests/core_smoke.gd` — 순수 core 불변식(그래프 무결성·엣지 전진·고갈사·`arrival_event` 우선순위·플래그 체인·`SectionRun` 예산·남기기 게이트)을 한 번에 확인. **core 를 고치면 이걸 돌려 ALL PASS 인지 본다.** 새 불변식은 여기에 추가(일회용 -s 를 버리지 말고).
 - **문서와 코드가 갈라지면 안 된다.** 규칙·수치를 바꾸면 같은 커밋에서 기획서·이 문서도 갱신.
 
 ## 9. ⚠️ 자주 오해하는 것 (반드시 확인)
