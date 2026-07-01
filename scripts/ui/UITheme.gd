@@ -13,6 +13,10 @@ extends RefCounted
 
 # --- 색 ---
 const BG := Color(0.066667, 0.070588, 0.094118)  ## 배경(클리어 컬러와 동일)
+const BG_TOP := Color(0.045, 0.05, 0.085)        ## 공통 배경 위 — 밤하늘(Backdrop)
+const BG_BOT := Color(0.17, 0.13, 0.10)          ## 공통 배경 지평선 부근 — 어스름 모래
+const SAND_FLOOR := Color(0.21, 0.165, 0.12)     ## 지평선 아래 모래 바닥
+const HORIZON := Color(0.64, 0.5, 0.33, 0.55)    ## 지평선 hairline
 const FG := Color(0.93, 0.93, 0.96)              ## 기본 밝은 글자
 const SAND := Color(0.84, 0.70, 0.47)            ## 모래색 — 강조
 const MUTED := Color(0.62, 0.62, 0.69)           ## 흐린 회색 — 보조 설명

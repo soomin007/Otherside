@@ -9,6 +9,7 @@ var _stat_label: Label  # 데이터 초기화 후 갱신하려고 들고 있는�
 
 func _ready() -> void:
 	AppSettings.apply_saved()  # 저장된 음량 복원 (앱 시작 = 항상 타이틀 경유)
+	add_child(Backdrop.new())  # 사막 밤 공통 배경(맨 뒤)
 	var col := UITheme.build_column(self, 22)
 
 	var title := UITheme.make_label("See you on the other side", UITheme.FS_DISPLAY)

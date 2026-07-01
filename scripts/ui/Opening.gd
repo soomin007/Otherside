@@ -20,10 +20,7 @@ var _hint: Label
 var _title_mode: bool = false
 
 func _ready() -> void:
-	var bg := ColorRect.new()
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.color = UITheme.BG
-	add_child(bg)
+	add_child(Backdrop.new())  # 사막 밤 공통 배경(맨 뒤)
 
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)

@@ -19,6 +19,7 @@ var _preview: Label
 var _depart_btn: Button
 
 func _ready() -> void:
+	add_child(Backdrop.new())  # 사막 밤 공통 배경(맨 뒤)
 	var col := UITheme.build_column(self, 14)
 
 	col.add_child(UITheme.make_label("마을 · 원정 준비", UITheme.FS_H1))
