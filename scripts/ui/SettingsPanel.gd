@@ -19,6 +19,7 @@ var _in_confirm: bool = false
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	size = get_viewport_rect().size  # 오버레이 크기 즉시 확정 — 레이아웃 대기 중 CenterContainer 가 0 → 카드가 왼쪽 위로 쏠리는 것 방지
 
 	# 어두운 배경 — 뒤 입력 차단 + 집중. 빈 곳을 누르면 닫힌다.
 	var dim := ColorRect.new()

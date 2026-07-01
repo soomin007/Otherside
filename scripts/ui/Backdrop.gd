@@ -51,21 +51,42 @@ func _draw() -> void:
 	if scene_kind == "village":
 		_draw_village(r, horizon)
 
-## 원정 준비(마을) 화면 — 지평선 좌우에 천막·모닥불 실루엣. 중앙(가방 UI)은 비워 가독성 유지.
+## 원정 준비(마을) 화면 — 지평선 좌우에 밀도있는 사막 도시 실루엣(건물·돔·탑·등불).
+## 중앙(가방 UI, x 0.27~0.73)은 비워 가독성 유지. 결정론 시드.
 func _draw_village(r: Vector2, horizon: float) -> void:
-	var sil := Color(0.085, 0.07, 0.055)  # 지평선보다 어두운 실루엣
-	# 좌측 마을 무리
-	_tent(Vector2(r.x * 0.07, horizon), 48.0, sil)
-	_tent(Vector2(r.x * 0.14, horizon), 34.0, sil)
-	_tent(Vector2(r.x * 0.205, horizon), 40.0, sil)
-	# 우측 무리
-	_tent(Vector2(r.x * 0.86, horizon), 44.0, sil)
-	_tent(Vector2(r.x * 0.93, horizon), 32.0, sil)
-	# 모닥불 글로우(좌측 천막 곁)
-	var fire := Vector2(r.x * 0.11, horizon - 5.0)
-	draw_circle(fire, 8.0, Color(0.9, 0.5, 0.2, 0.20))
-	draw_circle(fire, 3.5, Color(1.0, 0.72, 0.32, 0.5))
+	var sil := Color(0.08, 0.065, 0.05)  # 지평선보다 어두운 실루엣
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4127
+	_city_cluster(r.x * 0.00, r.x * 0.27, horizon, rng, sil)   # 좌측 도시
+	_city_cluster(r.x * 0.73, r.x * 1.00, horizon, rng, sil)   # 우측 도시
 
-func _tent(base: Vector2, w: float, col: Color) -> void:
-	draw_colored_polygon(PackedVector2Array([
-		base + Vector2(-w * 0.5, 0.0), base + Vector2(0.0, -w * 0.85), base + Vector2(w * 0.5, 0.0)]), col)
+## x0~x1 에 건물을 겹쳐 채운다(밀도). 종류: 사각 건물·돔·탑, 일부 창에 등불.
+func _city_cluster(x0: float, x1: float, horizon: float, rng: RandomNumberGenerator, sil: Color) -> void:
+	var x: float = x0
+	while x < x1:
+		var w: float = rng.randf_range(22.0, 46.0)
+		var h: float = rng.randf_range(26.0, 78.0)
+		var kind: int = rng.randi_range(0, 3)
+		if kind == 2:
+			# 탑/미너렛 — 높고 좁게 + 뾰족 지붕
+			var tw: float = w * 0.55
+			var ty: float = horizon - h * 1.5
+			draw_rect(Rect2(x, ty, tw, h * 1.5), sil)
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(x - 2.0, ty), Vector2(x + tw * 0.5, ty - 13.0), Vector2(x + tw + 2.0, ty)]), sil)
+		elif kind == 1:
+			# 돔 건물 — 사각 몸통 + 반원 돔
+			var by: float = horizon - h * 0.6
+			draw_rect(Rect2(x, by, w, h * 0.6), sil)
+			var dome := PackedVector2Array()
+			var cx: float = x + w * 0.5
+			for a in range(11):
+				var ang: float = PI + PI * float(a) / 10.0
+				dome.append(Vector2(cx + cos(ang) * w * 0.5, by + sin(ang) * w * 0.5))
+			draw_colored_polygon(dome, sil)
+		else:
+			# 사각 건물 — 가끔 창에 등불
+			draw_rect(Rect2(x, horizon - h, w, h), sil)
+			if rng.randf() < 0.35:
+				draw_circle(Vector2(x + w * 0.5, horizon - h * rng.randf_range(0.3, 0.7)), 2.0, Color(1.0, 0.72, 0.32, 0.45))
+		x += w * rng.randf_range(0.62, 0.92)  # 겹쳐서 밀도를 낸다

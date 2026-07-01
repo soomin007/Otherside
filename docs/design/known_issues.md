@@ -45,6 +45,10 @@
   **방지:** `_ready` 중에는 씬을 바꾸지 않는다. 씬 전환과 상태 생성을 분리(예: `GameState.begin_run_in_place()` 는
   런만 만들고 전환 안 함). 꼭 _ready 에서 전환해야 하면 `change_scene_to_file.call_deferred(...)`.
 
+- **증상:** 오버레이/배경(FULL_RECT Control)이 화면 중앙 정렬 안 되고 왼쪽 위(0,0)로 쏠리거나, 절차적 배경이 아예 안 그려짐. (2026-07-01)
+  **원인:** `add_child` 직후 `_ready` 에선 그 Control 의 `size` 가 아직 0(레이아웃 패스 전). `CenterContainer` 는 size 0 이면 (0,0) 정렬, `_draw` 는 size 0 이면 아무것도 안 그린다.
+  **방지:** `_ready` 에서 `size = get_viewport_rect().size` 로 즉시 확정하거나, `_draw` 에서 `get_viewport_rect().size` 를 쓴다. (Backdrop·SettingsPanel 이 이걸 겪음.)
+
 ## 검증 / 헤드리스
 
 - **증상:** `godot --headless -s res://test.gd` 로 스크립트를 돌리면 `Identifier not found: GameState`(또는 다른 autoload)
