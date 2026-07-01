@@ -39,9 +39,9 @@ func _stat_text() -> String:
 	return "지금까지 보낸 원정 %d 흔적 %d" % [GameState.expedition_count, GameState.traces.size()]
 
 func _on_start_pressed() -> void:
-	# 첫 플레이면 오프닝 서사부터, 이후엔 바로 지도로.
+	# 첫 플레이면 오프닝 서사부터, 이후엔 마을(가방 꾸리기)로.
 	if GameState.opening_seen:
-		GameState.go_to_map()
+		GameState.go_to_loadout()
 	else:
 		GameState.go_to_opening()
 

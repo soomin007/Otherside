@@ -13,6 +13,7 @@ const SCENE_TITLE: String = "res://scenes/main.tscn"
 const SCENE_MAP: String = "res://scenes/map.tscn"
 const SCENE_EXPEDITION: String = "res://scenes/expedition.tscn"
 const SCENE_OPENING: String = "res://scenes/opening.tscn"
+const SCENE_LOADOUT: String = "res://scenes/loadout.tscn"
 
 # --- 한 세계에 누적되는 영속 데이터 (원정을 가로질러 살아남음) ---
 var expedition_count: int = 0  ## 지금까지 보낸 원정 수
@@ -40,6 +41,10 @@ func go_to_map() -> void:
 func go_to_opening() -> void:
 	get_tree().change_scene_to_file(SCENE_OPENING)
 
+## 마을(가방 꾸리기)로 — 매 원정 출발 전. 여기서 시작 자원을 고른다.
+func go_to_loadout() -> void:
+	get_tree().change_scene_to_file(SCENE_LOADOUT)
+
 ## 오프닝을 봤다고 기록(영속). 이후 자동 재생 안 함.
 func mark_opening_seen() -> void:
 	if not opening_seen:
@@ -50,7 +55,11 @@ func mark_opening_seen() -> void:
 ## 과거에 로프를 건 차단 노드(bridged_nodes)·줍을 수 있는 흔적(pickup_traces_by_node)을 주입해,
 ## 그 노드에 도착하면 무료 통과·줍기 카드가 뜨게 한다(self-async, 영구 지형 변화).
 func begin_run_in_place() -> void:
-	current_run = ExpeditionRun.new(START_RESOURCES, bridged_nodes(), flags, pickup_traces_by_node())
+	begin_run_with(START_RESOURCES)
+
+## 가방에서 고른 시작 자원으로 새 원정을 만든다 (마을/Loadout 에서 호출). START_RESOURCES 대체.
+func begin_run_with(resources: Dictionary) -> void:
+	current_run = ExpeditionRun.new(resources, bridged_nodes(), flags, pickup_traces_by_node())
 	expedition_count += 1
 	_mark_visited(MapGraph.START_ID)
 

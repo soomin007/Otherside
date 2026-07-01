@@ -91,4 +91,4 @@ func _apply_text(text: String, size: int, color: Color) -> void:
 
 func _finish() -> void:
 	GameState.mark_opening_seen()
-	GameState.go_to_map()
+	GameState.go_to_loadout()
