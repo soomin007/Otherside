@@ -89,6 +89,8 @@
 - **병렬 세션:** `ACTIVE_WORK.md` 에 내 파일 범위 claim(끝나면 삭제). 트랙 분업은 `parallel_tracks.md`. 공유 문서(backlog·session_logs)는 **해당 항목만/끝에 append** — `git add <file>` 이 남의 미커밋 변경을 삼키지 않게 상대 커밋 후 편집.
 - **검증(헤드리스):** 파싱·컴파일 `godot --headless --path . --import`, 정식 부팅 `--quit-after 5`(에러/경고 0). 순수 core 는 `-s` 단위 테스트 가능(autoload 참조 금지 — 그러면 hang, `known_issues` 참고). **UI 미감은 헤드리스로 못 본다** → 필요 시 임시 autoload 로 GUI 1프레임 스크린샷 후 제거(세이브 안 건드리게 `current_run` 직접 세팅).
 - **회귀 가드(커밋된 테스트):** `godot --headless --path . -s tests/core_smoke.gd` — 순수 core 불변식(그래프 무결성·엣지 전진·고갈사·`arrival_event` 우선순위·플래그 체인·`SectionRun` 예산·남기기 게이트)을 한 번에 확인. **core 를 고치면 이걸 돌려 ALL PASS 인지 본다.** 새 불변식은 여기에 추가(일회용 -s 를 버리지 말고).
+- **밸런스 시뮬레이터:** `godot --headless --path . -s tests/balance_sim.gd` — 정책(생존탐욕/무작위/무모)으로 원정을 수천 판 굴려 **런 길이·end 도달률·사인 분해·노드 도달·콘텐츠 커버리지 + 시작 물 스윕**을 리포트. 밸런스 수치(`START_RESOURCES`·`DESOLATION_EVERY` 등)를 바꾸면 돌려 정량 비교. **정성(재미·긴장·페이싱)은 폰 플레이 몫** — 시뮬은 파탄·지배전략·죽은 콘텐츠를 미리 거른다.
+- **디버그 오버레이(실기기 테스트용):** `scripts/ui/DebugOverlay.gd` (autoload `Debug`, CanvasLayer). 오른쪽 위 "DEV" 버튼(폰) / F1(데스크톱)으로 연다. 자원 가득·God 모드·모든 노드 공개·노드 점프·플래그 켜기(체인 테스트)·재회 임계 채우기·세이브 초기화. 기존 UI 씬 미터치(위에 얹힘). 정식 빌드에서 끄려면 `DebugOverlay.ENABLED = false`.
 - **문서와 코드가 갈라지면 안 된다.** 규칙·수치를 바꾸면 같은 커밋에서 기획서·이 문서도 갱신.
 
 ## 9. ⚠️ 자주 오해하는 것 (반드시 확인)
