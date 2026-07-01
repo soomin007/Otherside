@@ -12,6 +12,7 @@ const SAVE_VERSION: int = 1
 const SCENE_TITLE: String = "res://scenes/main.tscn"
 const SCENE_MAP: String = "res://scenes/map.tscn"
 const SCENE_EXPEDITION: String = "res://scenes/expedition.tscn"
+const SCENE_OPENING: String = "res://scenes/opening.tscn"
 
 # --- 한 세계에 누적되는 영속 데이터 (원정을 가로질러 살아남음) ---
 var expedition_count: int = 0  ## 지금까지 보낸 원정 수
@@ -19,6 +20,7 @@ var traces: Array = []         ## 남긴 흔적들 — TraceData.to_dict() 의 �
 var deaths: Array = []         ## 죽은 자리 기록 — 지도 표식용
 var flags: Array = []  ## 영속 플래그(self-async). choice 의 sets_persist 가 쌓여 다음 원정 변형 이벤트를 깬다.
 var visited_nodes: Array = []  ## 방문한 노드 id (영속). 지도 안개 — 가본 곳 + 그 인접만 보인다(원정마다 더 드러남).
+var opening_seen: bool = false ## 오프닝 서사를 봤나 (영속). 첫 플레이만 자동 재생, 이후 스킵.
 
 # --- 현재 원정 한정 상태 (죽으면 리셋) ---
 ## 초기 자원 — 임시치. 자원 = 수명 (남기면 그만큼 잃는다). 밸런스는 폰 테스트로 검증 예정.
@@ -33,6 +35,16 @@ func _ready() -> void:
 
 func go_to_map() -> void:
 	get_tree().change_scene_to_file(SCENE_MAP)
+
+## 오프닝 서사 슬라이드쇼로 (타이틀에서 첫 플레이 시).
+func go_to_opening() -> void:
+	get_tree().change_scene_to_file(SCENE_OPENING)
+
+## 오프닝을 봤다고 기록(영속). 이후 자동 재생 안 함.
+func mark_opening_seen() -> void:
+	if not opening_seen:
+		opening_seen = true
+		save_game()
 
 ## 씬 전환 없이 현재 원정만 새로 만든다 (직접 진입 안전장치 / 테스트용).
 ## 과거에 로프를 건 차단 노드(bridged_nodes)·줍을 수 있는 흔적(pickup_traces_by_node)을 주입해,
@@ -165,6 +177,7 @@ func save_game() -> void:
 		"deaths": deaths,
 		"flags": flags,
 		"visited_nodes": visited_nodes,
+		"opening_seen": opening_seen,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
@@ -191,6 +204,7 @@ func load_game() -> void:
 	deaths = data.get("deaths", [])
 	flags = data.get("flags", [])
 	visited_nodes = data.get("visited_nodes", [])
+	opening_seen = bool(data.get("opening_seen", false))
 
 ## 세이브 초기화 (새 세계). 빈 상태로 덮어쓴다 — 웹/데스크톱 모두 안전.
 func reset_save() -> void:
@@ -199,5 +213,6 @@ func reset_save() -> void:
 	deaths = []
 	flags = []
 	visited_nodes = []
+	opening_seen = false
 	current_run = null
 	save_game()
