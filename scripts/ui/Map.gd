@@ -9,7 +9,6 @@ const TOP_Y: float = 140.0   ## 제목 + 자원 HUD 아래(지도 시작 y)
 const BOT_Y: float = 110.0
 const NODE_R: float = 13.0
 const STEP_INTERVAL: float = 0.28  ## 이동 한 걸음의 시간(초)
-const RES_KO: Dictionary = {"water": "물", "food": "식량", "rope": "로프", "shelter": "은신처"}
 
 # 고지도·양피지 팔레트 — UITheme 로 승격(지도·단면 공유). alias 로 기존 참조 유지.
 const PAPER: Color = UITheme.PAPER
@@ -157,23 +156,27 @@ func _show_situation_card() -> void:
 	var threat_info: Dictionary = Threats.info(threat_kind)
 	_sit_box.add_child(UITheme.make_label("[ %s ]" % str(threat_info.get("label", "상황")), UITheme.FS_SMALL, UITheme.SAND))
 	_sit_box.add_child(UITheme.make_label(str(sit.get("text", "")), UITheme.FS_BODY))
-	for c in sit.get("choices", []):
-		var choice: Dictionary = c
+	var event_id: String = str(sit.get("id", ""))
+	var choices: Array = sit.get("choices", [])
+	for i in range(choices.size()):
+		var choice: Dictionary = choices[i]
 		var effect: Dictionary = choice.get("effect", {})
+		var enabled: bool = Situations.can_choose(choice, run.resources)
+		var seen: bool = GameState.has_seen_choice(event_id, i)  # 겪어본 선택지만 결과 노출
 		var btn := UITheme.make_button("", false)
-		if Situations.can_choose(choice, run.resources):
-			btn.text = "%s   (%s)" % [str(choice.get("label", "")), _effect_hint(effect)]
-			btn.pressed.connect(_on_situation_choice.bind(effect, choice.get("sets", []), choice.get("sets_persist", [])))
+		btn.text = UITheme.choice_text(choice, enabled, seen)
+		if enabled:
+			btn.pressed.connect(_on_situation_choice.bind(event_id, i, effect, choice.get("sets", []), choice.get("sets_persist", [])))
 		else:
 			btn.disabled = true
-			btn.text = "%s   (자원 부족)" % str(choice.get("label", ""))
 		_sit_box.add_child(btn)
 	_sit_panel.visible = true
 
-func _on_situation_choice(effect: Dictionary, sets: Array, sets_persist: Array) -> void:
+func _on_situation_choice(event_id: String, idx: int, effect: Dictionary, sets: Array, sets_persist: Array) -> void:
 	var run: ExpeditionRun = GameState.current_run
 	if run == null:
 		return
+	GameState.mark_choice_seen(event_id, idx)  # 이 선택지를 겪었다 — 다음 대면 때 결과가 보인다(런 한정)
 	run.apply_choice(effect)
 	for f in sets:
 		run.set_flag(str(f))
@@ -190,17 +193,6 @@ func _on_situation_choice(effect: Dictionary, sets: Array, sets_persist: Array) 
 	_move_timer = 0.0
 	if _guide != null:
 		_guide.text = "나아가는 중..."
-
-## 자원 델타를 한 줄로 ("물 -2 · 식량 -1"). 빈 효과는 "그대로".
-func _effect_hint(effect: Dictionary) -> String:
-	if effect.is_empty():
-		return "그대로"
-	var parts: PackedStringArray = []
-	for key in effect:
-		var v: int = int(effect[key])
-		var sign_str: String = "+" if v > 0 else ""
-		parts.append("%s %s%d" % [str(RES_KO.get(key, key)), sign_str, v])
-	return " · ".join(parts)
 
 # --- 렌더 ---
 

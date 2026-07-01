@@ -5,8 +5,6 @@ extends Control
 ## 그림은 _draw 로 그려 웹 안전(셰이더/GPUParticles 없음). 모바일 우선: 상단 HUD 바, 하단 큰 전진 버튼, 모달은 카드.
 ## (지형 비주얼·랜드마크 단면 탐색(TWoM)·폭풍 파티클 연출은 다음 단계 — StormFX.gd 는 그때 쓰려고 보존.)
 
-const RES_KO: Dictionary = {"water": "물", "food": "식량", "rope": "로프", "shelter": "은신처"}
-
 var _run: ExpeditionRun
 
 var _status_label: Label
@@ -282,26 +280,29 @@ func _show_situation() -> void:
 	_sit_text_label.text = str(sit.get("text", ""))
 
 	_clear_choices()
+	var event_id: String = str(sit.get("id", ""))
 	var choices: Array = sit.get("choices", [])
-	for c in choices:
-		var choice: Dictionary = c
+	for i in range(choices.size()):
+		var choice: Dictionary = choices[i]
 		var effect: Dictionary = choice.get("effect", {})
+		var enabled: bool = Situations.can_choose(choice, _run.resources)
+		var seen: bool = GameState.has_seen_choice(event_id, i)  # 겪어본 선택지만 결과 노출
 		var btn := UITheme.make_button("", false)
-		btn.text = "%s   (%s)" % [str(choice.get("label", "")), _effect_hint(effect)]
-		if Situations.can_choose(choice, _run.resources):
+		btn.text = UITheme.choice_text(choice, enabled, seen)
+		if enabled:
 			var sets: Array = choice.get("sets", [])
 			var sets_p: Array = choice.get("sets_persist", [])
-			btn.pressed.connect(_on_choice.bind(effect, str(choice.get("action", "")), sets, sets_p, int(choice.get("trace_kind", -1))))
+			btn.pressed.connect(_on_choice.bind(event_id, i, effect, str(choice.get("action", "")), sets, sets_p, int(choice.get("trace_kind", -1))))
 		else:
 			btn.disabled = true
-			btn.text = "%s   (자원 부족)" % str(choice.get("label", ""))
 		_choice_box.add_child(btn)
 
 	_advance_btn.disabled = true
 	_leave_btn.disabled = true
 	_sit_panel.visible = true
 
-func _on_choice(effect: Dictionary, action: String = "", sets: Array = [], sets_persist: Array = [], trace_kind: int = -1) -> void:
+func _on_choice(event_id: String, idx: int, effect: Dictionary, action: String = "", sets: Array = [], sets_persist: Array = [], trace_kind: int = -1) -> void:
+	GameState.mark_choice_seen(event_id, idx)  # 이 선택지를 겪었다 — 다음 대면 때 결과가 보인다(런 한정)
 	var here_leg: int = _run.leg
 	var here_node: String = _run.target_node_id()  # 지금 결정 중인 도착 노드
 	_run.apply_choice(effect)
@@ -340,17 +341,6 @@ func _clear_choices() -> void:
 		_choice_box.remove_child(c)
 		c.queue_free()
 
-## 자원 델타를 읽기 쉬운 한 줄로 ("물 -2 · 식량 -1"). 빈 효과는 "그대로".
-func _effect_hint(effect: Dictionary) -> String:
-	if effect.is_empty():
-		return "그대로"
-	var parts: PackedStringArray = []
-	for key in effect:
-		var v: int = int(effect[key])
-		var sign_str: String = "+" if v > 0 else ""
-		parts.append("%s %s%d" % [str(RES_KO.get(key, key)), sign_str, v])
-	return " · ".join(parts)
-
 # --- 남김 한 번 (물건 두고 계속) ---
 
 ## "남김 한 번" 결정 화면을 연다 — 물건 하나를 골라 태그를 얹는다. 죽지 않고 계속 간다(그 자원만 그만큼 잃음).
@@ -380,7 +370,7 @@ func _bequeath_step_what() -> void:
 		var res_key: String = o[2]
 		var cost: int = _run.leave_cost(res_key)
 		var have: int = _run.get_res(res_key)
-		var btn := UITheme.make_button("%s  (%s -%d / 보유 %d)" % [label, str(RES_KO.get(res_key, res_key)), cost, have], false)
+		var btn := UITheme.make_button("%s  (%s -%d / 보유 %d)" % [label, str(UITheme.RES_KO.get(res_key, res_key)), cost, have], false)
 		if _run.can_leave(res_key):
 			btn.pressed.connect(_pick_object.bind(kind))
 		else:
@@ -591,7 +581,7 @@ func _probe_spot(i: int) -> void:
 func _probe_text(txt: String, effect: Dictionary) -> String:
 	if effect.is_empty():
 		return txt
-	var hint: String = _effect_hint(effect)
+	var hint: String = UITheme.effect_hint(effect)
 	return hint if txt == "" else "%s  (%s)" % [txt, hint]
 
 func _show_banner(text: String) -> void:

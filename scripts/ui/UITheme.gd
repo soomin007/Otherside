@@ -110,6 +110,51 @@ static func _set_margin(mc: MarginContainer, v: int) -> void:
 	for s in ["left", "right", "top", "bottom"]:
 		mc.add_theme_constant_override("margin_" + s, v)
 
+# --- 선택지 라벨 (blind choice) ---
+## 지도(이동 중 상황)·단면(도착 카드)이 공유. 결과를 미리 보여줄지(seen)·조건만 보여줄지(needs)를 한곳에서 정한다.
+
+const RES_KO: Dictionary = {"water": "물", "food": "식량", "rope": "로프", "shelter": "은신처"}
+
+## 자원 델타를 읽기 쉬운 한 줄로 ("물 -2 · 식량 +1"). 빈 효과는 "그대로".
+static func effect_hint(effect: Dictionary) -> String:
+	if effect.is_empty():
+		return "그대로"
+	var parts: PackedStringArray = []
+	for key in effect:
+		var v: int = int(effect[key])
+		var sign_str: String = "+" if v > 0 else ""
+		parts.append("%s %s%d" % [str(RES_KO.get(key, key)), sign_str, v])
+	return " · ".join(parts)
+
+## needs(자원 게이트)를 짧게 ("로프", "물 3 · 식량 2"). 양이 1 이면 자원명만.
+static func needs_bare(needs: Dictionary) -> String:
+	var parts: PackedStringArray = []
+	for key in needs:
+		var v: int = int(needs[key])
+		if v <= 1:
+			parts.append(str(RES_KO.get(key, key)))
+		else:
+			parts.append("%s %d" % [str(RES_KO.get(key, key)), v])
+	return " · ".join(parts)
+
+## 선택지 버튼 텍스트 (blind choice — 가보기 전엔 결과를 모른다).
+##  enabled=false → 자원 부족(needs 로 무엇이 모자란지 신호).
+##  seen=true    → 이번 런에 눌러본 선택지 → 결과(effect)를 노출한다(학습).
+##  seen=false + needs 있음 → 조건만 노출("로프 필요"). 가진 것이 있어야 고르므로 조건은 알아야 한다.
+##  seen=false + needs 없음 → "?" — 눌러봐야 안다.
+static func choice_text(choice: Dictionary, enabled: bool, seen: bool) -> String:
+	var label: String = str(choice.get("label", ""))
+	var needs: Dictionary = choice.get("needs", {})
+	if not enabled:
+		if needs.is_empty():
+			return "%s   (자원 부족)" % label
+		return "%s   (%s 부족)" % [label, needs_bare(needs)]
+	if seen:
+		return "%s   (%s)" % [label, effect_hint(choice.get("effect", {}))]
+	if not needs.is_empty():
+		return "%s   (%s 필요)" % [label, needs_bare(needs)]
+	return "%s   (?)" % label
+
 # --- 다듬기 헬퍼 (설정 등 정적 화면용) ---
 
 ## 얇은 가로 구분선(ColorRect) — 기본 HSeparator 대신 색·두께를 통제한다.

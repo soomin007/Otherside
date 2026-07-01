@@ -28,6 +28,9 @@ var opening_seen: bool = false ## 오프닝 서사를 봤나 (영속). 첫 플�
 const START_RESOURCES: Dictionary = {"water": 20, "food": 13, "rope": 1, "shelter": 1}
 const REUNION_TRACES: int = 8  ## 재회 엔딩 흔적 축적 임계(임시 — 밸런싱 핵심 튜닝, 기획서 §3 결말)
 var current_run: ExpeditionRun = null  ## 진행 중인 원정의 순수 상태·로직 (core/ExpeditionRun)
+## blind choice — 이번 런에 눌러본 선택지 ("event_id#idx"→true). 겪은 선택지만 다음 대면 때 결과를 노출한다.
+## 런 한정(다음 원정은 다시 백지) + 세이브 미포함(save_game 에 안 넣는다). 지도·단면 두 씬이 공유하므로 여기(autoload)에 둔다.
+var run_seen_choices: Dictionary = {}
 
 func _ready() -> void:
 	load_game()
@@ -60,6 +63,7 @@ func begin_run_in_place() -> void:
 ## 가방에서 고른 시작 자원으로 새 원정을 만든다 (마을/Loadout 에서 호출). START_RESOURCES 대체.
 func begin_run_with(resources: Dictionary) -> void:
 	current_run = ExpeditionRun.new(resources, bridged_nodes(), flags, pickup_traces_by_node())
+	run_seen_choices.clear()  # 새 원정 = blind 백지 (가보기 전엔 다시 모른다)
 	expedition_count += 1
 	_mark_visited(MapGraph.START_ID)
 
@@ -165,6 +169,15 @@ func use_trace(node_id: String, kind: int) -> void:
 			save_game()
 			return
 
+## blind choice — 이번 런에 이 선택지를 이미 눌러봤나(같은 상황 id + 같은 선택지 index). 겪었으면 결과를 노출한다.
+func has_seen_choice(event_id: String, idx: int) -> bool:
+	return run_seen_choices.has("%s#%d" % [event_id, idx])
+
+## 선택지를 눌렀다고 기록한다(그 선택지만 — 선택지 단위). event_id 가 비면 식별 불가라 무시한다.
+func mark_choice_seen(event_id: String, idx: int) -> void:
+	if event_id != "":
+		run_seen_choices["%s#%d" % [event_id, idx]] = true
+
 ## 영속 플래그를 켠다(다음 원정의 변형 이벤트용). 선택의 sets_persist 가 여기로 쌓인다(중복 제외).
 func add_persist_flags(new_flags: Array) -> void:
 	var changed: bool = false
@@ -224,4 +237,5 @@ func reset_save() -> void:
 	visited_nodes = []
 	opening_seen = false
 	current_run = null
+	run_seen_choices.clear()
 	save_game()
