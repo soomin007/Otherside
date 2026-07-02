@@ -22,6 +22,7 @@ func _init() -> void:
 	_test_section_budget()
 	_test_bequeath_gate()
 	_test_vocations()
+	_test_items()
 
 	if _fail == 0:
 		print("=== core_smoke: ALL PASS ===")
@@ -218,3 +219,21 @@ func _test_vocations() -> void:
 	_ok(keeper.leave_cost("rope") == 1, "직능 유품지기: 로프 1→최소 1(공짜 남기기 없음)")
 	# 기본(평범) — 효과 없음(회귀 가드)
 	_ok(plain.leave_cost("water") == 4, "직능 없음(평범): 남기기 비용 기본 유지")
+
+func _test_items() -> void:
+	# 가방 합산(Items.resources_of): 물통2 + 약초 → 물14·약초1
+	var res: Dictionary = Items.resources_of(["water", "water", "medicine"])
+	_ok(int(res["water"]) == 14 and int(res.get("medicine", 0)) == 1, "Items: 물통2+약초 → 물14·약초1")
+	# 부작용 아이템 — 말린 고기 식+9·물-2
+	var jr: Dictionary = Items.resources_of(["jerky"])
+	_ok(int(jr["food"]) == 9 and int(jr["water"]) == -2, "Items: 말린 고기 식+9·물-2(부작용)")
+	# 도구 위기(fever) needs 게이트 — 약초 있으면 안전 선택지 가능, 없으면 잠김
+	var fever: Dictionary = {}
+	for s in Situations.CATALOG:
+		if str(s.get("id", "")) == "fever":
+			fever = s
+			break
+	_ok(not fever.is_empty(), "Items: fever 위기 이벤트 존재")
+	var cure: Dictionary = fever.get("choices", [])[0]
+	_ok(Situations.can_choose(cure, {"medicine": 1}), "Items: 약초 있으면 fever 치료 선택 가능")
+	_ok(not Situations.can_choose(cure, {"medicine": 0}), "Items: 약초 없으면 fever 치료 선택 잠김")

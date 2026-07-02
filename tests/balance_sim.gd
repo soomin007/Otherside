@@ -64,6 +64,19 @@ func _init() -> void:
 		print("  %-11s | end %5.1f%% | 중앙 leg %2d · row %.1f · 갈증 %2.0f%% · 배고픔 %2.0f%%" % [
 			Vocations.name_of(vid), st["reach_pct"], st["median_leg"], st["avg_row"], st["thirst_pct"], st["hunger_pct"]])
 
+	print("\n[6] 도구 장착 비교 (GREEDY) — 위기를 도구로 넘기는 효과 (도구 챙기면 물/식량 칸이 준다)")
+	var loadouts: Array = [
+		{"name": "주머니 비움", "res": {"water": 20, "food": 13, "rope": 1, "shelter": 1}},
+		{"name": "+약초(주머니)", "res": {"water": 20, "food": 13, "rope": 1, "shelter": 1, "medicine": 1}},
+		{"name": "+정화천(주머니)", "res": {"water": 20, "food": 13, "rope": 1, "shelter": 1, "filter": 1}},
+	]
+	var li: int = 0
+	for lo in loadouts:
+		var st: Dictionary = _batch(Policy.GREEDY, lo["res"], 91000 + li * 137)
+		li += 1
+		print("  %-16s | end %5.1f%% | 중앙 leg %2d · row %.1f · 갈증 %2.0f%% · 배고픔 %2.0f%%" % [
+			str(lo["name"]), st["reach_pct"], st["median_leg"], st["avg_row"], st["thirst_pct"], st["hunger_pct"]])
+
 	print("\n=== 끝 (수치는 정책 근사 — 최종 밸런스는 폰 플레이로) ===")
 	quit()
 

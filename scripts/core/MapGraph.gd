@@ -207,6 +207,7 @@ const NODES: Dictionary = {
 				"id": "poison_pool", "threat": Threats.Kind.CONSUMPTION,
 				"text": "고인 물에서 단내가 올라온다. 갈증엔 유혹이지만 탈이 날지도 모른다.",
 				"choices": [
+					{"label": "정화천에 걸러 안전하게 마신다", "effect": {"water": 4, "filter": -1}, "needs": {"filter": 1}},
 					{"label": "걸러서 조금만 마신다", "effect": {"water": 2}, "sets": ["pool_drank"]},
 					{"label": "위험하다, 지나친다", "effect": {}},
 				],

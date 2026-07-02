@@ -99,6 +99,53 @@ const CATALOG: Array = [
 			{"label": "속지 않고 길을 지킨다", "effect": {}},
 		],
 	},
+	# --- 도구 위기(60초식): 드물게 뜨지만(weight 1) 맞는 도구가 없으면 큰 대가. 도구가 곧 그 위기의 보험 ---
+	{
+		"id": "fever", "weight": 1,
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "몸이 불덩이 같다. 열이 오르고 다리가 풀린다. 이대로는 못 간다.",
+		"choices": [
+			{"label": "약초로 열을 다스린다", "effect": {"medicine": -1}, "needs": {"medicine": 1}},
+			{"label": "이 악물고 버틴다", "effect": {"water": -5}},
+		],
+	},
+	{
+		"id": "frozen_night", "weight": 1,
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "해가 지자 모래가 얼어붙는다. 이가 딱딱 부딪히고 손끝이 곱는다.",
+		"choices": [
+			{"label": "부싯돌로 불을 피운다", "effect": {"flint": -1}, "needs": {"flint": 1}},
+			{"label": "떨며 밤을 버틴다", "effect": {"water": -4, "food": -2}},
+		],
+	},
+	{
+		"id": "murky_spring", "weight": 1,
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "고인 물웅덩이를 만났다. 물빛이 탁하지만, 목은 타들어간다.",
+		"choices": [
+			{"label": "정화천에 걸러 마신다", "effect": {"filter": -1, "water": 3}, "needs": {"filter": 1}},
+			{"label": "그냥 들이켠다", "effect": {"water": 2}, "sets": ["pool_drank"]},
+			{"label": "미련 없이 지나친다", "effect": {}},
+		],
+	},
+	{
+		"id": "twisted_ankle", "weight": 1,
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "무너진 비탈에서 발을 헛디뎠다. 발목이 시큰거린다. 잘못 디디면 더 상한다.",
+		"choices": [
+			{"label": "약초로 싸매고 간다", "effect": {"medicine": -1}, "needs": {"medicine": 1}},
+			{"label": "절뚝이며 계속 간다", "effect": {"water": -4}},
+		],
+	},
+	{
+		"id": "sand_squall", "weight": 1,
+		"threat": Threats.Kind.STORM,
+		"text": "느닷없이 모래바람이 몰아친다. 짧지만 살을 벤다.",
+		"choices": [
+			{"label": "은신막을 펴 버틴다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
+			{"label": "몸을 낮추고 견딘다", "effect": {"water": -4}},
+		],
+	},
 	# --- requires 연쇄: 앞선 선택이 켠 런 플래그가 있을 때만 뜨는 이동 중 상황 ---
 	{
 		# 독 웅덩이(d2)에서 탁한 물을 마셨으면(pool_drank) 이동 중 탈이 난다.
@@ -135,7 +182,10 @@ static func pick(rng: RandomNumberGenerator, last_id: String = "", flags: Dictio
 		var req: String = str(s.get("requires", ""))
 		if req != "" and not flags.has(req):
 			continue
-		pool.append(s)
+		# weight 만큼 후보에 복제 — 도구 위기(weight 1)는 일반 상황(기본 3)보다 드물게 뜬다(빈도 가중).
+		var w: int = maxi(1, int(s.get("weight", 3)))
+		for _i in range(w):
+			pool.append(s)
 	if pool.is_empty():
 		# 모두 걸러졌으면 requires 없는 일반 상황으로 폴백
 		for s in CATALOG:

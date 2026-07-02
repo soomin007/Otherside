@@ -91,7 +91,7 @@ func _refresh_hud() -> void:
 	var run: ExpeditionRun = GameState.current_run
 	if run == null or _hud == null:
 		return
-	_hud.text = "물 %d · 식량 %d · 로프 %d · 은신처 %d" % [run.get_res("water"), run.get_res("food"), run.get_res("rope"), run.get_res("shelter")]
+	_hud.text = "물 %d · 식량 %d · %s" % [run.get_res("water"), run.get_res("food"), Items.tools_summary(run.resources)]
 	_update_leave_btn(run)
 
 ## 남기기 버튼 상태 — 이미 남겼으면 잠그고, 아니면 남길 수 있는 자원이 하나라도 있을 때만 활성.

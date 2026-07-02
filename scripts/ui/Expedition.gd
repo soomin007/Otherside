@@ -200,7 +200,7 @@ func _refresh() -> void:
 	_food_label.text = "식량 %d" % food
 	_water_label.add_theme_color_override("font_color", _res_color(water, 3, Color(0.55, 0.78, 0.97)))
 	_food_label.add_theme_color_override("font_color", _res_color(food, 2, Color(0.88, 0.72, 0.42)))
-	_aux_label.text = "로프 %d · 은신처 %d  (남길 수 있는 것)" % [_run.get_res("rope"), _run.get_res("shelter")]
+	_aux_label.text = "지닌 것: %s" % Items.tools_summary(_run.resources)
 	_advance_btn.text = "떠난다 · 지도로"
 	if _probe_label != null:
 		if _section != null and _section.spot_count() > 0 and _section.budget_left() > 0:

@@ -5,13 +5,7 @@ extends Control
 ## 모바일 우선: 중앙 컬럼, 큰 버튼, 탭으로 담고 뺀다.
 
 const BAG_SLOTS: int = 6
-const ITEMS: Array = [
-	{"key": "water", "label": "물통", "res": "water", "amount": 7},
-	{"key": "food", "label": "식량 자루", "res": "food", "amount": 6},
-	{"key": "rope", "label": "로프", "res": "rope", "amount": 1},
-	{"key": "shelter", "label": "은신막", "res": "shelter", "amount": 1},
-]
-const PRESET: Array = ["water", "water", "food", "food", "rope", "shelter"]  ## 표준 구성
+const PRESET: Array = ["water", "water", "food", "food", "rope", "shelter"]  ## 표준 구성 (아이템 정의는 core/Items.gd)
 
 ## 첫 원정 시장 인트로 — 규칙을 한 번 쭉 설명하고 마지막에 기록지를 건넨다(give_record). Opening 슬라이드식.
 const MARKET_PAGES: Array = [
@@ -32,6 +26,8 @@ var _pending_name: String = ""   ## 이번 원정대 이름 — 랜덤 초기값
 var _pending_vocation: String = ""  ## 이번 대장의 직능 id (기본 "" = 평범). _depart 에서 넘긴다.
 var _voc_option: OptionButton
 var _voc_desc: Label
+var _pending_tool: String = ""      ## 주머니에 챙긴 도구 하나 (기본 "" = 없음). 가방 6칸과 별개.
+var _tool_option: OptionButton
 var _name_edit: LineEdit
 var _rng := RandomNumberGenerator.new()
 var _market_panel: Control       ## 첫 원정 시장 인트로 모달(있을 때만)
@@ -79,13 +75,27 @@ func _ready() -> void:
 	_voc_desc = UITheme.make_label(str(Vocations.by_id("").get("desc", "")), UITheme.FS_SMALL, UITheme.SAND)
 	col.add_child(_voc_desc)
 
+	# 챙길 도구 하나 — 가방 6칸과 별개(주머니). 특정 위기의 보험. 60초식 "이 위기엔 이 도구".
+	col.add_child(UITheme.make_label("챙길 도구 하나 (주머니)", UITheme.FS_LABEL, UITheme.MUTED))
+	_tool_option = OptionButton.new()
+	_tool_option.custom_minimum_size = Vector2(0, UITheme.BTN_H_SM)
+	_tool_option.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
+	_tool_option.add_item("없음")
+	for tk in Items.POUCH_TOOLS:
+		_tool_option.add_item(Items.label_of(str(tk)))
+	_tool_option.item_selected.connect(_on_tool_selected)
+	col.add_child(_tool_option)
+
 	col.add_child(UITheme.make_label("책상에서 챙긴다", UITheme.FS_LABEL, UITheme.MUTED))
 	var desk := HFlowContainer.new()
 	desk.add_theme_constant_override("h_separation", 10)
 	desk.add_theme_constant_override("v_separation", 10)
-	for it in ITEMS:
+	for it in Items.CATALOG:
 		var item: Dictionary = it
-		var btn := UITheme.make_button("%s  +%d" % [str(item.get("label", "")), int(item.get("amount", 0))], false)
+		if str(item.get("key", "")) in Items.POUCH_TOOLS:
+			continue  # 주머니 도구는 위 "챙길 도구"에서 따로 하나 고른다(가방 칸과 별개)
+		var start: Dictionary = item.get("start", {})
+		var btn := UITheme.make_button("%s  (%s)" % [str(item.get("label", "")), UITheme.effect_hint(start)], false)
 		btn.custom_minimum_size = Vector2(230, UITheme.BTN_H_SM)
 		btn.pressed.connect(_add_item.bind(str(item.get("key", ""))))
 		desk.add_child(btn)
@@ -141,7 +151,7 @@ func _refresh() -> void:
 		c.queue_free()
 	for i in range(_bag.size()):
 		var key: String = _bag[i]
-		var btn := UITheme.make_button(_item_label(key), false)
+		var btn := UITheme.make_button(Items.label_of(key), false)
 		btn.custom_minimum_size = Vector2(150, UITheme.BTN_H_SM)
 		btn.pressed.connect(_remove_item.bind(i))
 		_bag_box.add_child(btn)
@@ -153,30 +163,17 @@ func _refresh() -> void:
 		_bag_box.add_child(empty)
 
 	var res: Dictionary = _bag_resources()
-	_preview.text = "물 %d · 식량 %d · 로프 %d · 은신처 %d    (%d/%d칸)" % [
-		int(res["water"]), int(res["food"]), int(res["rope"]), int(res["shelter"]), _bag.size(), BAG_SLOTS]
+	_preview.text = "물 %d · 식량 %d · %s    (%d/%d칸)" % [
+		int(res["water"]), int(res["food"]), Items.tools_summary(res), _bag.size(), BAG_SLOTS]
 	if _depart_btn != null:
 		_depart_btn.disabled = int(res["water"]) <= 0 and int(res["food"]) <= 0
 
-## 가방 물품 합산 → 시작 자원.
+## 가방 물품 합산 → 시작 자원(core/Items.gd 카탈로그의 start 델타 합).
 func _bag_resources() -> Dictionary:
-	var res: Dictionary = {"water": 0, "food": 0, "rope": 0, "shelter": 0}
-	for key in _bag:
-		var item: Dictionary = _item(str(key))
-		var rk: String = str(item.get("res", ""))
-		if rk != "":
-			res[rk] = int(res.get(rk, 0)) + int(item.get("amount", 0))
+	var res: Dictionary = Items.resources_of(_bag)
+	if _pending_tool != "":
+		res[_pending_tool] = int(res.get(_pending_tool, 0)) + 1  # 주머니 도구 하나(가방 칸 밖)
 	return res
-
-func _item(key: String) -> Dictionary:
-	for it in ITEMS:
-		var item: Dictionary = it
-		if str(item.get("key", "")) == key:
-			return item
-	return {}
-
-func _item_label(key: String) -> String:
-	return str(_item(key).get("label", key))
 
 func _depart() -> void:
 	GameState.begin_run_with(_bag_resources(), _pending_name.strip_edges(), _pending_vocation)
@@ -200,6 +197,14 @@ func _on_voc_selected(idx: int) -> void:
 	_pending_vocation = str(ids[idx])
 	if _voc_desc != null:
 		_voc_desc.text = str(Vocations.by_id(_pending_vocation).get("desc", ""))
+
+## 주머니 도구 선택 — OptionButton 인덱스 0="없음", 1.. = POUCH_TOOLS 순서.
+func _on_tool_selected(idx: int) -> void:
+	if idx <= 0:
+		_pending_tool = ""
+	elif idx - 1 < Items.POUCH_TOOLS.size():
+		_pending_tool = str(Items.POUCH_TOOLS[idx - 1])
+	_refresh()
 
 # --- 첫 원정 시장 인트로 (규칙 설명 + 기록지 건네기) ---
 
