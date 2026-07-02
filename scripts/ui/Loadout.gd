@@ -44,13 +44,26 @@ func _ready() -> void:
 	bg.scene_kind = "village"
 	add_child(bg)
 
-	# 스크롤 컬럼 — 콘텐츠가 화면보다 길어도 아래 버튼까지 스크롤로 도달(중앙 최대폭 정렬).
+	# UI 가독성 — 컬럼 뒤에 어두운 세로 띠를 깐다(지평선·색 변화가 글씨를 방해하지 않게).
+	# Backdrop 위, 스크롤 아래. 화면 세로로 꽉 차 스크롤해도 글씨는 늘 어두운 면 위에 있다.
+	var band := ColorRect.new()
+	band.color = Color(0.05, 0.05, 0.07, 0.95)
+	band.anchor_left = 0.5
+	band.anchor_right = 0.5
+	band.anchor_top = 0.0
+	band.anchor_bottom = 1.0
+	band.offset_left = -(UITheme.COLUMN_W * 0.5 + UITheme.PAD)
+	band.offset_right = UITheme.COLUMN_W * 0.5 + UITheme.PAD
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE  # 클릭은 위 스크롤/버튼으로 통과
+	add_child(band)
+
+	# 스크롤 컬럼 — 콘텐츠가 화면보다 길어도 아래 버튼까지 스크롤로 도달(중앙 최대폭 정렬). 휠은 부드럽게(SmoothScroll).
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, int(UITheme.PAD))
 	add_child(margin)
-	var scroll := ScrollContainer.new()
+	var scroll := SmoothScroll.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	margin.add_child(scroll)
 	var center := CenterContainer.new()
