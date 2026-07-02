@@ -350,9 +350,14 @@ no labels, no title, no logo, no watermark, no white background.
 
 ### 흰 배경 → 투명 변환 (§2 아이콘, §4 초상·사물)
 흰 배경으로 뽑은 것은 넣기 전에 흰색을 투명으로 바꾼다(순백 단색이라 깨끗이 떨어진다).
-- **자동(추천):** `assets/arts/` 에 흰 배경 PNG 를 넣고 말하면 **코드로 일괄 변환**(Godot `Image`: 흰색 문턱으로 배경 alpha 0 + 경계 페더 + 여백 크롭).
-- **수동:** remove.bg(무료)·Photoshop·GIMP 매직완드.
-- **검증:** 변환 뒤 `Image.detect_alpha()` 가 `ALPHA_NONE` 이 아니어야(투명 픽셀 존재).
+- **도구 준비·검증 완료(2026-07-03):** `scripts/tools/alpha_key.gd` — 흰 배경 컬러키(밝기+채도 판별로
+  세피아·모래·뼈는 남기고 순백만 제거) + alpha 대비 스냅(사각 헤일로 방지) + 여백 크롭. 02~08 로 검증됨.
+  - 실행: `godot --headless --path . -s scripts/tools/alpha_key.gd` → `assets/arts/` 의 `_아이콘_`/`_초상_`
+    파일 전부 변환, 결과는 `assets/arts/transparent/` 에(원본 보존). 특정 파일만: `-- <경로> ...`.
+  - 손잡이(결과 보고 조정): `WHITE_LO/HI`(배경 밝기 문턱)·`CHROMA_MAX`(그림 판별 채도)·`ALPHA_LO/HI`(잔여 스냅).
+- **검증 미리보기:** `scripts/tools/alpha_preview.gd -- <출력.png>` → transparent/ 를 어두운 배경에 합성한
+  그리드 시트(흰 배경 뷰어로 안 보이는 진짜 투명·경계·하이라이트 구멍 확인). 아이콘 늘 때마다 재확인.
+- **수동 대안:** remove.bg(무료)·Photoshop·GIMP 매직완드.
 - **글자가 박혀 나오면** 그 부분 먼저 크롭.
 
 ### 절차적 draw → 이미지 교체 지점
