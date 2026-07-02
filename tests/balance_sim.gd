@@ -56,18 +56,26 @@ func _init() -> void:
 	print("\n[4] 콘텐츠 커버리지 — GREEDY 500판에서 각 도착 이벤트가 뜬 횟수(0 = 죽은 콘텐츠 의심)")
 	_coverage_report()
 
+	print("\n[5] 직능 비교 — GREEDY, 기본 시작 자원 위에 직능 보너스가 더해진다")
+	var vi: int = 0
+	for vid in Vocations.ids():
+		var st: Dictionary = _batch(Policy.GREEDY, BASE_START, 82000 + vi * 137, vid)
+		vi += 1
+		print("  %-11s | end %5.1f%% | 중앙 leg %2d · row %.1f · 갈증 %2.0f%% · 배고픔 %2.0f%%" % [
+			Vocations.name_of(vid), st["reach_pct"], st["median_leg"], st["avg_row"], st["thirst_pct"], st["hunger_pct"]])
+
 	print("\n=== 끝 (수치는 정책 근사 — 최종 밸런스는 폰 플레이로) ===")
 	quit()
 
 # --- 배치 시뮬 ---
 
-func _batch(policy: int, start: Dictionary, seed_base: int) -> Dictionary:
+func _batch(policy: int, start: Dictionary, seed_base: int, voc_id: String = "") -> Dictionary:
 	var legs: Array = []
 	var reached: int = 0
 	var deaths: Dictionary = {"thirst": 0, "hunger": 0, "": 0}
 	var rows: Array = []
 	for i in range(RUNS):
-		var r: Dictionary = _run_once(policy, start, seed_base * 131 + i)
+		var r: Dictionary = _run_once(policy, start, seed_base * 131 + i, voc_id)
 		legs.append(int(r["leg"]))
 		rows.append(int(r["row"]))
 		if bool(r["reached_end"]):
@@ -96,8 +104,8 @@ func _report(label: String, st: Dictionary) -> void:
 
 # --- 한 판 ---
 
-func _run_once(policy: int, start: Dictionary, seed_val: int) -> Dictionary:
-	var run := ExpeditionRun.new(start.duplicate(), [], [], {})
+func _run_once(policy: int, start: Dictionary, seed_val: int, voc_id: String = "") -> Dictionary:
+	var run := ExpeditionRun.new(start.duplicate(), [], [], {}, voc_id)
 	run.rng.seed = seed_val
 	var brng := RandomNumberGenerator.new()  ## 분기·정책 tie-break 용
 	brng.seed = seed_val * 7 + 3

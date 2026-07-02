@@ -21,6 +21,7 @@ func _init() -> void:
 	_test_catalog_requires_filter()
 	_test_section_budget()
 	_test_bequeath_gate()
+	_test_vocations()
 
 	if _fail == 0:
 		print("=== core_smoke: ALL PASS ===")
@@ -184,3 +185,36 @@ func _test_bequeath_gate() -> void:
 	# 생존 게이트: 남기면 죽는(<1) 자원은 못 남김
 	var poor: ExpeditionRun = _fresh({"water": 4, "food": 13, "rope": 0, "shelter": 0})
 	_ok(not poor.can_leave("water"), "남기기: 물 4(비용 4) → 남기면 0 이라 잠금(생존 게이트)")
+
+func _test_vocations() -> void:
+	# 짐꾼 — 시작 자원 넉넉(물+6·식+5), 대신 후반 곡선이 더 가혹(무거운 짐 → desolation 악화)
+	var porter: ExpeditionRun = ExpeditionRun.new({"water": 20, "food": 13}, [], [], {}, "porter")
+	_ok(porter.get_res("water") == 26 and porter.get_res("food") == 18, "직능 짐꾼: 시작 물+6·식+5")
+	var plain: ExpeditionRun = ExpeditionRun.new({"water": 20, "food": 13})
+	porter.leg = 24
+	plain.leg = 24
+	_ok(porter.water_cost() > plain.water_cost(), "직능 짐꾼: 먼 거리(leg24) 물 소모 더 큼(무거운 짐)")
+	# 길잡이 — 먼 거리서 물 소모 곡선 완화
+	var path: ExpeditionRun = ExpeditionRun.new({"water": 20, "food": 13}, [], [], {}, "pathfinder")
+	path.leg = 36
+	plain.leg = 36
+	_ok(path.water_cost() < plain.water_cost(), "직능 길잡이: 먼 거리(leg36) 물 소모 완화")
+	# 물지기 — 물 얻을 때 +1, 잃을 땐 그대로
+	var ww: ExpeditionRun = ExpeditionRun.new({"water": 10, "food": 10}, [], [], {}, "waterwise")
+	ww.apply_choice({"water": 2})
+	_ok(ww.get_res("water") == 13, "직능 물지기: 물 +2 획득 → 실제 +3")
+	ww.apply_choice({"water": -2})
+	_ok(ww.get_res("water") == 11, "직능 물지기: 물 잃을 땐 보너스 없음")
+	# 강골 — 식량 소모 주기 늘어남(기본 2 → 4). 이동 중 상황은 억제하고 순수 소모만 본다(결정론).
+	var hardy: ExpeditionRun = ExpeditionRun.new({"water": 99, "food": 20}, [], [], {}, "hardy")
+	hardy.begin_edge("a1")
+	hardy._next_situation_leg = 9999
+	for i in range(4):
+		hardy.step()
+	_ok(hardy.get_res("food") == 19, "직능 강골: 4걸음에 식량 -1(주기 4, 기본이면 -2)")
+	# 유품지기 — 남기기 비용 완화(물 4→3), 로프는 최소 1 보장(공짜 없음)
+	var keeper: ExpeditionRun = ExpeditionRun.new({"water": 20, "food": 13}, [], [], {}, "keeper")
+	_ok(keeper.leave_cost("water") == 3, "직능 유품지기: 물 남기기 비용 4→3")
+	_ok(keeper.leave_cost("rope") == 1, "직능 유품지기: 로프 1→최소 1(공짜 남기기 없음)")
+	# 기본(평범) — 효과 없음(회귀 가드)
+	_ok(plain.leave_cost("water") == 4, "직능 없음(평범): 남기기 비용 기본 유지")

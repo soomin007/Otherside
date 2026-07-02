@@ -29,6 +29,8 @@ var death_cause: String = ""          ## "" | "thirst" | "hunger"
 var pending_situation: Dictionary = {} ## 지금 결정해야 할 상황 (비어 있으면 없음)
 var bequeathed: bool = false          ## 이번 원정에 "남기기"를 이미 썼나 (런당 1회)
 var current_node: String = ""         ## 지금 서 있는 노드(지도 복귀의 기준)
+var vocation_id: String = ""          ## 이번 원정 대장의 직능 id(저장·표시용, Vocations)
+var _vocation: Dictionary = {}        ## 직능 정의 — 효과 파라미터의 출처(생성자에서 로드)
 
 var rng := RandomNumberGenerator.new()
 var _last_situation_id: String = ""
@@ -41,8 +43,15 @@ var _edge_step: int = 0               ## 이번 엣지에서 전진한 걸음
 var _edge_len: int = 0
 
 ## bridged_nodes/persist_flags/pickup_traces = 과거 원정에서 누적된 영속 데이터(GameState 주입). core 는 GameState 미참조(순수성).
-func _init(starting: Dictionary = {}, bridged_nodes: Array = [], persist_flags: Array = [], pickup_traces: Dictionary = {}) -> void:
+## voc_id = 이번 원정 대장의 직능(Vocations). 기본 "" = 평범(효과 없음) → 기존 호출부(4인자)를 안 깨뜨린다.
+func _init(starting: Dictionary = {}, bridged_nodes: Array = [], persist_flags: Array = [], pickup_traces: Dictionary = {}, voc_id: String = "") -> void:
 	resources = starting.duplicate()
+	vocation_id = voc_id
+	_vocation = Vocations.by_id(voc_id)
+	# 직능 시작 보너스(짐꾼 등) — 시작 자원에 1회 가산.
+	var start_bonus: Dictionary = _vocation.get("start_bonus", {})
+	for k in start_bonus:
+		resources[k] = int(resources.get(k, 0)) + int(start_bonus[k])
 	for nid in bridged_nodes:
 		_bridged[str(nid)] = true
 	for f in persist_flags:
@@ -55,8 +64,10 @@ func get_res(key: String) -> int:
 	return int(resources.get(key, 0))
 
 ## 한 걸음의 물 소모 — 멀어질수록 커진다(거리 = 척박함의 기울기). 출발지 근처 1, 무인지대로 갈수록 늘어난다.
+## 직능: 길잡이는 곡선 완화(desolation_bonus), 짐꾼은 무거워 기본 소모 +1(water_per_step_bonus).
 func water_cost() -> int:
-	return WATER_PER_STEP + int(leg / DESOLATION_EVERY)
+	var deso: int = DESOLATION_EVERY + int(_vocation.get("desolation_bonus", 0))
+	return WATER_PER_STEP + int(_vocation.get("water_per_step_bonus", 0)) + int(leg / maxi(1, deso))
 
 func is_bridged(node_id: String) -> bool:
 	return _bridged.has(node_id)
@@ -72,8 +83,12 @@ func set_flag(f: String) -> void:
 
 # --- 남기기 (런당 1회, 죽음과 별개) ---
 
+## 남기기 비용 — 직능 유품지기는 완화(leave_discount, 최소 1 보장: 공짜 남기기는 없다).
 func leave_cost(key: String) -> int:
-	return int(LEAVE_COST.get(key, 0))
+	var base: int = int(LEAVE_COST.get(key, 0))
+	if base <= 0:
+		return 0
+	return maxi(1, base - int(_vocation.get("leave_discount", 0)))
 
 ## 지금 이 자원을 남길 수 있나 — 토큰 미사용 + 보유량 충분 + 생존 자원(물/식량)은 남기고도 살아남아야(>=1).
 func can_leave(key: String) -> bool:
@@ -139,7 +154,8 @@ func step() -> void:
 	leg += 1
 	_edge_step += 1
 	resources["water"] = get_res("water") - water_cost()
-	if leg % FOOD_EVERY == 0:
+	var food_every: int = FOOD_EVERY + int(_vocation.get("food_every_bonus", 0))  # 강골: 주기 ↑ → 배고픔 느림
+	if food_every > 0 and leg % food_every == 0:
 		resources["food"] = get_res("food") - 1
 	_check_death()
 	if not alive:
@@ -167,9 +183,14 @@ func raise_situation(ev: Dictionary) -> void:
 		_set_pending(ev)
 
 ## 상황의 한 선택지를 적용한다 — 자원 델타 반영 후 고갈 판정. 선택이 곧 죽음일 수도 있다.
+## 직능: 물지기는 물을 얻을 때(양수) 한 모금 더(water_gain_bonus). 잃을 때는 그대로.
 func apply_choice(effect: Dictionary) -> void:
+	var water_gain: int = int(_vocation.get("water_gain_bonus", 0))
 	for key in effect:
-		resources[key] = get_res(key) + int(effect[key])
+		var delta: int = int(effect[key])
+		if key == "water" and delta > 0 and water_gain > 0:
+			delta += water_gain
+		resources[key] = get_res(key) + delta
 	pending_situation = {}
 	_check_death()
 

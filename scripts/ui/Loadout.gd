@@ -29,6 +29,9 @@ var _preview: Label
 var _depart_btn: Button
 
 var _pending_name: String = ""   ## 이번 원정대 이름 — 랜덤 초기값, 편집·다시 뽑기 가능. _depart 에서 begin_run_with 로 넘긴다.
+var _pending_vocation: String = ""  ## 이번 대장의 직능 id (기본 "" = 평범). _depart 에서 넘긴다.
+var _voc_option: OptionButton
+var _voc_desc: Label
 var _name_edit: LineEdit
 var _rng := RandomNumberGenerator.new()
 var _market_panel: Control       ## 첫 원정 시장 인트로 모달(있을 때만)
@@ -63,6 +66,18 @@ func _ready() -> void:
 	reroll.pressed.connect(_reroll_name)
 	name_row.add_child(reroll)
 	col.add_child(name_row)
+
+	# 이번 대장의 특기(직능) — 매 원정 다른 사람이 간다. 고른 특기가 그 원정의 결을 바꾼다.
+	col.add_child(UITheme.make_label("이번 대장의 특기", UITheme.FS_LABEL, UITheme.MUTED))
+	_voc_option = OptionButton.new()
+	_voc_option.custom_minimum_size = Vector2(0, UITheme.BTN_H_SM)
+	_voc_option.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
+	for vid in Vocations.ids():
+		_voc_option.add_item(Vocations.name_of(str(vid)))
+	_voc_option.item_selected.connect(_on_voc_selected)
+	col.add_child(_voc_option)
+	_voc_desc = UITheme.make_label(str(Vocations.by_id("").get("desc", "")), UITheme.FS_SMALL, UITheme.SAND)
+	col.add_child(_voc_desc)
 
 	col.add_child(UITheme.make_label("책상에서 챙긴다", UITheme.FS_LABEL, UITheme.MUTED))
 	var desk := HFlowContainer.new()
@@ -164,7 +179,7 @@ func _item_label(key: String) -> String:
 	return str(_item(key).get("label", key))
 
 func _depart() -> void:
-	GameState.begin_run_with(_bag_resources(), _pending_name.strip_edges())
+	GameState.begin_run_with(_bag_resources(), _pending_name.strip_edges(), _pending_vocation)
 	GameState.go_to_map()
 
 # --- 원정대 이름 ---
@@ -176,6 +191,15 @@ func _reroll_name() -> void:
 	_pending_name = ExpeditionNamer.random(_rng)
 	if _name_edit != null:
 		_name_edit.text = _pending_name
+
+## 직능 선택 — OptionButton 인덱스는 Vocations.ids() 순서와 같다. 설명을 갱신한다.
+func _on_voc_selected(idx: int) -> void:
+	var ids: Array = Vocations.ids()
+	if idx < 0 or idx >= ids.size():
+		return
+	_pending_vocation = str(ids[idx])
+	if _voc_desc != null:
+		_voc_desc.text = str(Vocations.by_id(_pending_vocation).get("desc", ""))
 
 # --- 첫 원정 시장 인트로 (규칙 설명 + 기록지 건네기) ---
 
