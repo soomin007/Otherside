@@ -30,9 +30,11 @@ var expedition_names: Array = [] ## 원정별 이름 (인덱스 = 회차-1, 영�
 const START_RESOURCES: Dictionary = {"water": 20, "food": 13, "rope": 1, "shelter": 1}
 const REUNION_TRACES: int = 8  ## 재회 엔딩 흔적 축적 임계(임시 — 밸런싱 핵심 튜닝, 기획서 §3 결말)
 var current_run: ExpeditionRun = null  ## 진행 중인 원정의 순수 상태·로직 (core/ExpeditionRun)
-## blind choice — 이번 런에 눌러본 선택지 ("event_id#idx"→true). 겪은 선택지만 다음 대면 때 결과를 노출한다.
-## 런 한정(다음 원정은 다시 백지) + 세이브 미포함(save_game 에 안 넣는다). 지도·단면 두 씬이 공유하므로 여기(autoload)에 둔다.
-var run_seen_choices: Dictionary = {}
+## blind choice — 겪어본 선택지 ("event_id#idx"→true). 그 선택지 결과를 이후 노출한다(학습).
+## 영속(세이브 포함) — 한 번 본 결과는 다음 원정에도 보인다. requires 로 열린 새 변형 이벤트는 event_id 가 달라
+## 자동으로 "안 본 것"(blind)이 된다 → "이전 선택으로 새로 나온 선택지만 처음처럼"이 선택지 단위 키로 공짜로 성립.
+## 지도·단면 두 씬이 공유하므로 여기(autoload)에 둔다.
+var seen_choices: Dictionary = {}
 
 func _ready() -> void:
 	load_game()
@@ -65,7 +67,6 @@ func begin_run_in_place() -> void:
 ## 가방에서 고른 시작 자원으로 새 원정을 만든다 (마을/Loadout 에서 호출). START_RESOURCES 대체.
 func begin_run_with(resources: Dictionary, name: String = "", voc_id: String = "") -> void:
 	current_run = ExpeditionRun.new(resources, bridged_nodes(), flags, pickup_traces_by_node(), voc_id)
-	run_seen_choices.clear()  # 새 원정 = blind 백지 (가보기 전엔 다시 모른다)
 	expedition_count += 1
 	# 이번 원정대 이름 — 지정 없으면 랜덤(begin_run_in_place·디버그 진입 등). 인덱스 = 회차-1 로 정렬.
 	var nm: String = name
@@ -199,12 +200,12 @@ func use_trace(node_id: String, kind: int) -> void:
 
 ## blind choice — 이번 런에 이 선택지를 이미 눌러봤나(같은 상황 id + 같은 선택지 index). 겪었으면 결과를 노출한다.
 func has_seen_choice(event_id: String, idx: int) -> bool:
-	return run_seen_choices.has("%s#%d" % [event_id, idx])
+	return seen_choices.has("%s#%d" % [event_id, idx])
 
 ## 선택지를 눌렀다고 기록한다(그 선택지만 — 선택지 단위). event_id 가 비면 식별 불가라 무시한다.
 func mark_choice_seen(event_id: String, idx: int) -> void:
 	if event_id != "":
-		run_seen_choices["%s#%d" % [event_id, idx]] = true
+		seen_choices["%s#%d" % [event_id, idx]] = true
 
 ## 영속 플래그를 켠다(다음 원정의 변형 이벤트용). 선택의 sets_persist 가 여기로 쌓인다(중복 제외).
 func add_persist_flags(new_flags: Array) -> void:
@@ -230,6 +231,7 @@ func save_game() -> void:
 		"opening_seen": opening_seen,
 		"record_seen": record_seen,
 		"expedition_names": expedition_names,
+		"seen_choices": seen_choices,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
@@ -259,6 +261,7 @@ func load_game() -> void:
 	opening_seen = bool(data.get("opening_seen", false))
 	record_seen = bool(data.get("record_seen", false))
 	expedition_names = data.get("expedition_names", [])
+	seen_choices = data.get("seen_choices", {})
 
 ## 세이브 초기화 (새 세계). 빈 상태로 덮어쓴다 — 웹/데스크톱 모두 안전.
 func reset_save() -> void:
@@ -271,5 +274,5 @@ func reset_save() -> void:
 	record_seen = false
 	expedition_names = []
 	current_run = null
-	run_seen_choices.clear()
+	seen_choices.clear()
 	save_game()
