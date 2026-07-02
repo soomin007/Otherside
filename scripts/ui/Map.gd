@@ -9,8 +9,8 @@ const TOP_Y: float = 140.0   ## 제목 + 자원 HUD 아래(지도 시작 y)
 const BOT_Y: float = 156.0   ## 하단 요소(안내·남기기 버튼·통계 라벨)가 다 들어가게 + 웹 주소창 여유
 const NODE_R: float = 13.0
 const STEP_INTERVAL: float = 0.28  ## 이동 한 걸음의 시간(초)
-const ICON_MAX: float = 76.0       ## 노드 아이콘 긴 변 최대 표시 크기(px)
-const NODE_PAD_FRAC: float = 0.05  ## 노드 세로 배치 상하 여백(area 대비) — 맨 위/아래 노드가 HUD·버튼·아이콘과 안 겹치게
+const ICON_MAX: float = 108.0      ## 노드 아이콘 긴 변 최대 표시 크기(px)
+const NODE_PAD_FRAC: float = 0.05  ## 노드 진행축 양끝 여백(area 대비) — 맨 처음/끝 노드가 화면 끝·HUD·버튼과 안 겹치게
 const REVEAL_DUR: float = 0.55     ## 방문 시 잉크 reveal 애니 길이(초)
 
 ## 지도 배경 + 노드별 손그림 아이콘(투명 변환본). 노드 id → 아이콘 1:1(이름 일치).
@@ -303,15 +303,22 @@ func _map_area() -> Rect2:
 	var rect: Vector2 = size
 	return Rect2(UITheme.PAD, TOP_Y, rect.x - UITheme.PAD * 2.0, rect.y - TOP_Y - BOT_Y)
 
+## 지도 방향 — area 가 가로로 넓으면 그래프를 눕힌다(왼→오른쪽 진행). 세로면 위→아래.
+## 데스크톱(가로) 기본 + 모바일(세로) 지원을 한 그래프로 반응형 처리한다.
+func _is_landscape(area: Rect2) -> bool:
+	return area.size.x >= area.size.y
+
 func _node_screen(node: Dictionary, area: Rect2) -> Vector2:
 	var mr: int = maxi(1, MapGraph.max_row())
-	var col: float = float(node.get("col", 0.5))
+	var col: float = float(node.get("col", 0.5))     # 분기축 위치(0~1)
 	var row: float = float(int(node.get("row", 0)))
-	# 상하 여백을 둬 맨 위/아래 노드(마을·미지)가 area 경계(HUD·버튼)에 붙지 않게.
-	var ty: float = NODE_PAD_FRAC + (row / float(mr)) * (1.0 - 2.0 * NODE_PAD_FRAC)
-	return Vector2(
-		area.position.x + col * area.size.x,
-		area.position.y + ty * area.size.y)
+	# 진행축 위치(0~1) — 양끝 여백을 둬 처음/끝 노드가 화면 끝·HUD·버튼에 안 붙게.
+	var prog: float = NODE_PAD_FRAC + (row / float(mr)) * (1.0 - 2.0 * NODE_PAD_FRAC)
+	if _is_landscape(area):
+		# 가로 — 진행=x(왼→오른쪽), 분기=y
+		return Vector2(area.position.x + prog * area.size.x, area.position.y + col * area.size.y)
+	# 세로 — 진행=y(위→아래), 분기=x
+	return Vector2(area.position.x + col * area.size.x, area.position.y + prog * area.size.y)
 
 ## 플레이어 마커 위치 — 이동 중이면 현재→목표 노드 보간, 아니면 현재 노드.
 func _marker_pos(area: Rect2) -> Vector2:
@@ -336,9 +343,10 @@ func _draw() -> void:
 	if font == null:
 		font = ThemeDB.fallback_font
 
-	# 지도 배경 — 손그림 양피지 텍스처. 없으면 절차적 양피지로 fallback(웹 안전).
+	# 지도 배경 — 손그림 양피지 텍스처를 종횡비 유지 cover 로(왜곡 없이 채우고 넘침 크롭).
+	# 없으면 절차적 양피지로 fallback(웹 안전).
 	if _bg_tex != null:
-		draw_texture_rect(_bg_tex, area, false)
+		_draw_bg_cover(area)
 	else:
 		draw_rect(area, PAPER)
 		_draw_terrain(area)
@@ -349,8 +357,10 @@ func _draw() -> void:
 
 	# 아이콘 크기를 노드 세로 간격에 맞춘다 — 아이콘+아래 이름이 한 칸(row_gap) 안에 들어가
 	# 위아래 노드와 안 겹치게(세로로 붙는 중앙 줄: 마을·마른강·무너진담·폭풍문·미지 기준).
-	var row_gap: float = area.size.y * (1.0 - 2.0 * NODE_PAD_FRAC) / float(maxi(1, MapGraph.max_row()))
-	var icon_size: float = clampf(row_gap * 0.66, 26.0, ICON_MAX)
+	# 아이콘 크기는 진행축 간격에 맞춘다(가로면 x, 세로면 y). 노드가 진행축으로 안 겹치게.
+	var prog_span: float = (area.size.x if _is_landscape(area) else area.size.y) * (1.0 - 2.0 * NODE_PAD_FRAC)
+	var row_gap: float = prog_span / float(maxi(1, MapGraph.max_row()))
+	var icon_size: float = clampf(row_gap * 0.82, 30.0, ICON_MAX)
 
 	# 길 — 가본 노드에서 나가는 트레일. 밟은 길은 진한 실선, 미지로 향하는 길은 점선.
 	for id in MapGraph.NODES:
@@ -394,6 +404,24 @@ func _draw() -> void:
 	var mp: Vector2 = _marker_pos(area)
 	draw_circle(mp, 6.0, MARKER_INK)
 	draw_arc(mp, 10.0, 0.0, TAU, 22, MARKER_INK, 2.0)
+
+## 배경 텍스처를 area 에 종횡비 유지 cover(넘치는 쪽을 잘라 왜곡·여백 없이 채움).
+func _draw_bg_cover(area: Rect2) -> void:
+	var tw: float = float(_bg_tex.get_width())
+	var th: float = float(_bg_tex.get_height())
+	if tw <= 0.0 or th <= 0.0:
+		draw_texture_rect(_bg_tex, area, false)
+		return
+	var ra: float = area.size.x / area.size.y
+	var ta: float = tw / th
+	var src := Rect2(0.0, 0.0, tw, th)
+	if ta > ra:                                  # 이미지가 더 넓다 → 좌우를 잘라 세로 기준 맞춤
+		var sw: float = th * ra
+		src = Rect2((tw - sw) * 0.5, 0.0, sw, th)
+	else:                                        # 이미지가 더 높다 → 위아래를 잘라 가로 기준 맞춤
+		var sh: float = tw / ra
+		src = Rect2(0.0, (th - sh) * 0.5, tw, sh)
+	draw_texture_rect_region(_bg_tex, area, src)
 
 ## 양피지 지형결 — 은은한 등고선(결정론 sin 곡선). 사막 지도의 결.
 func _draw_terrain(area: Rect2) -> void:
