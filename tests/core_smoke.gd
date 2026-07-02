@@ -23,6 +23,7 @@ func _init() -> void:
 	_test_bequeath_gate()
 	_test_vocations()
 	_test_items()
+	_test_weight()
 
 	if _fail == 0:
 		print("=== core_smoke: ALL PASS ===")
@@ -237,3 +238,14 @@ func _test_items() -> void:
 	var cure: Dictionary = fever.get("choices", [])[0]
 	_ok(Situations.can_choose(cure, {"medicine": 1}), "Items: 약초 있으면 fever 치료 선택 가능")
 	_ok(not Situations.can_choose(cure, {"medicine": 0}), "Items: 약초 없으면 fever 치료 선택 잠김")
+
+func _test_weight() -> void:
+	var base: ExpeditionRun = ExpeditionRun.new({"water": 20})
+	# 무게 FREE(12) 이하 — 물 소모 안 늘어남
+	var light: ExpeditionRun = ExpeditionRun.new({"water": 20}, [], [], {}, "", 8)
+	_ok(light.water_cost() == base.water_cost(), "무게: FREE(12) 이하는 물 소모 불변")
+	# 무게 초과 — STEP(4)마다 걸음당 물 +1 (무게 20 → 초과 8 → +2)
+	var heavy: ExpeditionRun = ExpeditionRun.new({"water": 20}, [], [], {}, "", 20)
+	_ok(heavy.water_cost() == base.water_cost() + 2, "무게: 초과분 STEP당 물 +1 (무게20 → +2)")
+	# Items 무게 합산
+	_ok(Items.bag_weight(["water", "water", "rope"]) == 7, "무게: 물통2+로프 = 3+3+1 = 7")

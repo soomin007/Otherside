@@ -241,8 +241,11 @@ func _refresh() -> void:
 		_bag_box.add_child(empty)
 
 	var res: Dictionary = _bag_resources()
-	_preview.text = "물 %d · 식량 %d · %s    (%d/%d칸)" % [
-		int(res["water"]), int(res["food"]), Items.tools_summary(res), _bag.size(), BAG_SLOTS]
+	var wgt: int = Items.bag_weight(_bag) + (Items.weight_of(_pending_tool) if _pending_tool != "" else 0)
+	var pen: int = maxi(0, wgt - ExpeditionRun.WEIGHT_FREE) / maxi(1, ExpeditionRun.WEIGHT_STEP)
+	var pen_str: String = "  · 무거워 물 +%d/걸음" % pen if pen > 0 else ""
+	_preview.text = "물 %d · 식량 %d · %s\n무게 %d%s    (%d/%d칸)" % [
+		int(res["water"]), int(res["food"]), Items.tools_summary(res), wgt, pen_str, _bag.size(), BAG_SLOTS]
 	if _depart_btn != null:
 		_depart_btn.disabled = int(res["water"]) <= 0 and int(res["food"]) <= 0
 
@@ -254,7 +257,10 @@ func _bag_resources() -> Dictionary:
 	return res
 
 func _depart() -> void:
-	GameState.begin_run_with(_bag_resources(), _pending_name.strip_edges(), _pending_vocation)
+	var wgt: int = Items.bag_weight(_bag)
+	if _pending_tool != "":
+		wgt += Items.weight_of(_pending_tool)  # 주머니 도구도 무게에 더한다
+	GameState.begin_run_with(_bag_resources(), _pending_name.strip_edges(), _pending_vocation, wgt)
 	GameState.go_to_map()
 
 # --- 원정대 이름 / 직능 / 도구 (단계 1 핸들러) ---

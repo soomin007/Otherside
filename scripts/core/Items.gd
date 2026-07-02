@@ -37,6 +37,11 @@ const TOOL_LABEL: Dictionary = {
 	"rope": "로프", "shelter": "은신막", "medicine": "약초", "flint": "부싯돌", "filter": "정화천",
 }
 
+## 아이템 무게 — 가방 총 무게가 크면 걸음당 물 소모가 는다(ExpeditionRun.WEIGHT_FREE/STEP). 물/식량·말린고기가 무겁다.
+const WEIGHT: Dictionary = {
+	"water": 3, "food": 3, "jerky": 5, "rope": 1, "shelter": 2, "medicine": 1, "flint": 1, "filter": 1,
+}
+
 static func by_key(key: String) -> Dictionary:
 	for it in CATALOG:
 		if str(it.get("key", "")) == key:
@@ -45,6 +50,16 @@ static func by_key(key: String) -> Dictionary:
 
 static func label_of(key: String) -> String:
 	return str(by_key(key).get("label", key))
+
+static func weight_of(key: String) -> int:
+	return int(WEIGHT.get(key, 1))
+
+## 담은 아이템 key 목록의 총 무게(주머니 도구는 호출측에서 따로 더한다).
+static func bag_weight(bag: Array) -> int:
+	var w: int = 0
+	for key in bag:
+		w += weight_of(str(key))
+	return w
 
 ## 담은 아이템 key 목록 → 시작 자원 dict(모든 RES_KEYS 0 초기화 후 start 합산).
 static func resources_of(bag: Array) -> Dictionary:

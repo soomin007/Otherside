@@ -18,6 +18,8 @@ static var FOOD_EVERY: int = 2         ## 식량은 이 걸음 수마다 1 소�
 static var GAP_MIN: int = 2            ## 엣지 안 일반 상황 최소 간격 (걸음)
 static var GAP_MAX: int = 4            ## 엣지 안 일반 상황 최대 간격 (걸음)
 static var EDGE_LEN: int = 5           ## 노드 사이 한 엣지의 걸음 수 (임시 고정 — 다음에 노드 간 거리로)
+static var WEIGHT_FREE: int = 12       ## 이 무게까지는 무료(물 소모 안 늘어남)
+static var WEIGHT_STEP: int = 4        ## 초과 무게 이만큼마다 걸음당 물 +1 (무거운 짐 = 목마름)
 
 ## 남길 때 잃는 양 = 다음 원정대가 줍기로 얻는 양(Situations.pickup_trace 와 대칭). 물건 하나 = 그만큼의 희생.
 const LEAVE_COST: Dictionary = {"water": 4, "food": 3, "shelter": 1, "rope": 1}
@@ -31,6 +33,7 @@ var bequeathed: bool = false          ## 이번 원정에 "남기기"를 이미 
 var current_node: String = ""         ## 지금 서 있는 노드(지도 복귀의 기준)
 var vocation_id: String = ""          ## 이번 원정 대장의 직능 id(저장·표시용, Vocations)
 var _vocation: Dictionary = {}        ## 직능 정의 — 효과 파라미터의 출처(생성자에서 로드)
+var carry_weight: int = 0             ## 가방 총 무게(무거우면 물 소모↑). Loadout 이 주입, 기본 0=무게 무시.
 
 var rng := RandomNumberGenerator.new()
 var _last_situation_id: String = ""
@@ -44,9 +47,10 @@ var _edge_len: int = 0
 
 ## bridged_nodes/persist_flags/pickup_traces = 과거 원정에서 누적된 영속 데이터(GameState 주입). core 는 GameState 미참조(순수성).
 ## voc_id = 이번 원정 대장의 직능(Vocations). 기본 "" = 평범(효과 없음) → 기존 호출부(4인자)를 안 깨뜨린다.
-func _init(starting: Dictionary = {}, bridged_nodes: Array = [], persist_flags: Array = [], pickup_traces: Dictionary = {}, voc_id: String = "") -> void:
+func _init(starting: Dictionary = {}, bridged_nodes: Array = [], persist_flags: Array = [], pickup_traces: Dictionary = {}, voc_id: String = "", weight: int = 0) -> void:
 	resources = starting.duplicate()
 	vocation_id = voc_id
+	carry_weight = weight
 	_vocation = Vocations.by_id(voc_id)
 	# 직능 시작 보너스(짐꾼 등) — 시작 자원에 1회 가산.
 	var start_bonus: Dictionary = _vocation.get("start_bonus", {})
@@ -67,7 +71,8 @@ func get_res(key: String) -> int:
 ## 직능: 길잡이는 곡선 완화(desolation_bonus), 짐꾼은 무거워 기본 소모 +1(water_per_step_bonus).
 func water_cost() -> int:
 	var deso: int = DESOLATION_EVERY + int(_vocation.get("desolation_bonus", 0))
-	return WATER_PER_STEP + int(_vocation.get("water_per_step_bonus", 0)) + int(leg / maxi(1, deso))
+	var heavy: int = maxi(0, carry_weight - WEIGHT_FREE) / maxi(1, WEIGHT_STEP)  # 무거운 짐 → 걸음당 물↑
+	return WATER_PER_STEP + int(_vocation.get("water_per_step_bonus", 0)) + heavy + int(leg / maxi(1, deso))
 
 func is_bridged(node_id: String) -> bool:
 	return _bridged.has(node_id)

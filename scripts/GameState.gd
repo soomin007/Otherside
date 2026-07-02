@@ -66,8 +66,8 @@ func begin_run_in_place() -> void:
 	begin_run_with(START_RESOURCES)
 
 ## 가방에서 고른 시작 자원으로 새 원정을 만든다 (마을/Loadout 에서 호출). START_RESOURCES 대체.
-func begin_run_with(resources: Dictionary, name: String = "", voc_id: String = "") -> void:
-	current_run = ExpeditionRun.new(resources, bridged_nodes(), flags, pickup_traces_by_node(), voc_id)
+func begin_run_with(resources: Dictionary, name: String = "", voc_id: String = "", carry_weight: int = 0) -> void:
+	current_run = ExpeditionRun.new(resources, bridged_nodes(), flags, pickup_traces_by_node(), voc_id, carry_weight)
 	expedition_count += 1
 	# 이번 원정대 이름 — 지정 없으면 랜덤(begin_run_in_place·디버그 진입 등). 인덱스 = 회차-1 로 정렬.
 	var nm: String = name
