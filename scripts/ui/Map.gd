@@ -6,7 +6,7 @@ extends Control
 ## 이동 중 자잘한 상황·랜드마크 단면 탐색·지형 비주얼은 다음 단계.
 
 const TOP_Y: float = 140.0   ## 제목 + 자원 HUD 아래(지도 시작 y)
-const BOT_Y: float = 110.0
+const BOT_Y: float = 156.0   ## 하단 요소(안내·남기기 버튼·통계 라벨)가 다 들어가게 + 웹 주소창 여유
 const NODE_R: float = 13.0
 const STEP_INTERVAL: float = 0.28  ## 이동 한 걸음의 시간(초)
 

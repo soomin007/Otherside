@@ -60,7 +60,7 @@ func _show_main() -> void:
 
 	_content.add_child(UITheme.make_label("설정", UITheme.FS_H1, UITheme.FG, false))
 	_content.add_child(UITheme.make_label(
-		"원정 %d째 · 흔적 %d · 죽은 자리 %d" % [GameState.expedition_count, GameState.traces.size(), GameState.deaths.size()],
+		"원정 %d회 · 흔적 %d · 죽은 자리 %d" % [GameState.expedition_count, GameState.traces.size(), GameState.deaths.size()],
 		UITheme.FS_SMALL, UITheme.MUTED, false))
 	_content.add_child(UITheme.make_hairline(HORIZON, 2.0))  # 모래 지평선 (시그니처)
 

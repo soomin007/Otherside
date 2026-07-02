@@ -22,6 +22,7 @@ GameState="*res://scripts/GameState.gd"
 Debug="*res://scripts/ui/DebugOverlay.gd"
 Bookmark="*res://scripts/ui/Bookmark.gd"
 Tutorial="*res://scripts/ui/Tutorial.gd"
+Fullscreen="*res://scripts/ui/Fullscreen.gd"
 
 [gui]
 

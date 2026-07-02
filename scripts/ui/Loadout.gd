@@ -98,6 +98,10 @@ func _show_step(n: int) -> void:
 		_build_step1()
 	else:
 		_build_step2()
+	# 웹 브라우저 주소창이 하단을 가려도 마지막 버튼까지 스크롤로 도달하도록 여유(전체화면 실패 대비).
+	var tail := Control.new()
+	tail.custom_minimum_size = Vector2(0, UITheme.SAFE * 2.5)
+	_col.add_child(tail)
 
 ## 절차적 초상(Figures) — 단계 상단에 얹는다.
 func _portrait(kind: String, h: float) -> Figures:
@@ -210,7 +214,7 @@ func _build_step2() -> void:
 	var back := UITheme.make_button("← 뒤로", false)
 	back.pressed.connect(_show_step.bind(1))
 	row.add_child(back)
-	_depart_btn = UITheme.make_button("떠난다")
+	_depart_btn = UITheme.make_button("떠난다", false)  # 뒤로 버튼과 같은 크기(혼자 커 보이던 것 통일)
 	_depart_btn.pressed.connect(_depart)
 	row.add_child(_depart_btn)
 	_col.add_child(row)
