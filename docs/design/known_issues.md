@@ -70,3 +70,4 @@
 - **증상:** push 후 웹 배포가 `Timeout reached, aborting`(Pages `deployment_queued` 에서 멈춤). (2026-07-02)
   **원인:** 짧은 간격으로 여러 번 push 하면 GitHub Pages 배포가 큐에 쌓여 concurrency 로 서로 경합·취소/타임아웃. **빌드 실패가 아니라 배포 대기 실패.**
   **방지:** 커밋을 **몰아서 한 번에 push**(코드·문서·세션로그를 연달아 개별 push 하지 말 것). 실패해도 다음 성공 배포가 최신 커밋을 통째로 배포하므로 최종 상태는 대개 정상. 빌드 자체가 ~19분(폰트·에셋) 걸리니 재확인은 배포 완료 후. `gh run list` 로 최신 success 커밋 확인.
+  **근본 해결(2026-07-03):** `deploy.yml` concurrency 를 `cancel-in-progress: true` 로 변경 — 새 배포가 시작되면 진행 중인 이전 배포를 취소하고 **최신만 완주**. 다중 세션/연속 push 경합("Deployment failed, try again later") 실패를 제거한다. 중간 커밋 변경은 최신에 포함되어 손실 없음. 실패 시 즉효는 `gh run rerun <id> --failed`(배포 단계만 재시도 — build artifact 재사용, 대개 성공).
