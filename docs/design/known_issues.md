@@ -64,3 +64,9 @@
 - **증상:** 런타임에 `Trying to assign an array of type "Array" to a variable of type "Array[T]"`.
   **원인:** Dictionary/`Dictionary.get`/JSON 파싱에서 나온 untyped Array 를 `Array[String]` 등에 직접 대입.
   **방지:** `for` 루프로 요소별 `append(T(value))`. 예: `TraceData.from_dict` 의 tags 복원 참고.
+
+## 배포 큐 / 타임아웃
+
+- **증상:** push 후 웹 배포가 `Timeout reached, aborting`(Pages `deployment_queued` 에서 멈춤). (2026-07-02)
+  **원인:** 짧은 간격으로 여러 번 push 하면 GitHub Pages 배포가 큐에 쌓여 concurrency 로 서로 경합·취소/타임아웃. **빌드 실패가 아니라 배포 대기 실패.**
+  **방지:** 커밋을 **몰아서 한 번에 push**(코드·문서·세션로그를 연달아 개별 push 하지 말 것). 실패해도 다음 성공 배포가 최신 커밋을 통째로 배포하므로 최종 상태는 대개 정상. 빌드 자체가 ~19분(폰트·에셋) 걸리니 재확인은 배포 완료 후. `gh run list` 로 최신 success 커밋 확인.
