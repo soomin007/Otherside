@@ -23,6 +23,7 @@ var flags: Array = []  ## 영속 플래그(self-async). choice 의 sets_persist 
 var visited_nodes: Array = []  ## 방문한 노드 id (영속). 지도 안개 — 가본 곳 + 그 인접만 보인다(원정마다 더 드러남).
 var opening_seen: bool = false ## 오프닝 서사를 봤나 (영속). 첫 플레이만 자동 재생, 이후 스킵.
 var record_seen: bool = false  ## 시장이 원정 기록지를 건넸나 (영속). give_record 로 켜면 책갈피(Bookmark)가 상시 뜬다.
+var controls_tutorial_seen: bool = false ## 첫 원정 조작 오버레이 튜토리얼을 봤나 (영속). Tutorial autoload 자동재생 게이트.
 var expedition_names: Array = [] ## 원정별 이름 (인덱스 = 회차-1, 영속). 랜덤(ExpeditionNamer) 또는 직접 입력(Loadout).
 
 # --- 현재 원정 한정 상태 (죽으면 리셋) ---
@@ -94,6 +95,12 @@ func current_expedition_name() -> String:
 func give_record() -> void:
 	if not record_seen:
 		record_seen = true
+		save_game()
+
+## 첫 원정 조작 오버레이 튜토리얼을 봤다고 기록 (영속). Tutorial 이 완료/스킵 시 호출.
+func mark_controls_tutorial_seen() -> void:
+	if not controls_tutorial_seen:
+		controls_tutorial_seen = true
 		save_game()
 
 ## 지도에서 고른 노드로 향하기 시작한다(엣지 시작, 씬 전환 없음). 마커 이동·소모는 Map 이 처리한다.
@@ -230,6 +237,7 @@ func save_game() -> void:
 		"visited_nodes": visited_nodes,
 		"opening_seen": opening_seen,
 		"record_seen": record_seen,
+		"controls_tutorial_seen": controls_tutorial_seen,
 		"expedition_names": expedition_names,
 		"seen_choices": seen_choices,
 	}
@@ -260,6 +268,7 @@ func load_game() -> void:
 	visited_nodes = data.get("visited_nodes", [])
 	opening_seen = bool(data.get("opening_seen", false))
 	record_seen = bool(data.get("record_seen", false))
+	controls_tutorial_seen = bool(data.get("controls_tutorial_seen", false))
 	expedition_names = data.get("expedition_names", [])
 	seen_choices = data.get("seen_choices", {})
 
@@ -272,6 +281,7 @@ func reset_save() -> void:
 	visited_nodes = []
 	opening_seen = false
 	record_seen = false
+	controls_tutorial_seen = false
 	expedition_names = []
 	current_run = null
 	seen_choices.clear()
