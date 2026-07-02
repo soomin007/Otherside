@@ -138,6 +138,25 @@ plain transparent background, soft light, no text, no ui.
 ```
 **권장 크기:** 각 ~800×1000(초상), 배낭은 ~800×800. PNG 투명.
 
+### 3d. 가방 준비 화면 배경 (Loadout — UI 뒤에 깔림)
+
+**용도:** 마을 준비(`Loadout`) 화면의 UI 컬럼 뒤 배경. 지금은 어두운 세로 띠(`ColorRect`)로 **가독성만** 확보해 뒀다 — 이 이미지로 교체하면 "책상에서 배낭을 챙긴다"는 장면이 산다. 3c(투명 배경 흉상 초상)와 달리 **불투명 배경**이며, 초상이 아니라 **장면(scene)**이다.
+
+**핵심 제약:** UI(원정대 이름·직능·도구·가방 칸·버튼)가 위에 얹히고 스크롤된다 → **중앙~상단을 어둡고 비게** 두어 글씨가 읽히게. 배낭·물품·불빛은 **가장자리·하단**에.
+
+**구도:** 세로(모바일). 위에서 비스듬히 내려다본 낡은 나무 책상, 그 위에 펼쳐진 원정 배낭과 흩어놓은 물품(물통·마른 식량·로프·부싯돌·접은 천막). 한쪽에서 오는 램프 곁불. 중앙은 UI 자리라 비교적 어둡고 비움.
+
+```
+Top-down slightly oblique view of a worn wooden desk at night, an open expedition backpack of
+leather and canvas laid out, supplies scattered around the edges (waterskins, dried food, a coil of
+rope, a flint, a folded tarp), warm lantern glow from one side, the center and upper area kept dark
+and empty as negative space for UI, muted sand and sepia palette, deep shadows, dusty,
+painterly semi-realistic, cinematic soft light, melancholic quiet mood, low saturation,
+no text, no ui, no people, vertical composition.
+```
+**네거티브:** 공통 + `bright, cluttered center, busy middle, modern objects, plastic`.
+**권장 크기:** 세로 1080×1920. **중앙·상단은 확실히 어둡게**(그 위 글씨 대비 확보). 불투명 PNG.
+
 ---
 
 ## 4. 공통 배경 (타이틀 · 마을 · 오프닝)
@@ -211,6 +230,7 @@ painterly cinematic, melancholic, no text, no logo, negative space at top for a 
    - 단면: `scripts/ui/SectionArt.gd`의 `draw_section` → kind별 `Texture2D` blit.
    - 초상: `scripts/ui/Figures.gd` → `TextureRect`(kind별 텍스처)로 교체.
    - 배경: `scripts/ui/Backdrop.gd` → 배경 텍스처.
+   - 가방 화면 배경(§3d): `scripts/ui/Loadout.gd`의 어두운 띠(`ColorRect`, `_ready`) → 배경 `TextureRect`로 교체(컬럼 뒤에 깔고 `mouse_filter` IGNORE 유지, 중앙 어두운 이미지라 글씨 대비 유지).
 3. 웹 export 후 폰/시크릿 창에서 로딩·선명도 확인(경량 유지).
 
 > **팁:** 한 세트를 같은 생성기·같은 스타일 토큰·같은 시드 계열로 뽑아야 톤이 통일된다. 지도 → 단면 → 초상 순으로, §0 공통 토큰을 매번 붙일 것.
