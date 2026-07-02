@@ -13,9 +13,12 @@ permissions:
   pages: write
   id-token: write
 
+# 다중 세션/연속 push 시 배포 큐 경합("Deployment failed, try again later") 방지 —
+# 새 배포가 시작되면 진행 중인 이전 배포를 취소하고 최신만 완주시킨다.
+# 중간 커밋의 변경은 어차피 최신 커밋에 포함되므로 Pages 반영 결과는 동일(손실 없음).
 concurrency:
   group: "pages"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   GODOT_VERSION: 4.6-stable
