@@ -1,11 +1,31 @@
 class_name SectionArt
 extends RefCounted
 
-## 도착 노드 단면의 절차적 그림 (static draw 헬퍼) — 전부 draw_*, 웹 안전(셰이더/이미지 없음).
-## 양피지 판형(UITheme 팔레트) 위에 kind별 세피아 측단면. node_id 시드로 결정론(같은 노드 같은 그림).
+## 도착 노드 단면의 그림 (static draw 헬퍼) — 웹 안전(셰이더/GPUParticles 없음).
+## kind별 손그림 배경 텍스처(불투명)를 rect 에 얹는다. 로드 실패 시 절차적 세피아 측단면으로 fallback
+## (에셋 없어도 안 깨짐). node_id 시드는 fallback 실루엣의 결정론에만 쓴다(같은 노드 같은 그림).
 
-## 단면 배경(양피지) + 지면 + kind별 실루엣을 rect 안에 그린다.
+## kind → 단면 배경 이미지. 없는 kind 는 dunes(기본 사막)로 대체.
+const SECTION_PATHS: Dictionary = {
+	"start": "res://assets/arts/13_단면_마을.png",
+	"cache": "res://assets/arts/14_단면_폐허.png",
+	"blockage": "res://assets/arts/15_단면_갈라진바닥.png",
+	"storm": "res://assets/arts/16_단면_모래폭풍.png",
+	"end": "res://assets/arts/17_단면_재앙의자리.png",
+	"dunes": "res://assets/arts/18_단면_사막.png",
+}
+
+## kind → Texture2D 캐시(null 도 캐시 = 반복 로드 시도 방지). draw_section 이 매 프레임 불려도 1회만 로드.
+static var _tex_cache: Dictionary = {}
+
+## 단면 배경 + 지면 + kind별 실루엣을 rect 안에 그린다. 이미지 있으면 배경 텍스처, 없으면 절차적.
 static func draw_section(ci: CanvasItem, kind: String, rect: Rect2, seed_id: String) -> void:
+	var tex: Texture2D = _section_tex(kind)
+	if tex != null:
+		_draw_cover(ci, tex, rect)                      # 배경 이미지(종횡비 유지 cover)
+		ci.draw_rect(rect, UITheme.PAPER_EDGE, false, 3.0)  # 낡은 가장자리(양피지와 통일)
+		return
+	# fallback — 절차적 세피아 측단면(웹 안전, 에셋 없어도 안 깨짐).
 	ci.draw_rect(rect, UITheme.PAPER)
 	ci.draw_rect(rect, UITheme.PAPER_EDGE, false, 3.0)
 	var rng := RandomNumberGenerator.new()
@@ -19,6 +39,36 @@ static func draw_section(ci: CanvasItem, kind: String, rect: Rect2, seed_id: Str
 		"storm": _draw_storm(ci, rect, ground_y, rng)
 		"end": _draw_gate(ci, rect, ground_y, rng)
 		_: _draw_dunes(ci, rect, ground_y, rng)
+
+## kind 의 배경 텍스처(1회 로드 후 캐시). 미등록 kind 는 dunes 로.
+static func _section_tex(kind: String) -> Texture2D:
+	var key: String = kind if SECTION_PATHS.has(kind) else "dunes"
+	if _tex_cache.has(key):
+		return _tex_cache[key]
+	var path: String = str(SECTION_PATHS[key])
+	var tex: Texture2D = null
+	if ResourceLoader.exists(path):
+		tex = load(path)
+	_tex_cache[key] = tex
+	return tex
+
+## 텍스처를 rect 에 종횡비 유지로 꽉 채운다(cover — 넘치는 쪽을 잘라 여백/왜곡 없음).
+static func _draw_cover(ci: CanvasItem, tex: Texture2D, rect: Rect2) -> void:
+	var tw: float = float(tex.get_width())
+	var th: float = float(tex.get_height())
+	if tw <= 0.0 or th <= 0.0:
+		ci.draw_texture_rect(tex, rect, false)
+		return
+	var ra: float = rect.size.x / rect.size.y
+	var ta: float = tw / th
+	var src := Rect2(0.0, 0.0, tw, th)
+	if ta > ra:                                  # 이미지가 더 넓다 → 좌우를 잘라 세로 기준 맞춤
+		var sw: float = th * ra
+		src = Rect2((tw - sw) * 0.5, 0.0, sw, th)
+	else:                                        # 이미지가 더 높다 → 위아래를 잘라 가로 기준 맞춤
+		var sh: float = tw / ra
+		src = Rect2(0.0, (th - sh) * 0.5, tw, sh)
+	ci.draw_texture_rect_region(tex, rect, src)
 
 ## 지점 마커. state: 0=조사가능(붉은 링) 1=완료(체크·흐림) 2=잠김(예산0·흐림)
 static func draw_spot(ci: CanvasItem, font: Font, center: Vector2, label: String, state: int) -> void:

@@ -24,7 +24,7 @@
 | 10 | 아이콘 무너진 담 | §2 | ⬜ |
 | 11 | 아이콘 폭풍의 문 | §2 | ⬜ |
 | 12 | 아이콘 ??? (끝) | §2 | ⬜ |
-| 13~18 | 단면 배경 6종 (start/cache/blockage/storm/end/dunes) | §3 | ⬜ |
+| 13~18 | 단면 배경 6종 (start/cache/blockage/storm/end/dunes) | §3 | ✅ 완료 (불투명, `SectionArt.gd` 배선 — cover 맞춤 + 절차적 fallback) |
 | 19~21 | 초상 3종 (시장/대장/배낭) | §4 | ⬜ |
 | 22 | 가방 화면 배경 | §5 | ⬜ |
 | 23 | 공통 화면 배경 | §6 | ⬜ |
