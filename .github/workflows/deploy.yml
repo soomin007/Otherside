@@ -13,12 +13,13 @@ permissions:
   pages: write
   id-token: write
 
-# 다중 세션/연속 push 시 배포 큐 경합("Deployment failed, try again later") 방지 —
-# 새 배포가 시작되면 진행 중인 이전 배포를 취소하고 최신만 완주시킨다.
-# 중간 커밋의 변경은 어차피 최신 커밋에 포함되므로 Pages 반영 결과는 동일(손실 없음).
+# GitHub 공식 권장값: Pages 배포는 진행 중이면 **취소하지 않고 완주**시킨다(cancel-in-progress: false).
+# Pages 배포를 syncing 도중 취소하면 그 배포가 "Deployment failed, try again later" 로 죽고
+# 이후 배포까지 연쇄로 실패한다(2026-07-03 확인 — true 로 바꾼 뒤 모든 배포 실패). 큐가 쌓여도
+# 하나씩 완주하며, 중간 대기분은 최신만 남고 스킵되므로 손실 없음.
 concurrency:
   group: "pages"
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 env:
   GODOT_VERSION: 4.6-stable
