@@ -101,6 +101,7 @@ static func make_label(text: String, size: int = FS_BODY, color: Color = FG, cen
 	l.text = text
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
+	l.add_theme_constant_override("line_spacing", 8)  # 여러 줄 본문 줄간격 넉넉히(기본 3은 답답)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if center:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
