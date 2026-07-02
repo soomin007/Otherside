@@ -4,6 +4,7 @@ extends Control
 ## 모바일 우선: 중앙 컬럼에 큰 타이틀 + 풀폭 버튼. 사이즈·레이아웃은 UITheme.
 
 const SettingsPanel := preload("res://scripts/ui/SettingsPanel.gd")
+const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")  ## 영어 타이틀 전용(비문풍 세리프)
 
 var _stat_label: Label  # 데이터 초기화 후 갱신하려고 들고 있는다
 
@@ -14,6 +15,7 @@ func _ready() -> void:
 
 	var title := UITheme.make_label("See you on the other side", UITheme.FS_DISPLAY)
 	title.add_theme_color_override("font_color", UITheme.FG)
+	title.add_theme_font_override("font", EN_TITLE_FONT)  # 영어 세리프(Cinzel) — 밋밋한 기본 글씨체 대신
 	col.add_child(title)
 
 	col.add_child(UITheme.make_label(

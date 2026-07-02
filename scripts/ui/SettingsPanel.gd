@@ -72,6 +72,7 @@ func _show_main() -> void:
 	var vol := AppSettings.load_master_volume()
 	_vol_value = UITheme.make_label(_pct(vol), UITheme.FS_SMALL, UITheme.MUTED, false)
 	_vol_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_vol_value.autowrap_mode = TextServer.AUTOWRAP_OFF  # "50%" 가 좁은 폭에서 세로로 쪼개지지 않게(가로 유지)
 	srow.add_child(_vol_value)
 	_content.add_child(srow)
 

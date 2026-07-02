@@ -52,3 +52,7 @@ ACTIVE_WORK.md
 
 # Local Claude artifacts
 .claude/
+
+# 마루부리 폰트 zip 통째(사용자 배치) — Regular 만 assets/fonts/ 로 복사해 쓰고, 나머지 weight 는 리포 용량 위해 제외
+assets/fonts/TTF/
+assets/fonts/OTF/

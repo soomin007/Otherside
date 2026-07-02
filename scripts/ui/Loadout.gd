@@ -123,7 +123,8 @@ func _build_step1() -> void:
 	_name_edit.placeholder_text = "원정대 이름"
 	_name_edit.custom_minimum_size = Vector2(0, UITheme.BTN_H_SM)
 	_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_name_edit.add_theme_font_size_override("font_size", UITheme.FS_BODY)
+	_name_edit.add_theme_font_size_override("font_size", UITheme.FS_LABEL)  # 혼자 크던 것 다른 라벨과 맞춤
+	_name_edit.alignment = HORIZONTAL_ALIGNMENT_CENTER  # 가운데 정렬
 	_name_edit.text_changed.connect(_on_name_edited)
 	name_row.add_child(_name_edit)
 	var reroll := UITheme.make_button("다시 뽑기", false)
@@ -135,7 +136,8 @@ func _build_step1() -> void:
 	# 이번 대장의 특기(직능) — 매 원정 다른 사람이 간다. 고른 특기가 그 원정의 결을 바꾼다.
 	_col.add_child(UITheme.make_label("이번 대장의 특기", UITheme.FS_LABEL, UITheme.MUTED))
 	var voc := OptionButton.new()
-	voc.custom_minimum_size = Vector2(0, UITheme.BTN_H_SM)
+	voc.custom_minimum_size = Vector2(340, UITheme.BTN_H_SM)
+	voc.size_flags_horizontal = Control.SIZE_SHRINK_CENTER  # 컬럼 폭 다 채우지 말고 내용 폭 + 가운데(빈 공간 축소)
 	voc.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
 	var vids: Array = Vocations.ids()
 	for i in range(vids.size()):
@@ -150,7 +152,8 @@ func _build_step1() -> void:
 	# 챙길 도구 하나 — 가방 6칸과 별개(주머니). 특정 위기의 보험.
 	_col.add_child(UITheme.make_label("챙길 도구 하나 (주머니)", UITheme.FS_LABEL, UITheme.MUTED))
 	var tool := OptionButton.new()
-	tool.custom_minimum_size = Vector2(0, UITheme.BTN_H_SM)
+	tool.custom_minimum_size = Vector2(340, UITheme.BTN_H_SM)
+	tool.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	tool.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
 	tool.add_item("없음")
 	for i in range(Items.POUCH_TOOLS.size()):
@@ -182,7 +185,8 @@ func _build_step2() -> void:
 			continue  # 주머니 도구는 단계 1 "챙길 도구"에서 따로 고른다(가방 칸과 별개)
 		var start: Dictionary = item.get("start", {})
 		var btn := UITheme.make_button("%s  (%s)" % [str(item.get("label", "")), UITheme.effect_hint(start)], false)
-		btn.custom_minimum_size = Vector2(230, UITheme.BTN_H_SM)
+		btn.clip_text = false  # 긴 설명(말린 고기 등)이 박스 밖으로 잘리지 않게 — 내용 폭에 맞춘다
+		btn.custom_minimum_size = Vector2(0, UITheme.BTN_H_SM)  # 폭은 내용대로(HFlow 가 줄바꿈)
 		btn.pressed.connect(_add_item.bind(str(item.get("key", ""))))
 		desk.add_child(btn)
 	_col.add_child(desk)

@@ -25,7 +25,7 @@ Tutorial="*res://scripts/ui/Tutorial.gd"
 
 [gui]
 
-theme/custom_font="res://assets/fonts/NanumMyeongjo-Regular.ttf"
+theme/custom_font="res://assets/fonts/MaruBuri-Regular.ttf"
 theme/default_font_size=24
 
 [display]

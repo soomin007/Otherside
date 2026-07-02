@@ -42,8 +42,8 @@ const FS_LABEL: int = 22     ## 일반 라벨 / 보조 버튼
 const FS_SMALL: int = 18     ## 보조 설명
 const FS_TINY: int = 14      ## 지도 눈금 등 캔버스 미세 텍스트
 
-# --- 제목 폰트 (붓·손글씨 — 제목/타이틀 강조. 본문은 project.godot 의 명조) ---
-const TITLE_FONT: FontFile = preload("res://assets/fonts/NanumBrushScript-Regular.ttf")
+# --- 붓 폰트 (나눔손글씨 붓) — 지도 내용(지명 등) 전용. UI 제목엔 안 쓴다(본문·제목은 명조). ---
+const BRUSH_FONT: FontFile = preload("res://assets/fonts/NanumBrushScript-Regular.ttf")
 
 # --- 터치 / 레이아웃 ---
 const BTN_H: float = 76.0      ## 주요 버튼 높이
@@ -96,6 +96,27 @@ static func make_button(text: String, primary: bool = true) -> Button:
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.add_theme_font_size_override("font_size", FS_BODY if primary else FS_LABEL)
 	b.clip_text = true
+	# 불투명 면·테두리 — 어두운 배경(Backdrop) 위에서 배경이 비쳐 흐릿해 보이는 걸 막는다.
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = PANEL
+	sb.border_color = Color(SAND.r, SAND.g, SAND.b, 0.35)
+	sb.set_border_width_all(1)
+	sb.set_corner_radius_all(10)
+	sb.set_content_margin_all(10)
+	b.add_theme_stylebox_override("normal", sb)
+	var hov: StyleBoxFlat = sb.duplicate()
+	hov.bg_color = PANEL.lightened(0.06)
+	hov.border_color = SAND
+	b.add_theme_stylebox_override("hover", hov)
+	var pr: StyleBoxFlat = sb.duplicate()
+	pr.bg_color = PANEL.darkened(0.08)
+	b.add_theme_stylebox_override("pressed", pr)
+	var dis: StyleBoxFlat = sb.duplicate()
+	dis.bg_color = Color(PANEL.r, PANEL.g, PANEL.b, 0.55)
+	dis.border_color = Color(SAND.r, SAND.g, SAND.b, 0.14)
+	b.add_theme_stylebox_override("disabled", dis)
+	b.add_theme_color_override("font_color", FG)
+	b.add_theme_color_override("font_disabled_color", Color(FG.r, FG.g, FG.b, 0.4))
 	return b
 
 ## 자동 줄바꿈 라벨. 컬럼/카드 안에 넣으면 그 폭에서 줄바꿈된다.
@@ -105,8 +126,6 @@ static func make_label(text: String, size: int = FS_BODY, color: Color = FG, cen
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
 	l.add_theme_constant_override("line_spacing", 8)  # 여러 줄 본문 줄간격 넉넉히(기본 3은 답답)
-	if size >= FS_H1:
-		l.add_theme_font_override("font", TITLE_FONT)  # 제목·타이틀(FS_H1 이상)은 붓·손글씨로 강조
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if center:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
