@@ -22,6 +22,8 @@ var deaths: Array = []         ## 죽은 자리 기록 — 지도 표식용
 var flags: Array = []  ## 영속 플래그(self-async). choice 의 sets_persist 가 쌓여 다음 원정 변형 이벤트를 깬다.
 var visited_nodes: Array = []  ## 방문한 노드 id (영속). 지도 안개 — 가본 곳 + 그 인접만 보인다(원정마다 더 드러남).
 var opening_seen: bool = false ## 오프닝 서사를 봤나 (영속). 첫 플레이만 자동 재생, 이후 스킵.
+var record_seen: bool = false  ## 시장이 원정 기록지를 건넸나 (영속). give_record 로 켜면 책갈피(Bookmark)가 상시 뜬다.
+var expedition_names: Array = [] ## 원정별 이름 (인덱스 = 회차-1, 영속). 랜덤(ExpeditionNamer) 또는 직접 입력(Loadout).
 
 # --- 현재 원정 한정 상태 (죽으면 리셋) ---
 ## 초기 자원 — 임시치. 자원 = 수명 (남기면 그만큼 잃는다). 밸런스는 폰 테스트로 검증 예정.
@@ -61,11 +63,37 @@ func begin_run_in_place() -> void:
 	begin_run_with(START_RESOURCES)
 
 ## 가방에서 고른 시작 자원으로 새 원정을 만든다 (마을/Loadout 에서 호출). START_RESOURCES 대체.
-func begin_run_with(resources: Dictionary) -> void:
+func begin_run_with(resources: Dictionary, name: String = "") -> void:
 	current_run = ExpeditionRun.new(resources, bridged_nodes(), flags, pickup_traces_by_node())
 	run_seen_choices.clear()  # 새 원정 = blind 백지 (가보기 전엔 다시 모른다)
 	expedition_count += 1
+	# 이번 원정대 이름 — 지정 없으면 랜덤(begin_run_in_place·디버그 진입 등). 인덱스 = 회차-1 로 정렬.
+	var nm: String = name
+	if nm == "":
+		var rng := RandomNumberGenerator.new()
+		rng.randomize()
+		nm = ExpeditionNamer.random(rng)
+	expedition_names.append(nm)
 	_mark_visited(MapGraph.START_ID)
+
+## n번째(1-based) 원정의 이름. 없으면(기존 세이브 등) 기본 문구.
+func expedition_name(n: int) -> String:
+	var i: int = n - 1
+	if i >= 0 and i < expedition_names.size():
+		var nm: String = str(expedition_names[i])
+		if nm != "":
+			return nm
+	return "이름 없는 원정대"
+
+## 지금 진행 중(또는 마지막) 원정의 이름.
+func current_expedition_name() -> String:
+	return expedition_name(expedition_count)
+
+## 시장이 원정 기록지를 건넨다 (첫 원정) — 이후 책갈피(Bookmark)가 상시 뜬다.
+func give_record() -> void:
+	if not record_seen:
+		record_seen = true
+		save_game()
 
 ## 지도에서 고른 노드로 향하기 시작한다(엣지 시작, 씬 전환 없음). 마커 이동·소모는 Map 이 처리한다.
 func begin_travel(target_id: String) -> void:
@@ -200,6 +228,8 @@ func save_game() -> void:
 		"flags": flags,
 		"visited_nodes": visited_nodes,
 		"opening_seen": opening_seen,
+		"record_seen": record_seen,
+		"expedition_names": expedition_names,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
@@ -227,6 +257,8 @@ func load_game() -> void:
 	flags = data.get("flags", [])
 	visited_nodes = data.get("visited_nodes", [])
 	opening_seen = bool(data.get("opening_seen", false))
+	record_seen = bool(data.get("record_seen", false))
+	expedition_names = data.get("expedition_names", [])
 
 ## 세이브 초기화 (새 세계). 빈 상태로 덮어쓴다 — 웹/데스크톱 모두 안전.
 func reset_save() -> void:
@@ -236,6 +268,8 @@ func reset_save() -> void:
 	flags = []
 	visited_nodes = []
 	opening_seen = false
+	record_seen = false
+	expedition_names = []
 	current_run = null
 	run_seen_choices.clear()
 	save_game()
