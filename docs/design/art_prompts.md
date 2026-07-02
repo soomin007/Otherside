@@ -28,6 +28,14 @@ people faces in focus, text, watermark, signature, ui elements, monster, creatur
 
 **인물 원칙:** 얼굴을 특정하지 않는다(매 원정 *다른 사람*이 감 — 익명성이 정서). 후드·역광·실루엣·먼 거리로 얼굴을 흐린다.
 
+**⚠️ AI 생성기 가짜 투명·텍스트 함정 (2026-07-02 실측 — DALL·E/GPT 뽑은 22장 전부 걸림):**
+- **가짜 투명:** "transparent background"를 요청해도 생성기가 투명을 못 만들고 **체커보드 격자를 *그림으로* 그려 넣는다**. 파일은 RGBA 라 투명처럼 보이지만 알파가 전부 불투명(255) → 게임에 얹으면 격자가 그대로 보인다.
+- **텍스트 박힘:** "no text"를 무시하고 제목·라벨(예: "마을", "시장")을 이미지에 그려 넣는다.
+- **검증:** Godot `Image.detect_alpha() == ALPHA_NONE`(투명 픽셀 0) 이면 가짜 투명. 코너 픽셀 알파가 1.0 이면 불투명 배경.
+- **대응:**
+  - *투명 필요*(아이콘 §1B·초상 §3): ① 배경 제거 도구(remove.bg 무료·Photoshop·GIMP 매직완드)로 실제 알파화, 또는 ② 프롬프트를 `solid pure white background, no checkerboard, no text, no labels` 로 뽑아 흰색을 color key 로 투명화. 박힌 텍스트는 크롭.
+  - *불투명 OK*(양피지 §1A·단면 §2·배경 §4): 투명 불필요 — 박힌 텍스트만 크롭하면 쓸 수 있다. 해상도는 권장치 이상으로 다시 뽑는 게 좋다.
+
 ---
 
 ## 1. 지도 (가장 중요 — 위치·거리·분위기)
