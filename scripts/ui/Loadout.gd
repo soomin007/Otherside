@@ -1,8 +1,11 @@
 extends Control
 
-## 마을 · 원정 준비 (가방 꾸리기) — 매 원정 출발 전. 제한된 칸(6)에 책상 물품을 골라 담아 출발한다.
-## 담은 물품 합산 = 시작 자원(고정 START_RESOURCES 대체). 첫 원정엔 시장 NPC 가 규칙을 안내한다.
-## 모바일 우선: 중앙 컬럼, 큰 버튼, 탭으로 담고 뺀다.
+## 마을 · 원정 준비 — 매 원정 출발 전. 두 단계로 나눈다:
+##  1) 원정대를 꾸린다 — 이름 + 대장 특기(직능) + 챙길 도구 하나. (대장 초상)
+##  2) 배낭을 챙긴다 — 6칸 가방에 책상 물품을 담는다(합산 = 시작 자원). (배낭 초상)
+## 단계를 나눠 각 화면이 짧고, 스크롤 컨테이너로 감싸 넘쳐도 떠나기 버튼까지 도달한다(이전엔 세로 초과로 잘림).
+## 첫 원정엔 시장 NPC(초상)가 규칙을 안내하고 기록지를 건넨다.
+## 모바일 우선: 중앙 최대폭 컬럼, 큰 버튼, 탭.
 
 const BAG_SLOTS: int = 6
 const PRESET: Array = ["water", "water", "food", "food", "rope", "shelter"]  ## 표준 구성 (아이템 정의는 core/Items.gd)
@@ -17,20 +20,21 @@ const MARKET_PAGES: Array = [
 	"시장: 이 기록지를 가져가시오. 떠난 원정대의 이야기가 여기 적힐 거요. 화면 구석 책갈피에서 언제든 펴 보시오.",
 ]
 
-var _bag: Array = []   ## 담은 물품 key 배열(최대 BAG_SLOTS)
-var _bag_box: HFlowContainer
-var _preview: Label
-var _depart_btn: Button
+var _step: int = 1
+var _col: VBoxContainer            ## 단계 콘텐츠 컨테이너(스크롤 안). _show_step 이 자식을 갈아끼운다.
 
-var _pending_name: String = ""   ## 이번 원정대 이름 — 랜덤 초기값, 편집·다시 뽑기 가능. _depart 에서 begin_run_with 로 넘긴다.
-var _pending_vocation: String = ""  ## 이번 대장의 직능 id (기본 "" = 평범). _depart 에서 넘긴다.
-var _voc_option: OptionButton
-var _voc_desc: Label
-var _pending_tool: String = ""      ## 주머니에 챙긴 도구 하나 (기본 "" = 없음). 가방 6칸과 별개.
-var _tool_option: OptionButton
-var _name_edit: LineEdit
+var _bag: Array = []               ## 담은 물품 key 배열(최대 BAG_SLOTS) — 단계 넘어 유지
+var _bag_box: HFlowContainer       ## step2 위젯
+var _preview: Label                ## step2 위젯
+var _depart_btn: Button            ## step2 위젯
+
+var _pending_name: String = ""     ## 이번 원정대 이름 — 랜덤 초기값, 편집·다시 뽑기 가능
+var _pending_vocation: String = "" ## 이번 대장의 직능 id (기본 "" = 평범)
+var _pending_tool: String = ""     ## 주머니 도구 하나 (기본 "" = 없음). 가방 6칸과 별개
+var _voc_desc: Label               ## step1 위젯 (직능 설명 갱신)
+var _name_edit: LineEdit           ## step1 위젯
 var _rng := RandomNumberGenerator.new()
-var _market_panel: Control       ## 첫 원정 시장 인트로 모달(있을 때만)
+var _market_panel: Control         ## 첫 원정 시장 인트로 모달(있을 때만)
 var _market_label: Label
 var _market_idx: int = 0
 
@@ -39,14 +43,66 @@ func _ready() -> void:
 	var bg := Backdrop.new()  # 사막 밤 + 마을 실루엣(맨 뒤)
 	bg.scene_kind = "village"
 	add_child(bg)
-	var col := UITheme.build_column(self, 14)
 
-	col.add_child(UITheme.make_label("마을 · 원정 준비", UITheme.FS_H1))
-	col.add_child(UITheme.make_label(_npc_line(), UITheme.FS_SMALL, UITheme.SAND))
+	# 스크롤 컬럼 — 콘텐츠가 화면보다 길어도 아래 버튼까지 스크롤로 도달(중앙 최대폭 정렬).
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, int(UITheme.PAD))
+	add_child(margin)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	margin.add_child(scroll)
+	var center := CenterContainer.new()
+	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	center.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.add_child(center)
+	_col = VBoxContainer.new()
+	_col.add_theme_constant_override("separation", 14)
+	_col.custom_minimum_size = Vector2(UITheme.COLUMN_W, 0)
+	center.add_child(_col)
+
+	_pending_name = ExpeditionNamer.random(_rng)
+	_bag = PRESET.duplicate()  # 처음엔 표준 구성(빠른 출발)
+	_show_step(1)
+
+	# 첫 원정이면 시장이 규칙을 쭉 설명하고 기록지를 건넨다(책갈피가 켜진다).
+	if GameState.expedition_count == 0 and not GameState.record_seen:
+		_show_market_intro()
+
+## 단계 전환 — 컬럼 자식을 비우고 그 단계 UI 를 다시 짓는다. _pending_* 은 멤버라 단계 넘어 유지된다.
+func _show_step(n: int) -> void:
+	_step = n
+	_bag_box = null
+	_preview = null
+	_depart_btn = null
+	_name_edit = null
+	_voc_desc = null
+	for c in _col.get_children():
+		_col.remove_child(c)
+		c.queue_free()
+	if n == 1:
+		_build_step1()
+	else:
+		_build_step2()
+
+## 절차적 초상(Figures) — 단계 상단에 얹는다.
+func _portrait(kind: String, h: float) -> Figures:
+	var fig := Figures.new()
+	fig.kind = kind
+	fig.custom_minimum_size = Vector2(0, h)
+	fig.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return fig
+
+# --- 단계 1: 원정대를 꾸린다 ---
+
+func _build_step1() -> void:
+	_col.add_child(_portrait("leader", 150.0))
+	_col.add_child(UITheme.make_label("원정대를 꾸린다", UITheme.FS_H1))
+	_col.add_child(UITheme.make_label(_npc_line(), UITheme.FS_SMALL, UITheme.SAND))
 
 	# 원정대 이름 — 랜덤 초기값 + 다시 뽑기 + 직접 입력(애착·서사).
-	_pending_name = ExpeditionNamer.random(_rng)
-	col.add_child(UITheme.make_label("원정대 이름", UITheme.FS_LABEL, UITheme.MUTED))
+	_col.add_child(UITheme.make_label("원정대 이름", UITheme.FS_LABEL, UITheme.MUTED))
 	var name_row := HBoxContainer.new()
 	name_row.add_theme_constant_override("separation", 10)
 	_name_edit = LineEdit.new()
@@ -61,73 +117,93 @@ func _ready() -> void:
 	reroll.custom_minimum_size = Vector2(160, UITheme.BTN_H_SM)
 	reroll.pressed.connect(_reroll_name)
 	name_row.add_child(reroll)
-	col.add_child(name_row)
+	_col.add_child(name_row)
 
 	# 이번 대장의 특기(직능) — 매 원정 다른 사람이 간다. 고른 특기가 그 원정의 결을 바꾼다.
-	col.add_child(UITheme.make_label("이번 대장의 특기", UITheme.FS_LABEL, UITheme.MUTED))
-	_voc_option = OptionButton.new()
-	_voc_option.custom_minimum_size = Vector2(0, UITheme.BTN_H_SM)
-	_voc_option.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
-	for vid in Vocations.ids():
-		_voc_option.add_item(Vocations.name_of(str(vid)))
-	_voc_option.item_selected.connect(_on_voc_selected)
-	col.add_child(_voc_option)
-	_voc_desc = UITheme.make_label(str(Vocations.by_id("").get("desc", "")), UITheme.FS_SMALL, UITheme.SAND)
-	col.add_child(_voc_desc)
+	_col.add_child(UITheme.make_label("이번 대장의 특기", UITheme.FS_LABEL, UITheme.MUTED))
+	var voc := OptionButton.new()
+	voc.custom_minimum_size = Vector2(0, UITheme.BTN_H_SM)
+	voc.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
+	var vids: Array = Vocations.ids()
+	for i in range(vids.size()):
+		voc.add_item(Vocations.name_of(str(vids[i])))
+		if str(vids[i]) == _pending_vocation:
+			voc.select(i)
+	voc.item_selected.connect(_on_voc_selected)
+	_col.add_child(voc)
+	_voc_desc = UITheme.make_label(str(Vocations.by_id(_pending_vocation).get("desc", "")), UITheme.FS_SMALL, UITheme.SAND)
+	_col.add_child(_voc_desc)
 
-	# 챙길 도구 하나 — 가방 6칸과 별개(주머니). 특정 위기의 보험. 60초식 "이 위기엔 이 도구".
-	col.add_child(UITheme.make_label("챙길 도구 하나 (주머니)", UITheme.FS_LABEL, UITheme.MUTED))
-	_tool_option = OptionButton.new()
-	_tool_option.custom_minimum_size = Vector2(0, UITheme.BTN_H_SM)
-	_tool_option.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
-	_tool_option.add_item("없음")
-	for tk in Items.POUCH_TOOLS:
-		_tool_option.add_item(Items.label_of(str(tk)))
-	_tool_option.item_selected.connect(_on_tool_selected)
-	col.add_child(_tool_option)
+	# 챙길 도구 하나 — 가방 6칸과 별개(주머니). 특정 위기의 보험.
+	_col.add_child(UITheme.make_label("챙길 도구 하나 (주머니)", UITheme.FS_LABEL, UITheme.MUTED))
+	var tool := OptionButton.new()
+	tool.custom_minimum_size = Vector2(0, UITheme.BTN_H_SM)
+	tool.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
+	tool.add_item("없음")
+	for i in range(Items.POUCH_TOOLS.size()):
+		var tk: String = str(Items.POUCH_TOOLS[i])
+		tool.add_item(Items.label_of(tk))
+		if tk == _pending_tool:
+			tool.select(i + 1)
+	tool.item_selected.connect(_on_tool_selected)
+	_col.add_child(tool)
 
-	col.add_child(UITheme.make_label("책상에서 챙긴다", UITheme.FS_LABEL, UITheme.MUTED))
+	var nxt := UITheme.make_button("배낭 챙기기 →")
+	nxt.pressed.connect(_show_step.bind(2))
+	_col.add_child(nxt)
+
+# --- 단계 2: 배낭을 챙긴다 ---
+
+func _build_step2() -> void:
+	_col.add_child(_portrait("pack", 130.0))
+	_col.add_child(UITheme.make_label("배낭을 챙긴다", UITheme.FS_H1))
+	_col.add_child(UITheme.make_label("가방은 여섯 칸. 담은 만큼이 이번 원정의 목숨이다.", UITheme.FS_SMALL, UITheme.MUTED))
+
+	_col.add_child(UITheme.make_label("책상에서 챙긴다", UITheme.FS_LABEL, UITheme.MUTED))
 	var desk := HFlowContainer.new()
 	desk.add_theme_constant_override("h_separation", 10)
 	desk.add_theme_constant_override("v_separation", 10)
 	for it in Items.CATALOG:
 		var item: Dictionary = it
 		if str(item.get("key", "")) in Items.POUCH_TOOLS:
-			continue  # 주머니 도구는 위 "챙길 도구"에서 따로 하나 고른다(가방 칸과 별개)
+			continue  # 주머니 도구는 단계 1 "챙길 도구"에서 따로 고른다(가방 칸과 별개)
 		var start: Dictionary = item.get("start", {})
 		var btn := UITheme.make_button("%s  (%s)" % [str(item.get("label", "")), UITheme.effect_hint(start)], false)
 		btn.custom_minimum_size = Vector2(230, UITheme.BTN_H_SM)
 		btn.pressed.connect(_add_item.bind(str(item.get("key", ""))))
 		desk.add_child(btn)
-	col.add_child(desk)
+	_col.add_child(desk)
 
-	col.add_child(UITheme.make_label("가방  (탭해서 빼기)", UITheme.FS_LABEL, UITheme.MUTED))
+	_col.add_child(UITheme.make_label("가방  (탭해서 빼기)", UITheme.FS_LABEL, UITheme.MUTED))
 	_bag_box = HFlowContainer.new()
 	_bag_box.add_theme_constant_override("h_separation", 8)
 	_bag_box.add_theme_constant_override("v_separation", 8)
-	col.add_child(_bag_box)
+	_col.add_child(_bag_box)
 
 	_preview = UITheme.make_label("", UITheme.FS_LABEL, UITheme.FG)
-	col.add_child(_preview)
+	_col.add_child(_preview)
 
 	var preset_btn := UITheme.make_button("표준 구성으로 채우기", false)
 	preset_btn.pressed.connect(_apply_preset)
-	col.add_child(preset_btn)
+	_col.add_child(preset_btn)
 
+	# 뒤로(단계 1) + 떠난다 — 스크롤 안이라 세로가 길어도 도달한다.
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	var back := UITheme.make_button("← 뒤로", false)
+	back.pressed.connect(_show_step.bind(1))
+	row.add_child(back)
 	_depart_btn = UITheme.make_button("떠난다")
 	_depart_btn.pressed.connect(_depart)
-	col.add_child(_depart_btn)
+	row.add_child(_depart_btn)
+	_col.add_child(row)
 
-	_apply_preset()  # 처음엔 표준 구성으로 채워둔다(빠른 출발)
+	_refresh()
 
-	# 첫 원정이면 시장이 규칙을 쭉 설명하고 기록지를 건넨다(책갈피가 켜진다).
-	if GameState.expedition_count == 0 and not GameState.record_seen:
-		_show_market_intro()
-
-## 시장 NPC 한 마디 — 첫 원정이면 규칙 안내(튜토리얼), 이후엔 짧게.
+## 시장 NPC 한 마디 — 첫 원정이면 규칙 안내, 이후엔 짧게.
 func _npc_line() -> String:
 	if GameState.expedition_count == 0:
-		return "시장: 가방은 여섯 칸뿐이오. 물과 식량이 곧 목숨이고, 로프는 갈라진 틈을, 은신막은 폭풍을 견디게 하지. 무엇을 지고 갈지는 당신 몫이오."
+		return "시장: 무엇을 지고, 누가 이끌지 정하시오. 물과 식량이 곧 목숨이오."
 	return "시장: 또 떠나는군. 부디 조심히."
 
 func _add_item(key: String) -> void:
@@ -146,6 +222,8 @@ func _apply_preset() -> void:
 	_refresh()
 
 func _refresh() -> void:
+	if _bag_box == null:
+		return  # 단계 1 에선 가방 UI 가 없다 (핸들러가 안전하게 no-op)
 	for c in _bag_box.get_children():
 		_bag_box.remove_child(c)
 		c.queue_free()
@@ -179,7 +257,7 @@ func _depart() -> void:
 	GameState.begin_run_with(_bag_resources(), _pending_name.strip_edges(), _pending_vocation)
 	GameState.go_to_map()
 
-# --- 원정대 이름 ---
+# --- 원정대 이름 / 직능 / 도구 (단계 1 핸들러) ---
 
 func _on_name_edited(text: String) -> void:
 	_pending_name = text
@@ -198,7 +276,7 @@ func _on_voc_selected(idx: int) -> void:
 	if _voc_desc != null:
 		_voc_desc.text = str(Vocations.by_id(_pending_vocation).get("desc", ""))
 
-## 주머니 도구 선택 — OptionButton 인덱스 0="없음", 1.. = POUCH_TOOLS 순서.
+## 주머니 도구 선택 — 인덱스 0="없음", 1.. = POUCH_TOOLS 순서.
 func _on_tool_selected(idx: int) -> void:
 	if idx <= 0:
 		_pending_tool = ""
@@ -206,7 +284,7 @@ func _on_tool_selected(idx: int) -> void:
 		_pending_tool = str(Items.POUCH_TOOLS[idx - 1])
 	_refresh()
 
-# --- 첫 원정 시장 인트로 (규칙 설명 + 기록지 건네기) ---
+# --- 첫 원정 시장 인트로 (초상 + 규칙 설명 + 기록지 건네기) ---
 
 func _show_market_intro() -> void:
 	_market_idx = 0
@@ -226,6 +304,12 @@ func _show_market_intro() -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", UITheme.GAP)
 	card.add_child(box)
+	# 시장 초상 — 말하는 이가 시장임을 알게 한다.
+	var fig := Figures.new()
+	fig.kind = "market"
+	fig.custom_minimum_size = Vector2(0, 160.0)
+	fig.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(fig)
 	_market_label = UITheme.make_label(str(MARKET_PAGES[0]), UITheme.FS_BODY)
 	box.add_child(_market_label)
 	var row := HBoxContainer.new()
