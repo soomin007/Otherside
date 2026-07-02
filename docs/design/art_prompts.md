@@ -1,244 +1,336 @@
-# 아트 프롬프트 — 외부 이미지 생성용 (See you on the other side)
+# 아트 프롬프트 — 복사해서 바로 쓰는 완성형 (See you on the other side)
 
-> **목적:** 게임에 그림이 필요한 모든 요소를, 외부 이미지 생성기(Midjourney / DALL·E / Stable Diffusion 등)로 직접 뽑아 넣을 수 있게 프롬프트 예시로 정리한다.
-> 현재 코드의 비주얼은 전부 절차적 `draw_*`(placeholder)다 — 이 문서의 이미지로 하나씩 교체해 간다.
-> **프롬프트는 영어**(생성기 표준). 한국어는 용도·배치 설명. 뽑은 뒤 넣는 법은 맨 아래 §적용.
-
----
-
-## 0. 공통 아트 디렉션 (모든 프롬프트에 공유)
-
-**세계:** 끝없는 사막, 주기적 모래폭풍이 글씨를 지우는 땅. 재앙을 멈추러 원정대가 거듭 떠나고 거의 다 죽는다. 재앙의 정체는 끝까지 안 밝힌다(맥거핀 — 괴물·형상 금지). 정서는 **서늘하고 쓸쓸하되 품위 있게**, 처절하지만 조용하다.
-
-**공통 스타일 토큰 (프롬프트에 붙여 쓰기):**
-```
-muted desert palette, sand beige and sepia and faded ochre, dusty haze,
-painterly semi-realistic, cinematic soft light, melancholic and desolate mood,
-weathered and timeworn, low saturation, no text, no logo, no UI, no frame
-```
-**네거티브(공통):**
-```
-bright saturated colors, cartoon, anime, cute, neon, modern city, vehicles,
-people faces in focus, text, watermark, signature, ui elements, monster, creature
-```
-
-**팔레트 참고(코드 UITheme 와 맞춤):** 모래 베이지 `#D2BC78`, 세피아 잉크 `#452F1C`, 양피지 `#D1BC91`, 밤하늘 남색 `#0C0D18`, 어스름 모래 `#2B2119`. 채도 낮게, 먼지 낀 대기.
-
-**웹 export 제약:** PNG. 과대 해상도 금지(첫 로딩 느림 — GL Compatibility). 아래 각 요소의 권장 크기 지킬 것. **인물·사물 초상은 투명 배경(alpha)**, 배경·지도는 불투명.
-
-**인물 원칙:** 얼굴을 특정하지 않는다(매 원정 *다른 사람*이 감 — 익명성이 정서). 후드·역광·실루엣·먼 거리로 얼굴을 흐린다.
-
-**⚠️ AI 생성기 가짜 투명·텍스트 함정 (2026-07-02 실측 — DALL·E/GPT 뽑은 22장 전부 걸림):**
-- **가짜 투명:** "transparent background"를 요청해도 생성기가 투명을 못 만들고 **체커보드 격자를 *그림으로* 그려 넣는다**. 파일은 RGBA 라 투명처럼 보이지만 알파가 전부 불투명(255) → 게임에 얹으면 격자가 그대로 보인다.
-- **텍스트 박힘:** "no text"를 무시하고 제목·라벨(예: "마을", "시장")을 이미지에 그려 넣는다.
-- **검증:** Godot `Image.detect_alpha() == ALPHA_NONE`(투명 픽셀 0) 이면 가짜 투명. 코너 픽셀 알파가 1.0 이면 불투명 배경.
-- **대응:**
-  - *투명 필요*(아이콘 §1B·초상 §3): ① 배경 제거 도구(remove.bg 무료·Photoshop·GIMP 매직완드)로 실제 알파화, 또는 ② 프롬프트를 `solid pure white background, no checkerboard, no text, no labels` 로 뽑아 흰색을 color key 로 투명화. 박힌 텍스트는 크롭.
-  - *불투명 OK*(양피지 §1A·단면 §2·배경 §4): 투명 불필요 — 박힌 텍스트만 크롭하면 쓸 수 있다. 해상도는 권장치 이상으로 다시 뽑는 게 좋다.
+> **쓰는 법:** 아래 각 코드블록을 **통째로 복사** → GPT / DALL·E / Midjourney 에 그대로 붙여넣기. 스타일·글자금지·배경 문구가 **이미 다 들어있다**(조합할 필요 없음).
+> **2026-07-02 교훈(첫 22장 전부 실패):** ① 생성기는 투명 배경을 못 만들고 체커보드를 *그림으로* 그린다 → **"흰 배경"이라 적힌 건 흰 배경으로 뽑고, 넣기 전에 흰색→투명 변환한다(§적용, 코드로 일괄 가능).** ② "글자 금지"를 무시하고 라벨을 박는다 → 박히면 그 부분 크롭. ③ 작게 나온다 → **권장 크기 이상**으로.
+> **팔레트 참고:** 모래 베이지 `#D2BC78`, 세피아 `#452F1C`, 양피지 `#D1BC91`, 밤하늘 남색 `#0C0D18`.
 
 ---
 
-## 1. 지도 (가장 중요 — 위치·거리·분위기)
+## 1. 지도 양피지 배경 (불투명 · 세로 1080×1920 이상)
 
-**용도:** 탑뷰 지도 화면(`scenes/map.tscn`). **반지의 제왕 지도 같은 손그림 판타지 지도**를 지향한다. 위성사진이 아니다. 한 장 통이미지가 아니라 **조각으로 뽑는다** — ① 빈 양피지 배경 ② 지역별 손그림 아이콘(투명 배경, 각각 하나씩) ③ 잉크 경로. 그래야 **방문한 지역만 지도에 잉크로 그려지듯 나타나는 reveal 애니메이션**(스스슥)을 코드가 만들 수 있다(아래 §애니메이션 방향). 노드 마커·원정대 마커는 코드가 위에 얹는다.
+```
+An aged parchment map background for a fantasy game, empty and plain, hand-drawn cartography in the
+style of the Lord of the Rings maps, weathered vellum texture with subtle stains and burnt edges, a
+faint decorative border and a small compass rose in one corner, muted sepia and sand tones, vertical
+portrait composition. Muted desert palette, low saturation, dusty and timeworn. Absolutely no text,
+no words, no letters, no labels, no numbers, no watermark, no signature, no landmarks, no icons,
+no photo, no satellite, no 3d render.
+```
 
-**스타일:** **반지의 제왕/판타지 지도.** 양피지 위 펜·잉크 일러스트, 산·언덕·숲·폐허·강을 **2.5D 아이콘**(위에서 비스듬히 본 입체 — 산은 겹친 삼각 능선, 언덕은 둥근 등고, 폐허는 옆모습, 숲은 나무 무리)으로. 장식 테두리·나침반 장미·낡은 잉크 톤. **세로(모바일), 하단=마을(풍요·따뜻)→상단=재앙(척박·서늘).** 거리가 곧 난이도·정서의 기울기.
+---
 
-**세로 7단(하단→상단) 지형/분위기** — 게임 노드(`MapGraph`)와 맞춤:
+## 2. 지도 아이콘 (흰 배경 → 투명 · 각 512×512 이상) — 11개, 하나씩 복사
 
-| 세로 위치 | 노드 | 지형·분위기(이미지에 담을 것) |
+> 방문한 지역만 지도에 잉크로 그려지듯 나타나게 하려면 **아이콘을 하나씩 따로** 뽑아야 한다.
+
+### 마을
+```
+A hand-drawn 2.5D fantasy map icon of a tiny desert oasis town with a dome, a well and palm trees,
+in Lord of the Rings cartography style, ink linework with light sepia wash, slightly oblique bird's-eye
+view, a single small weathered object centered with generous margin on a plain solid pure white
+background (#FFFFFF). Muted sepia and sand palette, low saturation, timeworn. Absolutely no text,
+no words, no letters, no labels, no numbers, no watermark, no checkerboard, no grid, no scenery,
+no ground plane.
+```
+
+### 마른 강
+```
+A hand-drawn 2.5D fantasy map icon of a dry winding cracked riverbed, in Lord of the Rings cartography
+style, ink linework with light sepia wash, slightly oblique bird's-eye view, a single small weathered
+object centered with generous margin on a plain solid pure white background (#FFFFFF). Muted sepia and
+sand palette, low saturation, timeworn. Absolutely no text, no words, no letters, no labels, no numbers,
+no watermark, no checkerboard, no grid, no scenery, no ground plane.
+```
+
+### 버려진 야영지
+```
+A hand-drawn 2.5D fantasy map icon of a small cluster of tattered abandoned tents, in Lord of the Rings
+cartography style, ink linework with light sepia wash, slightly oblique bird's-eye view, a single small
+weathered object centered with generous margin on a plain solid pure white background (#FFFFFF). Muted
+sepia and sand palette, low saturation, timeworn. Absolutely no text, no words, no letters, no labels,
+no numbers, no watermark, no checkerboard, no grid, no scenery, no ground plane.
+```
+
+### 갈라진 바닥
+```
+A hand-drawn 2.5D fantasy map icon of a jagged deep chasm splitting the ground, in Lord of the Rings
+cartography style, ink linework with light sepia wash, slightly oblique bird's-eye view, a single small
+weathered object centered with generous margin on a plain solid pure white background (#FFFFFF). Muted
+sepia and sand palette, low saturation, timeworn. Absolutely no text, no words, no letters, no labels,
+no numbers, no watermark, no checkerboard, no grid, no scenery, no ground plane.
+```
+
+### 오아시스
+```
+A hand-drawn 2.5D fantasy map icon of a small green oasis with a few palm trees around a pool, in Lord
+of the Rings cartography style, ink linework with light sepia wash, slightly oblique bird's-eye view, a
+single small weathered object centered with generous margin on a plain solid pure white background
+(#FFFFFF). Muted sepia and sand palette, low saturation, timeworn. Absolutely no text, no words,
+no letters, no labels, no numbers, no watermark, no checkerboard, no grid, no scenery, no ground plane.
+```
+
+### 모래의 벽
+```
+A hand-drawn 2.5D fantasy map icon of great wind-blown sand dunes drawn as ridged mounds, in Lord of the
+Rings cartography style, ink linework with light sepia wash, slightly oblique bird's-eye view, a single
+small weathered object centered with generous margin on a plain solid pure white background (#FFFFFF).
+Muted sepia and sand palette, low saturation, timeworn. Absolutely no text, no words, no letters,
+no labels, no numbers, no watermark, no checkerboard, no grid, no scenery, no ground plane.
+```
+
+### 뼈의 들판
+```
+A hand-drawn 2.5D fantasy map icon of a scatter of bones and a ribcage half-buried in sand, in Lord of
+the Rings cartography style, ink linework with light sepia wash, slightly oblique bird's-eye view, a
+single small weathered object centered with generous margin on a plain solid pure white background
+(#FFFFFF). Muted sepia and sand palette, low saturation, timeworn. Absolutely no text, no words,
+no letters, no labels, no numbers, no watermark, no checkerboard, no grid, no scenery, no ground plane.
+```
+
+### 독 웅덩이
+```
+A hand-drawn 2.5D fantasy map icon of a murky dark pool ringed by dead reeds, in Lord of the Rings
+cartography style, ink linework with light sepia wash, slightly oblique bird's-eye view, a single small
+weathered object centered with generous margin on a plain solid pure white background (#FFFFFF). Muted
+sepia and sand palette, low saturation, timeworn. Absolutely no text, no words, no letters, no labels,
+no numbers, no watermark, no checkerboard, no grid, no scenery, no ground plane.
+```
+
+### 무너진 담
+```
+A hand-drawn 2.5D fantasy map icon of a broken ancient stone wall with rubble, in Lord of the Rings
+cartography style, ink linework with light sepia wash, slightly oblique bird's-eye view, a single small
+weathered object centered with generous margin on a plain solid pure white background (#FFFFFF). Muted
+sepia and sand palette, low saturation, timeworn. Absolutely no text, no words, no letters, no labels,
+no numbers, no watermark, no checkerboard, no grid, no scenery, no ground plane.
+```
+
+### 폭풍의 문
+```
+A hand-drawn 2.5D fantasy map icon of a narrow canyon gate swallowed by a swirling sandstorm, in Lord of
+the Rings cartography style, ink linework with light sepia wash, slightly oblique bird's-eye view, a
+single small weathered object centered with generous margin on a plain solid pure white background
+(#FFFFFF). Muted sepia and sand palette, low saturation, timeworn. Absolutely no text, no words,
+no letters, no labels, no numbers, no watermark, no checkerboard, no grid, no scenery, no ground plane.
+```
+
+### ??? (끝, 미지)
+```
+A hand-drawn 2.5D fantasy map icon of an ominous blank veil of swirling storm, unknowable with no
+definite shape, in Lord of the Rings cartography style, ink linework with light sepia wash, a single
+small weathered object centered with generous margin on a plain solid pure white background (#FFFFFF).
+Muted sepia and sand palette, low saturation, timeworn. Absolutely no text, no words, no letters,
+no labels, no numbers, no watermark, no checkerboard, no grid, no scenery, no ground plane, no creature.
+```
+
+---
+
+## 3. 단면 배경 (불투명 · 가로 1600×900 이상) — 6종, 하나씩 복사
+
+> 도착 노드 화면 배경. 조사 지점·글씨는 코드가 위에 얹으니 **장소 분위기만.**
+
+### 마을 (start)
+```
+A wide 16:9 side view of a small desert camp at dusk, a few tents, a stone well, warm lantern glow, low
+horizon in the lower third, a full background scene filling the frame. Muted desert palette of sand beige
+and sepia, dusty haze, painterly semi-realistic, cinematic soft light, low saturation, melancholic mood.
+Absolutely no text, no words, no letters, no labels, no watermark, no white background, no isolated
+object, no people in focus.
+```
+
+### 폐허·오아시스·야영지 (cache)
+```
+A wide 16:9 side view of a weathered desert ruin, a crumbling stone arch half-buried in sand beside a
+lone dry well, low horizon in the lower third, a full background scene filling the frame. Muted desert
+palette of sand beige and sepia, dusty haze, painterly semi-realistic, cinematic soft light, low
+saturation, melancholic desolate mood. Absolutely no text, no words, no letters, no labels, no watermark,
+no white background, no isolated object, no people.
+```
+
+### 갈라진 바닥·무너진 담 (blockage)
+```
+A wide 16:9 side view of a deep chasm splitting the desert ground, jagged edges and darkness below, low
+horizon, a full background scene filling the frame. Muted desert palette of sand beige and sepia, dusty
+haze, painterly semi-realistic, cinematic soft light, low saturation, ominous desolate mood. Absolutely
+no text, no words, no letters, no labels, no watermark, no white background, no isolated object,
+no people.
+```
+
+### 모래의 벽·폭풍의 문 (storm)
+```
+A wide 16:9 side view of an approaching towering wall of sandstorm sweeping across the desert, swirling
+dust, low horizon, a full background scene filling the frame. Muted desert palette of sand beige and
+sepia, heavy dusty haze, painterly semi-realistic, cinematic soft light, low saturation, ominous
+threatening mood. Absolutely no text, no words, no letters, no labels, no watermark, no white background,
+no isolated object, no people.
+```
+
+### 재앙의 자리 (end)
+```
+A wide 16:9 side view of a mysterious place fully veiled and hidden by a swirling sandstorm, unknowable
+with no visible shape, low horizon, a full background scene filling the frame. Muted desert palette,
+heavy dusty haze, painterly semi-realistic, low saturation, ominous dreadful mystery mood. Absolutely
+no text, no words, no letters, no labels, no watermark, no white background, no isolated object,
+no people, no creature, no monster.
+```
+
+### 기본 사막 (dunes)
+```
+A wide 16:9 side view of endless rolling desert dunes under a pale washed-out sky, low horizon, a full
+background scene filling the frame. Muted desert palette of sand beige and sepia, dusty haze, painterly
+semi-realistic, cinematic soft light, low saturation, quiet desolate mood. Absolutely no text, no words,
+no letters, no labels, no watermark, no white background, no isolated object, no people.
+```
+
+---
+
+## 4. 인물·사물 초상 (흰 배경 → 투명) — 3종, 하나씩 복사
+
+> 마을 준비·시장 화면의 흉상/사물. 어두운 카드 위에 얹힌다. 얼굴은 흐리게(매 원정 다른 사람).
+
+### 시장 (market)
+```
+A bust portrait of an old desert market trader, weathered sun-worn face, long grey beard, wrapped turban
+and layered dusty robes, kind but tired eyes, warm lantern side light, the figure centered with generous
+margin on a plain solid pure white background (#FFFFFF). Painterly semi-realistic, muted sepia and sand
+palette, low saturation, melancholic dignified mood. Absolutely no text, no words, no letters, no labels,
+no numbers, no watermark, no checkerboard, no scenery.
+```
+
+### 원정대장 (leader, 익명)
+```
+A bust portrait of a hooded desert expedition leader seen slightly backlit, the face shadowed and hidden
+under a worn hood and cloth wraps, travel-worn gear, anonymous and resolute, dust in the air, the figure
+centered with generous margin on a plain solid pure white background (#FFFFFF). Painterly semi-realistic,
+muted sand and sepia palette, low saturation, solemn quiet mood, no visible face detail. Absolutely
+no text, no words, no letters, no labels, no numbers, no watermark, no checkerboard, no scenery.
+```
+
+### 배낭 (pack, 사물)
+```
+A single worn leather-and-canvas expedition backpack, buckled straps, a bedroll and waterskin lashed on,
+dusty and travel-used, three-quarter view, centered with generous margin on a plain solid pure white
+background (#FFFFFF). Painterly semi-realistic, muted sand and sepia palette, low saturation, soft light.
+Absolutely no text, no words, no letters, no labels, no numbers, no watermark, no checkerboard,
+no scenery, no ground, no desk.
+```
+
+---
+
+## 5. 가방 준비 화면 배경 (불투명 · 세로 1080×1920)
+
+> Loadout 화면 UI 뒤에 깔린다. **중앙~상단은 어둡고 비어야** 글씨가 읽힌다(배낭·물품은 가장자리·하단).
+
+```
+A top-down slightly oblique view of a worn wooden desk at night, an open expedition backpack of leather
+and canvas laid out, supplies scattered around the edges (waterskins, dried food, a coil of rope, a flint,
+a folded tarp), warm lantern glow from one side, the center and upper area kept dark and empty as negative
+space, deep shadows, vertical portrait composition, a full background scene filling the frame. Muted sand
+and sepia palette, dusty, painterly semi-realistic, cinematic soft light, low saturation, melancholic
+quiet mood. Absolutely no text, no words, no letters, no labels, no watermark, no white background,
+no bright center, no people.
+```
+
+---
+
+## 6. 공통 화면 배경 (타이틀·마을·오프닝, 불투명 · 세로 1080×1920)
+
+```
+A wide desert night background, deep indigo sky fading to warm sand near a low horizon, faint stars, a
+distant silhouette of a small desert city with domes and minarets along the horizon, the center left calm
+and empty as negative space, dusty atmosphere, a full background scene filling the frame. Muted palette,
+painterly, cinematic, low saturation, melancholic mood. Absolutely no text, no words, no letters,
+no labels, no watermark, no white background, no bright center, no people.
+```
+
+---
+
+## 7. 오프닝 삽화 (선택, 불투명 · 세로 1080×1920) — 5장, 하나씩 복사
+
+### 1장 — 해마다 원정대가 떠난다
+```
+A storytelling illustration, vertical composition, a lone caravan setting out into vast desert dunes at
+dawn, tiny and small against the endless sand, a full background scene. Muted desert palette of sand and
+sepia, dusty haze, painterly semi-realistic, cinematic soft light, low saturation, melancholic desolate
+mood. Absolutely no text, no words, no letters, no labels, no watermark, no white background.
+```
+
+### 2장 — 거의 다 죽는다
+```
+A storytelling illustration, vertical composition, scattered footprints and a fallen expedition pack
+half-buried in the sand, no bodies shown, a full background scene. Muted desert palette of sand and sepia,
+dusty haze, painterly semi-realistic, low saturation, sorrowful desolate mood. Absolutely no text,
+no words, no letters, no labels, no watermark, no white background, no people.
+```
+
+### 3장 — 모래폭풍이 글을 지운다
+```
+A storytelling illustration, vertical composition, a sandstorm sweeping across the land and erasing tracks
+and carvings on stone, dust swallowing everything, a full background scene. Muted desert palette, heavy
+dusty haze, painterly semi-realistic, low saturation, ominous mood. Absolutely no text, no words,
+no letters, no labels, no watermark, no white background.
+```
+
+### 4장 — 너는 그들을 거듭 보내는 자
+```
+A storytelling illustration, vertical composition, a distant lone overseer figure standing and watching
+many faint paths leading away into the desert, seen from behind and far, a full background scene. Muted
+desert palette, dusty haze, painterly semi-realistic, low saturation, solemn quiet mood. Absolutely
+no text, no words, no letters, no labels, no watermark, no white background, no face detail.
+```
+
+### 5장 — 죽기 전 단 한 번 남긴다
+```
+A storytelling illustration, vertical composition, a single waterskin left resting in the sand with a
+small carved mark beside it, close and quiet, a full background scene. Muted desert palette of sand and
+sepia, dusty haze, painterly semi-realistic, low saturation, tender melancholic mood. Absolutely no text,
+no words, no letters, no labels, no watermark, no white background, no people.
+```
+
+---
+
+## 8. 타이틀 키아트 (선택, 불투명 · 세로 또는 화면비)
+
+```
+Key art for a desert roguelite game, a lone silhouette facing an endless sea of dunes under a vast pale
+sky, a faint far-off veil of sandstorm on the horizon, a sense of distance and quiet dread, empty
+negative space at the top, a full background scene filling the frame. Muted sepia and sand palette,
+painterly cinematic, low saturation, melancholic mood. Absolutely no text, no words, no letters,
+no labels, no title, no logo, no watermark, no white background.
+```
+
+---
+
+## 폰트 (이미지 아님 — 텍스트 미감)
+
+현재 `assets/fonts/NanumGothic-Regular.ttf`(고딕, 밋밋). 게임 톤엔 명조/붓이 더 맞다. OFL·상업가능·한글 포함:
+
+| 스타일 | 폰트 | 용도 |
 |---|---|---|
-| 맨 아래(출발) | 마을 | 작은 사막 오아시스 도시, 야자·우물·흙벽 집, 유일하게 온기 |
-| 그 위 | 마른 강 | 갈라진 마른 강바닥이 구불구불, 물 없는 물길 |
-| 중하 (갈래) | 버려진 야영지 / 갈라진 바닥 | 왼: 버려진 천막 잔해 · 오른: 지면을 가르는 깊은 균열(협곡) |
-| 중 (갈래) | 오아시스 / 모래의 벽 | 왼: 마지막 작은 초록 오아시스 · 오른: 거대한 모래언덕(바람에 흩날리는 능선) |
-| 중상 (갈래) | 뼈의 들판 / 독 웅덩이 | 왼: 모래에 반쯤 묻힌 짐승·사람 백골 · 오른: 탁하고 단내 나는 웅덩이 |
-| 상 | 무너진 담 | 무너진 고대 성벽·돌더미가 길을 막음 |
-| 그 위 | 폭풍의 문 | 좁은 협곡 입구를 삼킨 거대한 모래폭풍 벽 |
-| 맨 위(끝) | ??? | 폭풍에 완전히 가려 아무것도 안 보임 — 미지·불길 (형상 금지) |
+| 정통 명조(서사·품격) | **나눔명조 / 본명조(Noto Serif KR)** | 본문 안정적, 1순위 |
+| 부드러운 명조 | **마루 부리** | 붓끝 살아있는 명조, 본문·제목 |
+| 붓·손글씨 | **나눔손글씨 붓 / 배민 을지로** | 제목·지명·시장 대사용(본문 X) |
+| 깔끔 고딕 | **프리텐다드 / 스포카 한 산스** | UI 가독·현대감 |
 
-**프롬프트 A — 양피지 배경(빈 지도 바탕):**
-```
-Aged parchment map background, empty, hand-drawn fantasy cartography style like the Lord of the Rings
-maps, weathered vellum texture, subtle stains and burnt edges, faint decorative border and a small
-compass rose in a corner, muted sepia and sand tones, no landmarks, no text, no icons, plain,
-vertical composition.
-```
-
-**프롬프트 B — 지역 아이콘(각 랜드마크를 *따로* 뽑는다, 투명 배경):** 공통 토큰
-```
-Hand-drawn 2.5D fantasy map icon, ink line with light sepia wash, Tolkien cartography style,
-slightly oblique bird's-eye view, transparent background, small, weathered, no text.
-```
-에 지역별 주어만 바꿔 붙인다(위 표 순서):
-- 마을 `a tiny desert oasis town with a dome, a well and palms`
-- 마른 강 `a dry winding cracked riverbed`
-- 버려진 야영지 `a small cluster of tattered abandoned tents`
-- 갈라진 바닥 `a jagged chasm splitting the ground`
-- 오아시스 `a small green oasis with a few palm trees`
-- 모래의 벽 `great wind-blown sand dunes drawn as ridged mounds`
-- 뼈의 들판 `a scatter of bones and a ribcage half-buried in sand`
-- 독 웅덩이 `a murky dark pool ringed by dead reeds`
-- 무너진 담 `a broken ancient stone wall with rubble`
-- 폭풍의 문 `a narrow canyon gate swallowed by a swirling sandstorm`
-- ???(끝) `an ominous blank veil of swirling storm, unknowable, no shape`
-
-**네거티브:** 공통 + `photo, realistic, satellite, 3d render, text, labels, grid, ui`.
-**권장 크기:** 배경 세로 1080×1920. 아이콘 각 ~400×400 **투명 PNG**.
-
-**§애니메이션 방향(코드 후속 — 이미지 아님):** 지금 `Map.gd`는 방문한 노드만 정체를 공개하고 나머지는 "?"(안개)다. 이걸 **잉크 드로잉 reveal**로 바꾼다 — 어느 지역을 처음 밟으면 그 손그림 아이콘이 **잉크로 그려지듯** 나타난다(알파 페이드 + 살짝 스케일/떨림), 지나온 경로선은 끝점까지 **그어지는**(draw progress) 연출. "스스슥 그려지는" 고지도 느낌. **아이콘을 개별 에셋으로 뽑아야(프롬프트 B) 이 조각별 reveal 이 가능**하다. 배경 양피지는 처음부터 깔고, 그 위에 방문분만 하나씩 그려 붙인다.
-
----
-
-## 2. 단면 배경 (도착 노드 화면 — kind별 6종)
-
-**용도:** 도착 노드 "단면 탐색" 화면(`scenes/expedition.tscn`, 현재 `SectionArt` 절차적)의 배경. **가로로 펼쳐진 측단면**(옆에서 본 한 장소). 조사 지점(붉은 원)·라벨은 코드가 위에 얹으니 **장소 분위기만**.
-
-**구도:** **가로 16:9 정도**, 지평선/지면이 화면 아래 ~70%. 측면 풍경.
-
-| kind | 장소 | 프롬프트 핵심 |
-|---|---|---|
-| `start` | 마을 | small desert camp, tents, a well, warm lantern glow at dusk |
-| `cache` | 폐허·오아시스·야영지 | a weathered ruin / small oasis with a few palms / abandoned campsite in sand |
-| `blockage` | 갈라진 바닥·무너진 담 | a deep chasm splitting the ground / a collapsed stone wall blocking the path |
-| `storm` | 모래의 벽·폭풍의 문 | an approaching wall of sandstorm, swirling dust, ominous |
-| `end` | 재앙의 자리 | a mysterious veiled place fully hidden by sandstorm, unknowable, no creature |
-| `dunes` | 기본 사막 | endless rolling dunes under a pale sky |
-
-**프롬프트 예시(cache — 폐허):**
-```
-Side view of a weathered desert ruin, crumbling stone arch half-buried in sand, a lone dry well,
-horizon low in frame, wide 16:9, muted sand and sepia palette, dusty haze, painterly semi-realistic,
-cinematic soft light, melancholic desolate mood, low saturation, no text, no ui, no people.
-```
-**권장 크기:** 가로 1280×720 정도. 각 kind 1장(총 6장). 필요하면 노드별 변주.
-
----
-
-## 3. 인물·사물 초상 (마을 준비 화면)
-
-**용도:** 마을 준비(`Loadout`) 화면·시장 인트로 모달의 초상(현재 `Figures` 절차적 — 사용자 지적대로 조악). **투명 배경 PNG**, 흉상(가슴 위). 어두운 카드/배경 위에 얹힘.
-
-**구도:** 세로 초상, 인물은 화면 대부분, **투명 배경**.
-
-### 3a. 시장 (market)
-말하는 이가 시장임이 한눈에 — 사막 교역 도시의 나이 든 상인.
-```
-Bust portrait of an old desert market trader, weathered sun-worn face, long grey beard,
-wrapped turban and layered dusty robes, kind but tired eyes, warm lantern side light,
-painterly semi-realistic, muted sepia and sand palette, plain transparent background,
-melancholic dignified mood, no text, no ui.
-```
-
-### 3b. 원정대장 (leader) — 얼굴은 흐리게(익명)
-```
-Bust portrait of a hooded desert expedition leader seen slightly backlit, face shadowed under a
-worn hood and cloth wraps, travel-worn gear, anonymous and resolute, dust in the air,
-painterly semi-realistic, muted sand and sepia palette, plain transparent background,
-solemn quiet mood, no visible face detail, no text, no ui.
-```
-
-### 3c. 배낭 (pack) — 사물
-```
-A worn leather-and-canvas expedition backpack, buckled straps, a bedroll and waterskin lashed on,
-dusty and travel-used, three-quarter view, painterly semi-realistic, muted sand and sepia palette,
-plain transparent background, soft light, no text, no ui.
-```
-**권장 크기:** 각 ~800×1000(초상), 배낭은 ~800×800. PNG 투명.
-
-### 3d. 가방 준비 화면 배경 (Loadout — UI 뒤에 깔림)
-
-**용도:** 마을 준비(`Loadout`) 화면의 UI 컬럼 뒤 배경. 지금은 어두운 세로 띠(`ColorRect`)로 **가독성만** 확보해 뒀다 — 이 이미지로 교체하면 "책상에서 배낭을 챙긴다"는 장면이 산다. 3c(투명 배경 흉상 초상)와 달리 **불투명 배경**이며, 초상이 아니라 **장면(scene)**이다.
-
-**핵심 제약:** UI(원정대 이름·직능·도구·가방 칸·버튼)가 위에 얹히고 스크롤된다 → **중앙~상단을 어둡고 비게** 두어 글씨가 읽히게. 배낭·물품·불빛은 **가장자리·하단**에.
-
-**구도:** 세로(모바일). 위에서 비스듬히 내려다본 낡은 나무 책상, 그 위에 펼쳐진 원정 배낭과 흩어놓은 물품(물통·마른 식량·로프·부싯돌·접은 천막). 한쪽에서 오는 램프 곁불. 중앙은 UI 자리라 비교적 어둡고 비움.
-
-```
-Top-down slightly oblique view of a worn wooden desk at night, an open expedition backpack of
-leather and canvas laid out, supplies scattered around the edges (waterskins, dried food, a coil of
-rope, a flint, a folded tarp), warm lantern glow from one side, the center and upper area kept dark
-and empty as negative space for UI, muted sand and sepia palette, deep shadows, dusty,
-painterly semi-realistic, cinematic soft light, melancholic quiet mood, low saturation,
-no text, no ui, no people, vertical composition.
-```
-**네거티브:** 공통 + `bright, cluttered center, busy middle, modern objects, plastic`.
-**권장 크기:** 세로 1080×1920. **중앙·상단은 확실히 어둡게**(그 위 글씨 대비 확보). 불투명 PNG.
-
----
-
-## 4. 공통 배경 (타이틀 · 마을 · 오프닝)
-
-**용도:** 다크 UI 화면 뒤 배경(현재 `Backdrop` 절차적 — 밤하늘→모래 지평선 + 마을 실루엣). UI 가 위에 얹히므로 **중앙은 비교적 비우고**, 아래 지평선·먼 도시 실루엣 위주.
-```
-Wide desert night background, deep indigo sky fading to warm sand near a low horizon, faint stars,
-a distant silhouette of a small desert city with domes and minarets along the horizon, empty calm
-center for UI, dusty atmosphere, muted palette, painterly, cinematic, melancholic, no text, no ui.
-```
-**권장 크기:** 세로 1080×1920(모바일) 또는 화면비 대응. 중앙 여백 유지.
-
----
-
-## 5. 오프닝 삽화 (서사 5장, 선택)
-
-**용도:** 첫 플레이 오프닝(`Opening`, 현재 텍스트만). 각 슬라이드 뒤 삽화 1장씩(선택). 담담·서늘, 재앙 형상 금지.
-
-| 장 | 문구(현재) | 삽화 프롬프트 핵심 |
-|---|---|---|
-| 1 | 해마다 원정대가 떠난다 | a lone caravan setting out into vast dunes at dawn, small against the desert |
-| 2 | 거의 다 죽는다 | scattered footprints and a fallen pack half-buried in sand, no bodies shown |
-| 3 | 모래폭풍이 글을 지운다 | a sandstorm erasing tracks and writing on stone, dust swallowing the land |
-| 4 | 너는 그들을 거듭 보내는 자 | a distant overseer figure watching many faint paths into the desert |
-| 5 | 죽기 전 단 한 번 남긴다 | a single object (a waterskin) left in the sand with a small carved mark |
-
-각 프롬프트에 §0 공통 토큰 + `vertical composition, storytelling illustration` 붙이기.
-
----
-
-## 6. 타이틀 키아트 (선택)
-
-**용도:** 타이틀 화면 상단(로고는 코드 텍스트 유지, 그 뒤/위 키아트).
-```
-Key art for a desert roguelite, a lone silhouette facing an endless dune sea under a vast pale sky,
-a faint far-off veil of sandstorm on the horizon, sense of distance and quiet dread, muted sepia,
-painterly cinematic, melancholic, no text, no logo, negative space at top for a title.
-```
-
----
-
-## 7. 폰트 (텍스트 미감 — "굴림체 느낌" 개선)
-
-이미지가 아니라 폰트지만 미감의 큰 부분. 현재 `assets/fonts/NanumGothic-Regular.ttf`(고딕, 밋밋 "굴림체 느낌"). 게임 톤(사막·고전·서사)엔 명조/붓이 더 맞다. 아래 스타일에서 골라 교체.
-
-**스타일별 후보 (전부 OFL·상업 가능, 한글 글리프 포함):**
-
-| 스타일 | 폰트 | 결 · 용도 |
-|---|---|---|
-| 정통 명조(서사·품격) | **나눔명조 / 본명조(Noto Serif KR)** | 고전 소설 느낌. 본문 안정적. 사막·원정 서사에 무난한 1순위 |
-| 부드러운 명조(따뜻·세련) | **마루 부리 (Maru Buri)** | 붓끝이 살아있는 현대 명조. 본문·제목 다 예쁨. 밋밋함 확실히 탈출 |
-| 붓·손글씨(판타지·지도) | **나눔손글씨 붓 / 배민 을지로** | 손맛·고지도 톤. 가독 낮아 **제목·지명·시장 대사 강조**용(본문 X) |
-| 깔끔 고딕(가독 우선) | **프리텐다드(Pretendard) / 스포카 한 산스** | 세련된 산세리프. 서사보단 UI 가독·현대감. 안전·실용 |
-
-**추천 조합(취향껏):**
-- **A. 정통 서사** — 본문 나눔명조 · 제목 명조 볼드. (게임 톤에 가장 안전)
-- **B. 따뜻한 손맛** — 본문 마루 부리 · 제목 나눔손글씨 붓. (개성·분위기, LOTR 지도 톤과 어울림)
-- **C. 현대 가독** — 본문·제목 프리텐다드. (밋밋 탈출하되 실용)
-
-- **줄간격:** 코드에서 `line_spacing` 8 로 조정함(`UITheme.make_label`).
-- **적용:** ttf 를 `assets/fonts/` 에 넣고 `project.godot` 의 `gui/theme/custom_font` 교체. **웹 두부(□) 방지 위해 한글 글리프 포함 필수 확인**(`known_issues`). 제목용 별도 폰트는 해당 라벨에 개별 `add_theme_font_override`. MSDF 임포트는 웹/GL 실기기 검증 필수.
-- 원하면 A/B/C 중 하나로 내가 바로 교체해둘 수 있다(폰트 ttf 만 있으면 project.godot·테마 배선까지).
+적용: ttf 를 `assets/fonts/` 에 넣고 `project.godot` 의 `gui/theme/custom_font` 교체. **웹 두부(□) 방지 위해 한글 글리프 포함 확인.** ttf 만 주면 배선까지 해준다.
 
 ---
 
 ## 적용 (뽑은 이미지 넣기)
 
-1. `assets/art/` 에 PNG 저장(초상은 투명 PNG).
-2. 절차적 draw 를 이미지로 교체 — 각 파일에 "나중 에셋 교체 여지" 주석이 있는 지점:
-   - 지도: `scripts/ui/Map.gd`의 배경 draw → `TextureRect`(맨 뒤) 위에 노드/경로 draw 유지.
-   - 단면: `scripts/ui/SectionArt.gd`의 `draw_section` → kind별 `Texture2D` blit.
-   - 초상: `scripts/ui/Figures.gd` → `TextureRect`(kind별 텍스처)로 교체.
-   - 배경: `scripts/ui/Backdrop.gd` → 배경 텍스처.
-   - 가방 화면 배경(§3d): `scripts/ui/Loadout.gd`의 어두운 띠(`ColorRect`, `_ready`) → 배경 `TextureRect`로 교체(컬럼 뒤에 깔고 `mouse_filter` IGNORE 유지, 중앙 어두운 이미지라 글씨 대비 유지).
-3. 웹 export 후 폰/시크릿 창에서 로딩·선명도 확인(경량 유지).
+### 흰 배경 → 투명 변환 (§2 아이콘, §4 초상·사물)
+흰 배경으로 뽑은 것은 넣기 전에 흰색을 투명으로 바꾼다(순백 단색이라 깨끗이 떨어진다).
+- **자동(추천):** `assets/arts/` 에 흰 배경 PNG 를 넣고 말하면 **코드로 일괄 변환**(Godot `Image`: 흰색 문턱으로 배경 alpha 0 + 경계 페더 + 여백 크롭).
+- **수동:** remove.bg(무료)·Photoshop·GIMP 매직완드.
+- **검증:** 변환 뒤 `Image.detect_alpha()` 가 `ALPHA_NONE` 이 아니어야(투명 픽셀 존재).
+- **글자가 박혀 나오면** 그 부분 먼저 크롭.
 
-> **팁:** 한 세트를 같은 생성기·같은 스타일 토큰·같은 시드 계열로 뽑아야 톤이 통일된다. 지도 → 단면 → 초상 순으로, §0 공통 토큰을 매번 붙일 것.
+### 절차적 draw → 이미지 교체 지점
+- 지도 배경: `scripts/ui/Map.gd` → `TextureRect`(맨 뒤). 아이콘은 개별 텍스처(reveal 애니메이션).
+- 단면: `scripts/ui/SectionArt.gd` `draw_section` → kind별 `Texture2D`.
+- 초상: `scripts/ui/Figures.gd` → `TextureRect`.
+- 화면 배경: `scripts/ui/Backdrop.gd` → 배경 텍스처.
+- 가방 화면 배경(§5): `scripts/ui/Loadout.gd` 의 어두운 띠(`ColorRect`) → 배경 `TextureRect`.
+
+### 톤 통일
+한 세트를 **같은 생성기·같은 시드 계열**로 뽑아야 통일된다. 지도 → 단면 → 초상 순 권장. 웹 export 는 권장 크기 근처로(과대해상도 금지 — GL Compatibility 로딩).
