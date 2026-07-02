@@ -32,9 +32,9 @@ people faces in focus, text, watermark, signature, ui elements, monster, creatur
 
 ## 1. 지도 (가장 중요 — 위치·거리·분위기)
 
-**용도:** 탑뷰 지도 화면(`scenes/map.tscn`)의 **배경 지형 이미지**. 노드 마커·경로선·원정대 마커·안개는 **코드가 이 이미지 위에 얹는다** → 이미지엔 UI·점·선·글자를 넣지 말고 **지형과 분위기만**. 노드 자리에 "여기 뭔가 있겠다" 싶은 랜드마크 힌트만 은은하게.
+**용도:** 탑뷰 지도 화면(`scenes/map.tscn`). **반지의 제왕 지도 같은 손그림 판타지 지도**를 지향한다. 위성사진이 아니다. 한 장 통이미지가 아니라 **조각으로 뽑는다** — ① 빈 양피지 배경 ② 지역별 손그림 아이콘(투명 배경, 각각 하나씩) ③ 잉크 경로. 그래야 **방문한 지역만 지도에 잉크로 그려지듯 나타나는 reveal 애니메이션**(스스슥)을 코드가 만들 수 있다(아래 §애니메이션 방향). 노드 마커·원정대 마커는 코드가 위에 얹는다.
 
-**구도:** **세로(모바일) 9:16**, 위에서 비스듬히 내려다본 3/4 top-down(위성사진 + 고지도 하이브리드). **하단 = 출발(마을), 상단 = 끝(재앙).** 아래에서 위로 갈수록 **풍요→척박, 따뜻→서늘**. 거리가 곧 난이도·정서의 기울기다.
+**스타일:** **반지의 제왕/판타지 지도.** 양피지 위 펜·잉크 일러스트, 산·언덕·숲·폐허·강을 **2.5D 아이콘**(위에서 비스듬히 본 입체 — 산은 겹친 삼각 능선, 언덕은 둥근 등고, 폐허는 옆모습, 숲은 나무 무리)으로. 장식 테두리·나침반 장미·낡은 잉크 톤. **세로(모바일), 하단=마을(풍요·따뜻)→상단=재앙(척박·서늘).** 거리가 곧 난이도·정서의 기울기.
 
 **세로 7단(하단→상단) 지형/분위기** — 게임 노드(`MapGraph`)와 맞춤:
 
@@ -49,26 +49,36 @@ people faces in focus, text, watermark, signature, ui elements, monster, creatur
 | 그 위 | 폭풍의 문 | 좁은 협곡 입구를 삼킨 거대한 모래폭풍 벽 |
 | 맨 위(끝) | ??? | 폭풍에 완전히 가려 아무것도 안 보임 — 미지·불길 (형상 금지) |
 
-**프롬프트 예시:**
+**프롬프트 A — 양피지 배경(빈 지도 바탕):**
 ```
-Top-down 3/4 aerial view of an endless desert expedition map, vertical 9:16 composition.
-Bottom: a small warm oasis town with wells and mud-brick houses. Moving upward the land grows
-harsher and colder: a dry cracked riverbed, abandoned tent ruins, a deep chasm, great wind-blown
-sand dunes, a field of half-buried bones, a murky poisoned pool, collapsed ancient walls, and at
-the very top a narrow canyon swallowed by a towering wall of sandstorm fading into unknown haze.
-Faint winding paths suggest routes between landmarks. Old cartography feel meets satellite imagery,
-muted desert palette, sand beige and sepia and faded ochre, dusty haze, painterly semi-realistic,
-cinematic soft light, melancholic and desolate, low saturation, no text, no markers, no UI, no grid.
+Aged parchment map background, empty, hand-drawn fantasy cartography style like the Lord of the Rings
+maps, weathered vellum texture, subtle stains and burnt edges, faint decorative border and a small
+compass rose in a corner, muted sepia and sand tones, no landmarks, no text, no icons, plain,
+vertical composition.
 ```
-**네거티브:** 공통 + `map markers, dotted lines, grid, labels, compass rose, roads, icons`.
-**권장 크기:** 세로 긴 이미지, 예 1080×1920(또는 배수). 노드가 위→아래 세로 배치라 세로 여유 중요.
-**배치 노트:** 코드가 `col`(0~1 좌우)·`row`(0~7 상하)로 노드를 얹는다. 이미지의 랜드마크 위치를 위 표의 좌/오른(갈래)과 대략 맞추면 자연스럽다. 지형만, 마커 없음.
 
-**대안(사용자 선호 시):** "3D 위성사진" 강조 →
+**프롬프트 B — 지역 아이콘(각 랜드마크를 *따로* 뽑는다, 투명 배경):** 공통 토큰
 ```
-Photorealistic satellite view of a vast desert, soft aerial perspective, dune shadows at
-low sun angle, subtle terrain relief, sepia and sand tones, hazy atmosphere, ...
+Hand-drawn 2.5D fantasy map icon, ink line with light sepia wash, Tolkien cartography style,
+slightly oblique bird's-eye view, transparent background, small, weathered, no text.
 ```
+에 지역별 주어만 바꿔 붙인다(위 표 순서):
+- 마을 `a tiny desert oasis town with a dome, a well and palms`
+- 마른 강 `a dry winding cracked riverbed`
+- 버려진 야영지 `a small cluster of tattered abandoned tents`
+- 갈라진 바닥 `a jagged chasm splitting the ground`
+- 오아시스 `a small green oasis with a few palm trees`
+- 모래의 벽 `great wind-blown sand dunes drawn as ridged mounds`
+- 뼈의 들판 `a scatter of bones and a ribcage half-buried in sand`
+- 독 웅덩이 `a murky dark pool ringed by dead reeds`
+- 무너진 담 `a broken ancient stone wall with rubble`
+- 폭풍의 문 `a narrow canyon gate swallowed by a swirling sandstorm`
+- ???(끝) `an ominous blank veil of swirling storm, unknowable, no shape`
+
+**네거티브:** 공통 + `photo, realistic, satellite, 3d render, text, labels, grid, ui`.
+**권장 크기:** 배경 세로 1080×1920. 아이콘 각 ~400×400 **투명 PNG**.
+
+**§애니메이션 방향(코드 후속 — 이미지 아님):** 지금 `Map.gd`는 방문한 노드만 정체를 공개하고 나머지는 "?"(안개)다. 이걸 **잉크 드로잉 reveal**로 바꾼다 — 어느 지역을 처음 밟으면 그 손그림 아이콘이 **잉크로 그려지듯** 나타난다(알파 페이드 + 살짝 스케일/떨림), 지나온 경로선은 끝점까지 **그어지는**(draw progress) 연출. "스스슥 그려지는" 고지도 느낌. **아이콘을 개별 에셋으로 뽑아야(프롬프트 B) 이 조각별 reveal 이 가능**하다. 배경 양피지는 처음부터 깔고, 그 위에 방문분만 하나씩 그려 붙인다.
 
 ---
 
@@ -171,11 +181,25 @@ painterly cinematic, melancholic, no text, no logo, negative space at top for a 
 
 ## 7. 폰트 (텍스트 미감 — "굴림체 느낌" 개선)
 
-이미지가 아니라 폰트지만 미감의 큰 부분. 현재 `assets/fonts/NanumGothic-Regular.ttf`(고딕, 밋밋).
-- **본문 추천:** 세리프(명조) 계열이 사막·고전·서사 톤에 맞음 — **본명조 / 나눔명조(Nanum Myeongjo) / Noto Serif KR**. 전부 OFL(임베드 가능).
-- **제목 추천:** 좀 더 무게 있는 명조 볼드 or 붓 느낌.
-- **줄간격:** 코드에서 `line_spacing` 8 로 넉넉히 조정함(`UITheme.make_label`).
-- **적용:** `project.godot`의 `gui/theme/custom_font` 를 새 ttf 로 교체(웹 두부 방지 위해 한글 글리프 포함 확인 — `known_issues` 참고). MSDF 임포트는 웹/GL 실기기 검증 필수.
+이미지가 아니라 폰트지만 미감의 큰 부분. 현재 `assets/fonts/NanumGothic-Regular.ttf`(고딕, 밋밋 "굴림체 느낌"). 게임 톤(사막·고전·서사)엔 명조/붓이 더 맞다. 아래 스타일에서 골라 교체.
+
+**스타일별 후보 (전부 OFL·상업 가능, 한글 글리프 포함):**
+
+| 스타일 | 폰트 | 결 · 용도 |
+|---|---|---|
+| 정통 명조(서사·품격) | **나눔명조 / 본명조(Noto Serif KR)** | 고전 소설 느낌. 본문 안정적. 사막·원정 서사에 무난한 1순위 |
+| 부드러운 명조(따뜻·세련) | **마루 부리 (Maru Buri)** | 붓끝이 살아있는 현대 명조. 본문·제목 다 예쁨. 밋밋함 확실히 탈출 |
+| 붓·손글씨(판타지·지도) | **나눔손글씨 붓 / 배민 을지로** | 손맛·고지도 톤. 가독 낮아 **제목·지명·시장 대사 강조**용(본문 X) |
+| 깔끔 고딕(가독 우선) | **프리텐다드(Pretendard) / 스포카 한 산스** | 세련된 산세리프. 서사보단 UI 가독·현대감. 안전·실용 |
+
+**추천 조합(취향껏):**
+- **A. 정통 서사** — 본문 나눔명조 · 제목 명조 볼드. (게임 톤에 가장 안전)
+- **B. 따뜻한 손맛** — 본문 마루 부리 · 제목 나눔손글씨 붓. (개성·분위기, LOTR 지도 톤과 어울림)
+- **C. 현대 가독** — 본문·제목 프리텐다드. (밋밋 탈출하되 실용)
+
+- **줄간격:** 코드에서 `line_spacing` 8 로 조정함(`UITheme.make_label`).
+- **적용:** ttf 를 `assets/fonts/` 에 넣고 `project.godot` 의 `gui/theme/custom_font` 교체. **웹 두부(□) 방지 위해 한글 글리프 포함 필수 확인**(`known_issues`). 제목용 별도 폰트는 해당 라벨에 개별 `add_theme_font_override`. MSDF 임포트는 웹/GL 실기기 검증 필수.
+- 원하면 A/B/C 중 하나로 내가 바로 교체해둘 수 있다(폰트 ttf 만 있으면 project.godot·테마 배선까지).
 
 ---
 
