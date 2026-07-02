@@ -42,6 +42,9 @@ const FS_LABEL: int = 22     ## 일반 라벨 / 보조 버튼
 const FS_SMALL: int = 18     ## 보조 설명
 const FS_TINY: int = 14      ## 지도 눈금 등 캔버스 미세 텍스트
 
+# --- 제목 폰트 (붓·손글씨 — 제목/타이틀 강조. 본문은 project.godot 의 명조) ---
+const TITLE_FONT: FontFile = preload("res://assets/fonts/NanumBrushScript-Regular.ttf")
+
 # --- 터치 / 레이아웃 ---
 const BTN_H: float = 76.0      ## 주요 버튼 높이
 const BTN_H_SM: float = 60.0   ## 보조 버튼 높이
@@ -102,6 +105,8 @@ static func make_label(text: String, size: int = FS_BODY, color: Color = FG, cen
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
 	l.add_theme_constant_override("line_spacing", 8)  # 여러 줄 본문 줄간격 넉넉히(기본 3은 답답)
+	if size >= FS_H1:
+		l.add_theme_font_override("font", TITLE_FONT)  # 제목·타이틀(FS_H1 이상)은 붓·손글씨로 강조
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if center:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
