@@ -40,9 +40,20 @@ var _market_idx: int = 0
 
 func _ready() -> void:
 	_rng.randomize()
-	var bg := Backdrop.new()  # 사막 밤 + 마을 실루엣(맨 뒤)
-	bg.scene_kind = "village"
-	add_child(bg)
+	# 배경 — 가방 준비(밤 책상에 펼친 배낭·물품) 그림. 없으면 사막 밤 공통 배경으로 fallback(웹 안전).
+	const BAG_BG: String = "res://assets/arts/22_배경_가방.png"
+	if ResourceLoader.exists(BAG_BG):
+		var tr := TextureRect.new()
+		tr.texture = load(BAG_BG)
+		tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED  # 화면 꽉 채우기(cover)
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(tr)
+	else:
+		var bg := Backdrop.new()  # fallback: 사막 밤 + 마을 실루엣
+		bg.scene_kind = "village"
+		add_child(bg)
 
 	# UI 가독성 — 컬럼 뒤에 어두운 세로 띠를 깐다(지평선·색 변화가 글씨를 방해하지 않게).
 	# Backdrop 위, 스크롤 아래. 화면 세로로 꽉 차 스크롤해도 글씨는 늘 어두운 면 위에 있다.

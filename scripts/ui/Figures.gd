@@ -1,9 +1,17 @@
 class_name Figures
 extends Control
 
-## 절차적 인물·사물 초상 — 마을 준비 화면용. kind: "market"(시장)·"leader"(대장)·"pack"(배낭).
-## Backdrop 처럼 전부 draw_*(웹 안전, 셰이더/이미지 없음). 나중 실제 삽화 에셋으로 교체 여지.
-## 다크 배경/카드 위에 얹히므로 밝은 모래빛 실루엣 + 어두운 디테일.
+## 인물·사물 초상 — 마을 준비 화면용. kind: "market"(시장)·"leader"(대장)·"pack"(배낭).
+## 손그림 초상 텍스처(흰→투명 변환본)를 얹는다. 로드 실패 시 절차적 draw_*(웹 안전) fallback.
+## 다크 배경/카드 위에 얹히므로 투명 PNG 그대로 얹혀 읽힌다.
+
+## kind → 초상 텍스처(투명 변환본).
+const PORTRAIT_PATHS: Dictionary = {
+	"market": "res://assets/arts/transparent/19_초상_시장.png",
+	"leader": "res://assets/arts/transparent/20_초상_대장.png",
+	"pack": "res://assets/arts/transparent/21_초상_배낭.png",
+}
+static var _tex_cache: Dictionary = {}   ## kind → Texture2D (null 도 캐시 = 반복 로드 방지)
 
 var kind: String = "leader"
 
@@ -18,10 +26,37 @@ func _draw() -> void:
 	var s: Vector2 = size
 	if s.x < 8.0 or s.y < 8.0:
 		return
+	var tex: Texture2D = _portrait_tex(kind)
+	if tex != null:
+		_draw_contain(tex, s)   # 초상 이미지(종횡비 유지, 안 잘리게 contain·중앙)
+		return
 	match kind:
 		"market": _market(s)
 		"pack": _pack(s)
 		_: _leader(s)
+
+## kind 초상 텍스처(1회 로드 후 캐시). 미등록 kind 는 null → 절차적 fallback.
+static func _portrait_tex(k: String) -> Texture2D:
+	if not PORTRAIT_PATHS.has(k):
+		return null
+	if _tex_cache.has(k):
+		return _tex_cache[k]
+	var path: String = str(PORTRAIT_PATHS[k])
+	var tex: Texture2D = null
+	if ResourceLoader.exists(path):
+		tex = load(path)
+	_tex_cache[k] = tex
+	return tex
+
+## 텍스처를 s 안에 종횡비 유지로 다 담는다(contain — 잘리지 않게, 가운데 정렬).
+func _draw_contain(tex: Texture2D, s: Vector2) -> void:
+	var tw: float = float(tex.get_width())
+	var th: float = float(tex.get_height())
+	if tw <= 0.0 or th <= 0.0:
+		return
+	var sc: float = minf(s.x / tw, s.y / th)
+	var sz: Vector2 = Vector2(tw * sc, th * sc)
+	draw_texture_rect(tex, Rect2((s - sz) * 0.5, sz), false)
 
 ## 시장 — 터번 쓴 사막 상인 흉상.
 func _market(s: Vector2) -> void:

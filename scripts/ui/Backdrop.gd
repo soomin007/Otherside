@@ -1,11 +1,15 @@
 class_name Backdrop
 extends Control
 
-## 사막 밤 공통 배경 — 세로 그라데이션(밤하늘 → 모래 지평선) + 지평선 + 은은한 별·모래결.
-## 타이틀·마을·오프닝 등 다크 UI 화면에 첫 자식으로 깔아 톤을 통일한다. 전부 절차적 draw(웹 안전).
-## 지도·단면은 자체 양피지 배경이라 여기 안 쓴다.
+## 사막 밤 공통 배경 — 손그림 배경 텍스처(23)를 화면에 꽉 채운다(cover).
+## 타이틀·오프닝 등 다크 UI 화면에 첫 자식으로 깔아 톤을 통일한다. 지도·단면은 자체 양피지라 여기 안 쓴다.
+## 로드 실패 시 절차적 세로 그라데이션 + 별 + (village 면 마을 실루엣)으로 fallback(웹 안전).
 
-var scene_kind: String = ""  ## "village" 면 지평선 좌우에 마을 실루엣(원정 준비 화면). 중앙 UI 는 피한다.
+const BG_PATH: String = "res://assets/arts/23_배경_공통.png"
+static var _bg_tex: Texture2D
+static var _bg_loaded: bool = false   ## 1회만 로드 시도
+
+var scene_kind: String = ""  ## "village" 면 (fallback 시) 지평선 좌우에 마을 실루엣. 중앙 UI 는 피한다.
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -17,6 +21,11 @@ func _draw() -> void:
 	var r: Vector2 = get_viewport_rect().size
 	if r.x <= 0.0 or r.y <= 0.0:
 		return
+	var tex: Texture2D = _common_tex()
+	if tex != null:
+		_draw_cover(tex, r)   # 손그림 밤 배경(종횡비 유지 cover)
+		return
+	# --- 이하 fallback: 절차적 밤 배경 ---
 	var horizon: float = r.y * 0.70
 
 	# 세로 그라데이션 — 위 밤하늘, 아래 모래.
@@ -90,3 +99,29 @@ func _city_cluster(x0: float, x1: float, horizon: float, rng: RandomNumberGenera
 			if rng.randf() < 0.35:
 				draw_circle(Vector2(x + w * 0.5, horizon - h * rng.randf_range(0.3, 0.7)), 2.0, Color(1.0, 0.72, 0.32, 0.45))
 		x += w * rng.randf_range(0.62, 0.92)  # 겹쳐서 밀도를 낸다
+
+## 공통 배경 텍스처(1회 로드 후 static 캐시 — 여러 화면이 각자 Backdrop 을 만들어도 로드 1회).
+static func _common_tex() -> Texture2D:
+	if not _bg_loaded:
+		_bg_loaded = true
+		if ResourceLoader.exists(BG_PATH):
+			_bg_tex = load(BG_PATH)
+	return _bg_tex
+
+## 텍스처를 r 영역에 종횡비 유지로 꽉 채운다(cover — 넘치는 쪽을 잘라 여백/왜곡 없음).
+func _draw_cover(tex: Texture2D, r: Vector2) -> void:
+	var tw: float = float(tex.get_width())
+	var th: float = float(tex.get_height())
+	if tw <= 0.0 or th <= 0.0:
+		draw_texture_rect(tex, Rect2(Vector2.ZERO, r), false)
+		return
+	var ra: float = r.x / r.y
+	var ta: float = tw / th
+	var src := Rect2(0.0, 0.0, tw, th)
+	if ta > ra:
+		var sw: float = th * ra
+		src = Rect2((tw - sw) * 0.5, 0.0, sw, th)
+	else:
+		var sh: float = tw / ra
+		src = Rect2(0.0, (th - sh) * 0.5, tw, sh)
+	draw_texture_rect_region(tex, Rect2(Vector2.ZERO, r), src)

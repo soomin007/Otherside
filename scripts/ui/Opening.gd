@@ -14,13 +14,42 @@ const SLIDES: Array = [
 const TITLE_TEXT: String = "See you on the other side"
 const FADE: float = 0.6
 
+## 슬라이드별 배경 삽화(SLIDES 와 1:1). 없으면 삽화 없이 Backdrop 만(fallback).
+const ILLUS_PATHS: Array = [
+	"res://assets/arts/24_오프닝_떠난다.png",
+	"res://assets/arts/25_오프닝_죽는다.png",
+	"res://assets/arts/26_오프닝_지운다.png",
+	"res://assets/arts/27_오프닝_보내는자.png",
+	"res://assets/arts/28_오프닝_남긴다.png",
+]
+
 var _idx: int = 0
 var _label: Label
 var _hint: Label
 var _title_mode: bool = false
+var _illus: TextureRect            ## 슬라이드 배경 삽화(있을 때만). 넘길 때 크로스페이드.
+var _illus_tex: Array = []         ## 로드된 Texture2D(없으면 null)
 
 func _ready() -> void:
 	add_child(Backdrop.new())  # 사막 밤 공통 배경(맨 뒤)
+
+	# 슬라이드별 삽화 — Backdrop 위, 텍스트 아래. 하나라도 로드되면 레이어를 깐다(없으면 Backdrop 만).
+	for p in ILLUS_PATHS:
+		_illus_tex.append(load(str(p)) if ResourceLoader.exists(str(p)) else null)
+	if _illus_tex.any(func(t): return t != null):
+		_illus = TextureRect.new()
+		_illus.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_illus.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_illus.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		_illus.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_illus.texture = _illus_tex[0]
+		add_child(_illus)
+		# 글씨 가독용 어두운 스크림(삽화 위, 텍스트 아래).
+		var scrim := ColorRect.new()
+		scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+		scrim.color = Color(0.03, 0.03, 0.05, 0.5)
+		scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(scrim)
 
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -62,12 +91,28 @@ func _advance() -> void:
 		return
 	_idx += 1
 	if _idx < SLIDES.size():
+		_set_illus(_idx)
 		_fade_to(SLIDES[_idx], UITheme.FS_H1, UITheme.FG)
 	else:
 		_title_mode = true
 		if _hint != null:
 			_hint.text = "탭하여 시작"
+		_set_illus(-1)  # 제목 카드 — 삽화 없이(어두운 배경 위 제목만)
 		_fade_to(TITLE_TEXT, UITheme.FS_DISPLAY, UITheme.SAND)
+
+## 삽화를 idx 슬라이드로 크로스페이드(idx 밖 = 삽화 끔). _illus 없으면 no-op(fallback).
+func _set_illus(idx: int) -> void:
+	if _illus == null:
+		return
+	var tex: Texture2D = _illus_tex[idx] if idx >= 0 and idx < _illus_tex.size() else null
+	var t := create_tween()
+	t.tween_property(_illus, "modulate:a", 0.0, FADE * 0.5)
+	t.tween_callback(_apply_illus.bind(tex))
+	t.tween_property(_illus, "modulate:a", 1.0, FADE)
+
+func _apply_illus(tex: Texture2D) -> void:
+	if _illus != null:
+		_illus.texture = tex
 
 func _fade_in() -> void:
 	_label.modulate.a = 0.0
