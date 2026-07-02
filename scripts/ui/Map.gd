@@ -24,6 +24,9 @@ var _moving: bool = false
 var _move_timer: float = 0.0
 var _sit_panel: Control       ## 이동 중 상황 카드 모달
 var _sit_box: VBoxContainer   ## 카드 내용(매번 갈아끼움)
+var _leave_btn: Button        ## "남기기" — 이동 중에도 물건 하나 두고 계속 (런당 1회)
+var _bequeath: BequeathPanel  ## 남기기 모달 (공유 컴포넌트 — 도착 화면과 같은 것)
+var _result_popup: ResultPopup ## 선택 결과 팝업 (공유)
 
 func _ready() -> void:
 	if GameState.current_run == null or not GameState.current_run.alive:
@@ -50,11 +53,22 @@ func _ready() -> void:
 	bottom.add_child(bcol)
 	_guide = UITheme.make_label(_guide_text(), UITheme.FS_LABEL, UITheme.SAND)
 	bcol.add_child(_guide)
+	# 남기기 — 이동 중에도 상시 누를 수 있게 둔다(이동 중 고갈사 전에 남길 기회). 누르면 멈추고 남긴 뒤 계속.
+	_leave_btn = UITheme.make_button("남기기", false)
+	_leave_btn.pressed.connect(_on_leave_pressed)
+	bcol.add_child(_leave_btn)
 	bcol.add_child(UITheme.make_label(
 		"흔적 %d개 · 죽은 자리 %d곳 · 원정 %d회" % [GameState.traces.size(), GameState.deaths.size(), GameState.expedition_count],
 		UITheme.FS_SMALL, UITheme.MUTED))
 
 	_build_situation_panel()
+	# 남기기·결과 팝업 = 공유 컴포넌트(도착 화면과 같은 것).
+	_bequeath = BequeathPanel.new()
+	_bequeath.committed.connect(_on_bequeath_done)
+	_bequeath.cancelled.connect(_on_bequeath_done)
+	add_child(_bequeath)
+	_result_popup = ResultPopup.new()
+	add_child(_result_popup)
 	_refresh_hud()
 	queue_redraw()
 
@@ -78,6 +92,48 @@ func _refresh_hud() -> void:
 	if run == null or _hud == null:
 		return
 	_hud.text = "물 %d · 식량 %d · 로프 %d · 은신처 %d" % [run.get_res("water"), run.get_res("food"), run.get_res("rope"), run.get_res("shelter")]
+	_update_leave_btn(run)
+
+## 남기기 버튼 상태 — 이미 남겼으면 잠그고, 아니면 남길 수 있는 자원이 하나라도 있을 때만 활성.
+func _update_leave_btn(run: ExpeditionRun) -> void:
+	if _leave_btn == null:
+		return
+	if run.bequeathed:
+		_leave_btn.disabled = true
+		_leave_btn.text = "남겼다"
+	else:
+		_leave_btn.disabled = not _any_leavable(run)
+		_leave_btn.text = "남기기"
+
+func _any_leavable(run: ExpeditionRun) -> bool:
+	for key in ["water", "food", "rope", "shelter"]:
+		if run.can_leave(key):
+			return true
+	return false
+
+## 남기기 — 이동 중이면 멈추고, 마지막 밟은 노드에 물건을 둔다(런당 1회). 남긴 뒤 이동을 잇는다.
+func _on_leave_pressed() -> void:
+	var run: ExpeditionRun = GameState.current_run
+	if run == null or not run.alive or run.bequeathed:
+		return
+	if _sit_panel.visible or _bequeath.is_open() or _result_popup.is_open():
+		return
+	_moving = false
+	if _guide != null:
+		_guide.text = "멈춰 선다."
+	_bequeath.open(run, run.current_node)  # 이동 중=마지막 밟은 노드에 남긴다(death_node_id 와 일관)
+
+## 남기기 패널이 닫힌 뒤 (남겼든 취소든) — 이동 중이었으면 이어서 나아간다.
+func _on_bequeath_done() -> void:
+	var run: ExpeditionRun = GameState.current_run
+	_refresh_hud()
+	if run != null and run.alive and run.target_node_id() != "" and not run.arrived():
+		_moving = true
+		_move_timer = 0.0
+		if _guide != null:
+			_guide.text = "나아가는 중..."
+	elif _guide != null:
+		_guide.text = _guide_text()
 
 # --- 이동 (맵 위에서 실제로) ---
 
@@ -103,7 +159,7 @@ func _process(delta: float) -> void:
 		_show_situation_card()  # 이동 중 마주친 상황 — 결정하면 이동을 잇는다
 
 func _gui_input(event: InputEvent) -> void:
-	if _moving or (_sit_panel != null and _sit_panel.visible):
+	if _moving or (_sit_panel != null and _sit_panel.visible) or (_bequeath != null and _bequeath.is_open()) or (_result_popup != null and _result_popup.is_open()):
 		return
 	var clicked: bool = (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
 		or (event is InputEventScreenTouch and event.pressed)
@@ -166,13 +222,13 @@ func _show_situation_card() -> void:
 		var btn := UITheme.make_button("", false)
 		btn.text = UITheme.choice_text(choice, enabled, seen)
 		if enabled:
-			btn.pressed.connect(_on_situation_choice.bind(event_id, i, effect, choice.get("sets", []), choice.get("sets_persist", [])))
+			btn.pressed.connect(_on_situation_choice.bind(event_id, i, str(choice.get("label", "")), effect, choice.get("sets", []), choice.get("sets_persist", [])))
 		else:
 			btn.disabled = true
 		_sit_box.add_child(btn)
 	_sit_panel.visible = true
 
-func _on_situation_choice(event_id: String, idx: int, effect: Dictionary, sets: Array, sets_persist: Array) -> void:
+func _on_situation_choice(event_id: String, idx: int, label: String, effect: Dictionary, sets: Array, sets_persist: Array) -> void:
 	var run: ExpeditionRun = GameState.current_run
 	if run == null:
 		return
@@ -186,6 +242,14 @@ func _on_situation_choice(event_id: String, idx: int, effect: Dictionary, sets: 
 		GameState.add_persist_flags(sets_persist)
 	_sit_panel.visible = false
 	_refresh_hud()
+	# blind choice 뒷면 — 결과(자원 변화)를 팝업으로 공개하고, 닫으면 이동을 잇는다.
+	_result_popup.show_result(label, effect, _after_situation)
+
+## 이동 중 상황의 결과 팝업을 닫은 뒤 — 죽었으면 그 자리 노드 화면, 아니면 이동 재개.
+func _after_situation() -> void:
+	var run: ExpeditionRun = GameState.current_run
+	if run == null:
+		return
 	if not run.alive:
 		GameState.go_to_expedition()  # 결정이 곧 죽음 → 그 자리 노드 화면
 		return

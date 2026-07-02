@@ -23,16 +23,12 @@ var _sit_threat_label: Label
 var _sit_text_label: Label
 var _choice_box: VBoxContainer
 
-var _bequeath_panel: Control               ## 자발적 종료 시 "남김 한 번" 결정 화면
-var _bequeath_box: VBoxContainer           ## 단계별 내용을 갈아끼우는 컨테이너
-var _picked_kind: int = TraceData.ObjectKind.BODY  ## 남길 물건 종류
-var _picked_tags: Array[String] = []       ## 얹을 태그(WordPool, 최대 2개)
+var _bequeath: BequeathPanel               ## "남김 한 번" 모달 (공유 컴포넌트 — 지도와 같은 것)
 
 var _section: SectionRun            ## 도착 노드의 단면 탐색 상태(예산·지점)
 var _section_rect: Rect2            ## 단면 그림 영역(지점 히트테스트 기준)
 var _probe_label: Label            ## "조사 N번 가능" — 남은 조사 횟수(예산)
-var _banner_label: Label           ## 조사 결과 배너("식량 +2")
-var _banner_timer: float = 0.0     ## 배너 표시 시간
+var _result_popup: ResultPopup     ## 조사·선택 결과 팝업(공유) — 하단 배너 대신 모달로 통일
 
 var _ending_panel: Control         ## end 도달 결말 화면(순환/재회)
 var _ending_box: VBoxContainer
@@ -112,9 +108,6 @@ func _build_hud() -> void:
 	bcol.custom_minimum_size = Vector2(UITheme.COLUMN_W, 0)
 	bar.add_child(bcol)
 
-	_banner_label = UITheme.make_label("", UITheme.FS_LABEL, UITheme.SAND)  # 조사 결과 배너
-	bcol.add_child(_banner_label)
-
 	_advance_btn = UITheme.make_button("떠난다 · 지도로")
 	_advance_btn.pressed.connect(_on_advance)
 	bcol.add_child(_advance_btn)
@@ -126,7 +119,13 @@ func _build_hud() -> void:
 
 	_build_situation_panel()
 	_build_death_panel()
-	_build_bequeath_panel()
+	# 남기기·결과 팝업은 공유 컴포넌트(지도와 같은 것) — 코드로 얹는다.
+	_bequeath = BequeathPanel.new()
+	_bequeath.committed.connect(_on_bequeath_done)
+	_bequeath.cancelled.connect(_on_bequeath_done)
+	add_child(_bequeath)
+	_result_popup = ResultPopup.new()
+	add_child(_result_popup)
 	_build_ending_panel()
 
 func _build_situation_panel() -> void:
@@ -193,28 +192,6 @@ func _build_death_panel() -> void:
 	to_map.pressed.connect(_on_to_map)
 	dbox.add_child(to_map)
 
-func _build_bequeath_panel() -> void:
-	_bequeath_panel = Control.new()
-	_bequeath_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_bequeath_panel.visible = false
-	add_child(_bequeath_panel)
-
-	var dim := ColorRect.new()
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = UITheme.SCRIM
-	_bequeath_panel.add_child(dim)
-
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_bequeath_panel.add_child(center)
-
-	var card := UITheme.make_card()
-	center.add_child(card)
-
-	_bequeath_box = VBoxContainer.new()
-	_bequeath_box.add_theme_constant_override("separation", UITheme.GAP)
-	card.add_child(_bequeath_box)
-
 func _refresh() -> void:
 	_status_label.text = "원정 %d째 · %d걸음\n물 -%d/걸음 · 식량 -1/%d걸음" % [GameState.expedition_count, _run.leg, _run.water_cost(), ExpeditionRun.FOOD_EVERY]
 	var water: int = maxi(0, _run.get_res("water"))
@@ -263,9 +240,11 @@ func _on_advance() -> void:
 
 ## 남기기 — 물건 하나를 두고(자원 -비용) 계속 간다(런당 1회). 죽음과 분리.
 func _on_leave_pressed() -> void:
-	if not _run.alive or _run.bequeathed or _bequeath_panel.visible or _sit_panel.visible:
+	if not _run.alive or _run.bequeathed or _bequeath.is_open() or _sit_panel.visible or _result_popup.is_open():
 		return
-	_show_bequeath()
+	_bequeath.open(_run, _run.target_node_id())  # 도착 노드에 남긴다
+	_advance_btn.disabled = true
+	_leave_btn.disabled = true
 
 func _on_to_map() -> void:
 	GameState.go_to_map()
@@ -295,7 +274,7 @@ func _show_situation() -> void:
 		if enabled:
 			var sets: Array = choice.get("sets", [])
 			var sets_p: Array = choice.get("sets_persist", [])
-			btn.pressed.connect(_on_choice.bind(event_id, i, effect, str(choice.get("action", "")), sets, sets_p, int(choice.get("trace_kind", -1))))
+			btn.pressed.connect(_on_choice.bind(event_id, i, str(choice.get("label", "")), effect, str(choice.get("action", "")), sets, sets_p, int(choice.get("trace_kind", -1))))
 		else:
 			btn.disabled = true
 		_choice_box.add_child(btn)
@@ -304,7 +283,7 @@ func _show_situation() -> void:
 	_leave_btn.disabled = true
 	_sit_panel.visible = true
 
-func _on_choice(event_id: String, idx: int, effect: Dictionary, action: String = "", sets: Array = [], sets_persist: Array = [], trace_kind: int = -1) -> void:
+func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, action: String = "", sets: Array = [], sets_persist: Array = [], trace_kind: int = -1) -> void:
 	GameState.mark_choice_seen(event_id, idx)  # 이 선택지를 겪었다 — 다음 대면 때 결과가 보인다(런 한정)
 	var here_leg: int = _run.leg
 	var here_node: String = _run.target_node_id()  # 지금 결정 중인 도착 노드
@@ -323,8 +302,13 @@ func _on_choice(event_id: String, idx: int, effect: Dictionary, action: String =
 	if not sets_persist.is_empty():
 		GameState.add_persist_flags(sets_persist)
 	_sit_panel.visible = false
-	_advance_btn.disabled = false
 	_refresh()
+	# blind choice 뒷면 — 눌러봐야 결과를 안다. 무엇이 일어났는지(자원 변화)를 팝업으로 공개한다.
+	_result_popup.show_result(label, effect, _after_choice)
+
+## 결과 팝업을 닫은 뒤 — 계속 전진(또는 결정이 곧 죽음이었으면 죽음 화면).
+func _after_choice() -> void:
+	_advance_btn.disabled = false
 	if not _run.alive:
 		_die(_run.death_cause)
 
@@ -344,129 +328,12 @@ func _clear_choices() -> void:
 		_choice_box.remove_child(c)
 		c.queue_free()
 
-# --- 남김 한 번 (물건 두고 계속) ---
+# --- 남김 한 번 (물건 두고 계속) — 결정 UI 는 공유 BequeathPanel 이 맡는다 ---
 
-## "남김 한 번" 결정 화면을 연다 — 물건 하나를 골라 태그를 얹는다. 죽지 않고 계속 간다(그 자원만 그만큼 잃음).
-func _show_bequeath() -> void:
-	_picked_kind = TraceData.ObjectKind.MARK
-	_picked_tags = []
-	_advance_btn.disabled = true
-	_leave_btn.disabled = true
-	_sit_panel.visible = false
-	_bequeath_step_what()
-	_bequeath_panel.visible = true
-
-## 1단계 — 무엇을 남길까. 남기면 그만큼 잃는다(자기 수명 깎기). 생존 자원(물/식량)은 죽지 않을 만큼만 남길 수 있다.
-func _bequeath_step_what() -> void:
-	_clear_box(_bequeath_box)
-	_bequeath_box.add_child(UITheme.make_label("무엇을 남길까", UITheme.FS_H1))
-	_bequeath_box.add_child(UITheme.make_label("물건 하나를 여기 둔다. 그만큼 잃지만, 계속 갈 수 있다.", UITheme.FS_SMALL, UITheme.MUTED))
-	var opts: Array = [
-		[TraceData.ObjectKind.WATER, "물통", "water"],
-		[TraceData.ObjectKind.FOOD, "식량 자루", "food"],
-		[TraceData.ObjectKind.ROPE, "로프", "rope"],
-		[TraceData.ObjectKind.SHELTER, "은신막", "shelter"],
-	]
-	for o in opts:
-		var kind: int = o[0]
-		var label: String = o[1]
-		var res_key: String = o[2]
-		var cost: int = _run.leave_cost(res_key)
-		var have: int = _run.get_res(res_key)
-		var btn := UITheme.make_button("%s  (%s -%d / 보유 %d)" % [label, str(UITheme.RES_KO.get(res_key, res_key)), cost, have], false)
-		if _run.can_leave(res_key):
-			btn.pressed.connect(_pick_object.bind(kind))
-		else:
-			btn.disabled = true
-		_bequeath_box.add_child(btn)
-
-	_bequeath_box.add_child(HSeparator.new())
-	var cancel := UITheme.make_button("그냥 간다", false)
-	cancel.add_theme_color_override("font_color", UITheme.MUTED)
-	cancel.pressed.connect(_cancel_bequeath)
-	_bequeath_box.add_child(cancel)
-
-func _pick_object(kind: int) -> void:
-	_picked_kind = kind
-	_bequeath_step_tags()
-
-## 2단계 — 어떤 표식(태그)을 얹을까. WordPool 에서 최대 2개. 없이 남겨도 된다.
-func _bequeath_step_tags() -> void:
-	_clear_box(_bequeath_box)
-	_bequeath_box.add_child(UITheme.make_label("남길 것: %s" % _obj_name(_picked_kind), UITheme.FS_BODY, UITheme.SAND))
-	var picked_str: String = (" · ".join(PackedStringArray(_picked_tags))) if not _picked_tags.is_empty() else "(없음)"
-	_bequeath_box.add_child(UITheme.make_label("표식: %s" % picked_str, UITheme.FS_SMALL, UITheme.MUTED))
-	_bequeath_box.add_child(UITheme.make_label("한두 마디. 다음 원정대가 읽는다.", UITheme.FS_SMALL, UITheme.MUTED))
-	for cat in [WordPool.DIRECTION, WordPool.WARNING, WordPool.TIME, WordPool.GREETING]:
-		var flow := HFlowContainer.new()
-		flow.add_theme_constant_override("h_separation", 8)
-		flow.add_theme_constant_override("v_separation", 8)
-		for w in cat:
-			var word: String = str(w)
-			var tb := Button.new()
-			tb.text = word
-			tb.toggle_mode = true
-			tb.button_pressed = _picked_tags.has(word)
-			tb.custom_minimum_size = Vector2(0, 44)
-			tb.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
-			tb.pressed.connect(_toggle_tag.bind(word))
-			flow.add_child(tb)
-		_bequeath_box.add_child(flow)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	var back := UITheme.make_button("뒤로", false)
-	back.pressed.connect(_bequeath_step_what)
-	row.add_child(back)
-	var done := UITheme.make_button("남기고 계속 간다", false)
-	done.pressed.connect(_commit_bequeath)
-	row.add_child(done)
-	_bequeath_box.add_child(row)
-
-## 태그 토글 — 최대 2개. 넘으면 가장 오래된 것을 밀어낸다.
-func _toggle_tag(word: String) -> void:
-	if _picked_tags.has(word):
-		_picked_tags.erase(word)
-	else:
-		_picked_tags.append(word)
-		if _picked_tags.size() > 2:
-			_picked_tags.remove_at(0)
-	_bequeath_step_tags()
-
-## 줍기형(자원) 흔적인가 — 물통/식량/은신막만 다음 원정대가 집어 쓸 수 있다(uses 부여).
-func _is_pickup_kind(kind: int) -> bool:
-	return kind == TraceData.ObjectKind.WATER or kind == TraceData.ObjectKind.FOOD or kind == TraceData.ObjectKind.SHELTER
-
-## 결정 확정 — 물건을 그 자리에 남기고(자원 그만큼 잃음) 계속 간다. 죽지 않는다.
-## 남긴 자원 흔적은 줍기 가능(uses) — 다음 원정대가 집어 쓴다(루프가 닫힌다).
-func _commit_bequeath() -> void:
-	var res_key: String = _kind_to_key(_picked_kind)
-	if res_key == "":
-		_cancel_bequeath()
-		return
-	_run.do_leave(res_key)  # 자원 -비용 + 토큰 소진 (can_leave 가 생존 보장 → 안 죽음)
-	var uses: int = TraceData.PICKUP_USES if _is_pickup_kind(_picked_kind) else 0
-	var trace := TraceData.new(_picked_kind, _run.leg, _picked_tags, uses)
-	trace.node_id = _run.target_node_id()  # 도착한 노드에 남긴다 — 다음 원정이 그 노드에서 줍는다
-	GameState.leave_trace(trace)
-	GameState.save_game()
-	_bequeath_panel.visible = false
-	_advance_btn.disabled = false
-	_refresh()  # 줄어든 자원·소진된 남기기 버튼 반영. 계속 전진.
-
-## 남김 취소 — 결정 화면을 닫고 계속 간다.
-func _cancel_bequeath() -> void:
-	_bequeath_panel.visible = false
+## 남기기 패널이 닫힌 뒤 (남겼든 취소든) — 계속 전진. 줄어든 자원·소진된 버튼을 반영한다.
+func _on_bequeath_done() -> void:
 	_advance_btn.disabled = false
 	_refresh()
-
-## 남길 물건 종류 → 자원 키 ("" = 자원 아님/없음).
-func _kind_to_key(kind: int) -> String:
-	match kind:
-		TraceData.ObjectKind.WATER: return "water"
-		TraceData.ObjectKind.FOOD: return "food"
-		TraceData.ObjectKind.ROPE: return "rope"
-		TraceData.ObjectKind.SHELTER: return "shelter"
-		_: return ""
 
 func _obj_name(kind: int) -> String:
 	match kind:
@@ -512,7 +379,8 @@ func _death_message(cause: String) -> String:
 func _show_death(cause: String, tags: Array[String], kind: int = TraceData.ObjectKind.BODY) -> void:
 	_advance_btn.disabled = true
 	_sit_panel.visible = false
-	_bequeath_panel.visible = false
+	if _bequeath != null:
+		_bequeath.visible = false
 	var left: String = _obj_name(kind)
 	if tags.is_empty():
 		_death_label.text = "%s\n\n남긴 것: %s" % [_death_message(cause), left]
@@ -523,14 +391,8 @@ func _show_death(cause: String, tags: Array[String], kind: int = TraceData.Objec
 
 # --- 단면 탐색 (그림 + 지점 조사) ---
 
-func _process(delta: float) -> void:
-	if _banner_timer > 0.0:
-		_banner_timer -= delta
-		if _banner_timer <= 0.0 and _banner_label != null:
-			_banner_label.text = ""
-
 func _gui_input(event: InputEvent) -> void:
-	if _section == null or _sit_panel.visible or _bequeath_panel.visible or _death_panel.visible:
+	if _section == null or _sit_panel.visible or _bequeath.is_open() or _result_popup.is_open() or _death_panel.visible:
 		return
 	var clicked: bool = (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
 		or (event is InputEventScreenTouch and event.pressed)
@@ -546,7 +408,7 @@ func _gui_input(event: InputEvent) -> void:
 			_probe_spot(i)
 			return
 
-## 지점을 조사한다 — 결과 디스패치. event=모달 카드, delta/empty=경량 배너.
+## 지점을 조사한다 — 결과 디스패치. event=선택 카드, delta/empty=결과 팝업(모두 모달로 통일).
 func _probe_spot(i: int) -> void:
 	var res: Dictionary = _section.probe(i)
 	if res.is_empty():
@@ -569,28 +431,19 @@ func _probe_spot(i: int) -> void:
 			_run.set_flag(str(f))
 		if not sp.is_empty():
 			GameState.add_persist_flags(sp)
-		_show_banner(_probe_text(str(res.get("text", "")), effect))
 		_refresh()
 		queue_redraw()
-		if not _run.alive:
-			_die(_run.death_cause)
+		_result_popup.show_result(str(res.get("text", "")), effect, _after_delta)
 		return
-	# empty
-	_show_banner(str(res.get("text", "아무것도 없다.")))
+	# empty — 빈손도 팝업으로(하단 배너 폐기, 결과는 전부 모달로 통일).
 	_refresh()
 	queue_redraw()
+	_result_popup.show_result(str(res.get("text", "아무것도 없다.")), {}, Callable())
 
-## 조사 결과 한 줄 — 묘사 + 자원 변화 힌트.
-func _probe_text(txt: String, effect: Dictionary) -> String:
-	if effect.is_empty():
-		return txt
-	var hint: String = UITheme.effect_hint(effect)
-	return hint if txt == "" else "%s  (%s)" % [txt, hint]
-
-func _show_banner(text: String) -> void:
-	if _banner_label != null:
-		_banner_label.text = text
-		_banner_timer = 2.5
+## 자원 결과 팝업을 닫은 뒤 — delta 로도 죽을 수 있으니(음수 효과) 죽음 판정.
+func _after_delta() -> void:
+	if not _run.alive:
+		_die(_run.death_cause)
 
 ## 단면 내용 rect 안의 정규화 좌표(0..1) → 화면 좌표.
 func _spot_screen(at: Vector2) -> Vector2:
