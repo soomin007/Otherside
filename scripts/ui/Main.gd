@@ -10,7 +10,24 @@ var _stat_label: Label  # 데이터 초기화 후 갱신하려고 들고 있는�
 
 func _ready() -> void:
 	AppSettings.apply_saved()  # 저장된 음량 복원 (앱 시작 = 항상 타이틀 경유)
-	add_child(Backdrop.new())  # 사막 밤 공통 배경(맨 뒤)
+	# 타이틀 키아트 배경. 없으면 사막 밤 공통 배경(Backdrop)으로 fallback(웹 안전).
+	const TITLE_ART: String = "res://assets/arts/29_타이틀_키아트.png"
+	if ResourceLoader.exists(TITLE_ART):
+		var tr := TextureRect.new()
+		tr.texture = load(TITLE_ART)
+		tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED  # 화면 꽉 채우기(cover)
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(tr)
+		# 제목·버튼 글씨 가독용 가벼운 어두운 스크림(키아트 위, 컬럼 아래).
+		var scrim := ColorRect.new()
+		scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+		scrim.color = Color(0.04, 0.04, 0.06, 0.35)
+		scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(scrim)
+	else:
+		add_child(Backdrop.new())  # fallback: 사막 밤 공통 배경
 	var col := UITheme.build_column(self, 22)
 
 	var title := UITheme.make_label("See you on the other side", UITheme.FS_DISPLAY)
