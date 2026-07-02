@@ -28,6 +28,10 @@ const ALPHA_LO: float = 0.18   # 배경 잔여(이 이하 alpha) → 완전 투�
 const ALPHA_HI: float = 0.82   # 그림 내부(이 이상 alpha) → 완전 불투명으로 스냅
 const MARGIN: int = 8          # 크롭 후 사방 여백(px)
 
+# 부드러운 페이드가 핵심인 파일 — alpha 스냅을 끈다(단단한 아이콘엔 스냅이 좋지만
+# 소용돌이 모래처럼 바깥으로 옅게 흩어지는 그림은 스냅하면 가장자리가 거칠게 끊긴다).
+const SOFT_KEYS: Array = ["_미지"]
+
 func _init() -> void:
 	var targets: Array = _resolve_targets()
 	if targets.is_empty():
@@ -85,13 +89,14 @@ func _convert_one(src: String) -> bool:
 	if img.get_format() != Image.FORMAT_RGBA8:
 		img.convert(Image.FORMAT_RGBA8)
 
+	var soft: bool = _is_soft(src)
 	var w: int = img.get_width()
 	var h: int = img.get_height()
 	var cleared: int = 0
 	for y in range(h):
 		for x in range(w):
 			var c: Color = img.get_pixel(x, y)
-			var a: float = _bg_alpha(c)
+			var a: float = _bg_alpha(c, soft)
 			if a < 1.0:
 				c.a = a
 				img.set_pixel(x, y, c)
@@ -116,12 +121,19 @@ func _convert_one(src: String) -> bool:
 		print("FAIL 저장(", err, "): ", out_path)
 		return false
 
-	print("OK  %s → %s  [%dx%d, 배경 %d px 투명]" % [base, out_path, img.get_width(), img.get_height(), cleared])
+	print("OK  %s → %s  [%dx%d, 배경 %d px 투명%s]" % [base, out_path, img.get_width(), img.get_height(), cleared, " · soft" if soft else ""])
 	return true
+
+func _is_soft(src: String) -> bool:
+	var base: String = src.get_file()
+	for key in SOFT_KEYS:
+		if base.contains(str(key)):
+			return true
+	return false
 
 # --- 컬러키: 배경(순백)일수록 alpha 낮게. 채도 있으면 그림으로 보고 남긴다 ---
 
-func _bg_alpha(c: Color) -> float:
+func _bg_alpha(c: Color, soft: bool) -> float:
 	var mx: float = maxf(c.r, maxf(c.g, c.b))   # value(밝기)
 	var mn: float = minf(c.r, minf(c.g, c.b))
 	var chroma: float = mx - mn                  # 흰/회색 = 0, 세피아·모래 = 높음
@@ -131,6 +143,9 @@ func _bg_alpha(c: Color) -> float:
 	var chroma_gate: float = 1.0 - smoothstep(0.0, CHROMA_MAX, chroma)
 	var bg_score: float = bright * chroma_gate    # 1 = 확실한 배경, 0 = 확실한 그림
 	var alpha: float = clampf(1.0 - bg_score, 0.0, 1.0)
+	# soft: 스냅 없이 원본 페이드 유지(소용돌이 등 옅은 가장자리가 부드럽게 사라진다).
+	if soft:
+		return alpha
 	# 대비 강화 — 배경 잔여는 완전 투명, 그림 내부는 완전 불투명. 얇은 경계만 반투명으로 남긴다.
 	if alpha <= ALPHA_LO:
 		return 0.0

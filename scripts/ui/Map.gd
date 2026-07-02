@@ -9,6 +9,26 @@ const TOP_Y: float = 140.0   ## 제목 + 자원 HUD 아래(지도 시작 y)
 const BOT_Y: float = 156.0   ## 하단 요소(안내·남기기 버튼·통계 라벨)가 다 들어가게 + 웹 주소창 여유
 const NODE_R: float = 13.0
 const STEP_INTERVAL: float = 0.28  ## 이동 한 걸음의 시간(초)
+const ICON_MAX: float = 76.0       ## 노드 아이콘 긴 변 최대 표시 크기(px)
+const NODE_PAD_FRAC: float = 0.05  ## 노드 세로 배치 상하 여백(area 대비) — 맨 위/아래 노드가 HUD·버튼·아이콘과 안 겹치게
+const REVEAL_DUR: float = 0.55     ## 방문 시 잉크 reveal 애니 길이(초)
+
+## 지도 배경 + 노드별 손그림 아이콘(투명 변환본). 노드 id → 아이콘 1:1(이름 일치).
+## 로드 실패 시 절차적 심볼(_draw_landmark_symbol)로 fallback — 에셋 없어도 깨지지 않는다.
+const BG_PATH: String = "res://assets/arts/01_지도_양피지.png"
+const ICON_PATHS: Dictionary = {
+	"n0": "res://assets/arts/transparent/02_아이콘_마을.png",
+	"a1": "res://assets/arts/transparent/03_아이콘_마른강.png",
+	"b1": "res://assets/arts/transparent/04_아이콘_버려진야영지.png",
+	"b2": "res://assets/arts/transparent/05_아이콘_갈라진바닥.png",
+	"c1": "res://assets/arts/transparent/06_아이콘_오아시스.png",
+	"c2": "res://assets/arts/transparent/07_아이콘_모래의벽.png",
+	"d1": "res://assets/arts/transparent/08_아이콘_뼈의들판.png",
+	"d2": "res://assets/arts/transparent/09_아이콘_독웅덩이.png",
+	"e1": "res://assets/arts/transparent/10_아이콘_무너진담.png",
+	"f1": "res://assets/arts/transparent/11_아이콘_폭풍의문.png",
+	"end": "res://assets/arts/transparent/12_아이콘_미지.png",
+}
 
 # 고지도·양피지 팔레트 — UITheme 로 승격(지도·단면 공유). alias 로 기존 참조 유지.
 const PAPER: Color = UITheme.PAPER
@@ -27,10 +47,21 @@ var _sit_box: VBoxContainer   ## 카드 내용(매번 갈아끼움)
 var _leave_btn: Button        ## "남기기" — 이동 중에도 물건 하나 두고 계속 (런당 1회)
 var _bequeath: BequeathPanel  ## 남기기 모달 (공유 컴포넌트 — 도착 화면과 같은 것)
 var _result_popup: ResultPopup ## 선택 결과 팝업 (공유)
+var _bg_tex: Texture2D
+var _icon_tex: Dictionary = {}   ## 노드 id -> Texture2D (로드 성공한 것만)
+var _reveal_id: String = ""      ## 이번에 잉크로 그려지며 나타날 노드(방금 도착/시작한 곳)
+var _reveal_t: float = 0.0       ## reveal 애니 경과 시간
 
 func _ready() -> void:
 	if GameState.current_run == null or not GameState.current_run.alive:
 		GameState.begin_run_in_place()
+
+	if ResourceLoader.exists(BG_PATH):
+		_bg_tex = load(BG_PATH)
+	for id in ICON_PATHS:
+		var path: String = str(ICON_PATHS[id])
+		if ResourceLoader.exists(path):
+			_icon_tex[str(id)] = load(path)
 
 	var title := UITheme.make_label("지도 · 탐험", UITheme.FS_H1)
 	title.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -69,6 +100,10 @@ func _ready() -> void:
 	add_child(_bequeath)
 	_result_popup = ResultPopup.new()
 	add_child(_result_popup)
+	# 방금 도착(또는 시작)한 노드가 잉크로 번지듯 나타난다 — 지도 재진입마다 현재 노드에 재생.
+	if GameState.current_run != null:
+		_reveal_id = GameState.current_run.current_node
+	_reveal_t = 0.0
 	_refresh_hud()
 	queue_redraw()
 
@@ -138,6 +173,10 @@ func _on_bequeath_done() -> void:
 # --- 이동 (맵 위에서 실제로) ---
 
 func _process(delta: float) -> void:
+	# reveal 애니가 진행 중이면 다시 그린다(이동 중이 아니어도).
+	if _reveal_t < REVEAL_DUR:
+		_reveal_t += delta
+		queue_redraw()
 	if not _moving:
 		return
 	queue_redraw()
@@ -268,9 +307,11 @@ func _node_screen(node: Dictionary, area: Rect2) -> Vector2:
 	var mr: int = maxi(1, MapGraph.max_row())
 	var col: float = float(node.get("col", 0.5))
 	var row: float = float(int(node.get("row", 0)))
+	# 상하 여백을 둬 맨 위/아래 노드(마을·미지)가 area 경계(HUD·버튼)에 붙지 않게.
+	var ty: float = NODE_PAD_FRAC + (row / float(mr)) * (1.0 - 2.0 * NODE_PAD_FRAC)
 	return Vector2(
 		area.position.x + col * area.size.x,
-		area.position.y + (row / float(mr)) * area.size.y)
+		area.position.y + ty * area.size.y)
 
 ## 플레이어 마커 위치 — 이동 중이면 현재→목표 노드 보간, 아니면 현재 노드.
 func _marker_pos(area: Rect2) -> Vector2:
@@ -295,13 +336,21 @@ func _draw() -> void:
 	if font == null:
 		font = ThemeDB.fallback_font
 
-	# 양피지 바탕 + 은은한 지형결 + 낡은 가장자리(전부 절차적 — 웹 안전).
-	draw_rect(area, PAPER)
-	_draw_terrain(area)
-	_draw_paper_edge(area)
+	# 지도 배경 — 손그림 양피지 텍스처. 없으면 절차적 양피지로 fallback(웹 안전).
+	if _bg_tex != null:
+		draw_texture_rect(_bg_tex, area, false)
+	else:
+		draw_rect(area, PAPER)
+		_draw_terrain(area)
+		_draw_paper_edge(area)
 
 	var cur: String = _current_node_id()
 	var nexts: Array = MapGraph.node(cur).get("next", [])
+
+	# 아이콘 크기를 노드 세로 간격에 맞춘다 — 아이콘+아래 이름이 한 칸(row_gap) 안에 들어가
+	# 위아래 노드와 안 겹치게(세로로 붙는 중앙 줄: 마을·마른강·무너진담·폭풍문·미지 기준).
+	var row_gap: float = area.size.y * (1.0 - 2.0 * NODE_PAD_FRAC) / float(maxi(1, MapGraph.max_row()))
+	var icon_size: float = clampf(row_gap * 0.66, 26.0, ICON_MAX)
 
 	# 길 — 가본 노드에서 나가는 트레일. 밟은 길은 진한 실선, 미지로 향하는 길은 점선.
 	for id in MapGraph.NODES:
@@ -329,9 +378,10 @@ func _draw() -> void:
 		if reachable and not _moving:
 			draw_arc(p, NODE_R + 6.0, 0.0, TAU, 28, INK, 2.0)  # 누를 수 있는 곳
 		if revealed:
-			_draw_landmark_symbol(str(MapGraph.NODES[id].get("kind", "")), p)
+			_draw_landmark(str(id), str(MapGraph.NODES[id].get("kind", "")), p, icon_size)
 			if font != null:
-				draw_string(font, p + Vector2(NODE_R + 8.0, 5.0), str(MapGraph.NODES[id].get("name", "")), HORIZONTAL_ALIGNMENT_LEFT, 150.0, UITheme.FS_TINY, INK)
+				# 이름은 아이콘 아래 중앙에(아이콘과 안 겹치게).
+				draw_string(font, p + Vector2(-75.0, icon_size * 0.5 + 12.0), str(MapGraph.NODES[id].get("name", "")), HORIZONTAL_ALIGNMENT_CENTER, 150.0, UITheme.FS_TINY, INK)
 		else:
 			draw_circle(p, NODE_R - 2.0, Color(INK_FADE.r, INK_FADE.g, INK_FADE.b, 0.22))
 			if font != null:
@@ -366,7 +416,27 @@ func _draw_paper_edge(area: Rect2) -> void:
 	var inset: float = 6.0
 	draw_rect(Rect2(area.position + Vector2(inset, inset), area.size - Vector2(inset, inset) * 2.0), Color(PAPER_EDGE.r, PAPER_EDGE.g, PAPER_EDGE.b, 0.3), false, 1.5)
 
-## 손그림 장소 심볼 (kind별) — 세피아 잉크. 점이 아니라 "장소"로 읽히게.
+## 노드 아이콘 — 손그림 텍스처를 노드 위에 얹는다(종횡비 유지). 없으면 절차적 심볼 fallback.
+func _draw_landmark(id: String, kind: String, p: Vector2, icon_max: float) -> void:
+	var tex: Texture2D = _icon_tex.get(id, null)
+	if tex == null:
+		_draw_landmark_symbol(kind, p)
+		return
+	var tw: float = float(tex.get_width())
+	var th: float = float(tex.get_height())
+	if tw <= 0.0 or th <= 0.0:
+		_draw_landmark_symbol(kind, p)
+		return
+	# 잉크 reveal — 방금 도착한 노드는 작고 흐리게 시작해 커지며 진해진다(웹 안전, modulate+scale).
+	var rt: float = 1.0
+	if id == _reveal_id and _reveal_t < REVEAL_DUR:
+		rt = smoothstep(0.0, 1.0, clampf(_reveal_t / REVEAL_DUR, 0.0, 1.0))
+	var eff: float = icon_max * lerpf(0.72, 1.0, rt)
+	var scale: float = eff / maxf(tw, th)
+	var sz: Vector2 = Vector2(tw * scale, th * scale)
+	draw_texture_rect(tex, Rect2(p - sz * 0.5, sz), false, Color(1.0, 1.0, 1.0, rt))
+
+## 손그림 장소 심볼 (kind별) — 세피아 잉크. 점이 아니라 "장소"로 읽히게. (아이콘 로드 실패 시 fallback)
 func _draw_landmark_symbol(kind: String, p: Vector2) -> void:
 	match kind:
 		"start":  # 마을 — 작은 천막
