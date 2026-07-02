@@ -38,7 +38,7 @@
   → 마을 · 가방 꾸리기(Loadout.gd): 6칸 가방에 물품 담기 → 시작 자원 결정 + 첫 원정 시장 NPC 튜토리얼
   → 지도(Map.gd, 양피지 노드 그래프): 갈 노드 선택(강한 미지 — 가봐야 안다)
   → 맵 위에서 마커가 그 노드로 이동(Map._process): 거리만큼 자원 소모 + 이동 중 자잘한 상황 카드
-  → 도착 노드 "단면 탐색"(Expedition.gd + SectionRun/SectionArt): 여러 지점 중 "살필 틈"(예산 2)만 조사
+  → 도착 노드 "단면 탐색"(Expedition.gd + SectionRun/SectionArt): 여러 지점 중 제한된 조사 횟수(예산 2)만 쓴다
        조사 결과 = 이벤트 카드 / 자원 / 흔적 줍기 / 로프 통과 / 빈손
   → 자원 고갈·위협으로 죽음(시체·죽은 자리 흔적) 또는 살아서 "남기기" 1회(물건 두고 자원만 잃고 계속)
   → 지도로 복귀(안개 걷힘·노드 흔적 마커) → 다음 노드 …
@@ -51,7 +51,7 @@
 **core (`scripts/core/`, 순수 데이터·로직, GameState/ui 미참조):**
 - `MapGraph.gd` — 고정 노드 그래프(`NODES`, n0 마을 → … → end). 각 노드 `{kind,name,row,col,next,events,spots?}`. 콘텐츠의 유일한 집.
 - `ExpeditionRun.gd` — 한 원정 상태·로직. 엣지 전진(`step`), 도착 카드 계산(`arrival_event`: 로프 통과>줍기>이벤트), `raise_situation`, 자원 소모·죽음, 남기기(`do_leave`), 흔적/차단은 **node_id 키**.
-- `SectionRun.gd` — 도착 노드 단면 탐색(주요 지점=arrival_event + 보조 지점=node.spots, "살필 틈" 예산, `probe`→결과 디스크립터). 순수(-s 검증 가능).
+- `SectionRun.gd` — 도착 노드 단면 탐색(주요 지점=arrival_event + 보조 지점=node.spots, 조사 횟수 예산, `probe`→결과 디스크립터, `probed_count`). 순수(-s 검증 가능).
 - `Situations.gd` — `CATALOG`(이동 중 상황), `pick_event`(노드 events), `crossed_blockage`, `pickup_trace`, `can_choose`. **`LANDMARKS`는 폐기됨(⑤).**
 - `TraceData.gd` — 흔적(`object_kind`, **`node_id`**, tags, uses). `Threats.gd` — 위협 종류.
 
@@ -106,7 +106,7 @@
 
 ## 10. 남은 일 (backlog 요약 — 상세는 backlog.md)
 
-- **★ 플레이어 이해도/온보딩 (2026-07-01 플레이 피드백, backlog 최상단):** '살필 틈' 용어·단면 지점 클릭 안내·조사 비용(예산=횟수, 자원 소모 아님)·자원 소모 규칙(물 매 걸음/식량 2걸음마다)·조작 튜토리얼(시장 NPC 다음). **+ blind choice**: 선택지 결과를 누르기 전엔 숨김(`needs` 조건은 표시, 이미 겪은 행동은 노출).
+- **★ 온보딩/UX 잔여:** 화면 문구·HUD·blind choice 는 완료(2026-07-02: '살필 틈'→'조사 N번 가능', 단면 첫 도착 클릭 안내, HUD 식량 -1/2걸음 규칙 / blind choice = 선택지 결과 누르기 전 숨김, needs 표시·겪은 선택지 노출). **남은 것 = 조작 오버레이 튜토리얼**(지도 이동·단면 조사·남기기를 첫 원정에 실제 화면서 짚기, 시장 NPC 다음).
 - **⑥ 결말 심화:** 순환의 *물리적* 반영(도달점=다음 목표=맵 변화), 재회 임계(`REUNION_TRACES` 8, 임시) 밸런싱, 재회 연출/크레딧.
 - **콘텐츠·비주얼:** 단면 맞춤 아트(트랙 B), 노드 콘텐츠 더, 지도 다듬기, 폭풍 파티클 3층, **실제 그림 에셋 교체**(오프닝·단면).
 - **오프닝/가방 확장:** 문구 다듬기(사용자: 나중에), 조작 오버레이 튜토리얼, 가방 밸런싱·물품 확장, 오프닝 다시보기.

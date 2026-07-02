@@ -2,7 +2,7 @@ class_name SectionRun
 extends RefCounted
 
 ## 도착 노드의 "그림 단면 탐색" 상태·로직 (순수 core — ExpeditionRun 만 참조, GameState/ui 무참조).
-## This War of Mine 결: 단면 안 여러 "지점" 중 제한된 예산("살필 틈")만 조사한다(나머지는 포기).
+## This War of Mine 결: 단면 안 여러 "지점" 중 제한된 조사 횟수(예산)만 조사한다(나머지는 포기).
 ##
 ## 지점 두 출처:
 ##  - 주요 지점(동적): 노드의 도착 카드(로프 무료통과 > 흔적 줍기 > 노드 이벤트 = ExpeditionRun.arrival_event). 있으면 하나.
@@ -71,6 +71,15 @@ func probe(i: int) -> Dictionary:
 	budget -= 1
 	var result: Dictionary = spot.get("_result", {})
 	return result
+
+## 지금까지 조사한 지점 수 (첫 도착 안내 표시 판단용 — 0이면 아직 아무것도 안 봤다).
+func probed_count() -> int:
+	var n: int = 0
+	for i in range(spots.size()):
+		var spot: Dictionary = spots[i]
+		if bool(spot.get("done", false)):
+			n += 1
+	return n
 
 ## 더 조사할 게 없다 — 예산 소진이거나 모든 지점을 봤다.
 func exhausted() -> bool:

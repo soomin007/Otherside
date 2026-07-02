@@ -30,7 +30,7 @@ var _picked_tags: Array[String] = []       ## 얹을 태그(WordPool, 최대 2�
 
 var _section: SectionRun            ## 도착 노드의 단면 탐색 상태(예산·지점)
 var _section_rect: Rect2            ## 단면 그림 영역(지점 히트테스트 기준)
-var _probe_label: Label            ## "살필 틈 N"
+var _probe_label: Label            ## "조사 N번 가능" — 남은 조사 횟수(예산)
 var _banner_label: Label           ## 조사 결과 배너("식량 +2")
 var _banner_timer: float = 0.0     ## 배너 표시 시간
 
@@ -95,7 +95,7 @@ func _build_hud() -> void:
 	_aux_label.add_theme_color_override("font_color", Color(0.56, 0.56, 0.62))
 	top.add_child(_aux_label)
 
-	_probe_label = Label.new()  # "살필 틈 N" — 남은 조사 예산
+	_probe_label = Label.new()  # "조사 N번 가능" — 남은 조사 횟수(예산)
 	_probe_label.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
 	_probe_label.add_theme_color_override("font_color", UITheme.SAND)
 	top.add_child(_probe_label)
@@ -216,7 +216,7 @@ func _build_bequeath_panel() -> void:
 	card.add_child(_bequeath_box)
 
 func _refresh() -> void:
-	_status_label.text = "원정 %d째 · %d걸음 · 물 -%d/걸음" % [GameState.expedition_count, _run.leg, _run.water_cost()]
+	_status_label.text = "원정 %d째 · %d걸음\n물 -%d/걸음 · 식량 -1/%d걸음" % [GameState.expedition_count, _run.leg, _run.water_cost(), ExpeditionRun.FOOD_EVERY]
 	var water: int = maxi(0, _run.get_res("water"))
 	var food: int = maxi(0, _run.get_res("food"))
 	_water_label.text = "물 %d" % water
@@ -226,7 +226,10 @@ func _refresh() -> void:
 	_aux_label.text = "로프 %d · 은신처 %d  (남길 수 있는 것)" % [_run.get_res("rope"), _run.get_res("shelter")]
 	_advance_btn.text = "떠난다 · 지도로"
 	if _probe_label != null:
-		_probe_label.text = ("살필 틈 %d" % _section.budget_left()) if (_section != null and _section.spot_count() > 0) else ""
+		if _section != null and _section.spot_count() > 0 and _section.budget_left() > 0:
+			_probe_label.text = "조사 %d번 가능" % _section.budget_left()
+		else:
+			_probe_label.text = ""
 	_update_leave_btn()
 	queue_redraw()
 
@@ -624,6 +627,9 @@ func _draw() -> void:
 		SectionArt.draw_spot(self, font, _spot_screen(at), str(spot.get("label", "")), st)
 	if _section.spot_count() == 0:
 		draw_string(font, Vector2(_section_rect.position.x, _section_rect.position.y + _section_rect.size.y * 0.5), "둘러볼 것이 없다. 떠난다.", HORIZONTAL_ALIGNMENT_CENTER, _section_rect.size.x, UITheme.FS_BODY, UITheme.MUTED)
+	elif _section.budget_left() > 0 and _section.probed_count() == 0:
+		# 첫 도착 안내 — 지점을 눌러 조사한다는 걸 짚어준다. 한 번이라도 조사하면 숨긴다(학습).
+		draw_string(font, Vector2(_section_rect.position.x, _section_rect.end.y - 14.0), "표시된 곳을 눌러 조사한다  (자원은 들지 않는다)", HORIZONTAL_ALIGNMENT_CENTER, _section_rect.size.x, UITheme.FS_SMALL, UITheme.INK)
 
 # --- 결말 (목적지 도달: 순환과 재회) ---
 
