@@ -31,6 +31,7 @@
 | 24~28 | 오프닝 삽화 5장 | §7 | ✅ 완료 (불투명, `Opening.gd` 슬라이드별 삽화 + 크로스페이드) |
 | 29 | 타이틀 키아트 | §8 | ✅ 완료 (불투명, `Main.gd` 배경 TextureRect cover + 스크림) |
 | 30~37 | 아이템 삽화 8종 (물통/식량/말린고기/로프/은신막/약초/부싯돌/정화천) | §9 | ⬜ **다음** (흰→투명, `ItemIcon.gd` 배선됨·절차적 fallback 중) |
+| 38 | 열린 가방(위에서 본 빈 배낭) — 가방 슬롯 뒤 배경 | §10 | ⬜ 선택 (흰→투명, `Loadout.gd` 배선됨·없으면 배낭 초상 21 재활용) |
 
 **01~29 배선 완료.** 다음은 **아이템 삽화 8종(§9, 30~37)** — 가방 챙기기 화면 슬롯에 들어간다. `ItemIcon.gd` 가 이미 배선돼 있어(없으면 절차적 글리프) 뽑아서 `transparent/` 로 흰→투명 변환만 하면 자동 반영. 그 외 남은 것은 폰/웹 시각 확인·톤 조정(스크림 알파 Opening 0.5·Main 0.35, cover/contain).
 
@@ -405,6 +406,22 @@ A single folded fine linen filtering cloth for straining water, damp-stained pal
 centered with generous margin on a plain solid pure white background (#FFFFFF). Painterly semi-realistic,
 muted off-white and sepia palette, low saturation, soft light. Absolutely no text, no words, no letters,
 no labels, no numbers, no watermark, no checkerboard, no scenery, no ground, no shadow, no second object.
+```
+
+---
+
+## 10. 열린 가방 배경 (선택, 흰 배경 → 투명 · 세로 800×1000 이상) — `38_배경_열린가방.png`
+
+> 가방 챙기기 화면의 6칸 슬롯 **뒤에 깔리는** 열린 배낭. 위에서 내려다본 **빈** 배낭이라 슬롯(아이템)이 그 '안'에
+> 놓인 것처럼 보인다. 가운데(입구)는 어둡고 비어야 슬롯이 읽힌다. 없으면 배낭 초상(21)을 재활용한다.
+
+```
+A top-down view of a single open empty leather-and-canvas expedition backpack seen from directly above,
+the flap open and the dark empty interior facing up, buckled straps and a rolled bedroll around the rim,
+dusty and travel-used, the center kept dark and empty, a single object centered with generous margin on
+a plain solid pure white background (#FFFFFF). Painterly semi-realistic, muted sand and sepia palette,
+low saturation, soft light. Absolutely no text, no words, no letters, no labels, no numbers, no watermark,
+no checkerboard, no scenery, no ground, no shadow, no items inside.
 ```
 
 ---

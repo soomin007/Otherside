@@ -218,6 +218,20 @@ func _build_step2() -> void:
 	var bag_panel := PanelContainer.new()
 	bag_panel.add_theme_stylebox_override("panel", _bag_stylebox())
 	bag_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	# 슬롯 뒤에 배낭 그림을 은은히 깔아 '가방 안'으로 읽히게. 전용 열린가방(38) 우선, 없으면 배낭 초상(21).
+	var bag_art: String = ""
+	for p in ["res://assets/arts/transparent/38_배경_열린가방.png", "res://assets/arts/transparent/21_초상_배낭.png"]:
+		if ResourceLoader.exists(p):
+			bag_art = p
+			break
+	if bag_art != "":
+		var art := TextureRect.new()
+		art.texture = load(bag_art)
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		art.modulate = Color(1.0, 1.0, 1.0, 0.5)  # 은은히 — 슬롯이 위에 읽히게
+		bag_panel.add_child(art)
 	_bag_box = GridContainer.new()
 	_bag_box.columns = 3
 	_bag_box.add_theme_constant_override("h_separation", 10)
@@ -342,11 +356,11 @@ func _bag_stylebox() -> StyleBoxFlat:
 func _slot_stylebox(filled: bool) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	if filled:
-		sb.bg_color = Color(0.25, 0.19, 0.12, 0.96)
-		sb.border_color = Color(0.56, 0.42, 0.24)
+		sb.bg_color = Color(0.24, 0.18, 0.11, 0.82)  # 담긴 칸(배낭이 살짝 비치게)
+		sb.border_color = Color(0.60, 0.45, 0.26)
 	else:
-		sb.bg_color = Color(0.09, 0.07, 0.05, 0.6)
-		sb.border_color = Color(0.30, 0.24, 0.16, 0.7)
+		sb.bg_color = Color(0.09, 0.07, 0.05, 0.45)   # 빈칸(더 비침)
+		sb.border_color = Color(0.34, 0.27, 0.18, 0.7)
 	sb.set_border_width_all(2)
 	sb.set_corner_radius_all(8)
 	sb.set_content_margin_all(4)
