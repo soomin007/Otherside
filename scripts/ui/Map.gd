@@ -8,7 +8,8 @@ extends Control
 const TOP_Y: float = 140.0   ## 제목 + 자원 HUD 아래(지도 시작 y)
 const BOT_Y: float = 156.0   ## 하단 요소(안내·남기기 버튼·통계 라벨)가 다 들어가게 + 웹 주소창 여유
 const NODE_R: float = 13.0
-const STEP_INTERVAL: float = 0.28  ## 이동 한 걸음의 시간(초)
+const STEP_INTERVAL: float = 0.5   ## 이동 한 걸음의 시간(초) — 느긋하게(잉크 번짐을 음미)
+const SPLASH_DUR: float = 0.8      ## 걸음마다 번지는 잉크 얼룩이 피어 사라지기까지(초)
 const EDGE_SAMPLES: int = 18       ## 엣지 곡선을 그릴 때 나눌 샘플 수(경로·마커가 같은 곡선을 공유)
 const ICON_MAX: float = 108.0      ## 노드 아이콘 긴 변 최대 표시 크기(px)
 const NODE_PAD_FRAC: float = 0.05  ## 노드 진행축 양끝 여백(area 대비) — 맨 처음/끝 노드가 화면 끝·HUD·버튼과 안 겹치게
@@ -52,6 +53,8 @@ var _bg_tex: Texture2D
 var _icon_tex: Dictionary = {}   ## 노드 id -> Texture2D (로드 성공한 것만)
 var _reveal_id: String = ""      ## 이번에 잉크로 그려지며 나타날 노드(방금 도착/시작한 곳)
 var _reveal_t: float = 0.0       ## reveal 애니 경과 시간
+var _splashes: Array = []        ## 이동 중 걸음마다 번지는 잉크 얼룩 [{pos,t}] — _process 가 나이 먹이고 _draw 가 렌더
+var _hovered_node: String = ""   ## 마우스가 올라간 도달 가능 노드(호버 시 클릭 원 확대). 터치엔 없음
 
 func _ready() -> void:
 	if GameState.current_run == null or not GameState.current_run.alive:
@@ -174,13 +177,22 @@ func _on_bequeath_done() -> void:
 # --- 이동 (맵 위에서 실제로) ---
 
 func _process(delta: float) -> void:
+	# 걸음 잉크 얼룩 나이 먹이기 — 다 자란 건 버린다. 남아 있으면 계속 다시 그린다(피어오르는 중).
+	if not _splashes.is_empty():
+		var kept: Array = []
+		for sp in _splashes:
+			sp["t"] = float(sp["t"]) + delta
+			if float(sp["t"]) < SPLASH_DUR:
+				kept.append(sp)
+		_splashes = kept
+		queue_redraw()
 	# reveal 애니가 진행 중이면 다시 그린다(이동 중이 아니어도).
 	if _reveal_t < REVEAL_DUR:
 		_reveal_t += delta
 		queue_redraw()
 	if not _moving:
 		return
-	queue_redraw()
+	queue_redraw()  # 이동 중엔 매 프레임 다시 그린다(마커가 곡선 위를 부드럽게 미끄러진다)
 	_move_timer += delta
 	if _move_timer < STEP_INTERVAL:
 		return
@@ -191,6 +203,9 @@ func _process(delta: float) -> void:
 		return
 	run.step()
 	_refresh_hud()
+	# 이 걸음이 닿은 자리에 잉크가 번진다(잉크처럼 퍼지는 이동).
+	if run.alive:
+		_splashes.append({"pos": _marker_pos(_map_area()), "t": 0.0})
 	if not run.alive or run.arrived():
 		_moving = false
 		GameState.go_to_expedition()  # 도착(또는 도중 고갈사) → 그 노드 화면
@@ -200,22 +215,45 @@ func _process(delta: float) -> void:
 
 func _gui_input(event: InputEvent) -> void:
 	if _moving or (_sit_panel != null and _sit_panel.visible) or (_bequeath != null and _bequeath.is_open()) or (_result_popup != null and _result_popup.is_open()):
+		if _hovered_node != "":
+			_hovered_node = ""
+			queue_redraw()
+		return
+	var area := _map_area()
+	# 호버 — 마우스가 올라간 도달 가능 노드를 기억(그 원이 커진다). 데스크톱 전용(터치엔 motion 없음).
+	if event is InputEventMouseMotion:
+		var hov: String = _reachable_at((event as InputEventMouseMotion).position, area)
+		if hov != _hovered_node:
+			_hovered_node = hov
+			queue_redraw()
 		return
 	var clicked: bool = (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
 		or (event is InputEventScreenTouch and event.pressed)
 	if not clicked:
 		return
-	var pos: Vector2 = event.position
-	var area := _map_area()
+	var hit: String = _reachable_at(event.position, area)
+	if hit != "":
+		GameState.begin_travel(hit)
+		_moving = true
+		_move_timer = 0.0
+		_hovered_node = ""
+		if _guide != null:
+			_guide.text = "나아가는 중..."
+
+## 좌표 위의 도달 가능 노드 id(없으면 ""). 판정 반경 = 아이콘을 감싸는 클릭 원 크기.
+func _reachable_at(pos: Vector2, area: Rect2) -> String:
+	var r: float = _icon_size(area) * 0.5 + 10.0
 	for nx in MapGraph.node(_current_node_id()).get("next", []):
 		var p: Vector2 = _node_screen(MapGraph.node(str(nx)), area)
-		if pos.distance_to(p) <= NODE_R + 18.0:
-			GameState.begin_travel(str(nx))
-			_moving = true
-			_move_timer = 0.0
-			if _guide != null:
-				_guide.text = "나아가는 중..."
-			return
+		if pos.distance_to(p) <= r:
+			return str(nx)
+	return ""
+
+## 아이콘 긴 변 표시 크기(px) — _draw 와 클릭/호버 판정이 공유(원이 아이콘을 감싸도록).
+func _icon_size(area: Rect2) -> float:
+	var prog_span: float = (area.size.x if _is_landscape(area) else area.size.y) * (1.0 - 2.0 * NODE_PAD_FRAC)
+	var row_gap: float = prog_span / float(maxi(1, MapGraph.max_row()))
+	return clampf(row_gap * 0.82, 30.0, ICON_MAX)
 
 # --- 이동 중 상황 카드 ---
 
@@ -363,6 +401,31 @@ func _id_hash(s: String) -> int:
 		h += s.unicode_at(i)
 	return h
 
+## 발자국 — 밟은 길 곡선을 따라 좌우 번갈아 찍힌 자취(원정대가 지나갔다). 호길이 누적으로 균일 간격.
+func _draw_footprints(pts: PackedVector2Array) -> void:
+	var n: int = pts.size()
+	if n < 2:
+		return
+	var col := Color(INK.r, INK.g, INK.b, 0.6)
+	var spacing: float = 13.0
+	var carry: float = spacing * 0.6   # 첫 발자국은 노드에서 살짝 떨어져
+	var side: float = 1.0
+	for i in range(n - 1):
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		var seg: float = a.distance_to(b)
+		if seg < 0.001:
+			continue
+		var dir: Vector2 = (b - a) / seg
+		var nrm: Vector2 = Vector2(-dir.y, dir.x)
+		var pos: float = carry
+		while pos < seg:
+			var foot: Vector2 = a + dir * pos + nrm * (side * 3.0)
+			draw_line(foot - dir * 2.2, foot + dir * 2.2, col, 2.4)  # 발바닥 = 진행 방향 짧은 자국
+			side = -side
+			pos += spacing
+		carry = pos - seg
+
 ## 플레이어 마커 위치 — 이동 중이면 엣지 곡선 위를 따라가고, 아니면 현재 노드.
 func _marker_pos(area: Rect2) -> Vector2:
 	var run: ExpeditionRun = GameState.current_run
@@ -371,8 +434,10 @@ func _marker_pos(area: Rect2) -> Vector2:
 	var tgt: String = run.target_node_id()
 	if not _moving or tgt == "":
 		return _node_screen(MapGraph.node(run.current_node), area)
-	var prog: float = float(ExpeditionRun.EDGE_LEN - run.edge_remaining()) / float(ExpeditionRun.EDGE_LEN)
-	return _edge_point(run.current_node, tgt, clampf(prog, 0.0, 1.0), area)
+	var step_done: float = float(ExpeditionRun.EDGE_LEN - run.edge_remaining())
+	var frac: float = clampf(_move_timer / STEP_INTERVAL, 0.0, 1.0)  # 걸음 사이 프레임 보간(톡톡 → 스르륵)
+	var prog: float = clampf((step_done + frac) / float(ExpeditionRun.EDGE_LEN), 0.0, 1.0)
+	return _edge_point(run.current_node, tgt, prog, area)
 
 func _draw() -> void:
 	var rect: Vector2 = size
@@ -401,9 +466,7 @@ func _draw() -> void:
 	# 아이콘 크기를 노드 세로 간격에 맞춘다 — 아이콘+아래 이름이 한 칸(row_gap) 안에 들어가
 	# 위아래 노드와 안 겹치게(세로로 붙는 중앙 줄: 마을·마른강·무너진담·폭풍문·미지 기준).
 	# 아이콘 크기는 진행축 간격에 맞춘다(가로면 x, 세로면 y). 노드가 진행축으로 안 겹치게.
-	var prog_span: float = (area.size.x if _is_landscape(area) else area.size.y) * (1.0 - 2.0 * NODE_PAD_FRAC)
-	var row_gap: float = prog_span / float(maxi(1, MapGraph.max_row()))
-	var icon_size: float = clampf(row_gap * 0.82, 30.0, ICON_MAX)
+	var icon_size: float = _icon_size(area)
 
 	# 길 — 가본 노드에서 나가는 트레일. 밟은 길은 진한 실선, 미지로 향하는 길은 점선.
 	for id in MapGraph.NODES:
@@ -417,7 +480,9 @@ func _draw() -> void:
 			# 지형 곡선 — 두 노드를 잇는 엣지를 biome 에 맞춰 굽이치게(강=사행/바위=우회/폭풍=흔들림).
 			var pts: PackedVector2Array = _edge_polyline(str(id), nx_s, area)
 			if _is_revealed(nx_s):
-				draw_polyline(pts, ROUTE, 3.0 if from_cur else 2.0)
+				# 밟은 길 — 옅은 실선 위에 발자국(원정대가 지나간 자취).
+				draw_polyline(pts, Color(ROUTE.r, ROUTE.g, ROUTE.b, 0.4), 1.5)
+				_draw_footprints(pts)
 			else:
 				_draw_dashed_poly(pts, INK_FADE, 2.0)
 
@@ -429,7 +494,11 @@ func _draw() -> void:
 			continue
 		var p: Vector2 = _node_screen(MapGraph.NODES[id], area)
 		if reachable and not _moving:
-			draw_arc(p, NODE_R + 6.0, 0.0, TAU, 28, INK, 2.0)  # 누를 수 있는 곳
+			# 아이콘을 감싸는 클릭 원 — 여기를 누르면 간다. 마우스 올리면 살짝 커진다(누를 수 있다는 신호).
+			var ring: float = icon_size * 0.5 + 8.0
+			if str(id) == _hovered_node:
+				ring += 7.0
+			draw_arc(p, ring, 0.0, TAU, 40, INK, 2.5)
 		if revealed:
 			_draw_landmark(str(id), str(MapGraph.NODES[id].get("kind", "")), p, icon_size)
 			if font != null:
@@ -443,10 +512,15 @@ func _draw() -> void:
 	# 흔적 — 이전 원정대들이 노드에 남긴 것(누적된 길/죽음의 역사, self-async).
 	_draw_traces(area)
 
-	# 원정대 마커 — 현재 위치(이동 중이면 길 위를 나아간다). 붉은 세피아로 도드라지게.
+	# 걸음 잉크 얼룩 — 지나온 자리마다 번져 사라진다(잉크처럼 퍼지는 이동). 마커보다 먼저(아래에) 그린다.
+	for sp in _splashes:
+		var st: float = clampf(float(sp["t"]) / SPLASH_DUR, 0.0, 1.0)
+		draw_circle(sp["pos"], lerpf(3.0, 13.0, st), Color(MARKER_INK.r, MARKER_INK.g, MARKER_INK.b, lerpf(0.32, 0.0, st)))
+	# 원정대 마커 — 현재 위치(이동 중이면 곡선 위를 미끄러진다). 잉크 방울처럼(번짐 후광 + 심).
 	var mp: Vector2 = _marker_pos(area)
-	draw_circle(mp, 6.0, MARKER_INK)
-	draw_arc(mp, 10.0, 0.0, TAU, 22, MARKER_INK, 2.0)
+	draw_circle(mp, 9.0, Color(MARKER_INK.r, MARKER_INK.g, MARKER_INK.b, 0.22))
+	draw_circle(mp, 5.5, MARKER_INK)
+	draw_arc(mp, 10.0, 0.0, TAU, 22, MARKER_INK, 1.5)
 
 ## 배경 텍스처를 area 에 종횡비 유지 cover(넘치는 쪽을 잘라 왜곡·여백 없이 채움).
 func _draw_bg_cover(area: Rect2) -> void:
@@ -487,7 +561,7 @@ func _draw_terrain(area: Rect2) -> void:
 func _draw_biomes(area: Rect2) -> void:
 	var cur: String = _current_node_id()
 	var nexts: Array = MapGraph.node(cur).get("next", [])
-	var ink := Color(INK.r, INK.g, INK.b, 0.22)
+	var ink := Color(INK.r, INK.g, INK.b, 0.3)
 	var s: float = minf(area.size.x, area.size.y)
 	for id in MapGraph.NODES:
 		if not _is_revealed(id):
@@ -513,64 +587,74 @@ func _tangent_at(pts: PackedVector2Array, i: int) -> Vector2:
 	var d: Vector2 = b - a
 	return d.normalized() if d.length() > 0.001 else Vector2.RIGHT
 
-## river — 경로와 나란히 흐르는 옅은 물줄기(강을 따라가는 길). 곡선을 법선 방향으로 살짝 민 평행선.
+## river — 경로와 나란히 흐르는 물길(강을 따라가는 길). 두 안 사이를 옅게 채우고 가운데 물결선.
 func _draw_edge_river(pts: PackedVector2Array, col: Color) -> void:
 	var n: int = pts.size()
 	if n < 4:
 		return
-	var bank1: PackedVector2Array = []
-	var bank2: PackedVector2Array = []
-	var lo: int = int(n * 0.14)
-	var hi: int = int(n * 0.86)
+	var lo: int = int(n * 0.12)
+	var hi: int = int(n * 0.88)
+	var poly: PackedVector2Array = []
+	var right: PackedVector2Array = []
+	var wave: PackedVector2Array = []
 	for i in range(lo, hi + 1):
 		var t: Vector2 = _tangent_at(pts, i)
 		var nrm: Vector2 = Vector2(-t.y, t.x)
-		bank1.append(pts[i] + nrm * 4.0)   # 강 양안 이중선(경로와 나란히 흐르는 물길)
-		bank2.append(pts[i] + nrm * 8.0)
-	if bank1.size() >= 2:
-		draw_polyline(bank1, col, 1.5)
-		draw_polyline(bank2, col, 1.5)
+		poly.append(pts[i] + nrm * 2.5)       # 안쪽 둑
+		right.append(pts[i] + nrm * 13.0)     # 바깥 둑(넓은 물길)
+		wave.append(pts[i] + nrm * 7.5)       # 가운데 물결
+	for i in range(right.size() - 1, -1, -1): # 폴리곤 닫기(바깥 둑 역순)
+		poly.append(right[i])
+	if poly.size() >= 3:
+		draw_colored_polygon(poly, Color(col.r, col.g, col.b, col.a * 0.55))
+	if wave.size() >= 2:
+		draw_polyline(wave, col, 1.2)
 
-## rock — 길이 도는 바깥쪽에 능선(산·바위를 돌아간다). 곡선의 볼록 방향 바깥에 삼각 능선.
+## rock — 길이 도는 바깥쪽에 채운 산 실루엣(산·바위를 돌아간다). 능선 윤곽 + 옅은 채움.
 func _draw_edge_ridges(pts: PackedVector2Array, s: float, col: Color) -> void:
 	var n: int = pts.size()
 	if n < 3:
 		return
 	var mid: Vector2 = pts[n / 2]
 	var chord_mid: Vector2 = (pts[0] + pts[n - 1]) * 0.5
-	var out_dir: Vector2 = mid - chord_mid          # 곡선이 볼록한(바깥) 방향
-	if out_dir.length() < 1.0:                       # 거의 직선이면 법선으로
+	var out_dir: Vector2 = mid - chord_mid
+	if out_dir.length() < 1.0:
 		var tg: Vector2 = (pts[n - 1] - pts[0]).normalized()
 		out_dir = Vector2(-tg.y, tg.x)
 	out_dir = out_dir.normalized()
 	var along: Vector2 = (pts[n - 1] - pts[0]).normalized()
-	var c: Vector2 = mid + out_dir * s * 0.015       # 곡선 바로 바깥(경로에 붙게)
-	var w: float = s * 0.11
-	# 밑변은 경로 근처, 봉우리만 바깥으로 솟는다(톱니가 아니라 산 실루엣).
-	var peaks: PackedVector2Array = [
-		c - along * w * 0.5,
-		c - along * w * 0.25 + out_dir * s * 0.04,
-		c + out_dir * s * 0.012,
-		c + along * w * 0.25 + out_dir * s * 0.05,
-		c + along * w * 0.5,
+	var c: Vector2 = mid + out_dir * s * 0.01        # 산 밑변 = 경로 바로 바깥
+	var w: float = s * 0.13
+	# 밑변 두 끝 + 봉우리들 → 닫힌 폴리곤(채운 겹산). 톱니가 아니라 산 실루엣.
+	var poly: PackedVector2Array = [
+		c - along * w * 0.55,
+		c - along * w * 0.3 + out_dir * s * 0.05,
+		c - along * w * 0.08 + out_dir * s * 0.022,
+		c + along * w * 0.2 + out_dir * s * 0.066,
+		c + along * w * 0.48 + out_dir * s * 0.02,
+		c + along * w * 0.55,
 	]
-	draw_polyline(peaks, col, 1.5)
+	draw_colored_polygon(poly, Color(col.r, col.g, col.b, col.a * 0.5))
+	draw_polyline(poly, col, 1.4)
 
-## storm — 길 주변에 흩날리는 모래바람(짧은 사선 몇 개, 곡선 법선 방향으로).
+## storm — 길 옆 모래바람 덩어리(겹친 구름 + 소용돌이 심). 흩날림보다 뭉친 폭풍.
 func _draw_edge_storm(pts: PackedVector2Array, s: float, col: Color) -> void:
 	var n: int = pts.size()
 	if n < 4:
 		return
-	var gust: float = s * 0.045
-	for k in range(3):
-		var idx: int = clampi(int(n * (0.3 + float(k) * 0.2)), 1, n - 2)
-		var t: Vector2 = _tangent_at(pts, idx)
-		var nrm: Vector2 = Vector2(-t.y, t.x)
-		var dirg: Vector2 = (t + nrm * 0.5).normalized()
-		var b1: Vector2 = pts[idx] + nrm * gust * 0.8
-		var b2: Vector2 = pts[idx] - nrm * gust * 1.6
-		draw_line(b1, b1 + dirg * gust, col, 1.5)
-		draw_line(b2, b2 + dirg * gust, col, 1.5)
+	var idx: int = n / 2
+	var t: Vector2 = _tangent_at(pts, idx)
+	var nrm: Vector2 = Vector2(-t.y, t.x)
+	var c: Vector2 = pts[idx] + nrm * s * 0.05
+	var fill := Color(col.r, col.g, col.b, col.a * 0.4)
+	draw_circle(c, s * 0.03, fill)                                    # 모래구름 덩어리
+	draw_circle(c + Vector2(s * 0.03, -s * 0.008), s * 0.022, fill)
+	draw_circle(c + Vector2(-s * 0.028, s * 0.006), s * 0.02, fill)
+	var spiral: PackedVector2Array = []                              # 소용돌이 심
+	for i in range(25):
+		var tt: float = float(i) / 24.0
+		spiral.append(c + Vector2(cos(tt * TAU * 1.8), sin(tt * TAU * 1.8)) * (tt * s * 0.028))
+	draw_polyline(spiral, col, 1.2)
 
 ## 양피지 가장자리 — 낡아 그을린 테두리(비네팅 대용, 셰이더 없이).
 func _draw_paper_edge(area: Rect2) -> void:
