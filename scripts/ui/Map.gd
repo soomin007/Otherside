@@ -32,6 +32,16 @@ const ICON_PATHS: Dictionary = {
 	"end": "res://assets/arts/transparent/12_아이콘_미지.png",
 }
 
+## 원정대 손스케치(§12 art_prompts) — 방문한 구간에 원정대가 지도에 그려넣은 약도·표식. 흰→투명 변환본.
+## 있으면 배치, 없으면 안 그림(백지). biome 키(river/rock/flats/storm) + 메모 키(skull).
+const SKETCH_PATHS: Dictionary = {
+	"river": "res://assets/arts/transparent/40_낙서_강.png",
+	"rock": "res://assets/arts/transparent/41_낙서_산.png",
+	"flats": "res://assets/arts/transparent/42_낙서_사구.png",
+	"storm": "res://assets/arts/transparent/43_낙서_폭풍.png",
+	"skull": "res://assets/arts/transparent/44_낙서_해골.png",
+}
+
 # 고지도·양피지 팔레트 — UITheme 로 승격(지도·단면 공유). alias 로 기존 참조 유지.
 const PAPER: Color = UITheme.PAPER
 const PAPER_EDGE: Color = UITheme.PAPER_EDGE
@@ -51,6 +61,7 @@ var _bequeath: BequeathPanel  ## 남기기 모달 (공유 컴포넌트 — 도�
 var _result_popup: ResultPopup ## 선택 결과 팝업 (공유)
 var _bg_tex: Texture2D
 var _icon_tex: Dictionary = {}   ## 노드 id -> Texture2D (로드 성공한 것만)
+var _sketch_tex: Dictionary = {} ## 손스케치 key -> Texture2D (로드 성공한 것만). 비면 지형지물 안 그림
 var _reveal_id: String = ""      ## 이번에 잉크로 그려지며 나타날 노드(방금 도착/시작한 곳)
 var _reveal_t: float = 0.0       ## reveal 애니 경과 시간
 var _splashes: Array = []        ## 이동 중 걸음마다 번지는 잉크 얼룩 [{pos,t}] — _process 가 나이 먹이고 _draw 가 렌더
@@ -66,6 +77,10 @@ func _ready() -> void:
 		var path: String = str(ICON_PATHS[id])
 		if ResourceLoader.exists(path):
 			_icon_tex[str(id)] = load(path)
+	for k in SKETCH_PATHS:
+		var spath: String = str(SKETCH_PATHS[k])
+		if ResourceLoader.exists(spath):
+			_sketch_tex[str(k)] = load(spath)
 
 	var title := UITheme.make_label("지도 · 탐험", UITheme.FS_H1)
 	title.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -569,14 +584,14 @@ func _draw_terrain(area: Rect2) -> void:
 			pts.append(Vector2(x, y))
 		draw_polyline(pts, line_col, 1.5)
 
-## 엣지(길) 구간의 지형을 곡선을 따라 세피아 잉크로 옅게 — "강을 따라가고, 산을 돌아간다"를 시각화.
-## 노드 아이콘(이미 지형 표현)과 안 겹치게 엣지 중간 구간에만. revealed 엣지만(경로 렌더와 동일 조건).
-## 도착 노드 biome 으로 결정(곡선과 같은 축). flats 는 아무것도 안 그린다(과하지 않게).
+## 원정대 손스케치 — 방문한(revealed) 엣지 구간에 그 지형(biome)의 약도를 얹는다(원정대가 지도에 그려넣음).
+## 에셋(§12 손스케치)이 없으면 아무것도 안 그린다(백지 — 옛 절차적 지형지물은 폐기). 노드 아이콘·경로와 안 겹치게 엣지 중간에.
 func _draw_biomes(area: Rect2) -> void:
+	if _sketch_tex.is_empty():
+		return
 	var cur: String = _current_node_id()
 	var nexts: Array = MapGraph.node(cur).get("next", [])
-	var ink := Color(INK.r, INK.g, INK.b, 0.3)
-	var s: float = minf(area.size.x, area.size.y)
+	var sz: float = _icon_size(area) * 0.5
 	for id in MapGraph.NODES:
 		if not _is_revealed(id):
 			continue
@@ -584,91 +599,19 @@ func _draw_biomes(area: Rect2) -> void:
 			var nx_s: String = str(nx)
 			if not (_is_revealed(nx_s) or nx_s in nexts):
 				continue
-			var pts: PackedVector2Array = _edge_polyline(str(id), nx_s, area)
-			match MapGraph.biome_of(nx_s):
-				"river":
-					_draw_edge_river(pts, ink)
-				"rock":
-					_draw_edge_ridges(pts, s, ink)
-				"storm":
-					_draw_edge_storm(pts, s, ink)
+			var tex: Texture2D = _sketch_tex.get(MapGraph.biome_of(nx_s), null)
+			if tex != null:
+				_draw_sketch(tex, _edge_point(str(id), nx_s, 0.5, area), sz)
 
-## 곡선 위 i 지점의 접선 방향 단위벡터(양끝은 한쪽 차분).
-func _tangent_at(pts: PackedVector2Array, i: int) -> Vector2:
-	var n: int = pts.size()
-	var a: Vector2 = pts[maxi(i - 1, 0)]
-	var b: Vector2 = pts[mini(i + 1, n - 1)]
-	var d: Vector2 = b - a
-	return d.normalized() if d.length() > 0.001 else Vector2.RIGHT
-
-## river — 경로와 나란히 흐르는 물길(강을 따라가는 길). 두 안 사이를 옅게 채우고 가운데 물결선.
-func _draw_edge_river(pts: PackedVector2Array, col: Color) -> void:
-	var n: int = pts.size()
-	if n < 4:
+## 손스케치 텍스처를 중심점에 종횡비 유지로 얹는다(긴 변 = target).
+func _draw_sketch(tex: Texture2D, center: Vector2, target: float) -> void:
+	var tw: float = float(tex.get_width())
+	var th: float = float(tex.get_height())
+	if tw <= 0.0 or th <= 0.0:
 		return
-	var lo: int = int(n * 0.12)
-	var hi: int = int(n * 0.88)
-	var poly: PackedVector2Array = []
-	var right: PackedVector2Array = []
-	var wave: PackedVector2Array = []
-	for i in range(lo, hi + 1):
-		var t: Vector2 = _tangent_at(pts, i)
-		var nrm: Vector2 = Vector2(-t.y, t.x)
-		poly.append(pts[i] + nrm * 2.5)       # 안쪽 둑
-		right.append(pts[i] + nrm * 13.0)     # 바깥 둑(넓은 물길)
-		wave.append(pts[i] + nrm * 7.5)       # 가운데 물결
-	for i in range(right.size() - 1, -1, -1): # 폴리곤 닫기(바깥 둑 역순)
-		poly.append(right[i])
-	if poly.size() >= 3:
-		draw_colored_polygon(poly, Color(col.r, col.g, col.b, col.a * 0.55))
-	if wave.size() >= 2:
-		draw_polyline(wave, col, 1.2)
-
-## rock — 길이 도는 바깥쪽에 채운 산 실루엣(산·바위를 돌아간다). 능선 윤곽 + 옅은 채움.
-func _draw_edge_ridges(pts: PackedVector2Array, s: float, col: Color) -> void:
-	var n: int = pts.size()
-	if n < 3:
-		return
-	var mid: Vector2 = pts[n / 2]
-	var chord_mid: Vector2 = (pts[0] + pts[n - 1]) * 0.5
-	var out_dir: Vector2 = mid - chord_mid
-	if out_dir.length() < 1.0:
-		var tg: Vector2 = (pts[n - 1] - pts[0]).normalized()
-		out_dir = Vector2(-tg.y, tg.x)
-	out_dir = out_dir.normalized()
-	var along: Vector2 = (pts[n - 1] - pts[0]).normalized()
-	var c: Vector2 = mid + out_dir * s * 0.01        # 산 밑변 = 경로 바로 바깥
-	var w: float = s * 0.13
-	# 밑변 두 끝 + 봉우리들 → 닫힌 폴리곤(채운 겹산). 톱니가 아니라 산 실루엣.
-	var poly: PackedVector2Array = [
-		c - along * w * 0.55,
-		c - along * w * 0.3 + out_dir * s * 0.05,
-		c - along * w * 0.08 + out_dir * s * 0.022,
-		c + along * w * 0.2 + out_dir * s * 0.066,
-		c + along * w * 0.48 + out_dir * s * 0.02,
-		c + along * w * 0.55,
-	]
-	draw_colored_polygon(poly, Color(col.r, col.g, col.b, col.a * 0.5))
-	draw_polyline(poly, col, 1.4)
-
-## storm — 길 옆 모래바람 덩어리(겹친 구름 + 소용돌이 심). 흩날림보다 뭉친 폭풍.
-func _draw_edge_storm(pts: PackedVector2Array, s: float, col: Color) -> void:
-	var n: int = pts.size()
-	if n < 4:
-		return
-	var idx: int = n / 2
-	var t: Vector2 = _tangent_at(pts, idx)
-	var nrm: Vector2 = Vector2(-t.y, t.x)
-	var c: Vector2 = pts[idx] + nrm * s * 0.05
-	var fill := Color(col.r, col.g, col.b, col.a * 0.4)
-	draw_circle(c, s * 0.03, fill)                                    # 모래구름 덩어리
-	draw_circle(c + Vector2(s * 0.03, -s * 0.008), s * 0.022, fill)
-	draw_circle(c + Vector2(-s * 0.028, s * 0.006), s * 0.02, fill)
-	var spiral: PackedVector2Array = []                              # 소용돌이 심
-	for i in range(25):
-		var tt: float = float(i) / 24.0
-		spiral.append(c + Vector2(cos(tt * TAU * 1.8), sin(tt * TAU * 1.8)) * (tt * s * 0.028))
-	draw_polyline(spiral, col, 1.2)
+	var sc: float = target / maxf(tw, th)
+	var wh: Vector2 = Vector2(tw * sc, th * sc)
+	draw_texture_rect(tex, Rect2(center - wh * 0.5, wh), false)
 
 ## 양피지 가장자리 — 낡아 그을린 테두리(비네팅 대용, 셰이더 없이).
 func _draw_paper_edge(area: Rect2) -> void:
@@ -759,9 +702,14 @@ func _draw_traces(area: Rect2) -> void:
 func _draw_trace_marker(p: Vector2, kind: int) -> void:
 	match kind:
 		TraceData.ObjectKind.BODY:
-			var s: float = 4.5  # 죽은 자리 — 작은 X
-			draw_line(p + Vector2(-s, -s), p + Vector2(s, s), UITheme.DANGER, 2.0)
-			draw_line(p + Vector2(-s, s), p + Vector2(s, -s), UITheme.DANGER, 2.0)
+			# 죽은 자리 — 원정대가 남긴 해골 스케치(있으면), 없으면 작은 X.
+			var skull: Texture2D = _sketch_tex.get("skull", null)
+			if skull != null:
+				_draw_sketch(skull, p, 18.0)
+			else:
+				var s: float = 4.5
+				draw_line(p + Vector2(-s, -s), p + Vector2(s, s), UITheme.DANGER, 2.0)
+				draw_line(p + Vector2(-s, s), p + Vector2(s, -s), UITheme.DANGER, 2.0)
 		TraceData.ObjectKind.ROPE:
 			draw_line(p + Vector2(-5.0, 0.0), p + Vector2(5.0, 0.0), UITheme.SAND, 2.5)  # 로프 다리
 		TraceData.ObjectKind.WATER:

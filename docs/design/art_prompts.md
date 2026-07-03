@@ -34,6 +34,8 @@
 | 38 | 열린 가방(위에서 본 빈 배낭) — 가방 슬롯 뒤 배경 | §10 | ⬜ 선택 (흰→투명, `Loadout.gd` 배선됨·없으면 배낭 초상 21 재활용) |
 | 29가로 | 타이틀 키아트 **가로판**(데스크톱) — `29_타이틀_키아트_가로.png` | §11 | ⬜ (방향 자동 교체 배선됨·없으면 세로본) |
 | 23가로 | 공통 배경 **가로판**(데스크톱) — `23_배경_공통_가로.png` | §11 | ⬜ |
+| 40~43 | 지도 손스케치 **지형** 4종 (강/산/사구/폭풍) | §12 | ⬜ 신규 (흰→투명, `Map.gd` 가 biome별 엣지에 배치·없으면 안 그림) |
+| 44~46 | 지도 손스케치 **메모** 3종 (해골/경고/화살표) | §12 | ⬜ 신규 (원정대 낙서 — 죽은 자리·위험 노드 등) |
 
 **01~29 배선 완료.** 다음은 **아이템 삽화 8종(§9, 30~37)** — 가방 챙기기 화면 슬롯에 들어간다. `ItemIcon.gd` 가 이미 배선돼 있어(없으면 절차적 글리프) 뽑아서 `transparent/` 로 흰→투명 변환만 하면 자동 반영. 그 외 남은 것은 폰/웹 시각 확인·톤 조정(스크림 알파 Opening 0.5·Main 0.35, cover/contain).
 
@@ -451,6 +453,70 @@ faint stars, a distant silhouette of a small desert city with domes and minarets
 along the horizon, the left and center kept calm, dark and empty as negative space, dusty atmosphere, a
 full background scene filling the frame. Muted palette, painterly, cinematic, low saturation, melancholic
 mood. Absolutely no text, no words, no letters, no labels, no watermark, no white background, no people.
+```
+
+---
+
+## 12. 지도 손스케치 (원정대 낙서, 흰 배경 → 투명 · 각 512×512 이상) — 7종, 하나씩 복사
+
+> **컨셉:** 이전 원정대원이 양피지 지도 위에 펜으로 슥슥 그려 남긴 약도·표식. 방문한 구간에 나타난다(안개 걷힘 = 지도가 채워짐). `Map.gd` 가 biome별로 엣지에 지형 스케치를, 죽은 자리·위험 노드에 메모를 배치한다(없으면 안 그림).
+> 파일명: 지형 `40_낙서_강`·`41_낙서_산`·`42_낙서_사구`·`43_낙서_폭풍`, 메모 `44_낙서_해골`·`45_낙서_경고`·`46_낙서_화살표`. 넣기 전 흰색→투명 변환(§적용).
+> **작고 거칠게** — 지도 아이콘(§2)보다 빠르고 성긴 손그림. 세피아 한 색, 텍스트 절대 없음, 흰 배경만.
+
+### 강 (river) — `40_낙서_강`
+```
+A tiny hand-drawn ink sketch of a winding river, quick loose pen strokes on a plain white background, a
+simple meandering double line with a few short ripple marks, explorer's field-map doodle style, single
+sepia-brown ink color, minimal and rough with lots of empty white space around it. Absolutely no text,
+no letters, no numbers, no labels, no watermark, plain white background only.
+```
+
+### 산·바위 (rock) — `41_낙서_산`
+```
+A tiny hand-drawn ink sketch of a small mountain range, three or four simple triangular peaks with a few
+short hatching lines for shading, quick loose pen strokes on a plain white background, explorer's
+field-map doodle style, single sepia-brown ink color, minimal and rough. Absolutely no text, no letters,
+no numbers, no labels, no watermark, plain white background only.
+```
+
+### 사구 (flats) — `42_낙서_사구`
+```
+A tiny hand-drawn ink sketch of rolling desert sand dunes, two or three soft overlapping curved lines,
+quick loose pen strokes on a plain white background, explorer's field-map doodle style, single
+sepia-brown ink color, minimal and rough. Absolutely no text, no letters, no numbers, no labels, no
+watermark, plain white background only.
+```
+
+### 폭풍 (storm) — `43_낙서_폭풍`
+```
+A tiny hand-drawn ink sketch of a sandstorm swirl, a simple spiral with a few short curved motion strokes
+around it, quick loose pen strokes on a plain white background, explorer's field-map doodle style, single
+sepia-brown ink color, minimal and rough. Absolutely no text, no letters, no numbers, no labels, no
+watermark, plain white background only.
+```
+
+### 해골 (죽음) — `44_낙서_해골`
+```
+A tiny hand-drawn ink sketch of a small human skull marking a death spot on a map, simple rough pen
+outline, quick loose strokes on a plain white background, explorer's field-map doodle style, single
+sepia-brown ink color, minimal. Absolutely no text, no letters, no numbers, no labels, no watermark,
+plain white background only.
+```
+
+### 경고 (위험) — `45_낙서_경고`
+```
+A tiny hand-drawn ink sketch of a danger mark, a rough X inside a hastily drawn circle with a couple of
+jagged slash strokes, nervous quick pen strokes on a plain white background, explorer's field-map doodle
+style, single sepia-brown ink color, minimal. Absolutely no text, no letters, no numbers, no labels, no
+watermark, plain white background only.
+```
+
+### 화살표 (방향) — `46_낙서_화살표`
+```
+A tiny hand-drawn ink sketch of a direction arrow, a single rough curved arrow pointing forward, quick
+loose pen strokes on a plain white background, explorer's field-map doodle style, single sepia-brown ink
+color, minimal. Absolutely no text, no letters, no numbers, no labels, no watermark, plain white
+background only.
 ```
 
 ---
