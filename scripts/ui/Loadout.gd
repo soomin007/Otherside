@@ -24,7 +24,7 @@ var _step: int = 1
 var _col: VBoxContainer            ## 단계 콘텐츠 컨테이너(스크롤 안). _show_step 이 자식을 갈아끼운다.
 
 var _bag: Array = []               ## 담은 물품 key 배열(최대 BAG_SLOTS) — 단계 넘어 유지
-var _bag_box: HFlowContainer       ## step2 위젯
+var _bag_box: GridContainer        ## step2 가방 슬롯 그리드(담은 아이템이 여기 아이콘으로 들어간다)
 var _preview: Label                ## step2 위젯
 var _depart_btn: Button            ## step2 위젯
 
@@ -213,11 +213,17 @@ func _build_step2() -> void:
 		desk.add_child(btn)
 	_col.add_child(desk)
 
-	_col.add_child(UITheme.make_label("가방  (탭해서 빼기)", UITheme.FS_LABEL, UITheme.MUTED))
-	_bag_box = HFlowContainer.new()
-	_bag_box.add_theme_constant_override("h_separation", 8)
-	_bag_box.add_theme_constant_override("v_separation", 8)
-	_col.add_child(_bag_box)
+	_col.add_child(UITheme.make_label("가방  (담은 것을 탭하면 뺀다)", UITheme.FS_LABEL, UITheme.MUTED))
+	# 가방 그래픽 — 담은 아이템이 이 틀 '안'에 아이콘으로 들어가 책상(위 버튼)과 시각적으로 구분된다.
+	var bag_panel := PanelContainer.new()
+	bag_panel.add_theme_stylebox_override("panel", _bag_stylebox())
+	bag_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_bag_box = GridContainer.new()
+	_bag_box.columns = 3
+	_bag_box.add_theme_constant_override("h_separation", 10)
+	_bag_box.add_theme_constant_override("v_separation", 10)
+	bag_panel.add_child(_bag_box)
+	_col.add_child(bag_panel)
 
 	_preview = UITheme.make_label("", UITheme.FS_LABEL, UITheme.FG)
 	_col.add_child(_preview)
@@ -267,17 +273,9 @@ func _refresh() -> void:
 		_bag_box.remove_child(c)
 		c.queue_free()
 	for i in range(_bag.size()):
-		var key: String = _bag[i]
-		var btn := UITheme.make_button(Items.label_of(key), false)
-		btn.custom_minimum_size = Vector2(150, UITheme.BTN_H_SM)
-		btn.pressed.connect(_remove_item.bind(i))
-		_bag_box.add_child(btn)
+		_bag_box.add_child(_make_slot_filled(i, str(_bag[i])))
 	for i in range(BAG_SLOTS - _bag.size()):
-		var empty := UITheme.make_label("· 빈칸 ·", UITheme.FS_SMALL, UITheme.MUTED)
-		empty.custom_minimum_size = Vector2(150, UITheme.BTN_H_SM)
-		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		empty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		_bag_box.add_child(empty)
+		_bag_box.add_child(_make_slot_empty())
 
 	var res: Dictionary = _bag_resources()
 	var wgt: int = Items.bag_weight(_bag) + (Items.weight_of(_pending_tool) if _pending_tool != "" else 0)
@@ -287,6 +285,72 @@ func _refresh() -> void:
 		int(res["water"]), int(res["food"]), Items.tools_summary(res), wgt, pen_str, _bag.size(), BAG_SLOTS]
 	if _depart_btn != null:
 		_depart_btn.disabled = int(res["water"]) <= 0 and int(res["food"]) <= 0
+
+# --- 가방 슬롯 (담은 아이템 = 아이콘, 빈칸 = 움푹한 자리) ---
+
+## 담긴 칸 — 아이템 아이콘(삽화 or 절차적) + 이름. 탭하면 뺀다.
+func _make_slot_filled(idx: int, key: String) -> Control:
+	var slot := Button.new()
+	slot.custom_minimum_size = Vector2(90, 106)
+	slot.add_theme_stylebox_override("normal", _slot_stylebox(true))
+	slot.add_theme_stylebox_override("hover", _slot_stylebox(true))
+	slot.add_theme_stylebox_override("pressed", _slot_stylebox(true))
+	slot.add_theme_stylebox_override("focus", _slot_stylebox(true))
+	slot.tooltip_text = "%s  (탭해서 빼기)" % Items.label_of(key)
+	slot.pressed.connect(_remove_item.bind(idx))
+	# 내용(아이콘+이름)은 버튼 위에 얹되 클릭은 버튼이 받게(mouse ignore + full rect).
+	var v := VBoxContainer.new()
+	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 2)
+	var icon := ItemIcon.new()
+	icon.key = key
+	icon.custom_minimum_size = Vector2(0, 58)
+	icon.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_child(icon)
+	var lbl := UITheme.make_label(Items.label_of(key), UITheme.FS_TINY, UITheme.FG)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(lbl)
+	slot.add_child(v)
+	return slot
+
+## 빈칸 — 움푹한 자리(안 눌림).
+func _make_slot_empty() -> Control:
+	var slot := PanelContainer.new()
+	slot.custom_minimum_size = Vector2(90, 106)
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_theme_stylebox_override("panel", _slot_stylebox(false))
+	var lbl := UITheme.make_label("빈칸", UITheme.FS_TINY, UITheme.MUTED)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	slot.add_child(lbl)
+	return slot
+
+## 가방 틀 — 어두운 가죽 안쪽 + 가죽 테두리(이 안이 '가방 속').
+func _bag_stylebox() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.15, 0.11, 0.07, 0.94)
+	sb.border_color = Color(0.40, 0.29, 0.17)
+	sb.set_border_width_all(3)
+	sb.set_corner_radius_all(14)
+	sb.set_content_margin_all(12)
+	return sb
+
+## 슬롯 칸 — filled(밝은 가죽) / empty(움푹 어둡게).
+func _slot_stylebox(filled: bool) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	if filled:
+		sb.bg_color = Color(0.25, 0.19, 0.12, 0.96)
+		sb.border_color = Color(0.56, 0.42, 0.24)
+	else:
+		sb.bg_color = Color(0.09, 0.07, 0.05, 0.6)
+		sb.border_color = Color(0.30, 0.24, 0.16, 0.7)
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(8)
+	sb.set_content_margin_all(4)
+	return sb
 
 ## 가방 물품 합산 → 시작 자원(core/Items.gd 카탈로그의 start 델타 합).
 func _bag_resources() -> Dictionary:

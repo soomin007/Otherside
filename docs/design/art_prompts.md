@@ -30,8 +30,9 @@
 | 23 | 공통 화면 배경 | §6 | ✅ 완료 (불투명, `Backdrop.gd` cover — 타이틀·오프닝 공용) |
 | 24~28 | 오프닝 삽화 5장 | §7 | ✅ 완료 (불투명, `Opening.gd` 슬라이드별 삽화 + 크로스페이드) |
 | 29 | 타이틀 키아트 | §8 | ✅ 완료 (불투명, `Main.gd` 배경 TextureRect cover + 스크림) |
+| 30~37 | 아이템 삽화 8종 (물통/식량/말린고기/로프/은신막/약초/부싯돌/정화천) | §9 | ⬜ **다음** (흰→투명, `ItemIcon.gd` 배선됨·절차적 fallback 중) |
 
-**진행 완료 — 01~29 전부 배선됨.** 남은 것은 **폰/웹 시각 확인**뿐: 초상 가독 · 오프닝 삽화 · 단면 글씨 · 타이틀/가방/공통 배경 위 글씨 대비. 톤 조정이 필요하면 스크림 알파(Opening 0.5 · Main 0.35)나 cover/contain 손잡이로.
+**01~29 배선 완료.** 다음은 **아이템 삽화 8종(§9, 30~37)** — 가방 챙기기 화면 슬롯에 들어간다. `ItemIcon.gd` 가 이미 배선돼 있어(없으면 절차적 글리프) 뽑아서 `transparent/` 로 흰→투명 변환만 하면 자동 반영. 그 외 남은 것은 폰/웹 시각 확인·톤 조정(스크림 알파 Opening 0.5·Main 0.35, cover/contain).
 
 ---
 
@@ -327,6 +328,83 @@ sky, a faint far-off veil of sandstorm on the horizon, a sense of distance and q
 negative space at the top, a full background scene filling the frame. Muted sepia and sand palette,
 painterly cinematic, low saturation, melancholic mood. Absolutely no text, no words, no letters,
 no labels, no title, no logo, no watermark, no white background.
+```
+
+---
+
+## 9. 아이템 삽화 (흰 배경 → 투명 · 각 512×512 이상) — 8종, 하나씩 복사
+
+> 가방 챙기기 화면의 가방 슬롯에 들어가는 물품 아이콘. **단일 사물**을 흰 배경 가운데(넉넉한 여백)로.
+> 파일명 순서: `30_아이템_물통` ~ `37_아이템_정화천`. 넣기 전 흰색→투명 변환(§적용). 톤은 §4 초상과 통일.
+
+### 물통 (water)
+```
+A single worn leather-and-hide desert waterskin canteen plugged with a wooden stopper, dusty and
+travel-used, three-quarter view, a single object centered with generous margin on a plain solid pure
+white background (#FFFFFF). Painterly semi-realistic, muted sand and sepia palette, low saturation,
+soft light. Absolutely no text, no words, no letters, no labels, no numbers, no watermark,
+no checkerboard, no scenery, no ground, no shadow, no second object.
+```
+
+### 식량 자루 (food)
+```
+A single small burlap ration sack bulging with dried food, coarse cloth, rope-tied neck, dusty and
+worn, a single object centered with generous margin on a plain solid pure white background (#FFFFFF).
+Painterly semi-realistic, muted sand and sepia palette, low saturation, soft light. Absolutely no text,
+no words, no letters, no labels, no numbers, no watermark, no checkerboard, no scenery, no ground,
+no shadow, no second object.
+```
+
+### 말린 고기 (jerky)
+```
+A small bundle of dried jerky meat strips tied with cord, dark salted meat, a single object centered
+with generous margin on a plain solid pure white background (#FFFFFF). Painterly semi-realistic, muted
+sepia and dark red-brown palette, low saturation, soft light. Absolutely no text, no words, no letters,
+no labels, no numbers, no watermark, no checkerboard, no scenery, no ground, no shadow, no second object.
+```
+
+### 로프 (rope)
+```
+A single neatly coiled worn hemp rope, wound into a loop, frayed ends, dusty, top three-quarter view, a
+single object centered with generous margin on a plain solid pure white background (#FFFFFF). Painterly
+semi-realistic, muted sand and sepia palette, low saturation, soft light. Absolutely no text, no words,
+no letters, no labels, no numbers, no watermark, no checkerboard, no scenery, no ground, no shadow,
+no second object.
+```
+
+### 은신막 (shelter)
+```
+A single folded weathered canvas tarp shelter cloth, rolled and tied with cord, dusty desert tones, a
+single object centered with generous margin on a plain solid pure white background (#FFFFFF). Painterly
+semi-realistic, muted sand and sepia palette, low saturation, soft light. Absolutely no text, no words,
+no letters, no labels, no numbers, no watermark, no checkerboard, no scenery, no ground, no shadow,
+no second object.
+```
+
+### 약초 꾸러미 (medicine)
+```
+A single small bundle of dried desert medicinal herbs tied with twine, muted green-grey leaves and
+stems, a single object centered with generous margin on a plain solid pure white background (#FFFFFF).
+Painterly semi-realistic, muted sage-green and sepia palette, low saturation, soft light. Absolutely
+no text, no words, no letters, no labels, no numbers, no watermark, no checkerboard, no scenery,
+no ground, no shadow, no second object.
+```
+
+### 부싯돌 (flint)
+```
+A single flint stone with a curved steel striker resting against it, angular grey flint, worn steel, a
+single object centered with generous margin on a plain solid pure white background (#FFFFFF). Painterly
+semi-realistic, muted grey and sepia palette, low saturation, soft light. Absolutely no text, no words,
+no letters, no labels, no numbers, no watermark, no checkerboard, no scenery, no ground, no shadow,
+no second object.
+```
+
+### 정화천 (filter)
+```
+A single folded fine linen filtering cloth for straining water, damp-stained pale cloth, a single object
+centered with generous margin on a plain solid pure white background (#FFFFFF). Painterly semi-realistic,
+muted off-white and sepia palette, low saturation, soft light. Absolutely no text, no words, no letters,
+no labels, no numbers, no watermark, no checkerboard, no scenery, no ground, no shadow, no second object.
 ```
 
 ---
