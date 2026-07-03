@@ -26,28 +26,28 @@ const LIST: Array = [
 	},
 	{
 		"id": "pathfinder", "name": "길잡이",
-		"desc": "느린 물 소모. 후반까지 더 먼 걸음.",
+		"desc": "멀어져도 물이 덜 가혹함. 물 소모가 +1 되는 거리 30 → 42걸음.",
 		"desolation_bonus": 12,
 	},
 	{
 		"id": "porter", "name": "짐꾼",
-		"desc": "넉넉한 시작 물·식량. 대신 후반에 빨라지는 물 소모.",
+		"desc": "든든한 시작. 물 +6, 식량 +5. 대신 물이 더 빨리 가혹해짐. +1 되는 거리 30 → 24걸음.",
 		"start_bonus": {"water": 6, "food": 5},
 		"desolation_bonus": -6,
 	},
 	{
 		"id": "waterwise", "name": "물지기",
-		"desc": "물을 얻을 때마다 한 모금 더.",
+		"desc": "물을 주울 때마다 +1.",
 		"water_gain_bonus": 1,
 	},
 	{
 		"id": "hardy", "name": "강골",
-		"desc": "느린 식량 소모. 주린 배를 오래 버팀.",
+		"desc": "식량이 절반 속도로 줆. 2걸음마다 1 → 4걸음마다 1.",
 		"food_every_bonus": 2,
 	},
 	{
 		"id": "keeper", "name": "유품지기",
-		"desc": "가벼운 남기기 비용.",
+		"desc": "남길 때 치르는 자원이 1 적음. 물 4 → 3, 식량 3 → 2.",
 		"leave_discount": 1,
 	},
 ]

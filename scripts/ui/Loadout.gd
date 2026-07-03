@@ -200,13 +200,16 @@ func _build_step2() -> void:
 	desk.add_theme_constant_override("v_separation", 10)
 	for it in Items.CATALOG:
 		var item: Dictionary = it
-		if str(item.get("key", "")) in Items.POUCH_TOOLS:
+		var key: String = str(item.get("key", ""))
+		if key in Items.POUCH_TOOLS:
 			continue  # 주머니 도구는 단계 1 "챙길 도구"에서 따로 고른다(가방 칸과 별개)
 		var start: Dictionary = item.get("start", {})
-		var btn := UITheme.make_button("%s  (%s)" % [str(item.get("label", "")), UITheme.effect_hint(start)], false)
+		# 자원은 시작 자원 델타를, 도구(로프·은신막)는 쓰임 설명을 괄호에 — "로프 +1"만으론 역할을 모른다.
+		var hint: String = str(item.get("desc", "")) if key in Items.TOOL_KEYS else UITheme.effect_hint(start)
+		var btn := UITheme.make_button("%s  (%s)" % [str(item.get("label", "")), hint], false)
 		btn.clip_text = false  # 긴 설명(말린 고기 등)이 박스 밖으로 잘리지 않게 — 내용 폭에 맞춘다
 		btn.custom_minimum_size = Vector2(0, UITheme.BTN_H_SM)  # 폭은 내용대로(HFlow 가 줄바꿈)
-		btn.pressed.connect(_add_item.bind(str(item.get("key", ""))))
+		btn.pressed.connect(_add_item.bind(key))
 		desk.add_child(btn)
 	_col.add_child(desk)
 
