@@ -174,7 +174,9 @@ const CATALOG: Array = [
 ## 아이코닉한 고정 지형. 키 = leg(int). 각 랜드마크는 events 풀을 가진다(같은 장소, 다른 사건).
 ## 거리 곡선대로 leg 순 배치: 가까울수록 풍요(cache), 멀수록 척박(위협). CATALOG 와 leg 가 겹치지 않게 둔다.
 ## 다음 일반 상황을 고른다. 직전과 같은 id 는 피하고, requires 가 있으면 그 플래그가 켜졌을 때만 후보에 넣는다.
-static func pick(rng: RandomNumberGenerator, last_id: String = "", flags: Dictionary = {}) -> Dictionary:
+## early=true(마을 근처 초반 구간)면 도구 위기(weight 1, 큰 대가)를 후보에서 뺀다 — 거리 곡선(가까울수록 평화,
+## 기획 §1). 시작 물이 얕은 첫 엣지에 열병(-5) 등이 떠 즉사하는 걸 막는다. 일반 상황(weight 기본 3)은 그대로.
+static func pick(rng: RandomNumberGenerator, last_id: String = "", flags: Dictionary = {}, early: bool = false) -> Dictionary:
 	var pool: Array = []
 	for s in CATALOG:
 		if str(s.get("id", "")) == last_id:
@@ -184,6 +186,8 @@ static func pick(rng: RandomNumberGenerator, last_id: String = "", flags: Dictio
 			continue
 		# weight 만큼 후보에 복제 — 도구 위기(weight 1)는 일반 상황(기본 3)보다 드물게 뜬다(빈도 가중).
 		var w: int = maxi(1, int(s.get("weight", 3)))
+		if early and w <= 1:
+			continue  # 초반엔 도구 위기(weight 1) 제외 — 마을 근처는 평화(위 주석)
 		for _i in range(w):
 			pool.append(s)
 	if pool.is_empty():

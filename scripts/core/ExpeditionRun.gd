@@ -18,6 +18,7 @@ static var FOOD_EVERY: int = 2         ## 식량은 이 걸음 수마다 1 소�
 static var GAP_MIN: int = 2            ## 엣지 안 일반 상황 최소 간격 (걸음)
 static var GAP_MAX: int = 4            ## 엣지 안 일반 상황 최대 간격 (걸음)
 static var EDGE_LEN: int = 5           ## 노드 사이 한 엣지의 걸음 수 (임시 고정 — 다음에 노드 간 거리로)
+static var EARLY_SAFE_LEG: int = 6     ## 이 걸음 전(마을 근처 첫 엣지)엔 도구 위기(큰 대가) 억제 — 거리 곡선(가까울수록 평화, 기획 §1)
 static var WEIGHT_FREE: int = 12       ## 이 무게까지는 무료(물 소모 안 늘어남)
 static var WEIGHT_STEP: int = 4        ## 초과 무게 이만큼마다 걸음당 물 +1 (무거운 짐 = 목마름)
 
@@ -167,7 +168,7 @@ func step() -> void:
 		return
 	if _edge_step < _edge_len and leg >= _next_situation_leg:
 		# 엣지 중(도착 전) 일반 상황 — 이동 중 자잘한 결정(맵 카드로 뜬다). 직전과 같은 id 는 피한다.
-		var sit: Dictionary = Situations.pick(rng, _last_situation_id, _flags)
+		var sit: Dictionary = Situations.pick(rng, _last_situation_id, _flags, leg < EARLY_SAFE_LEG)
 		if not sit.is_empty():
 			_set_pending(sit)
 	# 도착(_edge_step >= _edge_len)이면 카드를 자동으로 안 띄운다 — 그 노드 단면(SectionRun)이 지점으로 낸다.

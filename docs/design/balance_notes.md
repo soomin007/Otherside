@@ -50,6 +50,7 @@
 | 엣지 길이 | `EDGE_LEN=5` (static var) | `ExpeditionRun.gd` | 줄이면 총 걸음↓(도달 쉬움)·이동 중 상황↓·"거리감"↓. **지배적 손잡이지만 거리감 위해 5 유지 결정** |
 | 식량 소모 주기 | `FOOD_EVERY=2` (static var) | `ExpeditionRun.gd` | 식량 압박(현재 배고픔사 33% — 이전 2%에서 상승) |
 | 이동 중 상황 간격 | `GAP_MIN/MAX=2/4` (static var) | `ExpeditionRun.gd` | 결정 밀도(페이싱) |
+| 초반 안전 구간 | `EARLY_SAFE_LEG=6` (static var) | `ExpeditionRun.gd` | 이 걸음 전(첫 엣지)엔 도구 위기(열병 -5 등) 억제. 초반 즉사 방지·거리 곡선(§1). 키우면 도구 가치↓ |
 | 남기기 비용 | 물4·식3·은1·로프1 | `ExpeditionRun.LEAVE_COST` (const) | 남김=줍기 대칭(줍기 값과 함께 봐야) |
 | 재회 임계 | `REUNION_TRACES=8` | `GameState.gd` | 재회 난이도(정서 핵심). **end 도달 열렸으니 이제 튜닝 가능** |
 | 그래프 깊이 | row 0→7 (엣지 7, 완주 35걸음) | `MapGraph.gd NODES` row | 줄이면 도달 걸음↓. "긴 여정" 느낌과 트레이드 |
