@@ -40,7 +40,12 @@ const SKETCH_PATHS: Dictionary = {
 	"flats": "res://assets/arts/transparent/42_낙서_사구.png",
 	"storm": "res://assets/arts/transparent/43_낙서_폭풍.png",
 	"skull": "res://assets/arts/transparent/44_낙서_해골.png",
+	"warn": "res://assets/arts/transparent/45_낙서_경고.png",
+	"arrow": "res://assets/arts/transparent/46_낙서_화살표.png",
 }
+
+## 화살표 손스케치 원본이 가리키는 방향(우상향) — 이만큼 빼서 목표 방향으로 회전한다. 스샷 보고 튜닝.
+const ARROW_BASE: float = -0.5
 
 # 고지도·양피지 팔레트 — UITheme 로 승격(지도·단면 공유). alias 로 기존 참조 유지.
 const PAPER: Color = UITheme.PAPER
@@ -526,6 +531,11 @@ func _draw() -> void:
 			draw_arc(p, ring, 0.0, TAU, 40, INK, 2.5)
 		if revealed:
 			_draw_landmark(str(id), str(MapGraph.NODES[id].get("kind", "")), p, icon_size)
+			# 위험 노드(차단·폭풍)엔 원정대가 남긴 경고 표식(방문한 곳만, 아이콘 오른쪽 위).
+			var warn_tex: Texture2D = _sketch_tex.get("warn", null)
+			var knd: String = str(MapGraph.NODES[id].get("kind", ""))
+			if warn_tex != null and (knd == "blockage" or knd == "storm"):
+				_draw_sketch(warn_tex, p + Vector2(icon_size * 0.34, -icon_size * 0.34), icon_size * 0.4)
 			if font != null:
 				# 이름은 아이콘 아래 중앙에(아이콘과 안 겹치게).
 				draw_string(font, p + Vector2(-75.0, icon_size * 0.5 + 12.0), str(MapGraph.NODES[id].get("name", "")), HORIZONTAL_ALIGNMENT_CENTER, 150.0, UITheme.FS_TINY, INK)
@@ -536,6 +546,7 @@ func _draw() -> void:
 
 	# 흔적 — 이전 원정대들이 노드에 남긴 것(누적된 길/죽음의 역사, self-async).
 	_draw_traces(area)
+	_draw_arrows(area)  # 갈림에서 원정대가 실제 간 방향 화살표(선택의 자취)
 
 	# 이동 중 — 지금 걷는 엣지(미방문 노드로 향함)에 마커가 지나온 만큼만 발자국이 실시간으로 남는다.
 	if _moving and GameState.current_run != null and GameState.current_run.target_node_id() != "":
@@ -612,6 +623,38 @@ func _draw_sketch(tex: Texture2D, center: Vector2, target: float) -> void:
 	var sc: float = target / maxf(tw, th)
 	var wh: Vector2 = Vector2(tw * sc, th * sc)
 	draw_texture_rect(tex, Rect2(center - wh * 0.5, wh), false)
+
+## 손스케치를 rot 만큼 회전해 얹는다(화살표 방향 맞춤용).
+func _draw_sketch_rot(tex: Texture2D, center: Vector2, target: float, rot: float) -> void:
+	var tw: float = float(tex.get_width())
+	var th: float = float(tex.get_height())
+	if tw <= 0.0 or th <= 0.0:
+		return
+	var sc: float = target / maxf(tw, th)
+	var wh: Vector2 = Vector2(tw * sc, th * sc)
+	draw_set_transform(center, rot, Vector2.ONE)
+	draw_texture_rect(tex, Rect2(-wh * 0.5, wh), false)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+## 화살표 — 갈림 노드에서 원정대가 실제 간 방향(방문한 next 로)을 엣지 초입에 회전해 얹는다.
+func _draw_arrows(area: Rect2) -> void:
+	var arrow: Texture2D = _sketch_tex.get("arrow", null)
+	if arrow == null:
+		return
+	var sz: float = _icon_size(area) * 0.42
+	for id in MapGraph.NODES:
+		if not _is_revealed(id):
+			continue
+		var node_nexts: Array = MapGraph.node(id).get("next", [])
+		if node_nexts.size() < 2:
+			continue  # 갈림(분기)에서만 — 외길엔 안 그린다(발자국으로 충분)
+		for nx in node_nexts:
+			var nx_s: String = str(nx)
+			if not _is_revealed(nx_s):
+				continue  # 실제 간 곳(방문)만
+			var a: Vector2 = _edge_point(str(id), nx_s, 0.24, area)
+			var b: Vector2 = _edge_point(str(id), nx_s, 0.4, area)
+			_draw_sketch_rot(arrow, a, sz, (b - a).angle() - ARROW_BASE)
 
 ## 양피지 가장자리 — 낡아 그을린 테두리(비네팅 대용, 셰이더 없이).
 func _draw_paper_edge(area: Rect2) -> void:
