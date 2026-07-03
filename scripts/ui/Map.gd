@@ -8,7 +8,7 @@ extends Control
 const TOP_Y: float = 140.0   ## 제목 + 자원 HUD 아래(지도 시작 y)
 const BOT_Y: float = 156.0   ## 하단 요소(안내·남기기 버튼·통계 라벨)가 다 들어가게 + 웹 주소창 여유
 const NODE_R: float = 13.0
-const STEP_INTERVAL: float = 0.5   ## 이동 한 걸음의 시간(초) — 느긋하게(잉크 번짐을 음미)
+const STEP_INTERVAL: float = 0.65  ## 이동 한 걸음의 시간(초) — 느긋하게(잉크 번짐·발자국을 음미)
 const SPLASH_DUR: float = 0.8      ## 걸음마다 번지는 잉크 얼룩이 피어 사라지기까지(초)
 const EDGE_SAMPLES: int = 18       ## 엣지 곡선을 그릴 때 나눌 샘플 수(경로·마커가 같은 곡선을 공유)
 const ICON_MAX: float = 108.0      ## 노드 아이콘 긴 변 최대 표시 크기(px)
@@ -401,14 +401,19 @@ func _id_hash(s: String) -> int:
 		h += s.unicode_at(i)
 	return h
 
-## 발자국 — 밟은 길 곡선을 따라 좌우 번갈아 찍힌 자취(원정대가 지나갔다). 호길이 누적으로 균일 간격.
-func _draw_footprints(pts: PackedVector2Array) -> void:
+## 발자국 — 밟은 길 곡선을 따라 좌우 번갈아 찍힌 자취. upto(0~1)까지만 그린다(이동 중엔 마커까지 실시간).
+func _draw_footprints(pts: PackedVector2Array, upto: float = 1.0) -> void:
 	var n: int = pts.size()
 	if n < 2:
 		return
+	var total: float = 0.0
+	for i in range(n - 1):
+		total += pts[i].distance_to(pts[i + 1])
+	var limit: float = total * clampf(upto, 0.0, 1.0)
 	var col := Color(INK.r, INK.g, INK.b, 0.6)
 	var spacing: float = 13.0
-	var carry: float = spacing * 0.6   # 첫 발자국은 노드에서 살짝 떨어져
+	var walked: float = 0.0            # 지금까지 따라온 호길이
+	var next_foot: float = spacing * 0.6   # 첫 발자국은 노드에서 살짝 떨어져
 	var side: float = 1.0
 	for i in range(n - 1):
 		var a: Vector2 = pts[i]
@@ -418,13 +423,21 @@ func _draw_footprints(pts: PackedVector2Array) -> void:
 			continue
 		var dir: Vector2 = (b - a) / seg
 		var nrm: Vector2 = Vector2(-dir.y, dir.x)
-		var pos: float = carry
-		while pos < seg:
+		while next_foot <= walked + seg:
+			if next_foot > limit:
+				return  # 마커가 아직 여기까지 안 왔다(이동 중 실시간)
+			var pos: float = next_foot - walked
 			var foot: Vector2 = a + dir * pos + nrm * (side * 3.0)
 			draw_line(foot - dir * 2.2, foot + dir * 2.2, col, 2.4)  # 발바닥 = 진행 방향 짧은 자국
 			side = -side
-			pos += spacing
-		carry = pos - seg
+			next_foot += spacing
+		walked += seg
+
+## 이번 엣지 진행률(0~1) — 밟은 걸음 + 걸음 사이 프레임 보간(마커·실시간 발자국이 공유).
+func _edge_progress(run: ExpeditionRun) -> float:
+	var step_done: float = float(ExpeditionRun.EDGE_LEN - run.edge_remaining())
+	var frac: float = clampf(_move_timer / STEP_INTERVAL, 0.0, 1.0)
+	return clampf((step_done + frac) / float(ExpeditionRun.EDGE_LEN), 0.0, 1.0)
 
 ## 플레이어 마커 위치 — 이동 중이면 엣지 곡선 위를 따라가고, 아니면 현재 노드.
 func _marker_pos(area: Rect2) -> Vector2:
@@ -434,10 +447,7 @@ func _marker_pos(area: Rect2) -> Vector2:
 	var tgt: String = run.target_node_id()
 	if not _moving or tgt == "":
 		return _node_screen(MapGraph.node(run.current_node), area)
-	var step_done: float = float(ExpeditionRun.EDGE_LEN - run.edge_remaining())
-	var frac: float = clampf(_move_timer / STEP_INTERVAL, 0.0, 1.0)  # 걸음 사이 프레임 보간(톡톡 → 스르륵)
-	var prog: float = clampf((step_done + frac) / float(ExpeditionRun.EDGE_LEN), 0.0, 1.0)
-	return _edge_point(run.current_node, tgt, prog, area)
+	return _edge_point(run.current_node, tgt, _edge_progress(run), area)
 
 func _draw() -> void:
 	var rect: Vector2 = size
@@ -512,6 +522,10 @@ func _draw() -> void:
 	# 흔적 — 이전 원정대들이 노드에 남긴 것(누적된 길/죽음의 역사, self-async).
 	_draw_traces(area)
 
+	# 이동 중 — 지금 걷는 엣지(미방문 노드로 향함)에 마커가 지나온 만큼만 발자국이 실시간으로 남는다.
+	if _moving and GameState.current_run != null and GameState.current_run.target_node_id() != "":
+		var run: ExpeditionRun = GameState.current_run
+		_draw_footprints(_edge_polyline(run.current_node, run.target_node_id(), area), _edge_progress(run))
 	# 걸음 잉크 얼룩 — 지나온 자리마다 번져 사라진다(잉크처럼 퍼지는 이동). 마커보다 먼저(아래에) 그린다.
 	for sp in _splashes:
 		var st: float = clampf(float(sp["t"]) / SPLASH_DUR, 0.0, 1.0)
