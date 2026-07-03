@@ -26,9 +26,12 @@ extends RefCounted
 ##  - sets / sets_persist: 켤 플래그 목록(런 / 영속).
 ## 단일 진실: docs/design/SYOTOS_기획서_v0.1.md §4 위협 삼각형.
 
+## 지형 개연성 — 이벤트 biome 태그가 현재 지형과 일치하면 이 배수만큼 자주 뜬다(가중, 완전 고정은 아님).
+const BIOME_MATCH_MULT: int = 3
+
 const CATALOG: Array = [
 	{
-		"id": "dry_stretch",
+		"id": "dry_stretch", "biome": ["flats"],
 		"threat": Threats.Kind.CONSUMPTION,
 		"text": "앞이 바싹 메말랐다. 한참 물 한 방울 없을 듯하다.",
 		"choices": [
@@ -46,7 +49,7 @@ const CATALOG: Array = [
 		],
 	},
 	{
-		"id": "past_flask",
+		"id": "past_flask", "biome": ["river"],
 		"threat": Threats.Kind.CONSUMPTION,
 		"text": "이전 원정대가 물통을 두고 갔다. 곁의 표식: [ 또 · 봐 ]",
 		"choices": [
@@ -55,7 +58,7 @@ const CATALOG: Array = [
 		],
 	},
 	{
-		"id": "old_tracks",
+		"id": "old_tracks", "biome": ["river"],
 		"threat": Threats.Kind.CONSUMPTION,
 		"text": "모래에 반쯤 지워진 발자국. 이전 원정대도 여기까지는 왔던 모양이다. 자국은 한쪽으로 휘어 사라진다.",
 		"choices": [
@@ -64,7 +67,7 @@ const CATALOG: Array = [
 		],
 	},
 	{
-		"id": "scavenge_wreck",
+		"id": "scavenge_wreck", "biome": ["river"],
 		"threat": Threats.Kind.CONSUMPTION,
 		"text": "부서진 수레가 모래에 처박혀 있다. 뒤지면 뭔가 나올지도, 시간만 버릴지도.",
 		"choices": [
@@ -73,7 +76,7 @@ const CATALOG: Array = [
 		],
 	},
 	{
-		"id": "sun_hammer",
+		"id": "sun_hammer", "biome": ["flats"],
 		"threat": Threats.Kind.CONSUMPTION,
 		"text": "해가 정수리를 두드린다. 그늘 한 점 없다. 잠깐 쉴지 계속 밀어붙일지.",
 		"choices": [
@@ -82,7 +85,7 @@ const CATALOG: Array = [
 		],
 	},
 	{
-		"id": "loose_sand",
+		"id": "loose_sand", "biome": ["flats"],
 		"threat": Threats.Kind.CONSUMPTION,
 		"text": "발이 푹푹 빠지는 고운 모래밭. 한 걸음이 두 걸음 같다.",
 		"choices": [
@@ -91,7 +94,7 @@ const CATALOG: Array = [
 		],
 	},
 	{
-		"id": "mirage",
+		"id": "mirage", "biome": ["flats"],
 		"threat": Threats.Kind.CONSUMPTION,
 		"text": "멀리 물빛이 어른거린다. 아지랑이인지 진짜인지 알 수 없다.",
 		"choices": [
@@ -110,7 +113,7 @@ const CATALOG: Array = [
 		],
 	},
 	{
-		"id": "frozen_night", "weight": 1,
+		"id": "frozen_night", "weight": 1, "biome": ["storm"],
 		"threat": Threats.Kind.CONSUMPTION,
 		"text": "해가 지자 모래가 얼어붙는다. 이가 딱딱 부딪히고 손끝이 곱는다.",
 		"choices": [
@@ -119,7 +122,7 @@ const CATALOG: Array = [
 		],
 	},
 	{
-		"id": "murky_spring", "weight": 1,
+		"id": "murky_spring", "weight": 1, "biome": ["river"],
 		"threat": Threats.Kind.CONSUMPTION,
 		"text": "고인 물웅덩이를 만났다. 물빛이 탁하지만, 목은 타들어간다.",
 		"choices": [
@@ -129,7 +132,7 @@ const CATALOG: Array = [
 		],
 	},
 	{
-		"id": "twisted_ankle", "weight": 1,
+		"id": "twisted_ankle", "weight": 1, "biome": ["rock"],
 		"threat": Threats.Kind.CONSUMPTION,
 		"text": "무너진 비탈에서 발을 헛디뎠다. 발목이 시큰거린다. 잘못 디디면 더 상한다.",
 		"choices": [
@@ -138,7 +141,7 @@ const CATALOG: Array = [
 		],
 	},
 	{
-		"id": "sand_squall", "weight": 1,
+		"id": "sand_squall", "weight": 1, "biome": ["storm"],
 		"threat": Threats.Kind.STORM,
 		"text": "느닷없이 모래바람이 몰아친다. 짧지만 살을 벤다.",
 		"choices": [
@@ -176,7 +179,8 @@ const CATALOG: Array = [
 ## 다음 일반 상황을 고른다. 직전과 같은 id 는 피하고, requires 가 있으면 그 플래그가 켜졌을 때만 후보에 넣는다.
 ## early=true(마을 근처 초반 구간)면 도구 위기(weight 1, 큰 대가)를 후보에서 뺀다 — 거리 곡선(가까울수록 평화,
 ## 기획 §1). 시작 물이 얕은 첫 엣지에 열병(-5) 등이 떠 즉사하는 걸 막는다. 일반 상황(weight 기본 3)은 그대로.
-static func pick(rng: RandomNumberGenerator, last_id: String = "", flags: Dictionary = {}, early: bool = false) -> Dictionary:
+## biome(향하는 엣지의 지형, "" = 무시)면 그 지형에 맞는 이벤트를 자주(BIOME_MATCH_MULT 가중), 다른 지형 전용은 제외.
+static func pick(rng: RandomNumberGenerator, last_id: String = "", flags: Dictionary = {}, early: bool = false, biome: String = "") -> Dictionary:
 	var pool: Array = []
 	for s in CATALOG:
 		if str(s.get("id", "")) == last_id:
@@ -188,6 +192,13 @@ static func pick(rng: RandomNumberGenerator, last_id: String = "", flags: Dictio
 		var w: int = maxi(1, int(s.get("weight", 3)))
 		if early and w <= 1:
 			continue  # 초반엔 도구 위기(weight 1) 제외 — 마을 근처는 평화(위 주석)
+		# 지형 개연성 — 이벤트 biome 태그가 현재 지형과 맞으면 자주(가중), 안 맞는 지형 전용은 제외. 태그 없으면 어디서나.
+		var tags: Array = s.get("biome", [])
+		if not tags.is_empty() and biome != "":
+			if biome in tags:
+				w *= BIOME_MATCH_MULT
+			else:
+				continue
 		for _i in range(w):
 			pool.append(s)
 	if pool.is_empty():

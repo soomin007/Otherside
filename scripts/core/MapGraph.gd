@@ -14,6 +14,10 @@ extends RefCounted
 ## 노드 필드:
 ##  kind: "start"(마을) / "cache"(자원 보충) / "blockage"(차단) / "storm"(폭풍) / "end"(목적지, 미정)
 ##  name / row(진행 층, 0=마을, 클수록 멀고 척박) / col(같은 row 내 가로 위치 0~1, 렌더용) / next(분기)
+##  biome: 그 노드 일대의 지형 — "river"(강바닥·물가) / "rock"(바위·균열) / "storm"(폭풍·사구) / "flats"(평지·사막).
+##    kind(도착 위협)와 직교하는 축. 이 하나로 ① 노드로 향하는 엣지 곡선 모양(Map._edge_point)
+##    ② 양피지 지형지물 잉크(Map._draw_biomes) ③ 이동 중 이벤트 개연성(Situations.pick biome 가중)을 함께 정한다.
+##    엣지 A→B 의 성격 = 도착 노드 B 의 biome("향하는 곳의 지형을 따라간다"). start/end 는 없으면 "flats" 폴백.
 ##  events: 도착 시 뜨는 이벤트 풀(Situations 와 같은 구조 — pick_event 재활용 가능). start/end 는 없음.
 ##    이벤트 = {id, threat, text, choices, requires?}. choice = {label, effect, needs?, action?, sets?, sets_persist?}.
 ## 거리 곡선(기획서 §1): 가까운 row 는 풍요(cache 위주), 먼 row 는 척박(위협 위주).
@@ -23,10 +27,10 @@ const START_ID: String = "n0"
 
 const NODES: Dictionary = {
 	"n0": {
-		"kind": "start", "name": "마을", "row": 0, "col": 0.5, "next": ["a1"],
+		"kind": "start", "name": "마을", "row": 0, "col": 0.5, "next": ["a1"], "biome": "flats",
 	},
 	"a1": {
-		"kind": "cache", "name": "마른 강", "row": 1, "col": 0.5, "next": ["b1", "b2"],
+		"kind": "cache", "name": "마른 강", "row": 1, "col": 0.5, "next": ["b1", "b2"], "biome": "river",
 		"events": [
 			{
 				"id": "river_dig", "threat": Threats.Kind.CONSUMPTION,
@@ -59,7 +63,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"b1": {
-		"kind": "cache", "name": "버려진 야영지", "row": 2, "col": 0.28, "next": ["c1", "c2"],
+		"kind": "cache", "name": "버려진 야영지", "row": 2, "col": 0.28, "next": ["c1", "c2"], "biome": "flats",
 		"events": [
 			{
 				"id": "camp_search", "threat": Threats.Kind.CONSUMPTION,
@@ -93,7 +97,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"b2": {
-		"kind": "blockage", "name": "갈라진 바닥", "row": 2, "col": 0.72, "next": ["c2"],
+		"kind": "blockage", "name": "갈라진 바닥", "row": 2, "col": 0.72, "next": ["c2"], "biome": "rock",
 		"events": [
 			{
 				"id": "cracked_floor", "threat": Threats.Kind.BLOCKAGE,
@@ -118,7 +122,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"c1": {
-		"kind": "cache", "name": "오아시스", "row": 3, "col": 0.3, "next": ["d1"],
+		"kind": "cache", "name": "오아시스", "row": 3, "col": 0.3, "next": ["d1"], "biome": "river",
 		"events": [
 			{
 				"id": "oasis", "threat": Threats.Kind.CONSUMPTION,
@@ -143,7 +147,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"c2": {
-		"kind": "storm", "name": "모래의 벽", "row": 3, "col": 0.72, "next": ["d1", "d2"],
+		"kind": "storm", "name": "모래의 벽", "row": 3, "col": 0.72, "next": ["d1", "d2"], "biome": "storm",
 		"events": [
 			{
 				"id": "sand_wall", "threat": Threats.Kind.STORM,
@@ -168,7 +172,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"d1": {
-		"kind": "cache", "name": "뼈의 들판", "row": 4, "col": 0.35, "next": ["e1"],
+		"kind": "cache", "name": "뼈의 들판", "row": 4, "col": 0.35, "next": ["e1"], "biome": "flats",
 		"events": [
 			{
 				"id": "bones_gather", "threat": Threats.Kind.CONSUMPTION,
@@ -201,7 +205,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"d2": {
-		"kind": "cache", "name": "독 웅덩이", "row": 4, "col": 0.7, "next": ["e1"],
+		"kind": "cache", "name": "독 웅덩이", "row": 4, "col": 0.7, "next": ["e1"], "biome": "river",
 		"events": [
 			{
 				"id": "poison_pool", "threat": Threats.Kind.CONSUMPTION,
@@ -227,7 +231,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"e1": {
-		"kind": "blockage", "name": "무너진 담", "row": 5, "col": 0.5, "next": ["f1"],
+		"kind": "blockage", "name": "무너진 담", "row": 5, "col": 0.5, "next": ["f1"], "biome": "rock",
 		"events": [
 			{
 				"id": "collapsed_wall", "threat": Threats.Kind.BLOCKAGE,
@@ -252,7 +256,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"f1": {
-		"kind": "storm", "name": "폭풍의 문", "row": 6, "col": 0.5, "next": ["end"],
+		"kind": "storm", "name": "폭풍의 문", "row": 6, "col": 0.5, "next": ["end"], "biome": "storm",
 		"events": [
 			{
 				"id": "storm_gate", "threat": Threats.Kind.STORM,
@@ -292,6 +296,10 @@ const NODES: Dictionary = {
 
 static func node(id: String) -> Dictionary:
 	return NODES.get(id, {})
+
+## 노드 일대의 지형. 없으면 "flats"(평지) 폴백 — start/end/미지정. 곡선·지형지물·이벤트 개연성이 공유.
+static func biome_of(id: String) -> String:
+	return str(NODES.get(id, {}).get("biome", "flats"))
 
 ## 진행 층의 최댓값(렌더에서 y 정규화에 쓴다).
 static func max_row() -> int:

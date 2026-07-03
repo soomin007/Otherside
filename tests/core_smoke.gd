@@ -19,6 +19,7 @@ func _init() -> void:
 	_test_arrival_event_priority()
 	_test_flag_chain_variants()
 	_test_catalog_requires_filter()
+	_test_biome_weighting()
 	_test_section_budget()
 	_test_bequeath_gate()
 	_test_vocations()
@@ -164,6 +165,30 @@ func _test_catalog_requires_filter() -> void:
 			saw = true
 			break
 	_ok(saw, "CATALOG 필터: pool_drank 켜면 gut_turn 후보로 뜸")
+
+func _test_biome_weighting() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	# biome="flats" 구간엔 다른 지형 전용(river/rock/storm)은 절대 안 뜬다(개연성 — 안 맞는 지형 전용 제외).
+	var off_biome: Dictionary = {
+		"past_flask": true, "old_tracks": true, "scavenge_wreck": true, "murky_spring": true,
+		"twisted_ankle": true, "frozen_night": true, "sand_squall": true,
+	}
+	var leaked: bool = false
+	for i in range(400):
+		var sid: String = str(Situations.pick(rng, "", {}, false, "flats").get("id", ""))
+		if off_biome.has(sid):
+			leaked = true
+			break
+	_ok(not leaked, "biome 가중: flats 구간엔 river/rock/storm 전용 안 뜸(400회)")
+	# biome="" (지형 무시) → 전 지형 이벤트가 후보(기존 동작 회귀). river 전용도 뜬다.
+	var saw_river: bool = false
+	for i in range(400):
+		var sid2: String = str(Situations.pick(rng, "", {}, false, "").get("id", ""))
+		if sid2 == "past_flask" or sid2 == "murky_spring":
+			saw_river = true
+			break
+	_ok(saw_river, "biome 가중: biome 무시면 전 지형 후보(기존 동작 회귀)")
 
 func _test_section_budget() -> void:
 	# b1(야영지): 주요 지점(도착 이벤트) 1 + 정적 spots 2 = 3, 예산 min(2,3)=2
