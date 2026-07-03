@@ -72,3 +72,8 @@
   **방지:** 커밋을 **몰아서 한 번에 push**(코드·문서·세션로그를 연달아 개별 push 하지 말 것). 실패해도 다음 성공 배포가 최신 커밋을 통째로 배포하므로 최종 상태는 대개 정상. 빌드 자체가 ~19분(폰트·에셋) 걸리니 재확인은 배포 완료 후. `gh run list` 로 최신 success 커밋 확인.
   **오진·정정(2026-07-03):** `cancel-in-progress: true` 로 바꿨더니 **오히려 모든 배포가 실패**했다. Pages 배포는 `syncing_files` 도중 취소되면 그 배포가 "Deployment failed, try again later" 로 죽고, 이후 배포까지 연쇄로 실패한다(재실행해도 실패). → **`cancel-in-progress: false` 가 정답**(GitHub 공식 Pages 템플릿 기본값 — 진행 중 배포는 취소 말고 완주). 큐가 쌓여도 하나씩 완주하고 대기분은 최신만 남아 스킵되므로 손실 없음.
   **교훈:** 배포 큐 경합의 답은 "진행 중 취소"가 아니라 "완주 + 연속 push 자제(몰아서)". `syncing_files` 에서 죽으면 용량이 아니라 concurrency 취소를 의심(같은 크기 커밋이 하나는 성공/하나는 실패면 취소 경합).
+
+- **증상(간헐적):** `cancel-in-progress: false` 인데도 `deploy` 잡이 `Deployment failed, try again later` 로 실패. 상태는 정상 흐름(waiting → queued → in_progress → failure)에 `description` 은 빈 문자열, ~10초 만에 죽는다. (2026-07-03)
+  **원인:** 큐 경합·취소가 **아님**. build(export)는 성공하고 artifact 도 정상 업로드됐는데 `actions/deploy-pages` 가 GitHub Pages 백엔드 쪽 일시 장애로 실패. **같은 커밋·같은 워크플로가 직전엔 8초 만에 success** 였던 게 증거. 코드·설정 문제가 아니다.
+  **방지·대응:** 손대지 말고 **재실행이 정답** — `gh run rerun <run-id> --failed`(실패한 deploy 잡만 다시 돌림, build artifact 재사용해 ~1분). 재실행 즉시 success 나면 GitHub 측 일시 장애로 확정. 워크플로/코드를 고치려 들지 말 것(멀쩡한 걸 건드려 새 문제만 만든다). 확인: `curl -s -o /dev/null -w "%{http_code}" https://soomin007.github.io/Otherside/` 가 200.
+  **감별:** `Timeout reached`/`syncing_files` 에서 죽음 = 큐 경합(위 항목, 몰아서 push). `Deployment failed, try again later` + description 빈 채 in_progress 에서 즉사 = 일시 장애(재실행).
