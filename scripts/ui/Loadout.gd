@@ -199,24 +199,22 @@ func _build_step2() -> void:
 	_col.add_child(UITheme.make_label("배낭을 챙긴다", UITheme.FS_H1))
 	_col.add_child(UITheme.make_label("가방은 여섯 칸. 담은 만큼이 이번 원정의 목숨이다.", UITheme.FS_SMALL, UITheme.MUTED))
 
-	_col.add_child(UITheme.make_label("책상에서 챙긴다", UITheme.FS_LABEL, UITheme.MUTED))
-	var desk := HFlowContainer.new()
-	desk.add_theme_constant_override("h_separation", 10)
-	desk.add_theme_constant_override("v_separation", 10)
+	_col.add_child(UITheme.make_label("책상에서 챙긴다  (탭하면 가방으로 쏙)", UITheme.FS_LABEL, UITheme.MUTED))
+	# 책상 — 각 물품을 삽화 타일로. 탭하면 그 자리에서 가방 빈 칸으로 슥 날아가 담긴다(_pick_item).
+	var desk_panel := PanelContainer.new()
+	desk_panel.add_theme_stylebox_override("panel", _desk_stylebox())
+	desk_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var desk := GridContainer.new()
+	desk.columns = 3
+	desk.add_theme_constant_override("h_separation", 8)
+	desk.add_theme_constant_override("v_separation", 8)
 	for it in Items.CATALOG:
 		var item: Dictionary = it
-		var key: String = str(item.get("key", ""))
-		if key in Items.POUCH_TOOLS:
-			continue  # 주머니 도구는 단계 1 "챙길 도구"에서 따로 고른다(가방 칸과 별개)
-		var start: Dictionary = item.get("start", {})
-		# 자원은 시작 자원 델타를, 도구(로프·은신막)는 쓰임 설명을 괄호에 — "로프 +1"만으론 역할을 모른다.
-		var hint: String = str(item.get("desc", "")) if key in Items.TOOL_KEYS else UITheme.effect_hint(start)
-		var btn := UITheme.make_button("%s  (%s)" % [str(item.get("label", "")), hint], false)
-		btn.clip_text = false  # 긴 설명(말린 고기 등)이 박스 밖으로 잘리지 않게 — 내용 폭에 맞춘다
-		btn.custom_minimum_size = Vector2(0, UITheme.BTN_H_SM)  # 폭은 내용대로(HFlow 가 줄바꿈)
-		btn.pressed.connect(_add_item.bind(key))
-		desk.add_child(btn)
-	_col.add_child(desk)
+		if str(item.get("key", "")) in Items.POUCH_TOOLS:
+			continue  # 주머니 도구는 단계 1에서 따로 고른다(가방 칸과 별개)
+		desk.add_child(_make_desk_tile(item))
+	desk_panel.add_child(desk)
+	_col.add_child(desk_panel)
 
 	_col.add_child(UITheme.make_label("가방  (담은 것을 탭하면 뺀다)", UITheme.FS_LABEL, UITheme.MUTED))
 	# 가방 그래픽 — 담은 아이템이 이 틀 '안'에 아이콘으로 들어가 책상(위 버튼)과 시각적으로 구분된다.
@@ -370,6 +368,79 @@ func _slot_stylebox(filled: bool) -> StyleBoxFlat:
 	sb.set_corner_radius_all(8)
 	sb.set_content_margin_all(4)
 	return sb
+
+# --- 책상 물품 타일 + 가방으로 슬라이드 ---
+
+## 책상 물품 타일 — 삽화(ItemIcon) + 이름(+ 자원 물품은 효과). 탭하면 가방으로 날아간다.
+func _make_desk_tile(item: Dictionary) -> Control:
+	var key: String = str(item.get("key", ""))
+	var tile := Button.new()
+	tile.custom_minimum_size = Vector2(100, 122)
+	for st in ["normal", "hover", "pressed", "focus"]:
+		tile.add_theme_stylebox_override(st, _slot_stylebox(true))
+	tile.tooltip_text = str(item.get("desc", ""))
+	tile.pressed.connect(_pick_item.bind(key, tile))
+	var v := VBoxContainer.new()
+	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 1)
+	var icon := ItemIcon.new()
+	icon.key = key
+	icon.custom_minimum_size = Vector2(0, 56)
+	icon.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_child(icon)
+	var nm := UITheme.make_label(str(item.get("label", "")), UITheme.FS_TINY, UITheme.FG)
+	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(nm)
+	# 자원 물품은 효과를 작게(물통=물+7). 도구(로프·은신막)는 이름만 — 시장이 쓰임을 설명한다.
+	if not (key in Items.TOOL_KEYS):
+		var hint := UITheme.make_label(UITheme.effect_hint(item.get("start", {})), UITheme.FS_TINY, UITheme.SAND)
+		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.add_child(hint)
+	tile.add_child(v)
+	return tile
+
+## 책상 틀 — 나뭇결 톤(가방=가죽과 구분).
+func _desk_stylebox() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.14, 0.11, 0.08, 0.92)
+	sb.border_color = Color(0.34, 0.26, 0.17)
+	sb.set_border_width_all(2)
+	sb.set_corner_radius_all(12)
+	sb.set_content_margin_all(10)
+	return sb
+
+## 책상 물품을 탭 — 가방 다음 빈 칸으로 아이콘이 슥 날아간 뒤 담긴다. 가방이 다 차면 무시.
+func _pick_item(key: String, from: Control) -> void:
+	if _bag.size() >= BAG_SLOTS:
+		return
+	var fly := ItemIcon.new()
+	fly.key = key
+	fly.size = Vector2(56, 56)
+	fly.pivot_offset = fly.size * 0.5
+	fly.z_index = 50
+	fly.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(fly)
+	fly.global_position = from.global_position + (from.size - fly.size) * 0.5
+	var target: Vector2 = fly.global_position
+	var idx: int = _bag.size()  # 다음 빈 칸(담긴 칸 뒤에 빈 칸이 온다)
+	if _bag_box != null and idx < _bag_box.get_child_count():
+		var slot: Control = _bag_box.get_child(idx)
+		target = slot.global_position + (slot.size - fly.size) * 0.5
+	var t := create_tween()
+	t.set_parallel(true)
+	t.tween_property(fly, "global_position", target, 0.32).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	t.tween_property(fly, "scale", Vector2(0.72, 0.72), 0.32)
+	t.chain().tween_callback(_finish_pick.bind(key, fly))
+
+## 슬라이드 끝 — 날던 아이콘을 치우고 실제로 가방에 담는다(슬롯이 그 자리에 채워짐).
+func _finish_pick(key: String, fly: Control) -> void:
+	if is_instance_valid(fly):
+		fly.queue_free()
+	_add_item(key)
 
 ## 가방 물품 합산 → 시작 자원(core/Items.gd 카탈로그의 start 델타 합).
 func _bag_resources() -> Dictionary:
