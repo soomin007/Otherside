@@ -11,16 +11,16 @@ extends RefCounted
 
 const CATALOG: Array = [
 	# 자원 — 매 걸음/주기 소모(수명).
-	{"key": "water", "label": "물통", "start": {"water": 7}, "desc": "매 걸음 닳는다. 곧 목숨."},
-	{"key": "food", "label": "식량 자루", "start": {"food": 6}, "desc": "천천히 닳는다."},
+	{"key": "water", "label": "물통", "start": {"water": 7}, "desc": "걸음마다 닳는 목숨."},
+	{"key": "food", "label": "식량 자루", "start": {"food": 6}, "desc": "천천히 닳는 양식."},
 	# 부작용 아이템 — 식량은 크지만 짜서 시작 물이 준다(트레이드오프).
-	{"key": "jerky", "label": "말린 고기", "start": {"food": 9, "water": -2}, "desc": "오래 간다. 다만 짜서 목이 더 마르다."},
+	{"key": "jerky", "label": "말린 고기", "start": {"food": 9, "water": -2}, "desc": "오래가는 식량. 대신 짜서 더 마른 목."},
 	# 위협 대비 도구 — 보유하면 특정 위기에서 안전 선택지가 열린다(needs), 쓰면 소진(effect).
-	{"key": "rope", "label": "로프", "start": {"rope": 1}, "desc": "갈라진 틈을 건넌다. 걸어두면 다음 원정에도 남는다."},
-	{"key": "shelter", "label": "은신막", "start": {"shelter": 1}, "desc": "폭풍을 버틴다."},
-	{"key": "medicine", "label": "약초 꾸러미", "start": {"medicine": 1}, "desc": "열과 탈진을 다스린다."},
-	{"key": "flint", "label": "부싯돌", "start": {"flint": 1}, "desc": "언 밤에 불을 피운다."},
-	{"key": "filter", "label": "정화천", "start": {"filter": 1}, "desc": "탁한 물을 걸러 마신다."},
+	{"key": "rope", "label": "로프", "start": {"rope": 1}, "desc": "갈라진 틈 건너기. 다음 원정에도 남음."},
+	{"key": "shelter", "label": "은신막", "start": {"shelter": 1}, "desc": "폭풍 버티기."},
+	{"key": "medicine", "label": "약초 꾸러미", "start": {"medicine": 1}, "desc": "열·탈진 다스리기."},
+	{"key": "flint", "label": "부싯돌", "start": {"flint": 1}, "desc": "언 밤의 불 피우기."},
+	{"key": "filter", "label": "정화천", "start": {"filter": 1}, "desc": "탁한 물 걸러 마시기."},
 ]
 
 ## resources 가 가질 수 있는 모든 자원/도구 키(초기화·순회용).

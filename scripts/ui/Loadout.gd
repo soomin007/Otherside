@@ -32,6 +32,7 @@ var _pending_name: String = ""     ## 이번 원정대 이름 — 랜덤 초기�
 var _pending_vocation: String = "" ## 이번 대장의 직능 id (기본 "" = 평범)
 var _pending_tool: String = ""     ## 주머니 도구 하나 (기본 "" = 없음). 가방 6칸과 별개
 var _voc_desc: Label               ## step1 위젯 (직능 설명 갱신)
+var _tool_desc: Label              ## step1 위젯 (주머니 도구 설명 갱신)
 var _name_edit: LineEdit           ## step1 위젯
 var _rng := RandomNumberGenerator.new()
 var _market_panel: Control         ## 첫 원정 시장 인트로 모달(있을 때만)
@@ -102,6 +103,7 @@ func _show_step(n: int) -> void:
 	_depart_btn = null
 	_name_edit = null
 	_voc_desc = null
+	_tool_desc = null
 	for c in _col.get_children():
 		_col.remove_child(c)
 		c.queue_free()
@@ -178,6 +180,8 @@ func _build_step1() -> void:
 			tool.select(i + 1)
 	tool.item_selected.connect(_on_tool_selected)
 	_col.add_child(tool)
+	_tool_desc = UITheme.make_label(_tool_desc_text(), UITheme.FS_SMALL, UITheme.SAND)
+	_col.add_child(_tool_desc)
 
 	var nxt := UITheme.make_button("배낭 챙기기 →")
 	nxt.pressed.connect(_show_step.bind(2))
@@ -320,7 +324,15 @@ func _on_tool_selected(idx: int) -> void:
 		_pending_tool = ""
 	elif idx - 1 < Items.POUCH_TOOLS.size():
 		_pending_tool = str(Items.POUCH_TOOLS[idx - 1])
+	if _tool_desc != null:
+		_tool_desc.text = _tool_desc_text()
 	_refresh()
+
+## 고른 주머니 도구의 쓰임 한 줄. "없음"이면 빈 줄(라벨이 접힌다).
+func _tool_desc_text() -> String:
+	if _pending_tool == "":
+		return ""
+	return str(Items.by_key(_pending_tool).get("desc", ""))
 
 # --- 첫 원정 시장 인트로 (초상 + 규칙 설명 + 기록지 건네기) ---
 

@@ -22,32 +22,32 @@ const DEFAULT_ID: String = ""
 const LIST: Array = [
 	{
 		"id": "", "name": "평범한 대장",
-		"desc": "특기랄 게 없다. 무엇에도 치우치지 않는다.",
+		"desc": "특기 없음. 무엇에도 치우치지 않는 무난한 시작.",
 	},
 	{
 		"id": "pathfinder", "name": "길잡이",
-		"desc": "메마른 길을 읽는다. 물이 더디게 닳아 더 멀리 간다.",
+		"desc": "느린 물 소모. 후반까지 더 먼 걸음.",
 		"desolation_bonus": 12,
 	},
 	{
 		"id": "porter", "name": "짐꾼",
-		"desc": "남보다 많이 지고 나선다. 든든히 출발하지만, 무거운 짐이 뒤로 갈수록 목을 죈다.",
+		"desc": "넉넉한 시작 물·식량. 대신 후반에 빨라지는 물 소모.",
 		"start_bonus": {"water": 6, "food": 5},
 		"desolation_bonus": -6,
 	},
 	{
 		"id": "waterwise", "name": "물지기",
-		"desc": "한 방울도 허투루 흘리지 않는다. 물을 얻을 때마다 한 모금 더 챙긴다.",
+		"desc": "물을 얻을 때마다 한 모금 더.",
 		"water_gain_bonus": 1,
 	},
 	{
 		"id": "hardy", "name": "강골",
-		"desc": "주린 배를 오래 견딘다. 식량이 천천히 준다.",
+		"desc": "느린 식량 소모. 주린 배를 오래 버팀.",
 		"food_every_bonus": 2,
 	},
 	{
 		"id": "keeper", "name": "유품지기",
-		"desc": "물려주는 손이 가볍다. 남기는 데 드는 것이 적다.",
+		"desc": "가벼운 남기기 비용.",
 		"leave_discount": 1,
 	},
 ]
