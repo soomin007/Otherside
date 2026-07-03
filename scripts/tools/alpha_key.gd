@@ -27,6 +27,8 @@ const CHROMA_MAX: float = 0.12 # 이 채도 이상이면 그림(세피아·모�
 const ALPHA_LO: float = 0.18   # 배경 잔여(이 이하 alpha) → 완전 투명으로 스냅(사각 헤일로 방지)
 const ALPHA_HI: float = 0.82   # 그림 내부(이 이상 alpha) → 완전 불투명으로 스냅
 const MARGIN: int = 8          # 크롭 후 사방 여백(px)
+const ERODE: int = 1           # 흰 헤일로 제거: 반투명 경계를 이 px 만큼 깎는다(0=끔). soft 파일엔 미적용.
+                               # 흰 배경의 밝은 RGB가 경계 반투명 픽셀에 남아 어두운 카드 위에서 밝게 뜨는 걸 없앤다.
 
 # 부드러운 페이드가 핵심인 파일 — alpha 스냅을 끈다(단단한 아이콘엔 스냅이 좋지만
 # 소용돌이 모래처럼 바깥으로 옅게 흩어지는 그림은 스냅하면 가장자리가 거칠게 끊긴다).
@@ -103,6 +105,10 @@ func _convert_one(src: String) -> bool:
 				if a <= 0.0:
 					cleared += 1
 
+	# 흰 헤일로 제거 — 반투명 경계를 ERODE px 깎는다(soft 는 부드러운 페이드 보존 위해 제외).
+	if ERODE > 0 and not soft:
+		_erode_alpha(img, ERODE)
+
 	if img.detect_alpha() == Image.ALPHA_NONE:
 		print("FAIL 투명픽셀 없음(문턱 재조정 필요): ", src)
 		return false
@@ -123,6 +129,35 @@ func _convert_one(src: String) -> bool:
 
 	print("OK  %s → %s  [%dx%d, 배경 %d px 투명%s]" % [base, out_path, img.get_width(), img.get_height(), cleared, " · soft" if soft else ""])
 	return true
+
+## 알파 침식 — 완전 투명(alpha≈0) 이웃이 있는 픽셀을 투명으로 깎는다. 경계의 흰 헤일로 링 제거.
+## px 회수 반복. 각 회는 스냅샷(cut 수집 후 일괄 적용)이라 동시 판정.
+func _erode_alpha(img: Image, px: int) -> void:
+	var w: int = img.get_width()
+	var h: int = img.get_height()
+	for _pass in range(px):
+		var cut: Array = []
+		for y in range(h):
+			for x in range(w):
+				if img.get_pixel(x, y).a <= 0.0:
+					continue
+				if _has_clear_neighbor(img, x, y, w, h):
+					cut.append(Vector2i(x, y))
+		for p in cut:
+			var pi: Vector2i = p
+			var c: Color = img.get_pixel(pi.x, pi.y)
+			c.a = 0.0
+			img.set_pixel(pi.x, pi.y, c)
+
+func _has_clear_neighbor(img: Image, x: int, y: int, w: int, h: int) -> bool:
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var nx: int = x + d.x
+		var ny: int = y + d.y
+		if nx < 0 or ny < 0 or nx >= w or ny >= h:
+			continue
+		if img.get_pixel(nx, ny).a <= 0.0:
+			return true
+	return false
 
 func _is_soft(src: String) -> bool:
 	var base: String = src.get_file()
