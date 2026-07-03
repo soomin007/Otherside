@@ -438,16 +438,16 @@ func _edge_point(from_id: String, to_id: String, t: float, area: Rect2) -> Vecto
 	var shape: float = 0.0
 	match MapGraph.biome_of(to_id):
 		"river":   # 강줄기를 따라 한 번 사행(S 굽이) — 시작·끝은 노드에 정확히 붙는다(sin τt: t=0,0.5,1 → 0)
-			amp = dist * 0.10
+			amp = dist * 0.24
 			shape = sin(t * TAU)
 		"rock":    # 바위·산을 크게 돌아간다(한쪽 볼록)
-			amp = dist * 0.17
+			amp = dist * 0.42
 			shape = sin(t * PI)
 		"storm":   # 폭풍·사구에 흔들리는 지그재그
-			amp = dist * 0.09
+			amp = dist * 0.26
 			shape = sin(t * PI * 3.0)
 		_:         # flats — 완만한 미세 굴곡
-			amp = dist * 0.05
+			amp = dist * 0.12
 			shape = sin(t * PI)
 	return base + perp * (amp * shape * sgn)
 
@@ -648,7 +648,7 @@ func _draw_biomes(area: Rect2) -> void:
 		return
 	var cur: String = _current_node_id()
 	var nexts: Array = MapGraph.node(cur).get("next", [])
-	var sz: float = _icon_size(area) * 0.5
+	var sz: float = _icon_size(area) * 0.62
 	for id in MapGraph.NODES:
 		if not _is_revealed(id):
 			continue
@@ -658,7 +658,9 @@ func _draw_biomes(area: Rect2) -> void:
 				continue
 			var tex: Texture2D = _sketch_tex.get(MapGraph.biome_of(nx_s), null)
 			if tex != null:
-				_draw_sketch(tex, _edge_point(str(id), nx_s, 0.5, area), sz)
+				# 직선(chord) 중간에 장애물(지형)을 두면, 곡선(경로)이 그 옆으로 우회한다 — "피해 돌아가는 길".
+				var mid: Vector2 = (_node_screen(MapGraph.node(str(id)), area) + _node_screen(MapGraph.node(nx_s), area)) * 0.5
+				_draw_sketch(tex, mid, sz)
 
 ## 손스케치 텍스처를 중심점에 종횡비 유지로 얹는다(긴 변 = target).
 func _draw_sketch(tex: Texture2D, center: Vector2, target: float) -> void:
