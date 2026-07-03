@@ -20,6 +20,10 @@ const MARKET_PAGES: Array = [
 	"시장: 이 기록지를 가져가시오. 떠난 원정대의 이야기가 여기 적힐 거요. 화면 구석 책갈피에서 언제든 펴 보시오.",
 ]
 
+## 첫 원정 시장 인트로 — 오프닝 뒤 한 박자 뜸을 두고 서서히 나타난다(마을에 도착한 여운).
+const MARKET_INTRO_DELAY: float = 1.3  ## 나타나기까지 뜸(초)
+const MARKET_INTRO_FADE: float = 1.1   ## 페이드 인(초)
+
 var _step: int = 1
 var _col: VBoxContainer            ## 단계 콘텐츠 컨테이너(스크롤 안). _show_step 이 자식을 갈아끼운다.
 
@@ -38,6 +42,7 @@ var _rng := RandomNumberGenerator.new()
 var _market_panel: Control         ## 첫 원정 시장 인트로 모달(있을 때만)
 var _market_label: Label
 var _market_idx: int = 0
+var _market_ready: bool = false    ## 페이드 인 완료 전엔 입력 무시(실수로 넘김 방지)
 
 func _ready() -> void:
 	_rng.randomize()
@@ -452,13 +457,24 @@ func _show_market_intro() -> void:
 	nxt.pressed.connect(_market_advance)
 	row.add_child(nxt)
 	box.add_child(row)
+	# 오프닝 뒤 한 박자 뜸 → 서서히 등장. 페이드 인 끝나기 전엔 입력 무시(_market_ready).
+	_market_panel.modulate.a = 0.0
+	_market_ready = false
+	var t := create_tween()
+	t.tween_interval(MARKET_INTRO_DELAY)
+	t.tween_property(_market_panel, "modulate:a", 1.0, MARKET_INTRO_FADE)
+	t.tween_callback(func(): _market_ready = true)
 
 func _on_market_input(event: InputEvent) -> void:
+	if not _market_ready:
+		return  # 페이드 인 중 — 실수 입력 무시
 	var tap: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed)
 	if tap:
 		_market_advance()
 
 func _market_advance() -> void:
+	if not _market_ready:
+		return
 	_market_idx += 1
 	if _market_idx >= MARKET_PAGES.size():
 		_finish_market()
@@ -467,6 +483,8 @@ func _market_advance() -> void:
 		_market_label.text = str(MARKET_PAGES[_market_idx])
 
 func _finish_market() -> void:
+	if not _market_ready:
+		return  # 페이드 인 중 스킵 방지
 	GameState.give_record()  # 기록지 = 책갈피(Bookmark)를 켠다
 	if _market_panel != null:
 		_market_panel.queue_free()

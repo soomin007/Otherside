@@ -28,6 +28,9 @@ const ALPHA_LO: float = 0.18   # 배경 잔여(이 이하 alpha) → 완전 투�
 const ALPHA_HI: float = 0.82   # 그림 내부(이 이상 alpha) → 완전 불투명으로 스냅
 const MARGIN: int = 8          # 크롭 후 사방 여백(px)
 const ERODE: int = 1           # 흰 헤일로 제거: 반투명 경계를 이 px 만큼 깎는다(0=끔). soft 파일엔 미적용.
+const WHITE_ERODE: int = 3     # 흰색만 골라 깎기: 순백에 가까운(밝고 저채도) 경계 픽셀만 이 px 깎는다.
+                               # 피규어에 붙은 밝은 잔결(수염·터번 실오라기 끝)만 없애고 어두운 가장자리는 보존.
+const SPECK_FRAC: float = 0.02 # 떠다니는 흰 조각 제거: 가장 큰 덩어리의 이 비율보다 작은 불투명 섬은 지운다(0=끔).
                                # 흰 배경의 밝은 RGB가 경계 반투명 픽셀에 남아 어두운 카드 위에서 밝게 뜨는 걸 없앤다.
 
 # 부드러운 페이드가 핵심인 파일 — alpha 스냅을 끈다(단단한 아이콘엔 스냅이 좋지만
@@ -107,7 +110,13 @@ func _convert_one(src: String) -> bool:
 
 	# 흰 헤일로 제거 — 반투명 경계를 ERODE px 깎는다(soft 는 부드러운 페이드 보존 위해 제외).
 	if ERODE > 0 and not soft:
-		_erode_alpha(img, ERODE)
+		_erode_alpha(img, ERODE, false)
+	# 흰색만 골라 깎기 — 순백에 가까운 경계 잔결(수염·실오라기)만 없앤다(어두운 가장자리 보존).
+	if WHITE_ERODE > 0 and not soft:
+		_erode_alpha(img, WHITE_ERODE, true)
+	# 떠다니는 흰 조각 제거 — 본체(가장 큰 덩어리)에서 떨어진 작은 불투명 섬을 지운다.
+	if SPECK_FRAC > 0.0 and not soft:
+		_remove_specks(img, SPECK_FRAC)
 
 	if img.detect_alpha() == Image.ALPHA_NONE:
 		print("FAIL 투명픽셀 없음(문턱 재조정 필요): ", src)
@@ -130,34 +139,101 @@ func _convert_one(src: String) -> bool:
 	print("OK  %s → %s  [%dx%d, 배경 %d px 투명%s]" % [base, out_path, img.get_width(), img.get_height(), cleared, " · soft" if soft else ""])
 	return true
 
-## 알파 침식 — 완전 투명(alpha≈0) 이웃이 있는 픽셀을 투명으로 깎는다. 경계의 흰 헤일로 링 제거.
-## px 회수 반복. 각 회는 스냅샷(cut 수집 후 일괄 적용)이라 동시 판정.
-func _erode_alpha(img: Image, px: int) -> void:
+## 알파 침식 — 완전 투명(alpha≈0) 이웃이 있는 경계 픽셀을 투명으로 깎는다. px 회수 반복(스냅샷 후 일괄).
+## white_only=true 면 순백에 가까운(밝고 저채도) 경계 픽셀만 깎는다(흰 잔결 제거, 어두운 가장자리 보존).
+func _erode_alpha(img: Image, px: int, white_only: bool) -> void:
 	var w: int = img.get_width()
 	var h: int = img.get_height()
+	# white-only 는 희미한(faint) 이웃까지 '빈 곳'으로 봐서, 반투명에 둘러싸인 흰 잔흔도 깎는다.
+	var near: float = 0.35 if white_only else 0.0
 	for _pass in range(px):
 		var cut: Array = []
 		for y in range(h):
 			for x in range(w):
-				if img.get_pixel(x, y).a <= 0.0:
+				var c: Color = img.get_pixel(x, y)
+				if c.a <= 0.0:
 					continue
-				if _has_clear_neighbor(img, x, y, w, h):
+				if white_only and not _is_whiteish(c):
+					continue
+				if _has_clear_neighbor(img, x, y, w, h, near):
 					cut.append(Vector2i(x, y))
 		for p in cut:
 			var pi: Vector2i = p
-			var c: Color = img.get_pixel(pi.x, pi.y)
-			c.a = 0.0
-			img.set_pixel(pi.x, pi.y, c)
+			var cc: Color = img.get_pixel(pi.x, pi.y)
+			cc.a = 0.0
+			img.set_pixel(pi.x, pi.y, cc)
 
-func _has_clear_neighbor(img: Image, x: int, y: int, w: int, h: int) -> bool:
+## 순백에 가까운가 — 밝고(값 높음) 저채도. 밝은 흰 잔결만 True(회색 수염·베이지 터번·어두운 옷은 False).
+func _is_whiteish(c: Color) -> bool:
+	var mx: float = maxf(c.r, maxf(c.g, c.b))
+	var mn: float = minf(c.r, minf(c.g, c.b))
+	return mx > 0.82 and (mx - mn) < 0.12
+
+func _has_clear_neighbor(img: Image, x: int, y: int, w: int, h: int, thresh: float) -> bool:
 	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 		var nx: int = x + d.x
 		var ny: int = y + d.y
 		if nx < 0 or ny < 0 or nx >= w or ny >= h:
 			continue
-		if img.get_pixel(nx, ny).a <= 0.0:
+		if img.get_pixel(nx, ny).a <= thresh:
 			return true
 	return false
+
+## 떠다니는 흰 조각 제거 — 불투명(alpha>0.5) 픽셀을 연결 성분으로 묶어, 가장 큰 덩어리(본체)의
+## frac 배보다 작은 성분은 투명으로 지운다. 본체에서 떨어진 작은 흰 자국(터번 옆 점 등)을 없앤다.
+func _remove_specks(img: Image, frac: float) -> void:
+	var w: int = img.get_width()
+	var h: int = img.get_height()
+	var seen: PackedByteArray = PackedByteArray()
+	seen.resize(w * h)  # 0=미방문, 1=처리됨
+	var comps: Array = []  # 각 성분의 픽셀 목록
+	for y in range(h):
+		for x in range(w):
+			var idx: int = y * w + x
+			if seen[idx] == 1:
+				continue
+			if img.get_pixel(x, y).a <= 0.15:
+				seen[idx] = 1
+				continue
+			# flood fill(4이웃) — 0.15 초과를 연결로 본다(수염 잔결이 본체와 이어지게).
+			var comp: Array = []
+			var stack: Array = [Vector2i(x, y)]
+			seen[idx] = 1
+			while not stack.is_empty():
+				var p: Vector2i = stack.pop_back()
+				comp.append(p)
+				for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					var nx: int = p.x + d.x
+					var ny: int = p.y + d.y
+					if nx < 0 or ny < 0 or nx >= w or ny >= h:
+						continue
+					var ni: int = ny * w + nx
+					if seen[ni] == 1:
+						continue
+					seen[ni] = 1
+					if img.get_pixel(nx, ny).a <= 0.15:
+						continue
+					stack.append(Vector2i(nx, ny))
+			comps.append(comp)
+	if comps.size() <= 1:
+		return
+	var maxsz: int = 0
+	for c in comps:
+		maxsz = maxi(maxsz, (c as Array).size())
+	var thresh: int = int(float(maxsz) * frac)
+	var removed: int = 0
+	for c in comps:
+		var arr: Array = c
+		if arr.size() >= thresh:
+			continue
+		for p in arr:
+			var pi: Vector2i = p
+			var col: Color = img.get_pixel(pi.x, pi.y)
+			col.a = 0.0
+			img.set_pixel(pi.x, pi.y, col)
+			removed += 1
+	if removed > 0:
+		print("    떠다니는 조각 제거: %d px (임계 %d)" % [removed, thresh])
 
 func _is_soft(src: String) -> bool:
 	var base: String = src.get_file()

@@ -188,9 +188,9 @@ func _build_death_panel() -> void:
 	_death_label = UITheme.make_label("", UITheme.FS_BODY)
 	dbox.add_child(_death_label)
 
-	var to_map := UITheme.make_button("지도로 돌아가기")
-	to_map.pressed.connect(_on_to_map)
-	dbox.add_child(to_map)
+	var to_next := UITheme.make_button("다음 원정대를 꾸린다")
+	to_next.pressed.connect(_on_next_party)
+	dbox.add_child(to_next)
 
 func _refresh() -> void:
 	_status_label.text = "원정 %d째 · %d걸음\n물 -%d/걸음 · 식량 -1/%d걸음" % [GameState.expedition_count, _run.leg, _run.water_cost(), ExpeditionRun.FOOD_EVERY]
@@ -246,8 +246,10 @@ func _on_leave_pressed() -> void:
 	_advance_btn.disabled = true
 	_leave_btn.disabled = true
 
-func _on_to_map() -> void:
-	GameState.go_to_map()
+## 죽음 후 — 다음 원정대를 꾸리러 마을(Loadout)로. 새 대장 특기·가방을 고른다(매 원정 다른 사람).
+func _on_next_party() -> void:
+	GameState.current_run = null
+	GameState.go_to_loadout()
 
 # --- 상황 읽기 (결정 카드) ---
 

@@ -129,9 +129,10 @@ func ending_kind() -> String:
 	return "cycle"
 
 ## 순환 — 이 원정을 닫고 다음 원정을 처음부터 준비한다(흔적·방문 누적은 유지 → 다음이 더 멀리 간다).
+## 마을(Loadout)부터 다시: 새 대장 특기·가방을 고른다(매 원정 다른 사람이 간다).
 func next_expedition() -> void:
 	current_run = null
-	go_to_map()
+	go_to_loadout()
 
 ## 재회(진짜 엔딩) 후 — 타이틀로 돌아간다. 세이브(축적)는 유지된다.
 func go_to_title() -> void:
