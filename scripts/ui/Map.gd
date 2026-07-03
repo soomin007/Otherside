@@ -11,8 +11,11 @@ const NODE_R: float = 13.0
 const STEP_INTERVAL: float = 0.65  ## 이동 한 걸음의 시간(초) — 느긋하게(잉크 번짐·발자국을 음미)
 const SPLASH_DUR: float = 0.8      ## 걸음마다 번지는 잉크 얼룩이 피어 사라지기까지(초)
 const EDGE_SAMPLES: int = 18       ## 엣지 곡선을 그릴 때 나눌 샘플 수(경로·마커가 같은 곡선을 공유)
-const ICON_MAX: float = 108.0      ## 노드 아이콘 긴 변 최대 표시 크기(px)
-const NODE_PAD_FRAC: float = 0.05  ## 노드 진행축 양끝 여백(area 대비) — 맨 처음/끝 노드가 화면 끝·HUD·버튼과 안 겹치게
+const ICON_MAX: float = 220.0      ## 노드 아이콘 긴 변 최대 표시 크기(px) — 큰 세로 캔버스라 크게
+const NODE_PAD_FRAC: float = 0.04  ## 노드 진행축 양끝 여백(area 대비) — 맨 처음/끝 노드가 화면 끝·HUD·버튼과 안 겹치게
+const MAX_CANVAS_W: float = 560.0  ## 세로 지도 논리 폭 상한(데스크톱은 중앙 컬럼 + 좌우 여백)
+const CANVAS_ASPECT: float = 3.4   ## 캔버스 세로/가로 비 — 클수록 노드 간격·아이콘 크고 스크롤 길어짐
+const DRAG_THRESH: float = 10.0    ## 이만큼 넘게 끌면 팬(스크롤), 미만이면 탭(노드 선택)
 const REVEAL_DUR: float = 0.55     ## 방문 시 잉크 reveal 애니 길이(초)
 
 ## 지도 배경 + 노드별 손그림 아이콘(투명 변환본). 노드 id → 아이콘 1:1(이름 일치).
@@ -71,6 +74,11 @@ var _reveal_id: String = ""      ## 이번에 잉크로 그려지며 나타날 �
 var _reveal_t: float = 0.0       ## reveal 애니 경과 시간
 var _splashes: Array = []        ## 이동 중 걸음마다 번지는 잉크 얼룩 [{pos,t}] — _process 가 나이 먹이고 _draw 가 렌더
 var _hovered_node: String = ""   ## 마우스가 올라간 도달 가능 노드(호버 시 클릭 원 확대). 터치엔 없음
+var _scroll_y: float = 0.0        ## 세로 스크롤 오프셋(큰 캔버스를 화면에 스크롤). 0=맨 위
+var _dragging: bool = false       ## 팬(스크롤) 드래그 중
+var _drag_start_y: float = 0.0    ## 드래그 시작 지점 y(스크린)
+var _drag_scroll_start: float = 0.0 ## 드래그 시작 시 _scroll_y
+var _drag_moved: float = 0.0      ## 드래그 누적 이동(임계 넘으면 팬, 아니면 탭)
 
 func _ready() -> void:
 	if GameState.current_run == null or not GameState.current_run.alive:
@@ -86,6 +94,20 @@ func _ready() -> void:
 		var spath: String = str(SKETCH_PATHS[k])
 		if ResourceLoader.exists(spath):
 			_sketch_tex[str(k)] = load(spath)
+
+	# 지도가 위/아래 창 밖(HUD·버튼 영역)으로 스크롤돼도 가리는 불투명 띠(지도 위, UI 아래).
+	var top_band := ColorRect.new()
+	top_band.color = UITheme.BG
+	top_band.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	top_band.offset_bottom = TOP_Y
+	top_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(top_band)
+	var bot_band := ColorRect.new()
+	bot_band.color = UITheme.BG
+	bot_band.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	bot_band.offset_top = -BOT_Y
+	bot_band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bot_band)
 
 	var title := UITheme.make_label("지도 · 탐험", UITheme.FS_H1)
 	title.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -240,29 +262,51 @@ func _gui_input(event: InputEvent) -> void:
 			queue_redraw()
 		return
 	var area := _map_area()
-	# 호버 — 마우스가 올라간 도달 가능 노드를 기억(그 원이 커진다). 데스크톱 전용(터치엔 motion 없음).
+	# 마우스 휠 — 세로 스크롤.
+	if event is InputEventMouseButton and event.pressed and (event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN):
+		_set_scroll(_scroll_y + (-60.0 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 60.0))
+		return
+	# 누름 시작 — 팬(스크롤) 후보로 잡아둔다(뗄 때 안 끌었으면 탭으로).
+	if (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed) or (event is InputEventScreenTouch and event.pressed):
+		_dragging = true
+		_drag_start_y = event.position.y
+		_drag_scroll_start = _scroll_y
+		_drag_moved = 0.0
+		return
+	# 뗌 — 임계 미만이면 탭(노드 선택), 넘었으면 팬이었으므로 무시.
+	if (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed) or (event is InputEventScreenTouch and not event.pressed):
+		_dragging = false
+		if _drag_moved < DRAG_THRESH:
+			var hit: String = _reachable_at(event.position, area)
+			if hit != "":
+				GameState.begin_travel(hit)
+				_moving = true
+				_move_timer = 0.0
+				_hovered_node = ""
+				if _guide != null:
+					_guide.text = "나아가는 중..."
+		return
+	# 끄는 중 — 팬(스크롤). 누적 이동이 임계를 넘으면 탭이 아니라 팬으로 확정된다.
+	if _dragging and (event is InputEventMouseMotion or event is InputEventScreenDrag):
+		var dy: float = event.position.y - _drag_start_y
+		_drag_moved = maxf(_drag_moved, absf(dy))
+		_set_scroll(_drag_scroll_start - dy)
+		return
+	# 호버 — 마우스가 올라간 도달 가능 노드(그 원이 커진다). 데스크톱 전용.
 	if event is InputEventMouseMotion:
 		var hov: String = _reachable_at((event as InputEventMouseMotion).position, area)
 		if hov != _hovered_node:
 			_hovered_node = hov
 			queue_redraw()
-		return
-	var clicked: bool = (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
-		or (event is InputEventScreenTouch and event.pressed)
-	if not clicked:
-		return
-	var hit: String = _reachable_at(event.position, area)
-	if hit != "":
-		GameState.begin_travel(hit)
-		_moving = true
-		_move_timer = 0.0
-		_hovered_node = ""
-		if _guide != null:
-			_guide.text = "나아가는 중..."
+
+## 세로 스크롤 설정 — 0~최대 클램프 후 다시 그린다.
+func _set_scroll(v: float) -> void:
+	_scroll_y = clampf(v, 0.0, _max_scroll())
+	queue_redraw()
 
 ## 좌표 위의 도달 가능 노드 id(없으면 ""). 판정 반경 = 아이콘을 감싸는 클릭 원 크기.
 func _reachable_at(pos: Vector2, area: Rect2) -> String:
-	var r: float = _icon_size(area) * 0.5 + 10.0
+	var r: float = _icon_size(area) * 0.42
 	for nx in MapGraph.node(_current_node_id()).get("next", []):
 		var p: Vector2 = _node_screen(MapGraph.node(str(nx)), area)
 		if pos.distance_to(p) <= r:
@@ -271,9 +315,8 @@ func _reachable_at(pos: Vector2, area: Rect2) -> String:
 
 ## 아이콘 긴 변 표시 크기(px) — _draw 와 클릭/호버 판정이 공유(원이 아이콘을 감싸도록).
 func _icon_size(area: Rect2) -> float:
-	var prog_span: float = (area.size.x if _is_landscape(area) else area.size.y) * (1.0 - 2.0 * NODE_PAD_FRAC)
-	var row_gap: float = prog_span / float(maxi(1, MapGraph.max_row()))
-	return clampf(row_gap * 0.82, 30.0, ICON_MAX)
+	var row_gap: float = area.size.y * (1.0 - 2.0 * NODE_PAD_FRAC) / float(maxi(1, MapGraph.max_row()))
+	return clampf(row_gap * 0.82, 40.0, ICON_MAX)
 
 # --- 이동 중 상황 카드 ---
 
@@ -358,25 +401,26 @@ func _after_situation() -> void:
 
 # --- 렌더 ---
 
+## 논리 캔버스 크기 — 세로로 길게(폭 제한, 높이=폭×ASPECT). 노드 간격·아이콘이 커지고, 화면보다 길면 스크롤한다.
+func _canvas_size() -> Vector2:
+	var w: float = minf(size.x - UITheme.PAD * 2.0, MAX_CANVAS_W)
+	return Vector2(w, w * CANVAS_ASPECT)
+
+## 스크롤 최대치 — 캔버스가 보이는 창(TOP_Y~BOT_Y)보다 넘치는 만큼.
+func _max_scroll() -> float:
+	return maxf(0.0, _canvas_size().y - (size.y - TOP_Y - BOT_Y))
+
+## 캔버스의 화면상 rect — 가로 중앙 정렬 + 세로 스크롤 오프셋. 노드·경로·배경이 모두 이걸 기준으로 그려진다.
 func _map_area() -> Rect2:
-	var rect: Vector2 = size
-	return Rect2(UITheme.PAD, TOP_Y, rect.x - UITheme.PAD * 2.0, rect.y - TOP_Y - BOT_Y)
+	var cvs: Vector2 = _canvas_size()
+	return Rect2((size.x - cvs.x) * 0.5, TOP_Y - _scroll_y, cvs.x, cvs.y)
 
-## 지도 방향 — area 가 가로로 넓으면 그래프를 눕힌다(왼→오른쪽 진행). 세로면 위→아래.
-## 데스크톱(가로) 기본 + 모바일(세로) 지원을 한 그래프로 반응형 처리한다.
-func _is_landscape(area: Rect2) -> bool:
-	return area.size.x >= area.size.y
-
+## 노드 화면 좌표 — 세로 지도(col→x 분기, row→y 진행: 위에서 아래). area 는 스크롤된 캔버스 rect.
 func _node_screen(node: Dictionary, area: Rect2) -> Vector2:
 	var mr: int = maxi(1, MapGraph.max_row())
 	var col: float = float(node.get("col", 0.5))     # 분기축 위치(0~1)
 	var row: float = float(int(node.get("row", 0)))
-	# 진행축 위치(0~1) — 양끝 여백을 둬 처음/끝 노드가 화면 끝·HUD·버튼에 안 붙게.
 	var prog: float = NODE_PAD_FRAC + (row / float(mr)) * (1.0 - 2.0 * NODE_PAD_FRAC)
-	if _is_landscape(area):
-		# 가로 — 진행=x(왼→오른쪽), 분기=y
-		return Vector2(area.position.x + prog * area.size.x, area.position.y + col * area.size.y)
-	# 세로 — 진행=y(위→아래), 분기=x
 	return Vector2(area.position.x + col * area.size.x, area.position.y + prog * area.size.y)
 
 ## 엣지 A→B 곡선 위의 점(t∈[0,1]). 도착 노드 biome 으로 굴곡 결정 — 결정론적(id 해시, 매 프레임 동일).
@@ -525,9 +569,9 @@ func _draw() -> void:
 		var p: Vector2 = _node_screen(MapGraph.NODES[id], area)
 		if reachable and not _moving:
 			# 아이콘을 감싸는 클릭 원 — 여기를 누르면 간다. 마우스 올리면 살짝 커진다(누를 수 있다는 신호).
-			var ring: float = icon_size * 0.5 + 8.0
+			var ring: float = icon_size * 0.4
 			if str(id) == _hovered_node:
-				ring += 7.0
+				ring += icon_size * 0.05
 			draw_arc(p, ring, 0.0, TAU, 40, INK, 2.5)
 		if revealed:
 			_draw_landmark(str(id), str(MapGraph.NODES[id].get("kind", "")), p, icon_size)
@@ -569,16 +613,18 @@ func _draw_bg_cover(area: Rect2) -> void:
 	if tw <= 0.0 or th <= 0.0:
 		draw_texture_rect(_bg_tex, area, false)
 		return
-	var ra: float = area.size.x / area.size.y
-	var ta: float = tw / th
-	var src := Rect2(0.0, 0.0, tw, th)
-	if ta > ra:                                  # 이미지가 더 넓다 → 좌우를 잘라 세로 기준 맞춤
-		var sw: float = th * ra
-		src = Rect2((tw - sw) * 0.5, 0.0, sw, th)
-	else:                                        # 이미지가 더 높다 → 위아래를 잘라 가로 기준 맞춤
-		var sh: float = tw / ra
-		src = Rect2(0.0, (th - sh) * 0.5, tw, sh)
-	draw_texture_rect_region(_bg_tex, area, src)
+	# 테두리·나침반(가장자리)을 뺀 중앙 양피지 결만 세로로 타일 — 반복해도 장식이 안 겹쳐 자연스럽다.
+	var mx: float = 0.16
+	var my: float = 0.28  # 나침반이 우하단 코너라 세로로 더 잘라낸다
+	var src := Rect2(tw * mx, th * my, tw * (1.0 - 2.0 * mx), th * (1.0 - 2.0 * my))
+	var tile_h: float = area.size.x * (src.size.y / src.size.x)
+	if tile_h <= 1.0:
+		return
+	var y: float = area.position.y
+	var bottom: float = area.position.y + area.size.y
+	while y < bottom:
+		draw_texture_rect_region(_bg_tex, Rect2(area.position.x, y, area.size.x, tile_h), src)
+		y += tile_h
 
 ## 양피지 지형결 — 은은한 등고선(결정론 sin 곡선). 사막 지도의 결.
 func _draw_terrain(area: Rect2) -> void:
