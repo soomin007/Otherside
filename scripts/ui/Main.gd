@@ -7,19 +7,28 @@ const SettingsPanel := preload("res://scripts/ui/SettingsPanel.gd")
 const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")  ## 영어 타이틀 전용(비문풍 세리프)
 
 var _stat_label: Label  # 데이터 초기화 후 갱신하려고 들고 있는다
+var _title_tr: TextureRect   ## 타이틀 키아트 배경(있을 때) — 방향 따라 세로/가로 교체
+var _title_port: Texture2D   ## 세로본
+var _title_land: Texture2D   ## 가로본(_가로) — 없을 수 있음
 
 func _ready() -> void:
 	AppSettings.apply_saved()  # 저장된 음량 복원 (앱 시작 = 항상 타이틀 경유)
-	# 타이틀 키아트 배경. 없으면 사막 밤 공통 배경(Backdrop)으로 fallback(웹 안전).
+	# 타이틀 키아트 배경 — 방향 따라 세로/가로(_가로) 교체. 둘 다 없으면 공통 배경(Backdrop) fallback(웹 안전).
 	const TITLE_ART: String = "res://assets/arts/29_타이틀_키아트.png"
+	const TITLE_ART_LAND: String = "res://assets/arts/29_타이틀_키아트_가로.png"
 	if ResourceLoader.exists(TITLE_ART):
-		var tr := TextureRect.new()
-		tr.texture = load(TITLE_ART)
-		tr.set_anchors_preset(Control.PRESET_FULL_RECT)
-		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED  # 화면 꽉 채우기(cover)
-		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(tr)
+		_title_port = load(TITLE_ART)
+	if ResourceLoader.exists(TITLE_ART_LAND):
+		_title_land = load(TITLE_ART_LAND)
+	if _title_port != null or _title_land != null:
+		_title_tr = TextureRect.new()
+		_title_tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_title_tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_title_tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED  # 화면 꽉 채우기(cover)
+		_title_tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_title_tr)
+		_update_title_art()
+		get_viewport().size_changed.connect(_update_title_art)  # 창 크기 바뀌면 방향 재판정
 		# 제목·버튼 글씨 가독용 가벼운 어두운 스크림(키아트 위, 컬럼 아래).
 		var scrim := ColorRect.new()
 		scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -54,6 +63,17 @@ func _ready() -> void:
 	var settings := UITheme.make_button("설정", false)
 	settings.pressed.connect(_on_settings_pressed)
 	col.add_child(settings)
+
+## 화면 방향에 맞는 타이틀 키아트로 교체(가로면 가로판, 아니면 세로본). 창 리사이즈 시 재호출.
+func _update_title_art() -> void:
+	if _title_tr == null:
+		return
+	var r: Vector2 = get_viewport_rect().size
+	var land: bool = r.x > r.y
+	var t: Texture2D = _title_land if (land and _title_land != null) else _title_port
+	if t == null:
+		t = _title_land  # 세로본이 없을 때(가로만 있는 경우) 대비
+	_title_tr.texture = t
 
 func _stat_text() -> String:
 	return "지금까지 보낸 원정 %d 흔적 %d" % [GameState.expedition_count, GameState.traces.size()]

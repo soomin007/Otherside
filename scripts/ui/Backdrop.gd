@@ -6,8 +6,10 @@ extends Control
 ## 로드 실패 시 절차적 세로 그라데이션 + 별 + (village 면 마을 실루엣)으로 fallback(웹 안전).
 
 const BG_PATH: String = "res://assets/arts/23_배경_공통.png"
+const BG_PATH_LAND: String = "res://assets/arts/23_배경_공통_가로.png"  ## 가로(데스크톱)용 — 있으면 가로 화면에서 우선
 static var _bg_tex: Texture2D
-static var _bg_loaded: bool = false   ## 1회만 로드 시도
+static var _bg_tex_land: Texture2D
+static var _bg_loaded: bool = false   ## 1회만 로드 시도(세로+가로 둘 다)
 
 var scene_kind: String = ""  ## "village" 면 (fallback 시) 지평선 좌우에 마을 실루엣. 중앙 UI 는 피한다.
 
@@ -21,7 +23,7 @@ func _draw() -> void:
 	var r: Vector2 = get_viewport_rect().size
 	if r.x <= 0.0 or r.y <= 0.0:
 		return
-	var tex: Texture2D = _common_tex()
+	var tex: Texture2D = _common_tex(r.x > r.y)   # 가로 화면이면 가로판 우선
 	if tex != null:
 		_draw_cover(tex, r)   # 손그림 밤 배경(종횡비 유지 cover)
 		return
@@ -101,11 +103,15 @@ func _city_cluster(x0: float, x1: float, horizon: float, rng: RandomNumberGenera
 		x += w * rng.randf_range(0.62, 0.92)  # 겹쳐서 밀도를 낸다
 
 ## 공통 배경 텍스처(1회 로드 후 static 캐시 — 여러 화면이 각자 Backdrop 을 만들어도 로드 1회).
-static func _common_tex() -> Texture2D:
+static func _common_tex(landscape: bool) -> Texture2D:
 	if not _bg_loaded:
 		_bg_loaded = true
 		if ResourceLoader.exists(BG_PATH):
 			_bg_tex = load(BG_PATH)
+		if ResourceLoader.exists(BG_PATH_LAND):
+			_bg_tex_land = load(BG_PATH_LAND)
+	if landscape and _bg_tex_land != null:
+		return _bg_tex_land
 	return _bg_tex
 
 ## 텍스처를 r 영역에 종횡비 유지로 꽉 채운다(cover — 넘치는 쪽을 잘라 여백/왜곡 없음).
