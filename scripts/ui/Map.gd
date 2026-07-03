@@ -9,6 +9,7 @@ const TOP_Y: float = 140.0   ## 제목 + 자원 HUD 아래(지도 시작 y)
 const BOT_Y: float = 156.0   ## 하단 요소(안내·남기기 버튼·통계 라벨)가 다 들어가게 + 웹 주소창 여유
 const NODE_R: float = 13.0
 const STEP_INTERVAL: float = 0.28  ## 이동 한 걸음의 시간(초)
+const EDGE_SAMPLES: int = 18       ## 엣지 곡선을 그릴 때 나눌 샘플 수(경로·마커가 같은 곡선을 공유)
 const ICON_MAX: float = 108.0      ## 노드 아이콘 긴 변 최대 표시 크기(px)
 const NODE_PAD_FRAC: float = 0.05  ## 노드 진행축 양끝 여백(area 대비) — 맨 처음/끝 노드가 화면 끝·HUD·버튼과 안 겹치게
 const REVEAL_DUR: float = 0.55     ## 방문 시 잉크 reveal 애니 길이(초)
@@ -320,17 +321,58 @@ func _node_screen(node: Dictionary, area: Rect2) -> Vector2:
 	# 세로 — 진행=y(위→아래), 분기=x
 	return Vector2(area.position.x + col * area.size.x, area.position.y + prog * area.size.y)
 
-## 플레이어 마커 위치 — 이동 중이면 현재→목표 노드 보간, 아니면 현재 노드.
+## 엣지 A→B 곡선 위의 점(t∈[0,1]). 도착 노드 biome 으로 굴곡 결정 — 결정론적(id 해시, 매 프레임 동일).
+## 경로 렌더·마커·점선이 모두 이 함수를 공유해야 마커가 그려진 곡선을 정확히 탄다.
+func _edge_point(from_id: String, to_id: String, t: float, area: Rect2) -> Vector2:
+	var p0: Vector2 = _node_screen(MapGraph.node(from_id), area)
+	var p1: Vector2 = _node_screen(MapGraph.node(to_id), area)
+	var base: Vector2 = p0.lerp(p1, t)
+	var dist: float = p0.distance_to(p1)
+	if dist < 1.0:
+		return base
+	var perp: Vector2 = Vector2(-(p1.y - p0.y), p1.x - p0.x) / dist  # 엣지에 수직(방향 무관 → 가로/세로 자동 대응)
+	var sgn: float = 1.0 if (_id_hash(to_id) % 2 == 0) else -1.0     # 굴곡 방향 고정(노드별 결정론)
+	var amp: float = 0.0
+	var shape: float = 0.0
+	match MapGraph.biome_of(to_id):
+		"river":   # 강줄기를 따라 한 번 사행(S 굽이) — 시작·끝은 노드에 정확히 붙는다(sin τt: t=0,0.5,1 → 0)
+			amp = dist * 0.10
+			shape = sin(t * TAU)
+		"rock":    # 바위·산을 크게 돌아간다(한쪽 볼록)
+			amp = dist * 0.17
+			shape = sin(t * PI)
+		"storm":   # 폭풍·사구에 흔들리는 지그재그
+			amp = dist * 0.09
+			shape = sin(t * PI * 3.0)
+		_:         # flats — 완만한 미세 굴곡
+			amp = dist * 0.05
+			shape = sin(t * PI)
+	return base + perp * (amp * shape * sgn)
+
+## 엣지 곡선을 EDGE_SAMPLES 로 나눈 폴리라인(경로 실선/점선 렌더용).
+func _edge_polyline(from_id: String, to_id: String, area: Rect2) -> PackedVector2Array:
+	var pts: PackedVector2Array = []
+	for i in range(EDGE_SAMPLES + 1):
+		pts.append(_edge_point(from_id, to_id, float(i) / float(EDGE_SAMPLES), area))
+	return pts
+
+## 노드 id 의 결정론적 해시(문자 코드 합) — 곡선 굴곡 방향 고정용(Math.random 금지: 매 프레임 동일해야).
+func _id_hash(s: String) -> int:
+	var h: int = 0
+	for i in range(s.length()):
+		h += s.unicode_at(i)
+	return h
+
+## 플레이어 마커 위치 — 이동 중이면 엣지 곡선 위를 따라가고, 아니면 현재 노드.
 func _marker_pos(area: Rect2) -> Vector2:
 	var run: ExpeditionRun = GameState.current_run
 	if run == null:
 		return _node_screen(MapGraph.node(MapGraph.START_ID), area)
-	var cur_p: Vector2 = _node_screen(MapGraph.node(run.current_node), area)
 	var tgt: String = run.target_node_id()
 	if not _moving or tgt == "":
-		return cur_p
+		return _node_screen(MapGraph.node(run.current_node), area)
 	var prog: float = float(ExpeditionRun.EDGE_LEN - run.edge_remaining()) / float(ExpeditionRun.EDGE_LEN)
-	return cur_p.lerp(_node_screen(MapGraph.node(tgt), area), clampf(prog, 0.0, 1.0))
+	return _edge_point(run.current_node, tgt, clampf(prog, 0.0, 1.0), area)
 
 func _draw() -> void:
 	var rect: Vector2 = size
@@ -351,6 +393,7 @@ func _draw() -> void:
 		draw_rect(area, PAPER)
 		_draw_terrain(area)
 		_draw_paper_edge(area)
+	_draw_biomes(area)  # 지형지물 잉크 — 배경 위, 경로·노드 아래(세계의 지리, 텍스처 유무 무관)
 
 	var cur: String = _current_node_id()
 	var nexts: Array = MapGraph.node(cur).get("next", [])
@@ -366,17 +409,17 @@ func _draw() -> void:
 	for id in MapGraph.NODES:
 		if not _is_revealed(id):
 			continue
-		var from: Vector2 = _node_screen(MapGraph.NODES[id], area)
 		var from_cur: bool = (id == cur)
 		for nx in MapGraph.node(id).get("next", []):
 			var nx_s: String = str(nx)
 			if not (_is_revealed(nx_s) or nx_s in nexts):
 				continue
-			var to: Vector2 = _node_screen(MapGraph.node(nx_s), area)
+			# 지형 곡선 — 두 노드를 잇는 엣지를 biome 에 맞춰 굽이치게(강=사행/바위=우회/폭풍=흔들림).
+			var pts: PackedVector2Array = _edge_polyline(str(id), nx_s, area)
 			if _is_revealed(nx_s):
-				draw_line(from, to, ROUTE, 3.0 if from_cur else 2.0)
+				draw_polyline(pts, ROUTE, 3.0 if from_cur else 2.0)
 			else:
-				_draw_dashed(from, to, INK_FADE, 2.0)
+				_draw_dashed_poly(pts, INK_FADE, 2.0)
 
 	# 노드 — 가본 곳은 손그림 장소 심볼+이름, 갈 수 있는 미지는 "?", 나머지는 안 보임.
 	for id in MapGraph.NODES:
@@ -438,6 +481,97 @@ func _draw_terrain(area: Rect2) -> void:
 			pts.append(Vector2(x, y))
 		draw_polyline(pts, line_col, 1.5)
 
+## 엣지(길) 구간의 지형을 곡선을 따라 세피아 잉크로 옅게 — "강을 따라가고, 산을 돌아간다"를 시각화.
+## 노드 아이콘(이미 지형 표현)과 안 겹치게 엣지 중간 구간에만. revealed 엣지만(경로 렌더와 동일 조건).
+## 도착 노드 biome 으로 결정(곡선과 같은 축). flats 는 아무것도 안 그린다(과하지 않게).
+func _draw_biomes(area: Rect2) -> void:
+	var cur: String = _current_node_id()
+	var nexts: Array = MapGraph.node(cur).get("next", [])
+	var ink := Color(INK.r, INK.g, INK.b, 0.22)
+	var s: float = minf(area.size.x, area.size.y)
+	for id in MapGraph.NODES:
+		if not _is_revealed(id):
+			continue
+		for nx in MapGraph.node(id).get("next", []):
+			var nx_s: String = str(nx)
+			if not (_is_revealed(nx_s) or nx_s in nexts):
+				continue
+			var pts: PackedVector2Array = _edge_polyline(str(id), nx_s, area)
+			match MapGraph.biome_of(nx_s):
+				"river":
+					_draw_edge_river(pts, ink)
+				"rock":
+					_draw_edge_ridges(pts, s, ink)
+				"storm":
+					_draw_edge_storm(pts, s, ink)
+
+## 곡선 위 i 지점의 접선 방향 단위벡터(양끝은 한쪽 차분).
+func _tangent_at(pts: PackedVector2Array, i: int) -> Vector2:
+	var n: int = pts.size()
+	var a: Vector2 = pts[maxi(i - 1, 0)]
+	var b: Vector2 = pts[mini(i + 1, n - 1)]
+	var d: Vector2 = b - a
+	return d.normalized() if d.length() > 0.001 else Vector2.RIGHT
+
+## river — 경로와 나란히 흐르는 옅은 물줄기(강을 따라가는 길). 곡선을 법선 방향으로 살짝 민 평행선.
+func _draw_edge_river(pts: PackedVector2Array, col: Color) -> void:
+	var n: int = pts.size()
+	if n < 4:
+		return
+	var bank1: PackedVector2Array = []
+	var bank2: PackedVector2Array = []
+	var lo: int = int(n * 0.14)
+	var hi: int = int(n * 0.86)
+	for i in range(lo, hi + 1):
+		var t: Vector2 = _tangent_at(pts, i)
+		var nrm: Vector2 = Vector2(-t.y, t.x)
+		bank1.append(pts[i] + nrm * 4.0)   # 강 양안 이중선(경로와 나란히 흐르는 물길)
+		bank2.append(pts[i] + nrm * 8.0)
+	if bank1.size() >= 2:
+		draw_polyline(bank1, col, 1.5)
+		draw_polyline(bank2, col, 1.5)
+
+## rock — 길이 도는 바깥쪽에 능선(산·바위를 돌아간다). 곡선의 볼록 방향 바깥에 삼각 능선.
+func _draw_edge_ridges(pts: PackedVector2Array, s: float, col: Color) -> void:
+	var n: int = pts.size()
+	if n < 3:
+		return
+	var mid: Vector2 = pts[n / 2]
+	var chord_mid: Vector2 = (pts[0] + pts[n - 1]) * 0.5
+	var out_dir: Vector2 = mid - chord_mid          # 곡선이 볼록한(바깥) 방향
+	if out_dir.length() < 1.0:                       # 거의 직선이면 법선으로
+		var tg: Vector2 = (pts[n - 1] - pts[0]).normalized()
+		out_dir = Vector2(-tg.y, tg.x)
+	out_dir = out_dir.normalized()
+	var along: Vector2 = (pts[n - 1] - pts[0]).normalized()
+	var c: Vector2 = mid + out_dir * s * 0.015       # 곡선 바로 바깥(경로에 붙게)
+	var w: float = s * 0.11
+	# 밑변은 경로 근처, 봉우리만 바깥으로 솟는다(톱니가 아니라 산 실루엣).
+	var peaks: PackedVector2Array = [
+		c - along * w * 0.5,
+		c - along * w * 0.25 + out_dir * s * 0.04,
+		c + out_dir * s * 0.012,
+		c + along * w * 0.25 + out_dir * s * 0.05,
+		c + along * w * 0.5,
+	]
+	draw_polyline(peaks, col, 1.5)
+
+## storm — 길 주변에 흩날리는 모래바람(짧은 사선 몇 개, 곡선 법선 방향으로).
+func _draw_edge_storm(pts: PackedVector2Array, s: float, col: Color) -> void:
+	var n: int = pts.size()
+	if n < 4:
+		return
+	var gust: float = s * 0.045
+	for k in range(3):
+		var idx: int = clampi(int(n * (0.3 + float(k) * 0.2)), 1, n - 2)
+		var t: Vector2 = _tangent_at(pts, idx)
+		var nrm: Vector2 = Vector2(-t.y, t.x)
+		var dirg: Vector2 = (t + nrm * 0.5).normalized()
+		var b1: Vector2 = pts[idx] + nrm * gust * 0.8
+		var b2: Vector2 = pts[idx] - nrm * gust * 1.6
+		draw_line(b1, b1 + dirg * gust, col, 1.5)
+		draw_line(b2, b2 + dirg * gust, col, 1.5)
+
 ## 양피지 가장자리 — 낡아 그을린 테두리(비네팅 대용, 셰이더 없이).
 func _draw_paper_edge(area: Rect2) -> void:
 	draw_rect(area, PAPER_EDGE, false, 3.0)
@@ -487,19 +621,30 @@ func _draw_landmark_symbol(kind: String, p: Vector2) -> void:
 		_:
 			draw_circle(p, 5.0, INK)
 
-## 점선 — 미지로 향하는 길(아직 안 밟음).
-func _draw_dashed(a: Vector2, b: Vector2, col: Color, w: float) -> void:
-	var dist: float = a.distance_to(b)
-	if dist < 0.5:
-		return
-	var dir: Vector2 = (b - a) / dist
+## 점선(곡선) — 미지로 향하는 길(아직 안 밟음). 폴리라인 샘플을 따라 dash/gap 을 세그먼트 넘어 이어 배치.
+func _draw_dashed_poly(pts: PackedVector2Array, col: Color, w: float) -> void:
 	var dash: float = 7.0
 	var gap: float = 5.0
-	var d: float = 0.0
-	while d < dist:
-		var seg_end: float = minf(d + dash, dist)
-		draw_line(a + dir * d, a + dir * seg_end, col, w)
-		d = seg_end + gap
+	var acc: float = 0.0        # 현재 dash/gap 구간에서 채운 길이
+	var draw_on: bool = true    # 지금 그리는 중인가(dash) 쉬는 중인가(gap)
+	for i in range(pts.size() - 1):
+		var a: Vector2 = pts[i]
+		var b: Vector2 = pts[i + 1]
+		var seg: float = a.distance_to(b)
+		if seg < 0.01:
+			continue
+		var dir: Vector2 = (b - a) / seg
+		var pos: float = 0.0
+		while pos < seg:
+			var target: float = dash if draw_on else gap
+			var step: float = minf(target - acc, seg - pos)
+			if draw_on:
+				draw_line(a + dir * pos, a + dir * (pos + step), col, w)
+			pos += step
+			acc += step
+			if acc >= target - 0.001:
+				draw_on = not draw_on
+				acc = 0.0
 
 ## 노드별 흔적 마커 — 죽음 X·로프 다리·자원 점. 가본 노드에만(흔적은 가본 곳에서만 생긴다). 한 노드에 여러 개면 옆으로 쌓는다.
 func _draw_traces(area: Rect2) -> void:
