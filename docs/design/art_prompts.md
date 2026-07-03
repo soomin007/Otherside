@@ -32,8 +32,9 @@
 | 29 | 타이틀 키아트 | §8 | ✅ 완료 (불투명, `Main.gd` 배경 TextureRect cover + 스크림) |
 | 30~37 | 아이템 삽화 8종 (물통/식량/말린고기/로프/은신막/약초/부싯돌/정화천) | §9 | ✅ 완료 (흰→투명 변환·`ItemIcon.gd` 배선, 가방 슬롯 아이콘 확인) |
 | 38 | 열린 가방(위에서 본 빈 배낭) — 가방 슬롯 뒤 배경 | §10 | ⬜ 선택 (흰→투명, `Loadout.gd` 배선됨·없으면 배낭 초상 21 재활용) |
-| 29가로 | 타이틀 키아트 **가로판**(데스크톱) — `29_타이틀_키아트_가로.png` | §11 | ⬜ (방향 자동 교체 배선됨·없으면 세로본) |
-| 23가로 | 공통 배경 **가로판**(데스크톱) — `23_배경_공통_가로.png` | §11 | ⬜ |
+| 29가로 | 타이틀 키아트 **가로판**(데스크톱) — `29_타이틀_키아트_가로.png` | §11 | ✅ 완료 (방향 자동 교체 배선·`Main.gd`) |
+| 23가로 | 공통 배경 **가로판**(데스크톱) — `23_배경_공통_가로.png` | §11 | ✅ 완료 (`Backdrop.gd`) |
+| 24~28가로 | 오프닝 삽화 **가로판** 5종(데스크톱) — `NN_오프닝_이름_가로.png` | §11 | ⬜ 선택 (`Opening.gd` 방향 자동 교체 배선됨·없으면 세로본) |
 | 40~43 | 지도 손스케치 **지형** 4종 (강/산/사구/폭풍) | §12 | ✅ 완료 (흰→투명·`Map.gd` biome별 엣지 배치, 지도 확인·톤 일치) |
 | 44~46 | 지도 손스케치 **메모** 3종 (해골/경고/화살표) | §12 | ✅ 완료 (해골=죽은 자리·경고=위험 노드·화살표=갈림 방향, `Map.gd` 배선) |
 
@@ -453,6 +454,41 @@ faint stars, a distant silhouette of a small desert city with domes and minarets
 along the horizon, the left and center kept calm, dark and empty as negative space, dusty atmosphere, a
 full background scene filling the frame. Muted palette, painterly, cinematic, low saturation, melancholic
 mood. Absolutely no text, no words, no letters, no labels, no watermark, no white background, no people.
+```
+
+### 오프닝 삽화 가로판 5종 — `24~28_오프닝_이름_가로.png` (하나씩 복사)
+
+> 오프닝 슬라이드용 16:9 가로. **중앙은 차분하게 비워** 슬라이드 텍스트(위에 스크림)가 읽히게. 세로본 §7 과 같은 장면·톤.
+
+```
+[24 떠난다] A storytelling illustration, wide 16:9 landscape, a lone caravan setting out into vast desert
+dunes at dawn, tiny and small on the left, endless sand stretching right, the center-upper kept calm and
+open. Muted desert palette of sand and sepia, dusty haze, painterly semi-realistic, low saturation,
+melancholic mood, a full background scene. Absolutely no text, no words, no letters, no watermark, no white background.
+```
+```
+[25 죽는다] A storytelling illustration, wide 16:9 landscape, scattered footprints and a fallen expedition
+pack half-buried in the sand off to one side, no bodies, wide empty desert, the center kept calm. Muted
+sand and sepia palette, dusty haze, painterly semi-realistic, low saturation, sorrowful desolate mood.
+Absolutely no text, no words, no letters, no watermark, no white background, no people.
+```
+```
+[26 지운다] A storytelling illustration, wide 16:9 landscape, a sandstorm sweeping across the land from the
+right and erasing tracks and carvings on stone, dust swallowing everything, the center-left calmer. Muted
+desert palette, heavy dusty haze, painterly semi-realistic, low saturation, ominous mood. Absolutely
+no text, no words, no letters, no watermark, no white background.
+```
+```
+[27 보내는자] A storytelling illustration, wide 16:9 landscape, a distant lone overseer figure standing to
+one side and watching many faint paths leading away across the desert, seen from behind and far, wide
+vista. Muted desert palette, dusty haze, painterly semi-realistic, low saturation, solemn quiet mood.
+Absolutely no text, no words, no letters, no watermark, no white background, no face detail.
+```
+```
+[28 남긴다] A storytelling illustration, wide 16:9 landscape, a single waterskin left resting in the sand
+with a small carved mark beside it, close and quiet, off to one side, wide calm desert around. Muted sand
+and sepia palette, dusty haze, painterly semi-realistic, low saturation, tender melancholic mood.
+Absolutely no text, no words, no letters, no watermark, no white background, no people.
 ```
 
 ---

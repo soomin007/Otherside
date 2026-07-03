@@ -22,28 +22,41 @@ const ILLUS_PATHS: Array = [
 	"res://assets/arts/27_오프닝_보내는자.png",
 	"res://assets/arts/28_오프닝_남긴다.png",
 ]
+## 가로(데스크톱)용 — `_가로` 접미사. 있으면 가로 화면에서 우선, 없으면 세로본.
+const ILLUS_PATHS_LAND: Array = [
+	"res://assets/arts/24_오프닝_떠난다_가로.png",
+	"res://assets/arts/25_오프닝_죽는다_가로.png",
+	"res://assets/arts/26_오프닝_지운다_가로.png",
+	"res://assets/arts/27_오프닝_보내는자_가로.png",
+	"res://assets/arts/28_오프닝_남긴다_가로.png",
+]
 
 var _idx: int = 0
 var _label: Label
 var _hint: Label
 var _title_mode: bool = false
 var _illus: TextureRect            ## 슬라이드 배경 삽화(있을 때만). 넘길 때 크로스페이드.
-var _illus_tex: Array = []         ## 로드된 Texture2D(없으면 null)
+var _illus_tex: Array = []         ## 세로본 Texture2D(없으면 null)
+var _illus_tex_land: Array = []    ## 가로본 Texture2D(없으면 null)
+var _illus_cur: int = 0            ## 지금 보이는 삽화 슬라이드(리사이즈 시 방향 재판정용, -1=삽화 없음)
 
 func _ready() -> void:
 	add_child(Backdrop.new())  # 사막 밤 공통 배경(맨 뒤)
 
-	# 슬라이드별 삽화 — Backdrop 위, 텍스트 아래. 하나라도 로드되면 레이어를 깐다(없으면 Backdrop 만).
+	# 슬라이드별 삽화 — Backdrop 위, 텍스트 아래. 세로+가로본 로드. 하나라도 있으면 레이어를 깐다.
 	for p in ILLUS_PATHS:
 		_illus_tex.append(load(str(p)) if ResourceLoader.exists(str(p)) else null)
-	if _illus_tex.any(func(t): return t != null):
+	for p in ILLUS_PATHS_LAND:
+		_illus_tex_land.append(load(str(p)) if ResourceLoader.exists(str(p)) else null)
+	if _illus_tex.any(func(t): return t != null) or _illus_tex_land.any(func(t): return t != null):
 		_illus = TextureRect.new()
 		_illus.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_illus.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		_illus.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 		_illus.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_illus.texture = _illus_tex[0]
+		_illus.texture = _tex_for(0)
 		add_child(_illus)
+		get_viewport().size_changed.connect(_on_illus_resize)  # 창 방향 바뀌면 재판정
 		# 글씨 가독용 어두운 스크림(삽화 위, 텍스트 아래).
 		var scrim := ColorRect.new()
 		scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -104,15 +117,29 @@ func _advance() -> void:
 func _set_illus(idx: int) -> void:
 	if _illus == null:
 		return
-	var tex: Texture2D = _illus_tex[idx] if idx >= 0 and idx < _illus_tex.size() else null
+	_illus_cur = idx
 	var t := create_tween()
 	t.tween_property(_illus, "modulate:a", 0.0, FADE * 0.5)
-	t.tween_callback(_apply_illus.bind(tex))
+	t.tween_callback(_apply_illus.bind(_tex_for(idx)))
 	t.tween_property(_illus, "modulate:a", 1.0, FADE)
 
 func _apply_illus(tex: Texture2D) -> void:
 	if _illus != null:
 		_illus.texture = tex
+
+## idx 슬라이드의 삽화 — 가로 화면이고 가로본이 있으면 가로본, 아니면 세로본(둘 다 없으면 null).
+func _tex_for(idx: int) -> Texture2D:
+	if idx < 0 or idx >= _illus_tex.size():
+		return null
+	var land: bool = get_viewport_rect().size.x > get_viewport_rect().size.y
+	if land and idx < _illus_tex_land.size() and _illus_tex_land[idx] != null:
+		return _illus_tex_land[idx]
+	return _illus_tex[idx]
+
+## 창 방향이 바뀌면 지금 슬라이드 삽화를 그 방향본으로 즉시 교체(페이드 없이).
+func _on_illus_resize() -> void:
+	if _illus != null:
+		_illus.texture = _tex_for(_illus_cur)
 
 func _fade_in() -> void:
 	_label.modulate.a = 0.0
