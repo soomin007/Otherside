@@ -39,6 +39,11 @@ func _process(_delta: float) -> void:
 	if GameState.controls_tutorial_seen or not GameState.record_seen:
 		_hide()
 		return
+	# 사망(고갈·위협)으로 결과 화면이 떠 있는 동안엔 안 뜬다 — 이동 중 죽어 단면(사망 안내·[지도로])으로
+	# 넘어왔을 때 조사 튜토리얼이 그 위에 겹치던 버그. 죽은 원정엔 조작 안내가 무의미하다.
+	if GameState.current_run != null and not GameState.current_run.alive:
+		_hide()
+		return
 	if _step_idx >= STEPS.size():
 		GameState.mark_controls_tutorial_seen()
 		_hide()

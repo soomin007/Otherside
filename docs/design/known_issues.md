@@ -49,6 +49,10 @@
   **원인:** `add_child` 직후 `_ready` 에선 그 Control 의 `size` 가 아직 0(레이아웃 패스 전). `CenterContainer` 는 size 0 이면 (0,0) 정렬, `_draw` 는 size 0 이면 아무것도 안 그린다.
   **방지:** `_ready` 에서 `size = get_viewport_rect().size` 로 즉시 확정하거나, `_draw` 에서 `get_viewport_rect().size` 를 쓴다. (Backdrop·SettingsPanel 이 이걸 겪음.)
 
+- **증상:** 지도 이동 중 죽으면(예: 열병 "버틴다" 물 -5) 넘어간 단면의 사망 안내·[지도로] 화면 **위에 조사 튜토리얼**이 겹쳐 뜬다. (2026-07-03)
+  **원인:** `Tutorial`(autoload CanvasLayer)이 **현재 씬 경로만** 보고 단계를 띄운다. 지도 튜토리얼을 이미 넘겨 `_step_idx` 가 expedition 단계인 채로 이동 중 사망→단면 전환되면, 씬이 일치해 "죽은 화면"인 줄 모르고 뜬다. **autoload 오버레이가 씬은 보는데 게임 상태(생존)는 안 봤다.**
+  **방지:** 오버레이 게이트에 게임 상태도 넣는다 — `Tutorial._process` 에 `if GameState.current_run != null and not current_run.alive: _hide()`. 교훈: 씬 위에 얹는 autoload UI 는 씬 매칭만으론 부족, 그 씬이 "정상 상태"인지(사망·모달 등)도 게이트해야 한다.
+
 ## 검증 / 헤드리스
 
 - **증상:** `godot --headless -s res://test.gd` 로 스크립트를 돌리면 `Identifier not found: GameState`(또는 다른 autoload)
