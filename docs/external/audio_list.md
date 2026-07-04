@@ -164,6 +164,11 @@ soft wordless choir or no vocals, no harsh percussion
 
 각 항목: 용도 + ElevenLabs 프롬프트(영어, 그대로 붙여넣기).
 
+> **★ 제작 현황(2026-07-04): 5개 뽑아 처리 완료 → `assets/sfx/` (wav 7개, 모노 44.1k).**
+> - `sfx_tap`(탭·버튼) · `sfx_card_open`(카드 열기, ⚠️ **매우 조용 -29.8dB** — 보강/재생성 후보) · `sfx_card_close`(카드 닫기) · `sfx_bag_add`(가방 담기·천 스와이프)
+> - `sfx_page_1/2/3`(페이지 넘김 — 5초 3연속 파일을 ffmpeg 로 3개 분할, 변주로 회전)
+> - open/close 는 원본 #2(2s)=열기·#3(1s)=닫기로 **추정**(청취 확인 권장). 배선 = `AudioManager.play_sfx`(예정, UI 이벤트 훅은 map-render 페이드 확산과 겹쳐 순차).
+
 **UI**
 - 탭 / 버튼: `soft dry muted tap, a minimal paper-like click, no reverb`
 - 카드 열기: `soft parchment card sliding open, dry paper rustle, gentle`
