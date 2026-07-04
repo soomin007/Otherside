@@ -12,7 +12,7 @@ const STEP_INTERVAL: float = 0.65  ## 이동 한 걸음의 시간(초) — 느�
 const SPLASH_DUR: float = 0.8      ## 걸음마다 번지는 잉크 얼룩이 피어 사라지기까지(초)
 const EDGE_SAMPLES: int = 18       ## 엣지 곡선을 그릴 때 나눌 샘플 수(경로·마커가 같은 곡선을 공유)
 const ICON_MAX: float = 220.0      ## 노드 아이콘 긴 변 최대 표시 크기(px) — 큰 세로 캔버스라 크게
-const NODE_PAD_FRAC: float = 0.04  ## 노드 진행축 양끝 여백(area 대비) — 맨 처음/끝 노드가 화면 끝·HUD·버튼과 안 겹치게
+const NODE_PAD_FRAC: float = 0.09  ## 노드 진행축 양끝 여백(area 대비) — 맨 처음/끝 노드(+아이콘 절반)가 지도 밖으로 안 삐지게
 const DRAG_THRESH: float = 10.0    ## 이만큼 넘게 끌면 팬(스크롤), 미만이면 탭(노드 선택)
 const REVEAL_DUR: float = 0.55     ## 방문 시 잉크 reveal 애니 길이(초)
 
@@ -597,18 +597,18 @@ func _draw_bg_cover(area: Rect2) -> void:
 	if tw <= 0.0 or th <= 0.0:
 		draw_texture_rect(_bg_tex, area, false)
 		return
-	# 테두리·나침반(가장자리)을 뺀 중앙 양피지 결만 세로로 타일 — 반복해도 장식이 안 겹쳐 자연스럽다.
-	var mx: float = 0.16
-	var my: float = 0.28  # 나침반이 우하단 코너라 세로로 더 잘라낸다
-	var src := Rect2(tw * mx, th * my, tw * (1.0 - 2.0 * mx), th * (1.0 - 2.0 * my))
-	var tile_h: float = area.size.x * (src.size.y / src.size.x)
-	if tile_h <= 1.0:
-		return
-	var y: float = area.position.y
-	var bottom: float = area.position.y + area.size.y
-	while y < bottom:
-		draw_texture_rect_region(_bg_tex, Rect2(area.position.x, y, area.size.x, tile_h), src)
-		y += tile_h
+	# 종횡비 유지 cover — area 를 꽉 채우고 넘치는 쪽만 잘라낸다(왜곡·여백 없이). 원본의 나침반·테두리를 보존.
+	# 세로 원본(720x1280)이라 폰(세로)에선 거의 전부 보이고, 데스크톱(가로)에선 상하가 크게 잘린다(가로 배경 필요).
+	var sa: float = area.size.x / area.size.y  # area 종횡비
+	var ia: float = tw / th                     # 이미지 종횡비
+	var src: Rect2
+	if ia > sa:
+		var sw: float = th * sa                 # 이미지가 더 가로로 넓다 → 좌우를 잘라 세로를 꽉
+		src = Rect2((tw - sw) * 0.5, 0.0, sw, th)
+	else:
+		var sh: float = tw / sa                 # 이미지가 더 세로로 길다 → 상하를 잘라 가로를 꽉
+		src = Rect2(0.0, (th - sh) * 0.5, tw, sh)
+	draw_texture_rect_region(_bg_tex, area, src)
 
 ## 양피지 지형결 — 은은한 등고선(결정론 sin 곡선). 사막 지도의 결.
 func _draw_terrain(area: Rect2) -> void:
