@@ -37,8 +37,11 @@
 | 24~28가로 | 오프닝 삽화 **가로판** 5종(데스크톱) — `NN_오프닝_이름_가로.png` | §11 | ✅ 완료 (5장 배선·`Opening.gd` 방향 자동 교체 — 데스크톱 가로에서 우선) |
 | 40~43 | 지도 손스케치 **지형** 4종 (강/산/사구/폭풍) | §12 | ✅ 완료 (흰→투명·`Map.gd` biome별 엣지 배치, 지도 확인·톤 일치) |
 | 44~46 | 지도 손스케치 **메모** 3종 (해골/경고/화살표) | §12 | ✅ 완료 (해골=죽은 자리·경고=위험 노드·화살표=갈림 방향, `Map.gd` 배선) |
+| 39 | 가방 창고 배경 **가로판** — `39_배경_창고_가로.png` | §13 | ⬜ 대기 (가방 창고 개편용, `Loadout.gd`) |
+| 47~49 | 순환 엔딩 슬라이드 3종 — `47~49_엔딩순환_N.png` | §13 | ⬜ 대기 (엔딩 슬라이드쇼, 49=언더테일식 암시) |
+| 50~52 | 재회 엔딩 슬라이드 3종 — `50~52_엔딩재회_N.png` | §13 | ⬜ 대기 (엔딩 슬라이드쇼, 따뜻·재회) |
 
-**🎉 모든 아트 삽입·배선 완료(2026-07-04) — 01~46 + 38 + 오프닝 가로판(24~28가로).** 남은 것은 폰/웹 시각 확인·톤 조정뿐(스크림 알파 Opening 0.5·Main 0.35, cover/contain).
+**기존 아트(01~46 + 38 + 오프닝 가로판) 전부 완료(2026-07-04).** **신규 대기(§13):** 가방 창고 `39` · 엔딩 슬라이드 `47~52`(순환 3·재회 3). 뽑아 넣으면 Claude 가 리네임·배선(엔딩 슬라이드쇼·가방 창고 개편에 쓰임).
 
 ---
 
@@ -595,3 +598,40 @@ background only.
 
 ### 톤 통일
 한 세트를 **같은 생성기·같은 시드 계열**로 뽑아야 통일된다. 지도 → 단면 → 초상 순 권장. 웹 export 는 권장 크기 근처로(과대해상도 금지 — GL Compatibility 로딩).
+
+---
+
+## 13. 엔딩 슬라이드쇼 + 가방 창고 (2026-07-04 추가)
+
+> 엔딩을 **오프닝식 슬라이드쇼**로 (기획서 §3 결말). 순환=차갑게 + **언더테일식 암시**("온전히 닿았다면 달랐다"), 재회=따뜻하게.
+> 스타일 tail 은 §7 오프닝과 동일(sepia 사막·painterly·16:9·중앙 비움·no text). 전부 **불투명 16:9 가로**. 슬라이드당 3장(스토리 따라 가감).
+
+### 가방 창고 배경 — `39_배경_창고_가로.png` (16:9, 불투명)
+> 가방 챙기기 화면 개편: 창고/테이블에서 아이템을 집는 방식(§5 배경 22 결). 현재 아이템 8종이 비슷하게 놓인 배경.
+```
+A wide 16:9 landscape background, a dim supply storeroom lit by warm lamplight, a long weathered wooden table laid out with expedition gear arranged in a neat even row: a leather waterskin, a burlap food sack, strips of dried meat, a coil of rope, a folded canvas shelter tarp, a bundle of dried herbs, a flint stone, a folded cloth filter, all old and worn leather and canvas, sepia and warm brown tones, painterly semi-realistic, low saturation, quiet nighttime mood, the center kept calm for UI overlay. Absolutely no text, no words, no letters, no labels, no watermark, no people.
+```
+
+### 순환 엔딩 슬라이드 3장 — `47~49_엔딩순환_N.png` (16:9)
+> 차갑게. **49번에 언더테일식 암시** — 재앙의 자리 너머 빛 속에 기다리는 이들·지나가는 길(온전히 닿았다면 밀어내지 않아도 됐을 것).
+```
+[47 도착] A storytelling illustration, wide 16:9 landscape, the seat of the disaster: a single weathered figure standing alone at the heart of a vast dead desert basin, seen from behind and far, dust in the air, ominous and still. Muted sand and sepia palette, dusty haze, painterly semi-realistic, low saturation, cold solemn mood. Absolutely no text, no words, no letters, no labels, no watermark, no white background, no face detail.
+```
+```
+[48 밀어냄] A storytelling illustration, wide 16:9 landscape, two distant weathered figures at the disaster's seat, one gently giving way and reaching out a hand rather than fighting, a quiet exchange not a struggle, dust swirling, seen from far. Muted sand and sepia palette, dusty haze, painterly semi-realistic, low saturation, sorrowful ambiguous mood. Absolutely no text, no words, no letters, no labels, no watermark, no white background, no face detail.
+```
+```
+[49 이어짐·암시] A storytelling illustration, wide 16:9 landscape, a lone figure now standing at the disaster's seat as a tiny new caravan appears on the far horizon approaching, and beyond the seat a faint pale glow where distant silhouettes seem to wait and a path continues past into light, seen from behind. Muted sand and sepia palette with a faint distant glow, dusty haze, painterly semi-realistic, low saturation, cold yet quietly hopeful mood. Absolutely no text, no words, no letters, no labels, no watermark, no white background, no face detail.
+```
+
+### 재회 엔딩 슬라이드 3장 — `50~52_엔딩재회_N.png` (16:9)
+> 따뜻하게, 점점 밝아지는 톤. 밀어내지 않고 지나쳐 건너편에서 모두와 재회.
+```
+[50 닿음] A storytelling illustration, wide 16:9 landscape, an expedition arriving whole and unharmed at the disaster's seat where a weathered figure turns to welcome them rather than block them, warm light breaking through the dust, seen from far. Sepia palette warming toward gold, soft light, painterly semi-realistic, low saturation lifting, tender hopeful mood. Absolutely no text, no words, no letters, no labels, no watermark, no white background, no face detail.
+```
+```
+[51 지나쳐] A storytelling illustration, wide 16:9 landscape, figures walking past the disaster's seat and onward into a soft pale light on the far side instead of stopping, footprints leading through, warm and quiet, seen from behind. Warm sepia and gold palette, gentle glow, painterly semi-realistic, low saturation lifting, serene hopeful mood. Absolutely no text, no words, no letters, no labels, no watermark, no white background, no face detail.
+```
+```
+[52 모두] A storytelling illustration, wide 16:9 landscape, many weathered expedition figures gathered together on the far side in warm light, a long-awaited reunion, small against a gentle bright horizon, seen from behind and far. Warm golden sepia palette, soft luminous light, painterly semi-realistic, low saturation lifting to warmth, cathartic tender mood. Absolutely no text, no words, no letters, no labels, no watermark, no white background, no face detail.
+```

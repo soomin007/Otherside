@@ -30,7 +30,7 @@
 > **★ 최종 결정(2026-07-04): 화면별 곡 폐기 → 3트랙 방식.** 게임 무드가 하나(서늘·사막)라 화면마다 곡을 바꾸면 몰입만 깨진다. 대신:
 > 1. **잔잔한 코어 베드** — 코어 루프(타이틀·마을·지도·전진·단면·죽음) 내내 *끊기지 않고 계속* 재생(화면 전환에 restart 안 함). `AudioManager` 가 크로스페이드 무한 루프. **✅ 제작됨(8분, 길이 무관 — 안 자름).**
 > 2. **폭풍 긴장** — 폭풍 구간에서 베드를 크로스페이드로 잠깐 교체, 지나면 복귀. **⬜ 프롬프트 = 아래 "폭풍 긴장".**
-> 3. **엔딩 크레딧** — **재회(진짜 엔딩)** 에서 크레딧곡(보컬 OK, 영화 크레딧 결 · "Love Me Again"). **순환 엔딩은 차갑게 베드 유지**(대비). **✅ 제작됨.**
+> 3. **엔딩 (둘 다 슬라이드쇼 — 2026-07-04):** 재회 = 따뜻한 슬라이드(47~52 중 50~52) + 크레딧곡 `Other Side`(✅). 순환 = 차가운 슬라이드(47~49, 언더테일식 암시) + **전용 배경곡·엔딩곡(아래 "엔딩 음악", ⬜)** → 암전 → "아무 키나 눌러 계속" → 타이틀.
 >
 > 아래 B1~B10 per-screen 프롬프트는 **참고용(여유 시 마을·죽음 등 확장)** — 필수는 위 3개뿐이다.
 
@@ -48,6 +48,19 @@
 [Instrumental] tense desert dread, a distant wailing ney over a low rumbling drone, howling wind and shifting sand, sparse trembling strings, cold and threatening, restrained, no drums or a faint pulse, no vocals, loopable
 ```
 > 여느 때처럼 인스트루멘탈, 길이 신경 X(내가 루프·크로스페이드 처리). Suno 는 한 번에 2 take 주니 골라서.
+
+### 엔딩 음악 (2026-07-04)
+
+- **재회:** `Other Side`(✅ 제작됨) — 따뜻한 슬라이드(50~52) + 크레딧.
+- **순환 슬라이드 배경곡** (⬜) — 차갑고 미해결, 밑에 옅은 희망 한 줄기(암시):
+```
+[Instrumental] cold solemn cinematic ambient, a circular unresolved motif over a deep drone, distant frame drum like a slow heartbeat, a faint flicker of a warmer note hidden underneath, austere and lingering, very slow, no vocals, loopable
+```
+- **순환 엔딩곡** (⬜) — 암전 직전 여운용, 차갑지만 "다른 길" 씨앗:
+```
+[Instrumental] a spare cold ending piece, a lone piano motif circling and unresolved over a low drone, a single faint warm chord that hints at another way, austere then fading to silence, slow, no vocals
+```
+> 순환은 배경곡 하나로 슬라이드+암전 다 덮어도 되고, 위 두 곡으로 나눠도 됨(취향). 재회는 `Other Side`.
 
 ### B1 · 타이틀 테마  · P0
 - **어디서:** 타이틀 화면(Main). 첫인상. 루프 60~90s.
