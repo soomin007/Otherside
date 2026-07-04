@@ -1,19 +1,26 @@
 extends Control
 
-## 타이틀 — 코어 루프의 입구. 여기서 지도(계획 단계)로 들어간다.
-## 모바일 우선: 중앙 컬럼에 큰 타이틀 + 풀폭 버튼. 사이즈·레이아웃은 UITheme.
+## 타이틀 — 코어 루프의 입구(디자인 원본 재현). 로고 상단·각인 메뉴 하단·통계 좌하단·기록 좌상단(Bookmark autoload).
+## 배경 키아트(방향 자동 교체) + 하단 그라디언트 스크림으로 글씨 가독. 부제 없음(원본 구도).
 
 const SettingsPanel := preload("res://scripts/ui/SettingsPanel.gd")
-const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")  ## 영어 타이틀 전용(비문풍 세리프)
+const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")  ## 영어 타이틀·통계 전용(비문풍 세리프)
 
-var _stat_label: Label  # 데이터 초기화 후 갱신하려고 들고 있는다
-var _title_tr: TextureRect   ## 타이틀 키아트 배경(있을 때) — 방향 따라 세로/가로 교체
-var _title_port: Texture2D   ## 세로본
-var _title_land: Texture2D   ## 가로본(_가로) — 없을 수 있음
+var _stat_label: Label
+var _title_tr: TextureRect   ## 타이틀 키아트 배경 — 방향 따라 세로/가로 교체
+var _title_port: Texture2D
+var _title_land: Texture2D
 
 func _ready() -> void:
-	AppSettings.apply_saved()  # 저장된 음량 복원 (앱 시작 = 항상 타이틀 경유)
-	# 타이틀 키아트 배경 — 방향 따라 세로/가로(_가로) 교체. 둘 다 없으면 공통 배경(Backdrop) fallback(웹 안전).
+	AppSettings.apply_saved()  # 저장된 음량 복원(앱 시작 = 항상 타이틀 경유)
+	_build_background()
+	_build_logo()
+	_build_menu()
+	_build_stat()
+
+# --- 배경(키아트 + 스크림) ---
+
+func _build_background() -> void:
 	const TITLE_ART: String = "res://assets/arts/29_타이틀_키아트.png"
 	const TITLE_ART_LAND: String = "res://assets/arts/29_타이틀_키아트_가로.png"
 	if ResourceLoader.exists(TITLE_ART):
@@ -24,59 +31,33 @@ func _ready() -> void:
 		_title_tr = TextureRect.new()
 		_title_tr.set_anchors_preset(Control.PRESET_FULL_RECT)
 		_title_tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		_title_tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED  # 화면 꽉 채우기(cover)
+		_title_tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED  # 화면 꽉(cover)
 		_title_tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(_title_tr)
 		_update_title_art()
-		get_viewport().size_changed.connect(_update_title_art)  # 창 크기 바뀌면 방향 재판정
-		# 제목·버튼 글씨 가독용 가벼운 어두운 스크림(키아트 위, 컬럼 아래).
-		var scrim := ColorRect.new()
-		scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
-		scrim.color = Color(0.04, 0.04, 0.06, 0.35)
-		scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(scrim)
+		get_viewport().size_changed.connect(_update_title_art)
 	else:
 		add_child(Backdrop.new())  # fallback: 사막 밤 공통 배경
-	var col := UITheme.build_column(self, 22)
 
-	var title := UITheme.make_label("See you on the other side", UITheme.FS_DISPLAY)
-	title.add_theme_color_override("font_color", UITheme.FG)
-	title.add_theme_font_override("font", EN_TITLE_FONT)  # 영어 세리프(Cinzel) — 밋밋한 기본 글씨체 대신
-	col.add_child(title)
+	# 하단 그라디언트 스크림(원본: 하단 56% 투명→어둠) — 메뉴·통계 가독.
+	var grad := Gradient.new()
+	grad.offsets = PackedFloat32Array([0.0, 1.0])
+	grad.colors = PackedColorArray([Color(0.035, 0.024, 0.016, 0.0), Color(0.035, 0.024, 0.016, 0.82)])
+	var gt := GradientTexture2D.new()
+	gt.gradient = grad
+	gt.fill = GradientTexture2D.FILL_LINEAR
+	gt.fill_from = Vector2(0.5, 0.0)
+	gt.fill_to = Vector2(0.5, 1.0)
+	gt.width = 8
+	gt.height = 128
+	var bot := TextureRect.new()
+	bot.texture = gt
+	bot.stretch_mode = TextureRect.STRETCH_SCALE
+	bot.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bot.anchor_top = 0.44  # 하단 56%
+	bot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bot)
 
-	col.add_child(UITheme.make_label(
-		"누군가 결국 닿을 것을 알 때,\n미래의 나를 위해 지금의 나는 무엇을 포기하는가.",
-		UITheme.FS_LABEL, UITheme.SAND))
-
-	_stat_label = UITheme.make_label(_stat_text(), UITheme.FS_SMALL, UITheme.MUTED)
-	col.add_child(_stat_label)
-
-	# 버튼 사이 약간의 간격
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 10)
-	col.add_child(spacer)
-
-	# 각인형 텍스트 메뉴(디자인 핸드오프) — 버튼 박스가 아니라 새긴 글씨. hover 시 모래색 + 밑줄이 번진다.
-	var start := EngravedItem.new()
-	start.text = "원정을 떠나 보낸다"
-	start.is_key = true
-	start.add_theme_font_size_override("font_size", UITheme.FS_H2)
-	start.pressed.connect(_on_start_pressed)
-	col.add_child(start)
-
-	var record := EngravedItem.new()
-	record.text = "지난 원정의 기록"
-	record.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
-	record.pressed.connect(_on_record_pressed)
-	col.add_child(record)
-
-	var settings := EngravedItem.new()
-	settings.text = "설정"
-	settings.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
-	settings.pressed.connect(_on_settings_pressed)
-	col.add_child(settings)
-
-## 화면 방향에 맞는 타이틀 키아트로 교체(가로면 가로판, 아니면 세로본). 창 리사이즈 시 재호출.
 func _update_title_art() -> void:
 	if _title_tr == null:
 		return
@@ -84,21 +65,98 @@ func _update_title_art() -> void:
 	var land: bool = r.x > r.y
 	var t: Texture2D = _title_land if (land and _title_land != null) else _title_port
 	if t == null:
-		t = _title_land  # 세로본이 없을 때(가로만 있는 경우) 대비
+		t = _title_land
 	_title_tr.texture = t
 
+# --- 로고(상단 15%) ---
+
+func _build_logo() -> void:
+	var logo := Label.new()
+	logo.text = "See you on the\nother side"
+	logo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	logo.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	var fv := FontVariation.new()
+	fv.base_font = EN_TITLE_FONT
+	fv.set_spacing(TextServer.SPACING_GLYPH, 3)  # letter-spacing .045em × 62 ≈ 3px
+	logo.add_theme_font_override("font", fv)
+	logo.add_theme_font_size_override("font_size", 62)
+	logo.add_theme_constant_override("line_spacing", 2)
+	logo.add_theme_color_override("font_color", UITheme.FG)  # ivory
+	logo.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.88))
+	logo.add_theme_constant_override("shadow_offset_x", 0)
+	logo.add_theme_constant_override("shadow_offset_y", 6)
+	logo.add_theme_constant_override("shadow_outline_size", 22)  # blur 44px 근사
+	logo.anchor_left = 0.0
+	logo.anchor_right = 1.0
+	logo.anchor_top = 0.15
+	logo.anchor_bottom = 0.15
+	logo.offset_left = 40.0
+	logo.offset_right = -40.0
+	logo.grow_vertical = Control.GROW_DIRECTION_BOTH
+	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(logo)
+
+# --- 각인 메뉴(하단 13%) ---
+
+func _build_menu() -> void:
+	var menu := VBoxContainer.new()
+	menu.alignment = BoxContainer.ALIGNMENT_CENTER
+	menu.add_theme_constant_override("separation", 2)
+	menu.anchor_left = 0.0
+	menu.anchor_right = 1.0
+	menu.anchor_top = 0.58
+	menu.anchor_bottom = 0.87  # 하단 13%
+	add_child(menu)
+
+	var start := EngravedItem.new()
+	start.init_item("원정을 떠나 보낸다", 27, true)
+	start.pressed.connect(_on_start_pressed)
+	menu.add_child(start)
+
+	var record := EngravedItem.new()
+	record.init_item("지난 원정의 기록", 22, false)
+	record.pressed.connect(_on_record_pressed)
+	menu.add_child(record)
+
+	var settings := EngravedItem.new()
+	settings.init_item("설정", 22, false)
+	settings.pressed.connect(_on_settings_pressed)
+	menu.add_child(settings)
+
+# --- 통계(좌하단) ---
+
+func _build_stat() -> void:
+	_stat_label = Label.new()
+	_stat_label.text = _stat_text()
+	var fv := FontVariation.new()
+	fv.base_font = EN_TITLE_FONT
+	fv.set_spacing(TextServer.SPACING_GLYPH, 3)  # letter-spacing .24em × 12 ≈ 3px
+	_stat_label.add_theme_font_override("font", fv)
+	_stat_label.add_theme_font_size_override("font_size", 12)
+	_stat_label.add_theme_color_override("font_color", Color(UITheme.FG.r, UITheme.FG.g, UITheme.FG.b, 0.55))
+	_stat_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
+	_stat_label.add_theme_constant_override("shadow_offset_y", 2)
+	_stat_label.anchor_left = 0.0
+	_stat_label.anchor_top = 1.0
+	_stat_label.anchor_bottom = 1.0
+	_stat_label.offset_left = 40.0
+	_stat_label.offset_top = -48.0
+	_stat_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_stat_label)
+
 func _stat_text() -> String:
-	return "지금까지 보낸 원정 %d 흔적 %d" % [GameState.expedition_count, GameState.traces.size()]
+	return "보낸 원정 %d  ·  남긴 흔적 %d" % [GameState.expedition_count, GameState.traces.size()]
+
+# --- 액션 ---
 
 func _on_start_pressed() -> void:
-	# 첫 플레이면 오프닝 서사부터, 이후엔 마을(가방 꾸리기)로.
 	if GameState.opening_seen:
 		GameState.go_to_loadout()
 	else:
 		GameState.go_to_opening()
 
 func _on_record_pressed() -> void:
-	Bookmark._open()  # 상시 책갈피(autoload) — 원정 일대기·조작 안내 열람
+	Bookmark._open()  # 상시 책갈피(autoload) — 원정 일대기·조작 안내
 
 func _on_settings_pressed() -> void:
 	var panel := SettingsPanel.new()
