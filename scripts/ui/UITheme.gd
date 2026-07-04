@@ -34,13 +34,13 @@ const ROUTE := Color(0.38, 0.28, 0.16)       ## 밟은 길(트레일)
 const MARKER_INK := Color(0.55, 0.20, 0.12)  ## 원정대 마커(붉은 세피아)
 
 # --- 타입 스케일 (base 600 세로 기준, 폰에서 읽기 편한 크기) ---
-const FS_DISPLAY: int = 46   ## 타이틀 로고
-const FS_H1: int = 34        ## 화면 제목 / 상황 이름
-const FS_H2: int = 27        ## 자원 수치 등 큰 강조
-const FS_BODY: int = 26      ## 본문(읽는 텍스트) / 주요 버튼
-const FS_LABEL: int = 22     ## 일반 라벨 / 보조 버튼
-const FS_SMALL: int = 18     ## 보조 설명
-const FS_TINY: int = 14      ## 지도 눈금 등 캔버스 미세 텍스트
+const FS_DISPLAY: int = 42   ## 타이틀 로고
+const FS_H1: int = 28        ## 화면 제목 / 상황 이름
+const FS_H2: int = 23        ## 자원 수치 등 큰 강조
+const FS_BODY: int = 22      ## 본문(읽는 텍스트) / 주요 버튼
+const FS_LABEL: int = 18     ## 일반 라벨 / 보조 버튼
+const FS_SMALL: int = 15     ## 보조 설명
+const FS_TINY: int = 12      ## 지도 눈금 등 캔버스 미세 텍스트
 
 # --- 붓 폰트 (나눔손글씨 붓) — 지도 내용(지명 등) 전용. UI 제목엔 안 쓴다(본문·제목은 명조). ---
 const BRUSH_FONT: FontFile = preload("res://assets/fonts/NanumBrushScript-Regular.ttf")
