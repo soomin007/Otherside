@@ -79,12 +79,19 @@ func _apply_spacing() -> void:
 func _draw() -> void:
 	if _underline <= 0.01:
 		return
-	var full: float = size.x * (0.62 if is_key else 0.52)
-	var w: float = full * _underline
+	var text_w: float = maxf(0.0, size.x - 52.0)  # 좌우 여백(26*2) 뺀 글씨 폭 — hover(_underline=1) 면 밑줄이 글씨 전체 길이
+	var w: float = text_w * _underline
+	var cx: float = size.x * 0.5
 	var y: float = size.y - 9.0
-	var x0: float = (size.x - w) * 0.5
+	var h: float = 2.6  # 중앙 두께(반), 양끝은 뾰족(0)
 	var t: float = (_underline - _u_rest) / maxf(0.01, 1.0 - _u_rest)  # rest→hover 진행(0~1)
 	var a: float = lerpf(0.5, 1.0, t) if is_key else 0.95
 	var s := UITheme.SAND
-	draw_line(Vector2(x0, y), Vector2(x0 + w, y), Color(s.r, s.g, s.b, a * 0.45), 4.0)  # glow
-	draw_line(Vector2(x0, y), Vector2(x0 + w, y), Color(s.r, s.g, s.b, a), 1.5)         # 밑줄 심
+	# 끝이 뾰족한 마름모형 밑줄(<=>) — 중앙이 두껍고 양끝으로 갈수록 얇아진다.
+	var pts := PackedVector2Array([
+		Vector2(cx - w * 0.5, y),
+		Vector2(cx, y - h),
+		Vector2(cx + w * 0.5, y),
+		Vector2(cx, y + h),
+	])
+	draw_colored_polygon(pts, Color(s.r, s.g, s.b, a))

@@ -159,7 +159,9 @@ func _build_stat() -> void:
 	_stat_label = Label.new()
 	_stat_label.text = _stat_text()
 	var fv := FontVariation.new()
-	fv.base_font = EN_TITLE_FONT
+	var base := get_theme_default_font()  # 마루부리(한글 포함) — Cinzel 은 한글 글리프가 없어 통계 한글이 두부(□)로 깨짐
+	if base != null:
+		fv.base_font = base
 	fv.set_spacing(TextServer.SPACING_GLYPH, 3)  # letter-spacing .24em × 12 ≈ 3px
 	_stat_label.add_theme_font_override("font", fv)
 	_stat_label.add_theme_font_size_override("font_size", 12)
