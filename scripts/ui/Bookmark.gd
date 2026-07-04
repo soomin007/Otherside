@@ -112,9 +112,19 @@ func _show_menu() -> void:
 	var chr := UITheme.make_button("원정 일대기", false)
 	chr.pressed.connect(_show_chronicle)
 	_content.add_child(chr)
+	var settings := UITheme.make_button("설정", false)
+	settings.pressed.connect(_open_settings)
+	_content.add_child(settings)
 	var close := UITheme.make_button("닫기", false)
 	close.pressed.connect(_close)
 	_content.add_child(close)
+
+## 게임 내 어디서든(기록 버튼은 상시 autoload) 설정 오버레이를 연다. 현재 씬 위에 얹는다.
+func _open_settings() -> void:
+	_close()
+	var scn: Node = get_tree().current_scene
+	if scn != null:
+		scn.add_child(load("res://scripts/ui/SettingsPanel.gd").new())
 
 func _show_tutorial() -> void:
 	_tut_idx = 0

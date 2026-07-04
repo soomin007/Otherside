@@ -16,6 +16,7 @@ const HORIZON := Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.38)
 var _content: VBoxContainer  ## 카드 안 내용(메인 ↔ 확인 전환)
 var _vol_value: Label
 var _in_confirm: bool = false
+var _pre_mute: float = 0.6   ## 음소거 직전 볼륨(음소거 해제 시 복원)
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -65,15 +66,19 @@ func _show_main() -> void:
 	_content.add_child(UITheme.make_hairline(HORIZON, 2.0))  # 모래 지평선 (시그니처)
 
 	# --- 소리 ---
+	var vol := AppSettings.load_master_volume()
 	var srow := HBoxContainer.new()
+	srow.add_theme_constant_override("separation", 10)
 	var slabel := UITheme.make_label("소리", UITheme.FS_LABEL, UITheme.SAND, false)
 	slabel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	srow.add_child(slabel)
-	var vol := AppSettings.load_master_volume()
 	_vol_value = UITheme.make_label(_pct(vol), UITheme.FS_SMALL, UITheme.MUTED, false)
 	_vol_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_vol_value.autowrap_mode = TextServer.AUTOWRAP_OFF  # "50%" 가 좁은 폭에서 세로로 쪼개지지 않게(가로 유지)
 	srow.add_child(_vol_value)
+	var mute := UITheme.make_pill("소리 켜기" if vol <= 0.0 else "음소거", QUIET_FG, Color(0, 0, 0, 0), QUIET_BORDER)
+	mute.pressed.connect(_toggle_mute)
+	srow.add_child(mute)
 	_content.add_child(srow)
 
 	var slider := HSlider.new()
@@ -143,6 +148,16 @@ func _on_volume_changed(value: float) -> void:
 	AppSettings.set_master_volume(value)
 	if _vol_value != null:
 		_vol_value.text = _pct(value)
+
+## 음소거 토글 — 볼륨을 0 ↔ 직전 값으로. (별도 mute 플래그 없이 볼륨 0 = 음소거로 저장)
+func _toggle_mute() -> void:
+	var v := AppSettings.load_master_volume()
+	if v > 0.0:
+		_pre_mute = v
+		AppSettings.set_master_volume(0.0)
+	else:
+		AppSettings.set_master_volume(_pre_mute if _pre_mute > 0.0 else 0.6)
+	_show_main()  # 슬라이더·값·버튼 텍스트 갱신
 
 func _pct(v: float) -> String:
 	return "%d%%" % int(round(v * 100.0))
