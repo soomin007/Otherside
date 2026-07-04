@@ -71,15 +71,37 @@ func _update_title_art() -> void:
 # --- 로고(상단 15%) ---
 
 func _build_logo() -> void:
-	# 부드러운 그림자 — 검은 로고를 여러 겹 조금씩 어긋나게 겹쳐 faux blur(원본 큰 blur 그림자 근사).
-	var offs: Array = [
-		Vector2(0, 5), Vector2(0, 7), Vector2(0, 9), Vector2(0, 11),
-		Vector2(3, 7), Vector2(-3, 7), Vector2(5, 8), Vector2(-5, 8),
-		Vector2(2, 10), Vector2(-2, 10),
-	]
-	for o in offs:
-		add_child(_logo_label(Color(0.0, 0.0, 0.0, 0.11), o.x, o.y))
+	# 로고 뒤 어두운 방사 글로우 — 글씨마다 그림자 대신 영역 언저리에 두꺼운 어둠(밝은 배경에서 가독 + 무게).
+	add_child(_dark_glow())
 	add_child(_logo_label(UITheme.FG, 0.0, 0.0))
+
+## 로고 뒤 어두운 방사 그라디언트(중앙 어둠 → 가장자리 투명). 로고를 넓게 감싼다.
+func _dark_glow() -> TextureRect:
+	var grad := Gradient.new()
+	grad.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
+	grad.colors = PackedColorArray([
+		Color(0.0, 0.0, 0.0, 0.5),
+		Color(0.0, 0.0, 0.0, 0.26),
+		Color(0.0, 0.0, 0.0, 0.0),
+	])
+	var gt := GradientTexture2D.new()
+	gt.gradient = grad
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.5)
+	gt.fill_to = Vector2(1.0, 0.5)
+	gt.width = 256
+	gt.height = 128
+	var tr := TextureRect.new()
+	tr.texture = gt
+	tr.stretch_mode = TextureRect.STRETCH_SCALE
+	tr.anchor_left = 0.0
+	tr.anchor_right = 1.0
+	tr.anchor_top = 0.03
+	tr.anchor_bottom = 0.40
+	tr.offset_left = -60.0
+	tr.offset_right = 60.0
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return tr
 
 ## 로고 한 겹. col=색(그림자는 검은 저알파, 본체는 아이보리), dx/dy=오프셋(그림자 겹치기용).
 func _logo_label(col: Color, dx: float, dy: float) -> Label:
