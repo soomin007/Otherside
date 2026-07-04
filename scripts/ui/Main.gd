@@ -82,10 +82,10 @@ func _build_logo() -> void:
 	logo.add_theme_font_size_override("font_size", 62)
 	logo.add_theme_constant_override("line_spacing", 2)
 	logo.add_theme_color_override("font_color", UITheme.FG)  # ivory
-	logo.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.88))
+	logo.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.55))
 	logo.add_theme_constant_override("shadow_offset_x", 0)
-	logo.add_theme_constant_override("shadow_offset_y", 6)
-	logo.add_theme_constant_override("shadow_outline_size", 22)  # blur 44px 근사
+	logo.add_theme_constant_override("shadow_offset_y", 4)
+	logo.add_theme_constant_override("shadow_outline_size", 4)  # 은은한 후광(원본은 부드러운 큰 blur — Godot 한계로 얇게 근사)
 	logo.anchor_left = 0.0
 	logo.anchor_right = 1.0
 	logo.anchor_top = 0.15
