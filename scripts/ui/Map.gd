@@ -66,6 +66,7 @@ var _leave_btn: Button        ## "남기기" — 이동 중에도 물건 하나 
 var _bequeath: BequeathPanel  ## 남기기 모달 (공유 컴포넌트 — 도착 화면과 같은 것)
 var _result_popup: ResultPopup ## 선택 결과 팝업 (공유)
 var _bg_tex: Texture2D
+var _bg_tex_land: Texture2D   ## 가로(데스크톱) 화면용 — 세로 원본을 90도 회전한 것. 없으면 세로본 fallback
 var _icon_tex: Dictionary = {}   ## 노드 id -> Texture2D (로드 성공한 것만)
 var _sketch_tex: Dictionary = {} ## 손스케치 key -> Texture2D (로드 성공한 것만). 비면 지형지물 안 그림
 var _reveal_id: String = ""      ## 이번에 잉크로 그려지며 나타날 노드(방금 도착/시작한 곳)
@@ -82,6 +83,11 @@ func _ready() -> void:
 
 	if ResourceLoader.exists(BG_PATH):
 		_bg_tex = load(BG_PATH)
+		# 가로 화면(데스크톱)용 — 세로 원본(720x1280)을 90도 돌려 가로(1280x720)로. 나침반이 방사대칭이라 회전 티 안 남.
+		var _bimg: Image = _bg_tex.get_image()
+		if _bimg != null:
+			_bimg.rotate_90(CLOCKWISE)
+			_bg_tex_land = ImageTexture.create_from_image(_bimg)
 	for id in ICON_PATHS:
 		var path: String = str(ICON_PATHS[id])
 		if ResourceLoader.exists(path):
@@ -592,10 +598,12 @@ func _draw() -> void:
 
 ## 배경 텍스처를 area 에 종횡비 유지 cover(넘치는 쪽을 잘라 왜곡·여백 없이 채움).
 func _draw_bg_cover(area: Rect2) -> void:
-	var tw: float = float(_bg_tex.get_width())
-	var th: float = float(_bg_tex.get_height())
+	# 가로 화면이면 회전본(가로 원본)을, 세로면 원본을 쓴다 — 어느 쪽이든 나침반·테두리가 살아 있다.
+	var tex: Texture2D = _bg_tex_land if (_is_landscape(area) and _bg_tex_land != null) else _bg_tex
+	var tw: float = float(tex.get_width())
+	var th: float = float(tex.get_height())
 	if tw <= 0.0 or th <= 0.0:
-		draw_texture_rect(_bg_tex, area, false)
+		draw_texture_rect(tex, area, false)
 		return
 	# 종횡비 유지 cover — area 를 꽉 채우고 넘치는 쪽만 잘라낸다(왜곡·여백 없이). 원본의 나침반·테두리를 보존.
 	# 세로 원본(720x1280)이라 폰(세로)에선 거의 전부 보이고, 데스크톱(가로)에선 상하가 크게 잘린다(가로 배경 필요).
@@ -608,7 +616,7 @@ func _draw_bg_cover(area: Rect2) -> void:
 	else:
 		var sh: float = tw / sa                 # 이미지가 더 세로로 길다 → 상하를 잘라 가로를 꽉
 		src = Rect2(0.0, (th - sh) * 0.5, tw, sh)
-	draw_texture_rect_region(_bg_tex, area, src)
+	draw_texture_rect_region(tex, area, src)
 
 ## 양피지 지형결 — 은은한 등고선(결정론 sin 곡선). 사막 지도의 결.
 func _draw_terrain(area: Rect2) -> void:
