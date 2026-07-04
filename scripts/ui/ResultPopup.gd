@@ -58,6 +58,7 @@ func show_result(body: String, effect: Dictionary, cb: Callable = Callable()) ->
 	else:
 		_delta_label.visible = false
 	UITheme.fade_in(self)
+	UITheme.sand_puff(self)
 
 func is_open() -> bool:
 	return visible

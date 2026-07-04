@@ -132,7 +132,7 @@ static func make_label(text: String, size: int = FS_BODY, color: Color = FG, cen
 	return l
 
 # --- 전환 애니 (모래처럼 스스슥 — 툭 튀어나옴 없이) ---
-const FADE_DUR: float = 0.2  ## 팝업·오버레이 페이드 기본 길이(초)
+const FADE_DUR: float = 0.4  ## 팝업·오버레이 페이드 기본 길이(초) — 체감되게 넉넉히
 
 ## 모달·오버레이가 스르륵 나타난다(투명도 0→1). visible 을 직접 켜지 말고 이걸 쓴다.
 static func fade_in(node: CanvasItem, dur: float = FADE_DUR) -> void:
@@ -150,6 +150,38 @@ static func fade_out(node: CanvasItem, on_done: Callable = Callable(), dur: floa
 		node.modulate.a = 1.0
 		if on_done.is_valid():
 			on_done.call())
+
+## 모래 한 줌이 바람에 흩날린다 — 팝업이 뜰 때 카드 위로 뿌린다(CPUParticles2D, 웹 안전·one_shot).
+## parent = 팝업 루트(Control). 화면 중앙에서 바람 방향(오른쪽 위)으로 날려 페이드아웃한다.
+static func sand_puff(parent: Control) -> void:
+	var vp: Vector2 = parent.get_viewport_rect().size
+	var p := CPUParticles2D.new()
+	p.amount = 44
+	p.lifetime = 0.95
+	p.one_shot = true
+	p.explosiveness = 0.7
+	p.position = vp * 0.5
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = Vector2(vp.x * 0.3, vp.y * 0.2)
+	p.direction = Vector2(1.0, -0.15)
+	p.spread = 24.0
+	p.gravity = Vector2(14.0, 10.0)
+	p.initial_velocity_min = 50.0
+	p.initial_velocity_max = 155.0
+	p.scale_amount_min = 1.5
+	p.scale_amount_max = 3.5
+	p.color = SAND
+	var ramp := Gradient.new()
+	ramp.offsets = PackedFloat32Array([0.0, 0.25, 1.0])
+	ramp.colors = PackedColorArray([
+		Color(SAND.r, SAND.g, SAND.b, 0.0),
+		Color(SAND.r, SAND.g, SAND.b, 0.85),
+		Color(SAND.r, SAND.g, SAND.b, 0.0),
+	])
+	p.color_ramp = ramp
+	parent.add_child(p)
+	p.emitting = true
+	p.finished.connect(p.queue_free)
 
 static func _set_margin(mc: MarginContainer, v: int) -> void:
 	for s in ["left", "right", "top", "bottom"]:

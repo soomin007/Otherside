@@ -46,6 +46,7 @@ func open(run: ExpeditionRun, node_id: String) -> void:
 	_picked_tags = []
 	_step_what()
 	UITheme.fade_in(self)
+	UITheme.sand_puff(self)
 
 ## 1단계 — 무엇을 남길까. 남기면 그만큼 잃는다(자기 수명 깎기). 생존 자원(물/식량)은 죽지 않을 만큼만 남길 수 있다.
 func _step_what() -> void:
