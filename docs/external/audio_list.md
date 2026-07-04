@@ -159,7 +159,7 @@ soft wordless choir or no vocals, no harsh percussion
 ## 2. 효과음 (SFX) — ElevenLabs Sound Effects
 
 > **ElevenLabs 의 Sound Effects(text-to-SFX)로 만든다.** 짧은 자연어 설명을 넣으면 짧은 효과음이 나온다. 게임 SFX에 잘 맞는다(Suno는 BGM 전용).
-> **팁:** ① 설명은 짧고 구체적으로(재료·질감·동작 단어: dry, soft, paper, sand, leather). ② Duration 0.3~3s 로 짧게. ③ Prompt influence 높이면 설명에 충실(사실적)·낮추면 창의적. ④ 바람·공허 같은 앰비언트는 Loop 옵션. ⑤ 출력은 `.mp3`(Godot 가 그대로 임포트, 필요 시 `.wav` 변환).
+> **팁:** ① 설명은 짧고 구체적으로(재료·질감·동작 단어: dry, soft, paper, sand, leather). ② Duration 0.3~3s 로 짧게. ③ Prompt influence 높이면 설명에 충실(사실적)·낮추면 창의적. ④ 바람·공허 같은 앰비언트는 Loop 옵션. ⑤ 출력은 `.mp3`(Godot 가 그대로 임포트, 필요 시 `.wav` 변환). **⑥ 일회성 소리는 `a single one-shot ..., one hit only, not repeating` 을 꼭 넣기(아래 ★요령 — tick/tap 만 쓰면 반복 기계음이 됨).**
 > **톤(§0 유지):** 건조·성글게. 종이·모래·가죽·나무 질감. 날카롭거나 만화 같지 않게. 과장 금지.
 
 각 항목: 용도 + ElevenLabs 프롬프트(영어, 그대로 붙여넣기).
@@ -170,36 +170,38 @@ soft wordless choir or no vocals, no harsh percussion
 > - `sfx_settings`(설정 열기) · `sfx_step_1~4`(발소리 **4변주** — `AudioManager.play_step()` 이 랜덤 회전, 반복 티 방지)
 > - **전부 피크 -4dB 로 레벨 통일**(bag_add·card_close 클리핑 직전이던 것도 교정). 배선 인프라 = `AudioManager.play_sfx`/`play_sfx_random`/`play_step` **준비됨**. UI 이벤트 훅(탭·카드·페이지·걸음)은 map-render 페이드 확산과 겹쳐 순차.
 
-**UI**
-- 탭 / 버튼: `soft dry muted tap, a minimal paper-like click, no reverb`
-- 카드 열기: `soft parchment card sliding open, dry paper rustle, gentle`
-- 카드 닫기: `soft parchment card closing, a brief dry paper shuffle`
-- 가방에 담기(슬라이드): `a light cloth swipe followed by a soft leather thud, an item placed into a bag`
-- 페이지 넘김: `a single old paper page turning, dry and quiet`
-- 설정 열기: `a soft muted low ui tone, understated and warm`
+> **★ 요령 — "단 한 번"을 강하게 (중요):** ElevenLabs 는 `tick`·`tap` 만 쓰면 **시계·톱니처럼 여러 번 반복되는 기계음(타다다닥)**으로 만든다. 일회성 소리는 반드시 **`a single one-shot ...` + `one hit only` + `not repeating` + `no rhythm, no sequence` + `very short`** 를 넣어 못 박는다. (지속·앰비언트 소리만 길게/반복 허용.)
 
-**걸음 · 자원**
-- 모래 걸음(전진): `a single footstep pressing into dry desert sand, soft close crunch`
-- 물 한 모금: `a short quiet gulp of water from a metal flask`
-- 자원 감소 틱: `a tiny dry subtle tick, minimal, almost imperceptible`
+**UI (전부 일회성)**
+- 탭 / 버튼: `a single one-shot soft muted tap on paper, one hit only, not repeating, no rhythm, very short, dry`
+- 카드 열기: `a single one-shot soft parchment card sliding open once, one motion only, not repeating, dry paper rustle, short`
+- 카드 닫기: `a single one-shot soft parchment card closing once, one motion only, not repeating, brief dry paper, short`
+- 가방에 담기: `a single one-shot light cloth swipe then a soft leather thud, one item placed once, not repeating, short`
+- 페이지 넘김: `a single one-shot old paper page turning once, one page only, not repeating, dry and quiet, short`
+- 설정 열기: `a single one-shot soft muted low ui tone, one gentle tone only, not repeating, warm, short`
 
-**이벤트 결과**
-- 줍기(획득): `a soft warm confirmation tone, picking up a small item, gentle and brief`
-- 로프 걸기 · 차단 통과: `a taut rope pulling tight and creaking, securing a line across a gap`
-- 노드 공개 / 안개 걷힘(잉크 리빌): `delicate ink spreading across old parchment with a soft airy shimmer`
-- 남기기(내려놓음): `setting a small object down onto sand, a soft final placement with low resonance`
+**걸음 · 자원 (전부 일회성)**
+- 모래 걸음: `a single one-shot footstep pressing into dry desert sand once, one step only, not repeating, soft close crunch`
+- 물 한 모금: `a single one-shot short quiet gulp of water from a metal flask, one sip only, not repeating`
+- 자원 감소 표시음: `a single one-shot tiny dry soft blip, one hit only, not repeating, no ticking, no rhythm, minimal and short`
 
-**위협**
-- 폭풍 돌풍 시작(경고): `a sudden gust of harsh sandstorm wind rising and holding, grains rattling` (Loop 가능)
-- 갈라진 틈(공허): `a hollow low echo rising from a deep crack in the ground, empty and cold`
-- 갈증 경고(낮게): `a low subtle warning drone, dry, tense but not alarming, short`
+**이벤트 결과 (전부 일회성)**
+- 줍기(획득): `a single one-shot soft warm confirmation, picking up one small item, one hit only, not repeating, gentle and brief`
+- 로프 걸기: `a single one-shot taut rope pulling tight and creaking once, secured across a gap, one motion, not repeating`
+- 노드 공개(잉크 리빌): `a single one-shot delicate ink bloom on parchment with a soft airy shimmer, one reveal only, not repeating, short`
+- 남기기(내려놓음): `a single one-shot small object set down onto sand once, one soft placement with low resonance, not repeating`
 
-**결말 · 죽음**
-- 죽음(스러짐): `a low mournful impact with a long fading resonance, a body settling into sand` (B7 음악 스팅어로 대체·중첩 가능)
-- 재회 차임(결말): `a warm resolving bell shimmer, tender and hopeful, gently blooming` (더 멜로디컬하게 원하면 Suno 짧은 스팅어로도)
-- 순환 저음 울림(결말): `a deep low resonant drone hit, cold and unresolved, slowly fading`
+**위협 (지속 ~2s, 반복 아님 — 앰비언트)**
+- 폭풍 돌풍(경고): `one sustained gust of harsh sandstorm wind rising and holding for about 2 seconds, grains rattling, single continuous swell, not looping` (또는 Loop 로 배경)
+- 갈라진 틈(공허): `a single hollow low echo rising once from a deep crack in the ground, empty and cold, one sustained tail, not repeating`
+- 갈증 경고: `a single low subtle warning drone, one sustained tone about 1.5 seconds, dry and tense but not alarming, not repeating`
 
-> 앰비언트성(폭풍 바람·틈 공허)은 Loop 켜서 배경 레이어로도 쓸 수 있다. 톤은 전부 §0 을 따른다.
+**결말 · 죽음 (전부 일회성)**
+- 죽음(스러짐): `a single one-shot low mournful impact with a long fading resonance, a body settling into sand once, not repeating`
+- 재회 차임: `a single one-shot warm resolving bell shimmer, one gentle bloom, tender and hopeful, not repeating`
+- 순환 저음 울림: `a single one-shot deep low resonant drone hit, one strike, cold and unresolved, slowly fading, not repeating`
+
+> 톤은 전부 §0. ElevenLabs 가 또 반복하면 `one hit only, not repeating` 를 맨 앞에 더 세게. 다 뽑아 오면 Claude 가 -4dB 정규화·wav 변환·배선.
 
 ---
 
