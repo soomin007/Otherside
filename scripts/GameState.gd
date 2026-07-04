@@ -32,6 +32,7 @@ var arrivals: Array = [] ## end 에 닿은 원정 기록 — {expedition:int, en
 const START_RESOURCES: Dictionary = {"water": 20, "food": 13, "rope": 1, "shelter": 1}
 const REUNION_TRACES: int = 8  ## 재회 엔딩 흔적 축적 임계(임시 — 밸런싱 핵심 튜닝, 기획서 §3 결말)
 var current_run: ExpeditionRun = null  ## 진행 중인 원정의 순수 상태·로직 (core/ExpeditionRun)
+var ending_kind_pending: String = ""  ## 엔딩 슬라이드쇼(Ending 오버레이)가 읽을 결말("cycle"/"reunion"). Expedition._show_ending 이 세팅.
 ## blind choice — 겪어본 선택지 ("event_id#idx"→true). 그 선택지 결과를 이후 노출한다(학습).
 ## 영속(세이브 포함) — 한 번 본 결과는 다음 원정에도 보인다. requires 로 열린 새 변형 이벤트는 event_id 가 달라
 ## 자동으로 "안 본 것"(blind)이 된다 → "이전 선택으로 새로 나온 선택지만 처음처럼"이 선택지 단위 키로 공짜로 성립.

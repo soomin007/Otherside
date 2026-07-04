@@ -509,34 +509,12 @@ func _build_ending_panel() -> void:
 ## 목적지(end) 도달 — 순환(기본) 또는 재회(흔적 충분 축적 + 무사 도달). 기획서 §3 결말.
 func _show_ending() -> void:
 	var kind: String = GameState.ending_kind()
-	GameState.mark_arrival(kind)  # 일대기(Bookmark)에 이 원정의 도달/재회를 남긴다 (죽음만이 아니라)
+	GameState.mark_arrival(kind)          # 일대기(Bookmark)에 도달/재회 기록
+	GameState.ending_kind_pending = kind  # Ending 오버레이가 읽는다
 	if _advance_btn != null:
 		_advance_btn.disabled = true
 	if _leave_btn != null:
 		_leave_btn.disabled = true
-	_clear_box(_ending_box)
-
-	var title_txt: String
-	var body_txt: String
-	var btn_txt: String
-	var to_title: bool
-	if kind == "reunion":
-		title_txt = "재회"
-		body_txt = "목적지에 닿았다. 죽지 않고, 온전히.\n\n밀어내지 않아도 되었다. 먼저 간 모든 원정대가 건너편에서 기다리고 있었다.\n\n릴레이가 멈춘다. 드디어 그쪽에서 만난다."
-		btn_txt = "여기까지"
-		to_title = true
-	else:
-		title_txt = "도달"
-		body_txt = "재앙의 자리엔, 먼저 간 원정대가 서 있었다.\n\n멈추려면 그를 밀어내야 했다. 이제 이 자리에 선 것은 우리다. 곧 다음 원정대가 이곳을 향해 온다.\n\n릴레이는 멈추지 않는다."
-		btn_txt = "다음 원정을 보낸다"
-		to_title = false
-
-	_ending_box.add_child(UITheme.make_label(title_txt, UITheme.FS_H1, UITheme.SAND))
-	_ending_box.add_child(UITheme.make_label(body_txt, UITheme.FS_BODY))
-	var btn := UITheme.make_button(btn_txt)
-	if to_title:
-		btn.pressed.connect(GameState.go_to_title)
-	else:
-		btn.pressed.connect(GameState.next_expedition)
-	_ending_box.add_child(btn)
-	_ending_panel.visible = true
+	# 엔딩 슬라이드쇼(순환/재회) 오버레이 — Expedition 위에 얹는다(씬 전환 X → Transition busy 회피).
+	# 순환: 슬라이드 → 암전 → "아무 키나" → 타이틀. 재회: 슬라이드 + Other Side 크레딧 → 타이틀.
+	add_child(load("res://scripts/ui/Ending.gd").new())
