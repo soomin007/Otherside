@@ -25,6 +25,7 @@ var opening_seen: bool = false ## 오프닝 서사를 봤나 (영속). 첫 플�
 var record_seen: bool = false  ## 시장이 원정 기록지를 건넸나 (영속). give_record 로 켜면 책갈피(Bookmark)가 상시 뜬다.
 var controls_tutorial_seen: bool = false ## 첫 원정 조작 오버레이 튜토리얼을 봤나 (영속). Tutorial autoload 자동재생 게이트.
 var expedition_names: Array = [] ## 원정별 이름 (인덱스 = 회차-1, 영속). 랜덤(ExpeditionNamer) 또는 직접 입력(Loadout).
+var arrivals: Array = [] ## end 에 닿은 원정 기록 — {expedition:int, ending:"cycle"|"reunion"} (영속). 일대기(Bookmark)가 죽음만이 아니라 도달/재회도 보이게 한다.
 
 # --- 현재 원정 한정 상태 (죽으면 리셋) ---
 ## 초기 자원 — 임시치. 자원 = 수명 (남기면 그만큼 잃는다). 밸런스는 폰 테스트로 검증 예정.
@@ -127,6 +128,15 @@ func ending_kind() -> String:
 	if current_run != null and current_run.alive and traces.size() >= REUNION_TRACES:
 		return "reunion"
 	return "cycle"
+
+## end 에 닿았다고 기록한다 (Expedition 엔딩 패널이 뜰 때 1회). ending = ending_kind() 결과("cycle"/"reunion").
+## 일대기(Bookmark)가 죽음만이 아니라 "도달/재회"도 보이게 한다. 같은 원정 중복 기록은 막는다.
+func mark_arrival(ending: String) -> void:
+	for a in arrivals:
+		if a is Dictionary and int(a.get("expedition", -1)) == expedition_count:
+			return
+	arrivals.append({"expedition": expedition_count, "ending": ending})
+	save_game()
 
 ## 순환 — 이 원정을 닫고 다음 원정을 처음부터 준비한다(흔적·방문 누적은 유지 → 다음이 더 멀리 간다).
 ## 마을(Loadout)부터 다시: 새 대장 특기·가방을 고른다(매 원정 다른 사람이 간다).
@@ -240,6 +250,7 @@ func save_game() -> void:
 		"record_seen": record_seen,
 		"controls_tutorial_seen": controls_tutorial_seen,
 		"expedition_names": expedition_names,
+		"arrivals": arrivals,
 		"seen_choices": seen_choices,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -271,6 +282,7 @@ func load_game() -> void:
 	record_seen = bool(data.get("record_seen", false))
 	controls_tutorial_seen = bool(data.get("controls_tutorial_seen", false))
 	expedition_names = data.get("expedition_names", [])
+	arrivals = data.get("arrivals", [])
 	seen_choices = data.get("seen_choices", {})
 
 ## 세이브 초기화 (새 세계). 빈 상태로 덮어쓴다 — 웹/데스크톱 모두 안전.
@@ -284,6 +296,7 @@ func reset_save() -> void:
 	record_seen = false
 	controls_tutorial_seen = false
 	expedition_names = []
+	arrivals = []
 	current_run = null
 	seen_choices.clear()
 	save_game()

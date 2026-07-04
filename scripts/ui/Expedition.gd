@@ -509,6 +509,7 @@ func _build_ending_panel() -> void:
 ## 목적지(end) 도달 — 순환(기본) 또는 재회(흔적 충분 축적 + 무사 도달). 기획서 §3 결말.
 func _show_ending() -> void:
 	var kind: String = GameState.ending_kind()
+	GameState.mark_arrival(kind)  # 일대기(Bookmark)에 이 원정의 도달/재회를 남긴다 (죽음만이 아니라)
 	if _advance_btn != null:
 		_advance_btn.disabled = true
 	if _leave_btn != null:

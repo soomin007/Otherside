@@ -6,7 +6,7 @@
 ## 데스크톱 (구현 — 귀한 시간)
 
 - [ ] **온보딩 후속 (핵심 완료 — 작은 것만 남음).** 완료(2026-07-02): 문구·HUD, 시장 첫 원정 인트로+기록지, 상시 책갈피(autoload `Bookmark` — 조작 안내 재열람+원정 일대기), 원정대 이름(`ExpeditionNamer`), 첫 원정 하이라이트 오버레이 튜토리얼(autoload `Tutorial`, `controls_tutorial_seen` 게이트).
-      남은 것(작음): 원정 일대기에 "도달/생환" 표시(현재 deaths 기반 죽음만), 이름 풀 확장, 오버레이 앵커 영역 실기기 미세조정, blind choice/오버레이 시각 실기기 확인.
+      남은 것(작음): 이름 풀 확장, 오버레이 앵커 영역 실기기 미세조정, blind choice/오버레이 시각 실기기 확인.
 - [ ] **글씨 흐림/깨짐 — 배포 후 재확인.** 1차 조치 적용: `default_texture_filter` Nearest(0)→Linear(1)
       (비정수 캔버스 배율에서 글리프 가장자리 계단 깨짐의 직접 원인). 배포 후 폰/시크릿 창에서 글씨가 또렷한지 확인.
       여전히 흐리면 다음 레버: 폰트 MSDF 임포트(`multichannel_signed_distance_field=true`) — 단 웹/GL Compatibility 실기기 검증 필수.

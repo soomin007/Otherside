@@ -161,21 +161,45 @@ func _show_chronicle() -> void:
 	back.pressed.connect(_show_menu)
 	_content.add_child(back)
 
-## 한 원정의 요약 줄 — 이름 + (죽었으면) 장소·거리·사인. deaths + BODY 흔적으로 재구성(새 데이터 없음).
+## 한 원정의 요약 줄 — 결말은 셋 중 하나: 끝에 닿음(arrivals) / 스러짐(deaths) / 아직 길 위(현재 원정).
+## 도달·재회는 arrivals(GameState.mark_arrival), 죽음은 deaths + BODY 흔적으로 재구성한다.
 func _chronicle_line(exp: int) -> Label:
 	var nm: String = GameState.expedition_name(exp)
+	# ① 끝에 닿은 원정 — 재회(따뜻) 또는 도달(순환).
+	var arrival: Dictionary = _arrival_of(exp)
+	if not arrival.is_empty():
+		if str(arrival.get("ending", "")) == "reunion":
+			return UITheme.make_label(
+				"%d번째 원정 · %s\n    건너편에서 모두와 다시 만났다." % [exp, nm],
+				UITheme.FS_LABEL, UITheme.SAND, false)
+		return UITheme.make_label(
+			"%d번째 원정 · %s\n    끝에 닿았다. 다음 원정대가 이곳으로 온다." % [exp, nm],
+			UITheme.FS_LABEL, UITheme.FG, false)
+	# ② 스러진 원정 — 장소·거리·사인.
 	var death: Dictionary = _death_of(exp)
-	var text: String
-	if death.is_empty():
-		text = "%d번째 원정 · %s\n    기록이 모래에 지워졌다." % [exp, nm]
-	else:
+	if not death.is_empty():
 		var node_id: String = str(death.get("node_id", ""))
 		var place: String = str(MapGraph.node(node_id).get("name", ""))
 		if place == "":
 			place = "이름 모를 곳"
 		var leg: int = int(death.get("leg", 0))
-		text = "%d번째 원정 · %s\n    %s에서 %d걸음째 스러졌다.%s" % [exp, nm, place, leg, _cause_text(node_id)]
-	return UITheme.make_label(text, UITheme.FS_LABEL, UITheme.FG, false)
+		return UITheme.make_label(
+			"%d번째 원정 · %s\n    %s에서 %d걸음째 스러졌다.%s" % [exp, nm, place, leg, _cause_text(node_id)],
+			UITheme.FS_LABEL, UITheme.FG, false)
+	# ③ 아직 길 위 — 지금 진행 중인 원정(살아 있음). 그 외(옛 세이브 등)는 지워진 기록.
+	if exp == GameState.expedition_count and GameState.current_run != null and GameState.current_run.alive:
+		return UITheme.make_label(
+			"%d번째 원정 · %s\n    아직 길 위에 있다." % [exp, nm],
+			UITheme.FS_LABEL, UITheme.MUTED, false)
+	return UITheme.make_label(
+		"%d번째 원정 · %s\n    기록이 모래에 지워졌다." % [exp, nm],
+		UITheme.FS_LABEL, UITheme.MUTED, false)
+
+func _arrival_of(exp: int) -> Dictionary:
+	for a in GameState.arrivals:
+		if a is Dictionary and int(a.get("expedition", -1)) == exp:
+			return a
+	return {}
 
 func _death_of(exp: int) -> Dictionary:
 	for d in GameState.deaths:
