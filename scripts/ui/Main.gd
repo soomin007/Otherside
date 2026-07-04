@@ -56,11 +56,23 @@ func _ready() -> void:
 	spacer.custom_minimum_size = Vector2(0, 10)
 	col.add_child(spacer)
 
-	var start := UITheme.make_button("원정 떠나기")
+	# 각인형 텍스트 메뉴(디자인 핸드오프) — 버튼 박스가 아니라 새긴 글씨. hover 시 모래색 + 밑줄이 번진다.
+	var start := EngravedItem.new()
+	start.text = "원정을 떠나 보낸다"
+	start.is_key = true
+	start.add_theme_font_size_override("font_size", UITheme.FS_H2)
 	start.pressed.connect(_on_start_pressed)
 	col.add_child(start)
 
-	var settings := UITheme.make_button("설정", false)
+	var record := EngravedItem.new()
+	record.text = "지난 원정의 기록"
+	record.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
+	record.pressed.connect(_on_record_pressed)
+	col.add_child(record)
+
+	var settings := EngravedItem.new()
+	settings.text = "설정"
+	settings.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
 	settings.pressed.connect(_on_settings_pressed)
 	col.add_child(settings)
 
@@ -84,6 +96,9 @@ func _on_start_pressed() -> void:
 		GameState.go_to_loadout()
 	else:
 		GameState.go_to_opening()
+
+func _on_record_pressed() -> void:
+	Bookmark._open()  # 상시 책갈피(autoload) — 원정 일대기·조작 안내 열람
 
 func _on_settings_pressed() -> void:
 	var panel := SettingsPanel.new()
