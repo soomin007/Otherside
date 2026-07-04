@@ -415,6 +415,13 @@ func _bg_aspect(win: Rect2) -> float:
 		return float(_bg_tex.get_width()) / float(_bg_tex.get_height())
 	return 720.0 / 1280.0
 
+## 튜토리얼 하이라이트가 짚을 실제 화면 rect(전역 좌표). idx = 전역 STEP 인덱스.
+## 정규화 고정 대신 실제 지도 영역/버튼을 짚어 반응형 레이아웃(여백·화면비)에서도 안 어긋나게.
+func tutorial_highlight_rect(idx: int) -> Rect2:
+	if idx == 1 and _leave_btn != null and _leave_btn.is_inside_tree():
+		return _leave_btn.get_global_rect().grow(10.0)
+	return _map_area()  # idx 0(과 기타) = 지도(배경+노드) 영역
+
 ## 지도 방향 — area 가 가로로 넓으면 그래프를 눕힌다(왼→오른쪽 진행). 세로면 위→아래.
 ## 데스크톱(가로) 기본 + 모바일(세로) 지원을 한 그래프로 반응형 처리한다.
 func _is_landscape(area: Rect2) -> bool:

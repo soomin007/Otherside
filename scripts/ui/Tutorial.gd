@@ -115,13 +115,20 @@ func _build() -> void:
 func _render_step() -> void:
 	var step: Dictionary = STEPS[_step_idx]
 	var vp: Vector2 = get_viewport().get_visible_rect().size
-	var r: Rect2 = step.get("rect", Rect2(0.1, 0.2, 0.8, 0.4))
-	_highlight.position = Vector2(r.position.x * vp.x, r.position.y * vp.y)
-	_highlight.size = Vector2(r.size.x * vp.x, r.size.y * vp.y)
+	# 현재 씬이 실제 강조 rect(픽셀)를 주면 그걸 쓴다(반응형·여백에 견고). 없으면 정규화 rect fallback.
+	var hl: Rect2
+	var cs: Node = get_tree().current_scene
+	if cs != null and cs.has_method("tutorial_highlight_rect"):
+		hl = cs.tutorial_highlight_rect(_step_idx)
+	else:
+		var r: Rect2 = step.get("rect", Rect2(0.1, 0.2, 0.8, 0.4))
+		hl = Rect2(r.position.x * vp.x, r.position.y * vp.y, r.size.x * vp.x, r.size.y * vp.y)
+	_highlight.position = hl.position
+	_highlight.size = hl.size
 	_bubble_label.text = str(step.get("text", ""))
 	_next_btn.text = "다음" if _step_idx < STEPS.size() - 1 else "시작"
-	# 강조가 화면 위쪽이면 말풍선을 아래로, 아래쪽이면 위로 — 서로 안 겹치게.
-	var center_y: float = r.position.y + r.size.y * 0.5
+	# 강조가 화면 위쪽이면 말풍선을 아래로, 아래쪽이면 위로 — 서로 안 겹치게(픽셀→화면비 환산).
+	var center_y: float = (hl.position.y + hl.size.y * 0.5) / maxf(1.0, vp.y)
 	_place_bubble(center_y >= 0.5)
 
 ## 말풍선 밴드를 화면 위/아래에 앵커로 붙인다(가로는 여백만 두고 꽉, CenterContainer 가 카드를 중앙 정렬).
