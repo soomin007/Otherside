@@ -19,16 +19,12 @@ config/icon="res://icon.svg"
 [autoload]
 
 GameState="*res://scripts/GameState.gd"
+Transition="*res://scripts/ui/Transition.gd"
 Debug="*res://scripts/ui/DebugOverlay.gd"
 Bookmark="*res://scripts/ui/Bookmark.gd"
 Tutorial="*res://scripts/ui/Tutorial.gd"
 Fullscreen="*res://scripts/ui/Fullscreen.gd"
 AudioManager="*res://scripts/AudioManager.gd"
-
-[gui]
-
-theme/custom_font="res://assets/fonts/MaruBuri-Regular.ttf"
-theme/default_font_size=24
 
 [display]
 
@@ -39,13 +35,17 @@ window/size/window_height_override=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[gui]
+
+theme/custom_font="res://assets/fonts/MaruBuri-Regular.ttf"
+theme/default_font_size=24
+
 [input_devices]
 
 pointing/emulate_touch_from_mouse=true
 
 [rendering]
 
-textures/canvas_textures/default_texture_filter=1
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 environment/defaults/default_clear_color=Color(0.066667, 0.070588, 0.094118, 1)

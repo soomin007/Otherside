@@ -44,15 +44,15 @@ func _ready() -> void:
 # --- 코어 루프 전이 ---
 
 func go_to_map() -> void:
-	get_tree().change_scene_to_file(SCENE_MAP)
+	Transition.go(SCENE_MAP)
 
 ## 오프닝 서사 슬라이드쇼로 (타이틀에서 첫 플레이 시).
 func go_to_opening() -> void:
-	get_tree().change_scene_to_file(SCENE_OPENING)
+	Transition.go(SCENE_OPENING)
 
 ## 마을(가방 꾸리기)로 — 매 원정 출발 전. 여기서 시작 자원을 고른다.
 func go_to_loadout() -> void:
-	get_tree().change_scene_to_file(SCENE_LOADOUT)
+	Transition.go(SCENE_LOADOUT)
 
 ## 오프닝을 봤다고 기록(영속). 이후 자동 재생 안 함.
 func mark_opening_seen() -> void:
@@ -111,14 +111,14 @@ func begin_travel(target_id: String) -> void:
 
 ## 목표 노드에 도착했을 때 그 노드 화면으로 전환한다 (Map 이 호출).
 func go_to_expedition() -> void:
-	get_tree().change_scene_to_file(SCENE_EXPEDITION)
+	Transition.go(SCENE_EXPEDITION)
 
 ## 노드에 도착해 지도로 돌아간다 (횡스크롤 → 지도). 현재 노드를 목표로 옮긴다.
 func arrive_node() -> void:
 	if current_run != null:
 		current_run.arrive()
 		_mark_visited(current_run.current_node)
-	get_tree().change_scene_to_file(SCENE_MAP)
+	Transition.go(SCENE_MAP)
 
 # --- 결말 (기획서 §3 결말: 순환과 재회) ---
 
@@ -147,7 +147,7 @@ func next_expedition() -> void:
 ## 재회(진짜 엔딩) 후 — 타이틀로 돌아간다. 세이브(축적)는 유지된다.
 func go_to_title() -> void:
 	current_run = null
-	get_tree().change_scene_to_file(SCENE_TITLE)
+	Transition.go(SCENE_TITLE)
 
 ## 노드를 방문 기록에 더한다(영속). 지도 안개를 걷는다.
 func _mark_visited(node_id: String) -> void:
