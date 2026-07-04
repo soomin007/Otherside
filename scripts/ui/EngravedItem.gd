@@ -46,8 +46,12 @@ func _ready() -> void:
 	add_theme_constant_override("shadow_offset_x", 0)
 	add_theme_constant_override("shadow_offset_y", 2)
 	add_theme_constant_override("shadow_outline_size", 5)
-	# 순수 텍스트 — 상태별 배경 박스 제거.
+	# 순수 텍스트(배경 없음) + 안쪽 여백(원본 padding 15px 26px) — 밑줄이 글씨 아래에 오도록 하단 여백 확보.
 	var empty := StyleBoxEmpty.new()
+	empty.content_margin_top = 14.0
+	empty.content_margin_bottom = 16.0
+	empty.content_margin_left = 26.0
+	empty.content_margin_right = 26.0
 	for s in ["normal", "hover", "pressed", "focus", "disabled"]:
 		add_theme_stylebox_override(s, empty)
 	_u_rest = 0.58 if is_key else 0.0  # 대표 항목은 기본 36%(=full 0.62 의 58%) 옅은 밑줄
@@ -67,11 +71,11 @@ func _apply_spacing() -> void:
 func _process(delta: float) -> void:
 	var changed := false
 	if not is_equal_approx(_spacing_cur, _spacing_target):
-		_spacing_cur = move_toward(_spacing_cur, _spacing_target, (_px * 0.26 + 1.0) * delta / 0.3)
+		_spacing_cur = move_toward(_spacing_cur, _spacing_target, (_px * 0.26 + 1.0) * delta / 0.5)
 		_apply_spacing()
 		changed = true
 	if not is_equal_approx(_underline, _u_target):
-		_underline = move_toward(_underline, _u_target, delta / 0.35)
+		_underline = move_toward(_underline, _u_target, delta / 0.55)
 		changed = true
 	if changed:
 		queue_redraw()

@@ -71,30 +71,38 @@ func _update_title_art() -> void:
 # --- 로고(상단 15%) ---
 
 func _build_logo() -> void:
-	var logo := Label.new()
-	logo.text = "See you on the\nother side"
-	logo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	logo.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	# 부드러운 그림자 — 검은 로고를 여러 겹 조금씩 어긋나게 겹쳐 faux blur(원본 큰 blur 그림자 근사).
+	var offs: Array = [
+		Vector2(0, 5), Vector2(0, 7), Vector2(0, 9), Vector2(0, 11),
+		Vector2(3, 7), Vector2(-3, 7), Vector2(5, 8), Vector2(-5, 8),
+		Vector2(2, 10), Vector2(-2, 10),
+	]
+	for o in offs:
+		add_child(_logo_label(Color(0.0, 0.0, 0.0, 0.11), o.x, o.y))
+	add_child(_logo_label(UITheme.FG, 0.0, 0.0))
+
+## 로고 한 겹. col=색(그림자는 검은 저알파, 본체는 아이보리), dx/dy=오프셋(그림자 겹치기용).
+func _logo_label(col: Color, dx: float, dy: float) -> Label:
+	var l := Label.new()
+	l.text = "See you on the\nother side"
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	var fv := FontVariation.new()
 	fv.base_font = EN_TITLE_FONT
 	fv.set_spacing(TextServer.SPACING_GLYPH, 3)  # letter-spacing .045em × 62 ≈ 3px
-	logo.add_theme_font_override("font", fv)
-	logo.add_theme_font_size_override("font_size", 62)
-	logo.add_theme_constant_override("line_spacing", 2)
-	logo.add_theme_color_override("font_color", UITheme.FG)  # ivory
-	logo.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.55))
-	logo.add_theme_constant_override("shadow_offset_x", 0)
-	logo.add_theme_constant_override("shadow_offset_y", 4)
-	logo.add_theme_constant_override("shadow_outline_size", 4)  # 은은한 후광(원본은 부드러운 큰 blur — Godot 한계로 얇게 근사)
-	logo.anchor_left = 0.0
-	logo.anchor_right = 1.0
-	logo.anchor_top = 0.15
-	logo.anchor_bottom = 0.15
-	logo.offset_left = 40.0
-	logo.offset_right = -40.0
-	logo.grow_vertical = Control.GROW_DIRECTION_BOTH
-	logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(logo)
+	l.add_theme_font_override("font", fv)
+	l.add_theme_font_size_override("font_size", 62)
+	l.add_theme_constant_override("line_spacing", 2)
+	l.add_theme_color_override("font_color", col)
+	l.anchor_left = 0.0
+	l.anchor_right = 1.0
+	l.anchor_top = 0.13
+	l.anchor_bottom = 0.32
+	l.offset_left = 40.0 + dx
+	l.offset_right = -40.0 + dx
+	l.offset_top = dy
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
 
 # --- 각인 메뉴(하단 13%) ---
 
