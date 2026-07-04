@@ -27,8 +27,27 @@
 
 ## 1. 배경음악 (BGM)
 
-우선순위: **P0 = 핵심(먼저)**, P1 = 있으면 좋음, P2 = 여유 시.
-추천 제작 순서: **B4 지도 → B5 전진 → B6 폭풍 → B8 남기기 → B10 재회 → B1 타이틀 → B7 죽음** (게임 감이 가장 빨리 사는 순서), 그다음 P1.
+> **★ 최종 결정(2026-07-04): 화면별 곡 폐기 → 3트랙 방식.** 게임 무드가 하나(서늘·사막)라 화면마다 곡을 바꾸면 몰입만 깨진다. 대신:
+> 1. **잔잔한 코어 베드** — 코어 루프(타이틀·마을·지도·전진·단면·죽음) 내내 *끊기지 않고 계속* 재생(화면 전환에 restart 안 함). `AudioManager` 가 크로스페이드 무한 루프. **✅ 제작됨(8분, 길이 무관 — 안 자름).**
+> 2. **폭풍 긴장** — 폭풍 구간에서 베드를 크로스페이드로 잠깐 교체, 지나면 복귀. **⬜ 프롬프트 = 아래 "폭풍 긴장".**
+> 3. **엔딩 크레딧** — **재회(진짜 엔딩)** 에서 크레딧곡(보컬 OK, 영화 크레딧 결 · "Love Me Again"). **순환 엔딩은 차갑게 베드 유지**(대비). **✅ 제작됨.**
+>
+> 아래 B1~B10 per-screen 프롬프트는 **참고용(여유 시 마을·죽음 등 확장)** — 필수는 위 3개뿐이다.
+
+### 폭풍 긴장 (crisis / storm) — Suno 프롬프트 (⬜ 미제작)
+
+- **어디서:** 폭풍 구간·폭풍 노드(모래의 벽·폭풍의 문). 베드를 크로스페이드로 교체. 길이 무관(루프).
+- **역할:** 살을 베는 모래바람, 압박·불안. 액션 영화식 과장 말고 **서늘한 위협·질식감**(게임 팔레트 안에서).
+
+```
+[Instrumental] dark cinematic sandstorm tension, a wall of roaring desert wind rising, low dissonant drone with detuned bowed strings, rattling sand grains and faint metallic groans, a distant slow heartbeat pulse, oppressive and suffocating, no clear melody, no vocals, slowly building dread, loopable
+```
+
+변주(더 애절한 결 — 폭풍 속 리드):
+```
+[Instrumental] tense desert dread, a distant wailing ney over a low rumbling drone, howling wind and shifting sand, sparse trembling strings, cold and threatening, restrained, no drums or a faint pulse, no vocals, loopable
+```
+> 여느 때처럼 인스트루멘탈, 길이 신경 X(내가 루프·크로스페이드 처리). Suno 는 한 번에 2 take 주니 골라서.
 
 ### B1 · 타이틀 테마  · P0
 - **어디서:** 타이틀 화면(Main). 첫인상. 루프 60~90s.
