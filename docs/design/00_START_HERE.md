@@ -117,4 +117,4 @@
 ## 11. 실행 / 문서 지도
 
 - 열기 `godot --path .` · 파싱 `--headless --path . --import` · 부팅 `--headless --path . --quit-after 5` · 웹 export `--headless --path . --export-release "Web" build/web/index.html`
-- **문서:** `00_START_HERE.md`(이 문서, 현재 상태) · `SYOTOS_기획서_v0.1.md`(상세 사양·단일 진실) · `backlog.md`(할 일) · `parallel_tracks.md`(분업) · `known_issues.md`(함정) · `wordpool_v0.1.md`(태그 단어) · `../handoffs/`(외부 의뢰용 핸드오프 모음 — 남김 딜레마·UI 스타일, 인덱스 README) · `session_logs/`(세션별 맥락).
+- **문서:** `00_START_HERE.md`(이 문서, 현재 상태) · `SYOTOS_기획서_v0.1.md`(상세 사양·단일 진실) · `backlog.md`(할 일) · `parallel_tracks.md`(분업) · `known_issues.md`(함정) · `wordpool_v0.1.md`(태그 단어) · `art_prompts.md`(이미지 프롬프트·진행표) · `balance_notes.md`(밸런스 이어받기) · `audio_list.md`(오디오·Suno) · `../handoffs/`(외부 의뢰용 핸드오프 모음 — 남김 딜레마·UI 스타일, 인덱스 README) · `session_logs/`(세션별 맥락).
