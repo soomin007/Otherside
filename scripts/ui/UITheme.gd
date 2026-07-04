@@ -101,7 +101,7 @@ static func make_button(text: String, primary: bool = true) -> Button:
 	# 불투명 면·테두리 — 어두운 배경(Backdrop) 위에서 배경이 비쳐 흐릿해 보이는 걸 막는다.
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = PANEL
-	sb.border_color = Color(SAND.r, SAND.g, SAND.b, 0.35)
+	sb.border_color = PANEL_BORDER  # 가죽 테두리(디자인 leather-border #8C6B3D) — 버튼도 가죽 프레임으로 뚜렷하게
 	sb.set_border_width_all(1)
 	sb.set_corner_radius_all(10)
 	sb.set_content_margin_all(10)
