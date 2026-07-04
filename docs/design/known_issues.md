@@ -39,6 +39,14 @@
   **원인:** 임베드 폰트(NanumGothic)에 그 글리프가 없음. 게임 폰트는 한글 + 기본 라틴/기호 위주라 장식 유니코드가 빠질 수 있다.
   **방지:** UI 문구는 **한글/기본 ASCII** 로. 아이콘이 필요하면 절차적 draw(`draw_line` 등)로 그리거나, 넣기 전 폰트에 글리프가 있는지 확인. (예: 가방 빼기를 `✕` 대신 "탭해서 빼기" 안내로 처리.)
 
+- **증상:** 한글 라벨이 통째로 두부(□)로 깨짐 — 타이틀 통계 등. (2026-07-05)
+  **원인:** 영문 전용 폰트(**Cinzel**)를 한글 텍스트 라벨에 지정(`FontVariation.base_font` 포함). 라틴 폰트엔 한글 글리프가 없고, Godot 은 브라우저와 달리 자동 폰트 fallback 이 없어 그대로 두부.
+  **방지:** 한글이 들어가는 라벨엔 **한글 포함 폰트(마루부리=기본, `get_theme_default_font()`)** 를 base 로. Cinzel 은 **영문 로고·숫자·기호 전용.** FontVariation 으로 자간만 줄 때도 `base_font` 는 한글 폰트로 지정.
+
+- **증상:** UI 미감(레이아웃·색·폰트 렌더)을 확인하려는데 헤드리스 스크린샷이 안 나온다(`get_viewport().get_texture().get_image()` 가 null). (2026-07-05)
+  **원인:** `--headless` 는 dummy 렌더러라 실제 렌더 이미지가 없다.
+  **방지:** **창 모드**로 잠깐 띄워 캡처 — 임시 `tools/shot.tscn`(Node: 대상 씬 instantiate → 몇 프레임 대기 → `get_image().save_png("user://..")` → quit)를 `godot --path . res://tools/shot.tscn`(--headless 없이) 로. 창이 1~2초 뜬다. 세이브 오염 방지(`begin_run_in_place` 는 save 안 함, 노드 클릭 금지). **외부 HTML 디자인 대조**는 `chrome --headless=new --screenshot=out.png --window-size=1280,720 --virtual-time-budget=6000 "file:///..."` 로 원본을 렌더해 픽셀 비교(짐작 금지).
+
 ## 씬 전환 / 노드 트리
 
 - **증상:** `Parent node is busy adding/removing children, remove_child() can't be called at this time`.
