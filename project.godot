@@ -23,6 +23,7 @@ Debug="*res://scripts/ui/DebugOverlay.gd"
 Bookmark="*res://scripts/ui/Bookmark.gd"
 Tutorial="*res://scripts/ui/Tutorial.gd"
 Fullscreen="*res://scripts/ui/Fullscreen.gd"
+AudioManager="*res://scripts/AudioManager.gd"
 
 [gui]
 
