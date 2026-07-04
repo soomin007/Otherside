@@ -393,10 +393,27 @@ func _after_situation() -> void:
 
 # --- 렌더 ---
 
-## 캔버스의 화면상 rect — 화면에 딱 맞춘다(fit, 스크롤 없음). TOP_Y~BOT_Y 창 전체.
-## 노드·경로·배경이 모두 이걸 기준. 데스크톱은 가로로 넓어(stretch expand) landscape, 폰은 세로로 길어 portrait 가 된다.
+## 배경(과 노드)이 놓이는 rect — 화면 창에 배경 이미지를 종횡비 유지로 온전히(contain) 넣은 영역.
+## 창을 꽉 안 채워도 된다: 남는 여백은 나중에 범례·설정 등 UI 자리로 둔다. 배경·노드가 이 rect 를 공유한다.
 func _map_area() -> Rect2:
-	return Rect2(UITheme.PAD, TOP_Y, size.x - UITheme.PAD * 2.0, size.y - TOP_Y - BOT_Y)
+	var win := Rect2(UITheme.PAD, TOP_Y, maxf(1.0, size.x - UITheme.PAD * 2.0), maxf(1.0, size.y - TOP_Y - BOT_Y))
+	var ar: float = _bg_aspect(win)
+	var w: float = win.size.x
+	var h: float = w / ar
+	if h > win.size.y:
+		h = win.size.y
+		w = h * ar
+	return Rect2(win.position.x + (win.size.x - w) * 0.5, win.position.y + (win.size.y - h) * 0.5, w, h)
+
+## 화면 창 방향에 맞춰 쓸 배경(가로본/세로본)의 종횡비. 텍스처 있으면 실제 크기, 없으면 상수(가로 1280x720·세로 720x1280).
+func _bg_aspect(win: Rect2) -> float:
+	if win.size.x >= win.size.y:
+		if _bg_tex_land != null:
+			return float(_bg_tex_land.get_width()) / float(_bg_tex_land.get_height())
+		return 1280.0 / 720.0
+	if _bg_tex != null:
+		return float(_bg_tex.get_width()) / float(_bg_tex.get_height())
+	return 720.0 / 1280.0
 
 ## 지도 방향 — area 가 가로로 넓으면 그래프를 눕힌다(왼→오른쪽 진행). 세로면 위→아래.
 ## 데스크톱(가로) 기본 + 모바일(세로) 지원을 한 그래프로 반응형 처리한다.
@@ -598,25 +615,10 @@ func _draw() -> void:
 
 ## 배경 텍스처를 area 에 종횡비 유지 cover(넘치는 쪽을 잘라 왜곡·여백 없이 채움).
 func _draw_bg_cover(area: Rect2) -> void:
-	# 가로 화면이면 회전본(가로 원본)을, 세로면 원본을 쓴다 — 어느 쪽이든 나침반·테두리가 살아 있다.
+	# 가로 화면이면 회전본(가로본)을, 세로면 원본을 쓴다. area 가 이미 배경 종횡비(contain)라
+	# 그대로 그리면 왜곡·크롭 없이 온전히 들어간다(나침반·테두리 전부 보임). 남는 창 여백은 비워둔다.
 	var tex: Texture2D = _bg_tex_land if (_is_landscape(area) and _bg_tex_land != null) else _bg_tex
-	var tw: float = float(tex.get_width())
-	var th: float = float(tex.get_height())
-	if tw <= 0.0 or th <= 0.0:
-		draw_texture_rect(tex, area, false)
-		return
-	# 종횡비 유지 cover — area 를 꽉 채우고 넘치는 쪽만 잘라낸다(왜곡·여백 없이). 원본의 나침반·테두리를 보존.
-	# 세로 원본(720x1280)이라 폰(세로)에선 거의 전부 보이고, 데스크톱(가로)에선 상하가 크게 잘린다(가로 배경 필요).
-	var sa: float = area.size.x / area.size.y  # area 종횡비
-	var ia: float = tw / th                     # 이미지 종횡비
-	var src: Rect2
-	if ia > sa:
-		var sw: float = th * sa                 # 이미지가 더 가로로 넓다 → 좌우를 잘라 세로를 꽉
-		src = Rect2((tw - sw) * 0.5, 0.0, sw, th)
-	else:
-		var sh: float = tw / sa                 # 이미지가 더 세로로 길다 → 상하를 잘라 가로를 꽉
-		src = Rect2(0.0, (th - sh) * 0.5, tw, sh)
-	draw_texture_rect_region(tex, area, src)
+	draw_texture_rect(tex, area, false)
 
 ## 양피지 지형결 — 은은한 등고선(결정론 sin 곡선). 사막 지도의 결.
 func _draw_terrain(area: Rect2) -> void:
