@@ -57,14 +57,14 @@ func show_result(body: String, effect: Dictionary, cb: Callable = Callable()) ->
 		_delta_label.visible = true
 	else:
 		_delta_label.visible = false
-	visible = true
+	UITheme.fade_in(self)
 
 func is_open() -> bool:
 	return visible
 
 func _on_close() -> void:
-	visible = false
 	var cb: Callable = _cb
 	_cb = Callable()
-	if cb.is_valid():
-		cb.call()
+	UITheme.fade_out(self, func() -> void:
+		if cb.is_valid():
+			cb.call())

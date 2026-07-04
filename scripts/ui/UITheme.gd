@@ -131,6 +131,26 @@ static func make_label(text: String, size: int = FS_BODY, color: Color = FG, cen
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return l
 
+# --- 전환 애니 (모래처럼 스스슥 — 툭 튀어나옴 없이) ---
+const FADE_DUR: float = 0.2  ## 팝업·오버레이 페이드 기본 길이(초)
+
+## 모달·오버레이가 스르륵 나타난다(투명도 0→1). visible 을 직접 켜지 말고 이걸 쓴다.
+static func fade_in(node: CanvasItem, dur: float = FADE_DUR) -> void:
+	node.modulate.a = 0.0
+	node.visible = true
+	var tw: Tween = node.create_tween()
+	tw.tween_property(node, "modulate:a", 1.0, dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+## 모달이 스르륵 사라진다(투명도 1→0 후 hide). 끝나면 on_done 실행(닫힘 콜백/시그널을 여기 넘긴다).
+static func fade_out(node: CanvasItem, on_done: Callable = Callable(), dur: float = FADE_DUR) -> void:
+	var tw: Tween = node.create_tween()
+	tw.tween_property(node, "modulate:a", 0.0, dur * 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_callback(func() -> void:
+		node.visible = false
+		node.modulate.a = 1.0
+		if on_done.is_valid():
+			on_done.call())
+
 static func _set_margin(mc: MarginContainer, v: int) -> void:
 	for s in ["left", "right", "top", "bottom"]:
 		mc.add_theme_constant_override("margin_" + s, v)
