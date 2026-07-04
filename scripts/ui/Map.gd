@@ -16,7 +16,7 @@ const NODE_PAD_FRAC: float = 0.04  ## 노드 진행축 양끝 여백(area 대비
 const CANVAS_W_FRAC: float = 0.62  ## 넓은 화면(데스크톱)에서 캔버스 폭 = 화면 폭 × 이 비율
 const MIN_CANVAS_W: float = 560.0  ## 폭 하한 — 좁은 화면(폰 세로)에선 화면 가용 폭에 맞춰 더 줄어든다
 const MAX_CANVAS_W: float = 860.0  ## 폭 상한 — 초와이드에서 노드 가로 분기가 지나치게 벌어지지 않게
-const CANVAS_ASPECT: float = 3.4   ## 캔버스 세로/가로 비 — 클수록 노드 간격·아이콘 크고 스크롤 길어짐
+const SCROLL_SPAN: float = 1.3     ## 캔버스 높이 = 보이는 창 높이 × 이 배수. 1.0=전체 한눈에(스크롤 0), 클수록 아이콘↑·스크롤↑
 const DRAG_THRESH: float = 10.0    ## 이만큼 넘게 끌면 팬(스크롤), 미만이면 탭(노드 선택)
 const REVEAL_DUR: float = 0.55     ## 방문 시 잉크 reveal 애니 길이(초)
 
@@ -403,13 +403,16 @@ func _after_situation() -> void:
 
 # --- 렌더 ---
 
-## 논리 캔버스 크기 — 세로로 길게(높이=폭×ASPECT). 노드 간격·아이콘이 커지고, 화면보다 길면 스크롤한다.
-## 폭 = 화면 폭에 비례(데스크톱 와이드에서 넓게)하되 [하한, 상한]으로 클램프. 폰 세로에선 가용 폭이 하한보다 좁아 화면에 꽉 찬다.
+## 논리 캔버스 크기. 폭·높이를 분리해 각각 제어한다:
+##  - 폭 = 화면 폭에 비례(데스크톱 와이드에서 넓게)하되 [하한, 상한]으로 클램프. 폰 세로에선 가용 폭이 하한보다 좁아 화면에 꽉 찬다.
+##  - 높이 = 보이는 세로 창의 SCROLL_SPAN 배. 폭에 안 묶여(폭 넓혀도 높이 안 터짐), 조망 정도를 기기 무관하게 직접 정한다.
+##    SCROLL_SPAN=1.3 이면 전체의 약 77%가 한 화면에, 나머지만 살짝 스크롤. 노드 간격·아이콘도 이 높이에 비례.
 func _canvas_size() -> Vector2:
 	var avail: float = size.x - UITheme.PAD * 2.0
 	var w: float = clampf(size.x * CANVAS_W_FRAC, MIN_CANVAS_W, MAX_CANVAS_W)
 	w = minf(w, avail)  # 화면 가용 폭을 넘지 않게(폰 세로에선 avail 이 작아 이게 결정)
-	return Vector2(w, w * CANVAS_ASPECT)
+	var win_h: float = maxf(1.0, size.y - TOP_Y - BOT_Y)  # 화면에 실제로 보이는 세로 창
+	return Vector2(w, win_h * SCROLL_SPAN)
 
 ## 스크롤 최대치 — 캔버스가 보이는 창(TOP_Y~BOT_Y)보다 넘치는 만큼.
 func _max_scroll() -> float:
