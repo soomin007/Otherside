@@ -12,18 +12,20 @@ extends RefCounted
 ## 레이아웃 원칙: 콘텐츠는 "중앙 정렬 + 최대폭 컬럼". 세로폰에선 거의 꽉 차고, 가로에선 가운데 카드처럼.
 
 # --- 색 ---
-const BG := Color(0.066667, 0.070588, 0.094118)  ## 배경(클리어 컬러와 동일)
-const BG_TOP := Color(0.045, 0.05, 0.085)        ## 공통 배경 위 — 밤하늘(Backdrop)
-const BG_BOT := Color(0.17, 0.13, 0.10)          ## 공통 배경 지평선 부근 — 어스름 모래
+# 디자인 핸드오프(design_handoff_expedition_ui) 팔레트 — 차가운 회청 → 따뜻한 가죽·아이보리로 통일.
+const BG := Color(0.031, 0.027, 0.039)           ## 배경 무대(디자인 bg-black #08070A) — 전환 시 드러나는 검은 무대
+const BG_TOP := Color(0.039, 0.027, 0.020)       ## 공통 배경 위 — 따뜻한 어둠(디자인 bg-deep #0a0705)
+const BG_BOT := Color(0.165, 0.110, 0.063)       ## 공통 배경 지평선 부근 — 어스름 모래(디자인 bg-deep #2a1c10)
 const SAND_FLOOR := Color(0.21, 0.165, 0.12)     ## 지평선 아래 모래 바닥
 const HORIZON := Color(0.64, 0.5, 0.33, 0.55)    ## 지평선 hairline
-const FG := Color(0.93, 0.93, 0.96)              ## 기본 밝은 글자
-const SAND := Color(0.84, 0.70, 0.47)            ## 모래색 — 강조
+const FG := Color(0.965, 0.925, 0.831)           ## 기본 밝은 글자 — 따뜻한 아이보리(디자인 ivory #F6ECD4)
+const SAND := Color(0.839, 0.698, 0.471)         ## 모래색 — 강조(디자인 sand #D6B278)
 const MUTED := Color(0.62, 0.62, 0.69)           ## 흐린 회색 — 보조 설명
-const DANGER := Color(0.88, 0.42, 0.38)          ## 위험 — 초기화 등
-const PANEL := Color(0.10, 0.105, 0.13)          ## 카드 배경
-const PANEL_BORDER := Color(0.27, 0.26, 0.33)    ## 카드 테두리
-const SCRIM := Color(0.02, 0.02, 0.04, 0.8)      ## 모달 뒤 어둡게
+const DANGER := Color(0.878, 0.420, 0.380)       ## 위험 — 초기화 등(디자인 danger #E06B61)
+const PANEL := Color(0.141, 0.102, 0.067)        ## 카드·버튼 면 — 따뜻한 가죽(디자인 leather #241A11)
+const LEATHER_HI := Color(0.180, 0.129, 0.078)   ## 가죽 패널 상단(디자인 leather-hi #2E2114) — 그라디언트 도입 시(현재 단색 StyleBox 라 예비)
+const PANEL_BORDER := Color(0.549, 0.420, 0.239) ## 카드·버튼 테두리 — 가죽(디자인 leather-border #8C6B3D)
+const SCRIM := Color(0.024, 0.020, 0.039, 0.66)  ## 모달 뒤 어둡게(디자인 스크림 rgba(6,5,10,.66))
 
 # --- 고지도·양피지 팔레트 (지도·단면이 공유) ---
 const PAPER := Color(0.82, 0.74, 0.57)       ## 빛바랜 양피지 바탕
