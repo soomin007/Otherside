@@ -109,7 +109,7 @@
 - **★ 온보딩/UX:** 화면 문구·HUD·blind choice·조작 오버레이 튜토리얼(autoload `Tutorial`)·상시 책갈피(`Bookmark`, 원정 일대기 도달/재회 표시)·원정대 이름까지 모두 완료. 남은 것은 작음(이름 풀 확장·실기기 미세조정).
 - **⑥ 결말 심화:** 순환의 *물리적* 반영(도달점=다음 목표=맵 변화), 재회 임계(`REUNION_TRACES` 8, 임시) 밸런싱, 재회 연출/크레딧.
 - **콘텐츠·비주얼:** 단면 맞춤 아트(트랙 B), 노드 콘텐츠 더, 폭풍 파티클 3층. **실제 그림 에셋 교체는 대부분 완료(01~46 배선).** 지도 렌더 다듬기는 map-render 세션 진행 중.
-- **오디오:** 배경음악·효과음(Suno 제작 대기, 목록 `audio_list.md`). 파일 나오면 `AudioManager`/버스 배선.
+- **오디오:** 배경음악(Suno)·효과음(ElevenLabs) 제작 대기, 목록 `../external/audio_list.md`. 파일 나오면 `AudioManager`/버스 배선.
 - **오프닝/가방 확장:** 오프닝 문구 다듬기(사용자: 나중에), 가방 밸런싱·물품 확장, 오프닝 다시보기.
 - **밸런싱:** 자원=수명 수치, 남기기 비용·줍기 값, 재회 난이도 — 전부 폰 테스트로.
 - **배포:** GitHub Pages 웹 export(외부 설정 대기).
@@ -117,4 +117,4 @@
 ## 11. 실행 / 문서 지도
 
 - 열기 `godot --path .` · 파싱 `--headless --path . --import` · 부팅 `--headless --path . --quit-after 5` · 웹 export `--headless --path . --export-release "Web" build/web/index.html`
-- **문서:** `00_START_HERE.md`(이 문서, 현재 상태) · `SYOTOS_기획서_v0.1.md`(상세 사양·단일 진실) · `backlog.md`(할 일) · `parallel_tracks.md`(분업) · `known_issues.md`(함정) · `wordpool_v0.1.md`(태그 단어) · `art_prompts.md`(이미지 프롬프트·진행표) · `balance_notes.md`(밸런스 이어받기) · `audio_list.md`(오디오·Suno) · `../handoffs/`(외부 의뢰용 핸드오프 모음 — 남김 딜레마·UI 스타일, 인덱스 README) · `session_logs/`(세션별 맥락).
+- **문서:** `00_START_HERE.md`(이 문서, 현재 상태) · `SYOTOS_기획서_v0.1.md`(상세 사양·단일 진실) · `backlog.md`(할 일) · `parallel_tracks.md`(분업) · `known_issues.md`(함정) · `wordpool_v0.1.md`(태그 단어) · `../external/art_prompts.md`(이미지 프롬프트·진행표) · `balance_notes.md`(밸런스 이어받기) · `../external/audio_list.md`(오디오 · BGM Suno·SFX ElevenLabs) · `../handoffs/`(외부 의뢰용 핸드오프 모음 — 남김 딜레마·UI 스타일, 인덱스 README) · `session_logs/`(세션별 맥락).

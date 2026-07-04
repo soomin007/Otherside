@@ -11,7 +11,7 @@
       (비정수 캔버스 배율에서 글리프 가장자리 계단 깨짐의 직접 원인). 배포 후 폰/시크릿 창에서 글씨가 또렷한지 확인.
       여전히 흐리면 다음 레버: 폰트 MSDF 임포트(`multichannel_signed_distance_field=true`) — 단 웹/GL Compatibility 실기기 검증 필수.
 - [ ] **그래픽/비주얼 전면 교체.** 완료(2026-07-02): 공통 배경(`Backdrop`), **폰트**(본문 마루부리·타이틀 Cinzel·붓은 지도 지명 전용 `UITheme.BRUSH_FONT`), 버튼 불투명 크롬.
-      **이미지 생성 프롬프트 = `docs/design/art_prompts.md`** (지도 = LOTR 손그림·조각별 아이콘 11종·잉크 reveal, 단면 6종, 초상 3종, 배경, 오프닝, 타이틀 전수). 뽑아서 절차적 draw(Map/SectionArt/Figures/Backdrop)를 TextureRect/blit 로 교체.
+      **이미지 생성 프롬프트 = `docs/external/art_prompts.md`** (지도 = LOTR 손그림·조각별 아이콘 11종·잉크 reveal, 단면 6종, 초상 3종, 배경, 오프닝, 타이틀 전수). 뽑아서 절차적 draw(Map/SectionArt/Figures/Backdrop)를 TextureRect/blit 로 교체.
       **에셋 삽입 대부분 완료(2026-07-03~04):** 지도배경·아이콘 01~12, 단면 13~18, 초상 19~21, 배경 22~23, 오프닝 24~28, 타이틀 29, **아이템 30~37**, 지도 스케치 40~46 전부 삽입·배선. 웹 빌드 경량화(다운스케일 .pck 55→46MB), 데스크톱 가로판(타이틀 29·공통 23) 방향 자동 교체. 시장 초상 흰 헤일로 제거(`alpha_key` erode/white-erode/despeckle).
       남은 것(선택): **오프닝 가로판 5종(§11)·열린가방(38)** — 배선됨, 뽑으면 자동 반영. 시장 터번 실오라기 한 점(원본 디테일) 콕 지울지. 팔레트·타이포 미세 다듬기. (지도 잉크 reveal·곡선·지형지물은 **map 세션 진행 중** — 안 건드림.)
 - [ ] **밸런스 튜닝 (1차 완료 — 폰 테스트 대기, 상세 `docs/design/balance_notes.md`).** end 도달 0%→~10% 확보(2026-07-02: `DESOLATION_EVERY` 16→30 + 후반 캐시 물 증량, `EDGE_LEN` 5 거리감 유지). f1 폭풍의 문 등 죽은 후반 콘텐츠 활성화, 갈증 독점(98%) 해소.
@@ -45,8 +45,8 @@
 
 ## 오디오 (사용자 생성 → Claude 배선)
 
-- [ ] **배경음악·효과음.** 목록·Suno 프롬프트 = `docs/design/audio_list.md`(화면·순간별 BGM 10종 + SFX 체크리스트 + 웹 통합 메모).
-      사용자가 Suno 로 뽑으면 Claude 가 리네임·배선. 핵심 세트(P0): 지도·전진·폭풍·남기기·재회(+타이틀·죽음).
+- [ ] **배경음악·효과음.** 목록·프롬프트 = `docs/external/audio_list.md`(화면·순간별 BGM 10종 + SFX 체크리스트 + 웹 통합 메모).
+      BGM 은 Suno·SFX 는 ElevenLabs 로 뽑으면 Claude 가 리네임·배선. BGM 핵심 세트(P0): 지도·전진·폭풍·남기기·재회(+타이틀·죽음).
       넣기 전 준비 가능(원할 때): `AudioManager` autoload(씬별 BGM 크로스페이드·SFX 훅) + Music/SFX 버스 분리 + `AppSettings` 음량 저장 연동 + placeholder 배선.
 
 ## 외부 / 배포 대기

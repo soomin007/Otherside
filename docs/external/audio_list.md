@@ -1,6 +1,6 @@
-# 오디오 목록 (Suno 제작용) — See you on the other side
+# 오디오 목록 (BGM = Suno · SFX = ElevenLabs) — See you on the other side
 
-> 사용자가 Suno 로 뽑을 배경음악·효과음의 단일 목록. 게임의 실제 화면·순간·톤(00_START_HERE §4 루프, 기획서 §3 결말)에 맞춰 정리.
+> **배경음악은 Suno, 효과음은 ElevenLabs(Sound Effects)로** 뽑는 단일 목록. 게임의 실제 화면·순간·톤(00_START_HERE §4 루프, 기획서 §3 결말)에 맞춰 정리.
 > 뽑은 파일은 Claude 가 리네임·배선한다(이미지 에셋과 같은 방식). 통합 메모는 맨 아래 §3.
 
 ---
@@ -17,7 +17,15 @@
 
 **Suno 공통 팁**
 - 스타일 프롬프트 맨 앞에 `[Instrumental]`. 가사 칸은 비우거나 `no vocals`.
-- Suno 는 2~4분을 생성 → **깔끔히 반복되는 구간만 잘라** 루프용 `.ogg` 로 쓴다(§3).
+- **길이 줄이기(중요):** Suno v4.5+ 는 기본으로 길게(최대 ~8분) 뽑는다. 짧게 하려면 **Custom Mode** 에서 가사 칸에 짧은 구조를 직접 넣고 일찍 끝맺음 태그를 준다.
+  ```
+  [Intro]
+  [Main Theme]
+  [Outro]
+  [End]
+  ```
+  섹션 수를 줄이고 `[End]`/`[Fade out]` 을 일찍 두면 짧아진다. 스타일 칸에 `short, concise, under 90 seconds, single loop` 를 덧붙이면 도움(엄격하진 않음).
+- **길이는 사실 크게 상관없다:** 게임 BGM 은 루프라 어차피 **깔끔히 반복되는 30~90s 구간만 잘라** 쓴다(§3). 8분이 나와도 좋은 구간 하나만 뽑으면 끝.
 - 스타일 칸은 짧을수록 안정적(장르 + 무드 + 악기 + 템포 순). 아래 프롬프트는 그대로 붙여넣기용.
 
 ---
@@ -121,41 +129,52 @@ soft wordless choir or no vocals, no harsh percussion
 
 ---
 
-## 2. 효과음 (SFX)
+## 2. 효과음 (SFX) — ElevenLabs Sound Effects
 
-> **솔직한 안내:** Suno 는 노래 생성기라 **짧은 기계음(버튼 탭 등)엔 부적합**. Suno 로 좋은 건 **앰비언트 베드·음악적 스팅어**다.
-> 짧은 UI 원샷은 **jsfxr(sfxr.me)·freesound.org(CC0)** 권장. 아래는 필요한 효과음 전체 체크리스트 + Suno 적합 여부.
+> **ElevenLabs 의 Sound Effects(text-to-SFX)로 만든다.** 짧은 자연어 설명을 넣으면 짧은 효과음이 나온다. 게임 SFX에 잘 맞는다(Suno는 BGM 전용).
+> **팁:** ① 설명은 짧고 구체적으로(재료·질감·동작 단어: dry, soft, paper, sand, leather). ② Duration 0.3~3s 로 짧게. ③ Prompt influence 높이면 설명에 충실(사실적)·낮추면 창의적. ④ 바람·공허 같은 앰비언트는 Loop 옵션. ⑤ 출력은 `.mp3`(Godot 가 그대로 임포트, 필요 시 `.wav` 변환).
+> **톤(§0 유지):** 건조·성글게. 종이·모래·가죽·나무 질감. 날카롭거나 만화 같지 않게. 과장 금지.
 
-### Suno 로 뽑을 만한 것 (음악적 스팅어 · 앰비언트)
-- **노드 공개 / 안개 걷힘(잉크 리빌):** 도착해 정체가 드러날 때. 짧은 반짝 스팅어.
-  ```
-  [Instrumental] short delicate reveal chime, single soft bell and a bowed harmonic, dry, no vocals, 3 seconds
-  ```
-- **재회 차임(결말):** 따뜻한 벨 한 번. B10 과 결.
-  ```
-  [Instrumental] short warm resolving chime, glassy bell and a soft string swell, tender, no vocals, 4 seconds
-  ```
-- **폭풍 돌풍 시작(경고):** 카드로 폭풍이 예고될 때. 짧은 바람 몰아침.
-  ```
-  [Instrumental] short gust of harsh sandstorm wind rising then holding, rattling grains, no music, no vocals, 4 seconds
-  ```
-- **남기기 확정(내려놓음):** 물건을 두는 순간. 낮고 부드러운 여운(=B8 축소판) — Suno 짧게 or freesound.
+각 항목: 용도 + ElevenLabs 프롬프트(영어, 그대로 붙여넣기).
 
-### Suno 부적합 → jsfxr / freesound (CC0) — 스펙만
-전부 **건조·성글게. 종이·모래·나무 질감. 날카롭지 않게.** (톤은 §0)
-- **UI:** 탭/버튼(짧은 마른 톡), 카드 열기·닫기(종이 스침), **가방 슬라이드**(아이템 담기 — 부드러운 스와이프+톡), 페이지 넘김, 설정 열기.
-- **걸음·자원:** 모래 밟는 걸음 틱(전진), 물 한 모금, 자원 소모 미세 틱.
-- **이벤트 결과:** 줍기(부드러운 획득 확인음), 로프 걸기·차단 통과(팽팽한 줄 당김), 자원 획득/손실 구분음.
-- **위협:** 갈라진 틈(공허한 저음), 갈증 경고(낮은 경고, 요란하지 않게).
-- **결말·죽음:** 순환 저음 울림(=B9 결), 죽음 임팩트(낮은 쿵+여운 — B7 로 대체 가능).
+**UI**
+- 탭 / 버튼: `soft dry muted tap, a minimal paper-like click, no reverb`
+- 카드 열기: `soft parchment card sliding open, dry paper rustle, gentle`
+- 카드 닫기: `soft parchment card closing, a brief dry paper shuffle`
+- 가방에 담기(슬라이드): `a light cloth swipe followed by a soft leather thud, an item placed into a bag`
+- 페이지 넘김: `a single old paper page turning, dry and quiet`
+- 설정 열기: `a soft muted low ui tone, understated and warm`
+
+**걸음 · 자원**
+- 모래 걸음(전진): `a single footstep pressing into dry desert sand, soft close crunch`
+- 물 한 모금: `a short quiet gulp of water from a metal flask`
+- 자원 감소 틱: `a tiny dry subtle tick, minimal, almost imperceptible`
+
+**이벤트 결과**
+- 줍기(획득): `a soft warm confirmation tone, picking up a small item, gentle and brief`
+- 로프 걸기 · 차단 통과: `a taut rope pulling tight and creaking, securing a line across a gap`
+- 노드 공개 / 안개 걷힘(잉크 리빌): `delicate ink spreading across old parchment with a soft airy shimmer`
+- 남기기(내려놓음): `setting a small object down onto sand, a soft final placement with low resonance`
+
+**위협**
+- 폭풍 돌풍 시작(경고): `a sudden gust of harsh sandstorm wind rising and holding, grains rattling` (Loop 가능)
+- 갈라진 틈(공허): `a hollow low echo rising from a deep crack in the ground, empty and cold`
+- 갈증 경고(낮게): `a low subtle warning drone, dry, tense but not alarming, short`
+
+**결말 · 죽음**
+- 죽음(스러짐): `a low mournful impact with a long fading resonance, a body settling into sand` (B7 음악 스팅어로 대체·중첩 가능)
+- 재회 차임(결말): `a warm resolving bell shimmer, tender and hopeful, gently blooming` (더 멜로디컬하게 원하면 Suno 짧은 스팅어로도)
+- 순환 저음 울림(결말): `a deep low resonant drone hit, cold and unresolved, slowly fading`
+
+> 앰비언트성(폭풍 바람·틈 공허)은 Loop 켜서 배경 레이어로도 쓸 수 있다. 톤은 전부 §0 을 따른다.
 
 ---
 
 ## 3. Godot / 웹 통합 메모 (넣기 전 참고)
 
-- **포맷:** 음악은 `.ogg`(Vorbis, Godot 임포트에서 **Loop 켜기**), 짧은 SFX 는 `.wav`(AudioStreamWAV).
+- **포맷:** 음악(Suno)은 `.ogg`(Vorbis, Godot 임포트에서 **Loop 켜기**). SFX(ElevenLabs)는 `.mp3` 그대로 임포트되나, 아주 짧고 자주 쓰는 건 `.wav`(AudioStreamWAV)로 변환하면 지연 없이 재생.
 - **경량(웹 첫 로딩):** 음악은 모노 또는 저비트레이트(96~128kbps), **루프 구간만**. 과대 파일 금지(GL Compatibility 로딩 부담). SFX 는 짧고 작게.
-- **루프 만들기:** Suno 생성물(2~4분)에서 이음매 없는 8~90s 구간만 잘라 쓰고, 시작·끝을 짧게 크로스페이드해 반복 티를 없앤다.
+- **루프 만들기:** Suno 생성물(길이 무관, 8분이 나와도)에서 이음매 없는 8~90s 구간만 잘라 쓰고, 시작·끝을 짧게 크로스페이드해 반복 티를 없앤다.
 - **볼륨:** 이미 `AppSettings`(master bus) + 설정 슬라이더 있음. **Music / SFX 버스를 나누면** 각각 볼륨 조절 가능 — 원하면 Claude 가 배선.
 - **배치 제안:** `assets/audio/bgm/`, `assets/audio/sfx/`. 파일명 규칙 유지(예: `bgm_04_map.ogg`, `sfx_pickup.wav`).
 
