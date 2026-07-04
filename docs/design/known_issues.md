@@ -82,3 +82,9 @@
   **원인:** 큐 경합·취소가 **아님**. build(export)는 성공하고 artifact 도 정상 업로드됐는데 `actions/deploy-pages` 가 GitHub Pages 백엔드 쪽 일시 장애로 실패. **같은 커밋·같은 워크플로가 직전엔 8초 만에 success** 였던 게 증거. 코드·설정 문제가 아니다.
   **방지·대응:** 손대지 말고 **재실행이 정답** — `gh run rerun <run-id> --failed`(실패한 deploy 잡만 다시 돌림, build artifact 재사용해 ~1분). 재실행 즉시 success 나면 GitHub 측 일시 장애로 확정. 워크플로/코드를 고치려 들지 말 것(멀쩡한 걸 건드려 새 문제만 만든다). 확인: `curl -s -o /dev/null -w "%{http_code}" https://soomin007.github.io/Otherside/` 가 200.
   **감별:** `Timeout reached`/`syncing_files` 에서 죽음 = 큐 경합(위 항목, 몰아서 push). `Deployment failed, try again later` + description 빈 채 in_progress 에서 즉사 = 일시 장애(재실행).
+
+## 에셋 처리 (오디오·이미지 배치 변환)
+
+- **증상:** 여러 파일을 ffmpeg 로 일괄 변환한 뒤 원본을 삭제했더니, **일부 파일이 변환 실패(출력 wav 미생성)했는데 원본까지 지워져 소스가 영구 손실**됐다. (2026-07-05, 효과음 crack·thirst)
+  **원인:** ① 배치 루프에서 `2>$null` 로 ffmpeg 에러를 숨겨 실패를 못 봄. ② 실패 신호(volumedetect `max_volume` 미매칭 → gain 0.0, 특정 파일만 값이 이상)를 무시. ③ **출력 개수를 검증하기 전에** `Remove-Item *.mp3` 로 원본 일괄 삭제. 원본 mp3 가 손상/절단(생성기 결함)이면 변환·분석 둘 다 조용히 실패한다.
+  **방지:** 일괄 변환 후 **원본 삭제 전에 출력 개수를 반드시 대조**(입력 N개 → 출력 N개인지). 에러를 숨기지 말고(`2>&1` 로 확인) 실패 파일을 로그. 이상 신호(gain 0.0 처럼 값이 튀는 것)는 그 파일을 의심. **소스는 최종 산출물 커밋·확인 뒤에 삭제**(또는 스크래치로 옮겨 보관). 손실되면 사용자 재생성뿐.
