@@ -167,7 +167,8 @@ soft wordless choir or no vocals, no harsh percussion
 > **★ 제작 현황(2026-07-04): 5개 뽑아 처리 완료 → `assets/sfx/` (wav 7개, 모노 44.1k).**
 > - `sfx_tap`(탭·버튼) · `sfx_card_open`·`sfx_card_close`(카드 — open/close 구분 불가 + open 원본 파손이라 **잘 나온 close 사운드로 통일**) · `sfx_bag_add`(가방 담기·천 스와이프)
 > - `sfx_page_1/2/3`(페이지 넘김 — 5초 3연속 파일을 ffmpeg 로 3개 분할, 변주로 회전)
-> - **전부 피크 -4dB 로 레벨 통일**(bag_add·card_close 클리핑 직전이던 것도 교정). 배선 = `AudioManager.play_sfx`(예정, UI 이벤트 훅은 map-render 페이드 확산과 겹쳐 순차).
+> - `sfx_settings`(설정 열기) · `sfx_step_1~4`(발소리 **4변주** — `AudioManager.play_step()` 이 랜덤 회전, 반복 티 방지)
+> - **전부 피크 -4dB 로 레벨 통일**(bag_add·card_close 클리핑 직전이던 것도 교정). 배선 인프라 = `AudioManager.play_sfx`/`play_sfx_random`/`play_step` **준비됨**. UI 이벤트 훅(탭·카드·페이지·걸음)은 map-render 페이드 확산과 겹쳐 순차.
 
 **UI**
 - 탭 / 버튼: `soft dry muted tap, a minimal paper-like click, no reverb`
