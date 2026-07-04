@@ -13,10 +13,6 @@ const SPLASH_DUR: float = 0.8      ## 걸음마다 번지는 잉크 얼룩이 �
 const EDGE_SAMPLES: int = 18       ## 엣지 곡선을 그릴 때 나눌 샘플 수(경로·마커가 같은 곡선을 공유)
 const ICON_MAX: float = 220.0      ## 노드 아이콘 긴 변 최대 표시 크기(px) — 큰 세로 캔버스라 크게
 const NODE_PAD_FRAC: float = 0.04  ## 노드 진행축 양끝 여백(area 대비) — 맨 처음/끝 노드가 화면 끝·HUD·버튼과 안 겹치게
-const CANVAS_W_FRAC: float = 0.62  ## 넓은 화면(데스크톱)에서 캔버스 폭 = 화면 폭 × 이 비율
-const MIN_CANVAS_W: float = 560.0  ## 폭 하한 — 좁은 화면(폰 세로)에선 화면 가용 폭에 맞춰 더 줄어든다
-const MAX_CANVAS_W: float = 860.0  ## 폭 상한 — 초와이드에서 노드 가로 분기가 지나치게 벌어지지 않게
-const SCROLL_SPAN: float = 1.3     ## 캔버스 높이 = 보이는 창 높이 × 이 배수. 1.0=전체 한눈에(스크롤 0), 클수록 아이콘↑·스크롤↑
 const DRAG_THRESH: float = 10.0    ## 이만큼 넘게 끌면 팬(스크롤), 미만이면 탭(노드 선택)
 const REVEAL_DUR: float = 0.55     ## 방문 시 잉크 reveal 애니 길이(초)
 
@@ -76,11 +72,9 @@ var _reveal_id: String = ""      ## 이번에 잉크로 그려지며 나타날 �
 var _reveal_t: float = 0.0       ## reveal 애니 경과 시간
 var _splashes: Array = []        ## 이동 중 걸음마다 번지는 잉크 얼룩 [{pos,t}] — _process 가 나이 먹이고 _draw 가 렌더
 var _hovered_node: String = ""   ## 마우스가 올라간 도달 가능 노드(호버 시 클릭 원 확대). 터치엔 없음
-var _scroll_y: float = 0.0        ## 세로 스크롤 오프셋(큰 캔버스를 화면에 스크롤). 0=맨 위
-var _dragging: bool = false       ## 팬(스크롤) 드래그 중
+var _dragging: bool = false       ## 누름~뗌 사이 드래그 추적(임계 넘으면 탭 취소 — 오터치 방지)
 var _drag_start_y: float = 0.0    ## 드래그 시작 지점 y(스크린)
-var _drag_scroll_start: float = 0.0 ## 드래그 시작 시 _scroll_y
-var _drag_moved: float = 0.0      ## 드래그 누적 이동(임계 넘으면 팬, 아니면 탭)
+var _drag_moved: float = 0.0      ## 드래그 누적 이동(임계 넘으면 탭 아님)
 
 func _ready() -> void:
 	if GameState.current_run == null or not GameState.current_run.alive:
@@ -264,18 +258,13 @@ func _gui_input(event: InputEvent) -> void:
 			queue_redraw()
 		return
 	var area := _map_area()
-	# 마우스 휠 — 세로 스크롤.
-	if event is InputEventMouseButton and event.pressed and (event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN):
-		_set_scroll(_scroll_y + (-60.0 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 60.0))
-		return
-	# 누름 시작 — 팬(스크롤) 후보로 잡아둔다(뗄 때 안 끌었으면 탭으로).
+	# 누름 시작 — 탭 후보로 잡아둔다(뗄 때 안 밀렸으면 노드 선택).
 	if (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed) or (event is InputEventScreenTouch and event.pressed):
 		_dragging = true
 		_drag_start_y = event.position.y
-		_drag_scroll_start = _scroll_y
 		_drag_moved = 0.0
 		return
-	# 뗌 — 임계 미만이면 탭(노드 선택), 넘었으면 팬이었으므로 무시.
+	# 뗌 — 임계 미만이면 탭(노드 선택). 많이 밀렸으면 오터치로 보고 무시.
 	if (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed) or (event is InputEventScreenTouch and not event.pressed):
 		_dragging = false
 		if _drag_moved < DRAG_THRESH:
@@ -288,11 +277,9 @@ func _gui_input(event: InputEvent) -> void:
 				if _guide != null:
 					_guide.text = "나아가는 중..."
 		return
-	# 끄는 중 — 팬(스크롤). 누적 이동이 임계를 넘으면 탭이 아니라 팬으로 확정된다.
+	# 끄는 중 — 누적 이동만 추적(임계 넘으면 위에서 탭 취소). 화면은 fit 이라 팬 없음.
 	if _dragging and (event is InputEventMouseMotion or event is InputEventScreenDrag):
-		var dy: float = event.position.y - _drag_start_y
-		_drag_moved = maxf(_drag_moved, absf(dy))
-		_set_scroll(_drag_scroll_start - dy)
+		_drag_moved = maxf(_drag_moved, absf(event.position.y - _drag_start_y))
 		return
 	# 호버 — 마우스가 올라간 도달 가능 노드(그 원이 커진다). 데스크톱 전용.
 	if event is InputEventMouseMotion:
@@ -300,11 +287,6 @@ func _gui_input(event: InputEvent) -> void:
 		if hov != _hovered_node:
 			_hovered_node = hov
 			queue_redraw()
-
-## 세로 스크롤 설정 — 0~최대 클램프 후 다시 그린다.
-func _set_scroll(v: float) -> void:
-	_scroll_y = clampf(v, 0.0, _max_scroll())
-	queue_redraw()
 
 ## 좌표 위의 도달 가능 노드 id(없으면 ""). 판정 반경 = 아이콘을 감싸는 클릭 원 크기.
 func _reachable_at(pos: Vector2, area: Rect2) -> String:
@@ -317,8 +299,10 @@ func _reachable_at(pos: Vector2, area: Rect2) -> String:
 
 ## 아이콘 긴 변 표시 크기(px) — _draw 와 클릭/호버 판정이 공유(원이 아이콘을 감싸도록).
 func _icon_size(area: Rect2) -> float:
-	var row_gap: float = area.size.y * (1.0 - 2.0 * NODE_PAD_FRAC) / float(maxi(1, MapGraph.max_row()))
-	return clampf(row_gap * 0.82, 40.0, ICON_MAX)
+	# 진행축(가로면 x, 세로면 y) 간격에 맞춘다 — 진행축으로 이웃한 노드끼리 안 겹치게.
+	var prog_span: float = (area.size.x if _is_landscape(area) else area.size.y) * (1.0 - 2.0 * NODE_PAD_FRAC)
+	var row_gap: float = prog_span / float(maxi(1, MapGraph.max_row()))
+	return clampf(row_gap * 0.9, 48.0, ICON_MAX)
 
 # --- 이동 중 상황 카드 ---
 
@@ -403,32 +387,24 @@ func _after_situation() -> void:
 
 # --- 렌더 ---
 
-## 논리 캔버스 크기. 폭·높이를 분리해 각각 제어한다:
-##  - 폭 = 화면 폭에 비례(데스크톱 와이드에서 넓게)하되 [하한, 상한]으로 클램프. 폰 세로에선 가용 폭이 하한보다 좁아 화면에 꽉 찬다.
-##  - 높이 = 보이는 세로 창의 SCROLL_SPAN 배. 폭에 안 묶여(폭 넓혀도 높이 안 터짐), 조망 정도를 기기 무관하게 직접 정한다.
-##    SCROLL_SPAN=1.3 이면 전체의 약 77%가 한 화면에, 나머지만 살짝 스크롤. 노드 간격·아이콘도 이 높이에 비례.
-func _canvas_size() -> Vector2:
-	var avail: float = size.x - UITheme.PAD * 2.0
-	var w: float = clampf(size.x * CANVAS_W_FRAC, MIN_CANVAS_W, MAX_CANVAS_W)
-	w = minf(w, avail)  # 화면 가용 폭을 넘지 않게(폰 세로에선 avail 이 작아 이게 결정)
-	var win_h: float = maxf(1.0, size.y - TOP_Y - BOT_Y)  # 화면에 실제로 보이는 세로 창
-	return Vector2(w, win_h * SCROLL_SPAN)
-
-## 스크롤 최대치 — 캔버스가 보이는 창(TOP_Y~BOT_Y)보다 넘치는 만큼.
-func _max_scroll() -> float:
-	return maxf(0.0, _canvas_size().y - (size.y - TOP_Y - BOT_Y))
-
-## 캔버스의 화면상 rect — 가로 중앙 정렬 + 세로 스크롤 오프셋. 노드·경로·배경이 모두 이걸 기준으로 그려진다.
+## 캔버스의 화면상 rect — 화면에 딱 맞춘다(fit, 스크롤 없음). TOP_Y~BOT_Y 창 전체.
+## 노드·경로·배경이 모두 이걸 기준. 데스크톱은 가로로 넓어(stretch expand) landscape, 폰은 세로로 길어 portrait 가 된다.
 func _map_area() -> Rect2:
-	var cvs: Vector2 = _canvas_size()
-	return Rect2((size.x - cvs.x) * 0.5, TOP_Y - _scroll_y, cvs.x, cvs.y)
+	return Rect2(UITheme.PAD, TOP_Y, size.x - UITheme.PAD * 2.0, size.y - TOP_Y - BOT_Y)
 
-## 노드 화면 좌표 — 세로 지도(col→x 분기, row→y 진행: 위에서 아래). area 는 스크롤된 캔버스 rect.
+## 지도 방향 — area 가 가로로 넓으면 그래프를 눕힌다(왼→오른쪽 진행). 세로면 위→아래.
+## 데스크톱(가로) 기본 + 모바일(세로) 지원을 한 그래프로 반응형 처리한다.
+func _is_landscape(area: Rect2) -> bool:
+	return area.size.x >= area.size.y
+
+## 노드 화면 좌표 — 진행축(row)을 방향에 맞춘다. 가로면 진행=x·분기=y, 세로면 진행=y·분기=x.
 func _node_screen(node: Dictionary, area: Rect2) -> Vector2:
 	var mr: int = maxi(1, MapGraph.max_row())
 	var col: float = float(node.get("col", 0.5))     # 분기축 위치(0~1)
 	var row: float = float(int(node.get("row", 0)))
-	var prog: float = NODE_PAD_FRAC + (row / float(mr)) * (1.0 - 2.0 * NODE_PAD_FRAC)
+	var prog: float = NODE_PAD_FRAC + (row / float(mr)) * (1.0 - 2.0 * NODE_PAD_FRAC)  # 진행축 위치(0~1)
+	if _is_landscape(area):
+		return Vector2(area.position.x + prog * area.size.x, area.position.y + col * area.size.y)
 	return Vector2(area.position.x + col * area.size.x, area.position.y + prog * area.size.y)
 
 ## 엣지 A→B 곡선 위의 점(t∈[0,1]). 도착 노드 biome 으로 굴곡 결정 — 결정론적(id 해시, 매 프레임 동일).
@@ -446,16 +422,16 @@ func _edge_point(from_id: String, to_id: String, t: float, area: Rect2) -> Vecto
 	var shape: float = 0.0
 	match MapGraph.biome_of(to_id):
 		"river":   # 강줄기를 따라 한 번 사행(S 굽이) — 시작·끝은 노드에 정확히 붙는다(sin τt: t=0,0.5,1 → 0)
-			amp = dist * 0.24
+			amp = dist * 0.13
 			shape = sin(t * TAU)
-		"rock":    # 바위·산을 크게 돌아간다(한쪽 볼록)
-			amp = dist * 0.42
+		"rock":    # 바위·산을 돌아간다(한쪽 볼록)
+			amp = dist * 0.20
 			shape = sin(t * PI)
 		"storm":   # 폭풍·사구에 흔들리는 지그재그
-			amp = dist * 0.26
+			amp = dist * 0.15
 			shape = sin(t * PI * 3.0)
 		_:         # flats — 완만한 미세 굴곡
-			amp = dist * 0.12
+			amp = dist * 0.08
 			shape = sin(t * PI)
 	return base + perp * (amp * shape * sgn)
 
