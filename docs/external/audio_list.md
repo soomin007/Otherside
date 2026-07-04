@@ -164,11 +164,15 @@ soft wordless choir or no vocals, no harsh percussion
 
 각 항목: 용도 + ElevenLabs 프롬프트(영어, 그대로 붙여넣기).
 
-> **★ 제작 현황(2026-07-04): 5개 뽑아 처리 완료 → `assets/sfx/` (wav 7개, 모노 44.1k).**
-> - `sfx_tap`(탭·버튼) · `sfx_card_open`·`sfx_card_close`(카드 — open/close 구분 불가 + open 원본 파손이라 **잘 나온 close 사운드로 통일**) · `sfx_bag_add`(가방 담기·천 스와이프)
-> - `sfx_page_1/2/3`(페이지 넘김 — 5초 3연속 파일을 ffmpeg 로 3개 분할, 변주로 회전)
-> - `sfx_settings`(설정 열기) · `sfx_step_1~4`(발소리 **4변주** — `AudioManager.play_step()` 이 랜덤 회전, 반복 티 방지)
-> - **전부 피크 -4dB 로 레벨 통일**(bag_add·card_close 클리핑 직전이던 것도 교정). 배선 인프라 = `AudioManager.play_sfx`/`play_sfx_random`/`play_step` **준비됨**. UI 이벤트 훅(탭·카드·페이지·걸음)은 map-render 페이드 확산과 겹쳐 순차.
+> **★ 제작 현황(2026-07-05): 효과음 전부 뽑아 처리 완료 → `assets/sfx/` (wav 22개, 모노 44.1k, 피크 -4dB).**
+> - **UI:** `sfx_tap`·`sfx_card_open`·`sfx_card_close`(open/close 구분 불가라 close 로 통일)·`sfx_bag_add`·`sfx_page_1~3`(5초 3연속을 분할, 랜덤 회전)·`sfx_settings`
+> - **걸음·자원:** `sfx_step_1~4`(발소리 4변주 — `play_step()` 랜덤)·`sfx_water`(물 한 모금)·`sfx_resource`(자원 표시음)
+> - **이벤트:** `sfx_pickup`(줍기)·`sfx_rope`(로프)·`sfx_reveal`(노드 공개)·`sfx_leave`(남기기)
+> - **위협:** `sfx_storm_gust`(폭풍 돌풍)·`sfx_crack`(갈라진 틈)·`sfx_thirst`(갈증 경고)
+> - **결말:** `sfx_death`(스러짐)·`sfx_reunion_chime`(재회 차임)·`sfx_cycle`(순환 울림)
+> - ⚠️ `sfx_resource`·`sfx_reveal`·`sfx_cycle` 은 원본이 매우 조용해 **+27~32dB 보강** → 노이즈 있으면 재생성 후보(당장은 이대로). 인게임 볼륨은 `play_sfx(path, vol_db)` 로 조절 가능(파일 노이즈는 재생성만이 답).
+> - `reveal`/`cycle` 은 접두사(`de`)가 겹쳐 고역 분석으로 구분(#3=reveal 밝음·#2=cycle 저역, 신뢰 보통 — 바뀌었으면 스왑).
+> - 배선 인프라 = `AudioManager.play_sfx`/`play_sfx_random`/`play_step` **준비됨**. UI 이벤트·걸음·엔딩 훅은 map-render 페이드 확산과 겹쳐 순차.
 
 > **★ 요령 — "단 한 번"을 강하게 (중요):** ElevenLabs 는 `tick`·`tap` 만 쓰면 **시계·톱니처럼 여러 번 반복되는 기계음(타다다닥)**으로 만든다. 일회성 소리는 반드시 **`a single one-shot ...` + `one hit only` + `not repeating` + `no rhythm, no sequence` + `very short`** 를 넣어 못 박는다. (지속·앰비언트 소리만 길게/반복 허용.)
 
