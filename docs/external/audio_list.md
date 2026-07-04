@@ -164,11 +164,11 @@ soft wordless choir or no vocals, no harsh percussion
 
 각 항목: 용도 + ElevenLabs 프롬프트(영어, 그대로 붙여넣기).
 
-> **★ 제작 현황(2026-07-05): 효과음 20종 처리 완료 → `assets/sfx/` (wav 20개, 모노 44.1k, 피크 -4dB). + 재생성 필요 2종.**
+> **★ 제작 현황(2026-07-05): 효과음 24종 전부 처리 완료 → `assets/sfx/` (wav 24개, 모노 44.1k, 피크 -4dB).**
 > - **UI:** `sfx_tap`·`sfx_card_open`·`sfx_card_close`(open/close 구분 불가라 close 로 통일)·`sfx_bag_add`·`sfx_page_1~3`(5초 3연속을 분할, 랜덤 회전)·`sfx_settings`
 > - **걸음·자원:** `sfx_step_1~4`(발소리 4변주 — `play_step()` 랜덤)·`sfx_water`(물 한 모금)·`sfx_resource`(자원 표시음)
 > - **이벤트:** `sfx_pickup`(줍기)·`sfx_rope`(로프)·`sfx_reveal`(노드 공개)·`sfx_leave`(남기기)
-> - **위협:** `sfx_storm_gust`(폭풍 돌풍) ✅. ⚠️ **`sfx_crack`(갈라진 틈)·`sfx_thirst`(갈증 경고) = 변환 실패(원본 손상 추정) + 소스 삭제 → 재생성 필요** (프롬프트는 아래 §2 위협). ElevenLabs 에서 다시 뽑아 넣으면 처리.
+> - **위협:** `sfx_storm_gust`(폭풍 돌풍)·`sfx_crack`(갈라진 틈)·`sfx_thirst`(갈증 경고) — crack/thirst 는 첫 원본이 손상돼 한 번 유실됐다가 **재생성해 복구**(정상 레벨).
 > - **결말:** `sfx_death`(스러짐)·`sfx_reunion_chime`(재회 차임)·`sfx_cycle`(순환 울림)
 > - ⚠️ `sfx_resource`·`sfx_reveal`·`sfx_cycle` 은 원본이 매우 조용해 **+27~32dB 보강** → 노이즈 있으면 재생성 후보(당장은 이대로). 인게임 볼륨은 `play_sfx(path, vol_db)` 로 조절 가능(파일 노이즈는 재생성만이 답).
 > - `reveal`/`cycle` 은 접두사(`de`)가 겹쳐 고역 분석으로 구분(#3=reveal 밝음·#2=cycle 저역, 신뢰 보통 — 바뀌었으면 스왑).
