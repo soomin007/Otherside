@@ -71,10 +71,14 @@ class Ribbon extends Control:
 			if f != null:
 				draw_string(f, Vector2(9.0, h * 0.5 + 5.0), text, HORIZONTAL_ALIGNMENT_LEFT, length - 16.0, 13, Color(0.96, 0.92, 0.86, 0.95))
 
-## 일지 책 — 가죽 표지 + 양피지 두 페이지 + 괘선 + 가운데 접힘(옛 장부의 렌더).
+## 일지 책 — 가죽 표지 + 양피지 두 페이지 + 괘선 + 가운데 접힘(옛 장부의 렌더) + 페이지 두께 스택(§5).
 class LedgerBook extends Control:
 	var rect_l: Rect2   ## 왼쪽 페이지(로컬) — 내용 배치가 공유
 	var rect_r: Rect2
+	var thickness_cf: float = 0.0:   ## 챕터 위치(0..챕터수-1, 연속) — 좌우 두께 스택이 이걸 따라 이동(§5)
+		set(v):
+			thickness_cf = v
+			queue_redraw()
 	func relayout() -> void:
 		var gutter: float = 16.0
 		var pw: float = size.x * 0.5 - gutter * 0.5
@@ -93,6 +97,23 @@ class LedgerBook extends Control:
 		cover_sb.set_border_width_all(2)
 		cover_sb.set_corner_radius_all(14)
 		cover_sb.draw(get_canvas_item(), book)
+		# 페이지 두께 스택(§5) — 표지 안쪽, 좌·우 바깥 모서리 세로 띠. 챕터 위치(thickness_cf)에 비례해
+		# 한쪽이 두꺼워지고 반대쪽이 얇아진다(넘기는 동안 연속 변화). 안쪽 밝고 바깥 어둡게.
+		var n_max: float = 2.0  # 챕터 3개(0..2) — 내부 클래스라 자체 상수
+		var cfv: float = clampf(thickness_cf, 0.0, n_max)
+		var nl: int = mini(7, roundi(2.0 + cfv * 3.0))
+		var nr: int = mini(7, roundi(2.0 + (n_max - cfv) * 3.0))
+		var ew: float = 2.1
+		for i in range(nl):
+			var shade: float = lerpf(0.92, 0.42, float(i) / 6.0)
+			var x: float = rect_l.position.x - 2.0 - float(i) * ew
+			draw_line(Vector2(x, 4.0), Vector2(x, size.y - 4.0),
+				Color(UITheme.PAPER.r * shade, UITheme.PAPER.g * shade, UITheme.PAPER.b * shade), ew - 0.5, true)
+		for i in range(nr):
+			var shade2: float = lerpf(0.92, 0.42, float(i) / 6.0)
+			var x2: float = rect_r.end.x + 2.0 + float(i) * ew
+			draw_line(Vector2(x2, 4.0), Vector2(x2, size.y - 4.0),
+				Color(UITheme.PAPER.r * shade2, UITheme.PAPER.g * shade2, UITheme.PAPER.b * shade2), ew - 0.5, true)
 		PageArt.paint(self, rect_l)
 		PageArt.paint(self, rect_r)
 		# 가운데 접힘 그림자 — 두 페이지의 마주 보는 안쪽 변.
@@ -102,10 +123,146 @@ class LedgerBook extends Control:
 			draw_rect(Rect2(rect_l.end.x - w, rect_l.position.y, w, rect_l.size.y), Color(0, 0, 0, a))
 			draw_rect(Rect2(rect_r.position.x, rect_r.position.y, w, rect_r.size.y), Color(0, 0, 0, a))
 
-## 넘어가는 낱장 — 챕터 전환 때 오른쪽 페이지 자리에서 스파인으로 접혔다 왼쪽 자리로 펼쳐진다.
-class FlipLeaf extends Control:
+## 책장 넘김 리플(외부 핸드오프 handoff_book_flip 이식) — 낱장을 **스파인(책 중앙) 기준 폭-투영**으로
+## 돌린다: 폭 = PW·|cos a|, 수직에서 0이 됐다 반대편에서 다시 넓어짐(가로로 넘어감 — 솟구침·코너축 금지).
+## K장이 스태거로 촤라락(리플), 명암(곧추섬 어둠·자유변 그라디언트·이동 하이라이트·드리운 그림자)으로 입체감.
+## 밑장 비침 금지: 낱장은 전부 불투명(k=0 앞면 = 현재 페이지 캡처, 나머지 = 양피지 더미).
+## 걷히며 드러나는 쪽 베이스는 구멍(실제 목표 콘텐츠 노드가 보임), 덮이는 쪽 베이스 = 현재 페이지 캡처.
+class FlipDeck extends Control:
+	const DUR: float = 0.45      ## 속도(확정)
+	const K: int = 8             ## 장수(확정)
+	const SPREAD: float = 0.45   ## 퍼짐(확정)
+	const FLIP: float = 0.5      ## 넘김창(확정)
+	const CURL: float = 1.2      ## 휨(확정)
+	const EDGE_SEGS: int = 6     ## 자유변 bow 곡선 분할
+
+	var dir: int = 1                 ## +1 = 다음 챕터(오른쪽 낱장이 왼쪽으로) / -1 = 앞 챕터
+	var rect_l: Rect2                ## 왼쪽 페이지(로컬) — LedgerBook 과 동일
+	var rect_r: Rect2
+	var tex_cover: Texture2D         ## 덮이는 쪽 베이스(현재 페이지 캡처 — dir=+1 이면 왼쪽)
+	var tex_front: Texture2D         ## k=0 낱장 앞면(현재 페이지 캡처 — dir=+1 이면 오른쪽)
+	var cf_from: float = 0.0         ## 두께 스택용 시작 챕터
+	var on_progress: Callable        ## 매 프레임 (cf) — LedgerBook 두께 갱신
+	var on_done: Callable
+	var _p: float = 0.0
+	var _riffled: bool = false       ## 중간(수직 통과) 촤라락 SFX 1회
+
+	func _process(delta: float) -> void:
+		_p += delta / DUR
+		if not _riffled and _p >= 0.5:
+			_riffled = true
+			AudioManager.play_sfx_random([
+				"res://assets/sfx/sfx_page_1.wav",
+				"res://assets/sfx/sfx_page_2.wav",
+				"res://assets/sfx/sfx_page_3.wav",
+			])
+		if on_progress.is_valid():
+			on_progress.call(cf_from + float(dir) * _ease(clampf(_p, 0.0, 1.0)))
+		queue_redraw()
+		if _p >= 1.0:
+			set_process(false)
+			if on_done.is_valid():
+				on_done.call()
+			queue_free()
+
+	## inOutQuad(스펙 §1).
+	func _ease(t: float) -> float:
+		return 2.0 * t * t if t < 0.5 else 1.0 - pow(-2.0 * t + 2.0, 2.0) * 0.5
+
 	func _draw() -> void:
-		PageArt.paint(self, Rect2(Vector2.ZERO, size))
+		var p: float = clampf(_p, 0.0, 1.0)
+		# 덮이는 쪽 베이스 = 현재 페이지 캡처(넘어온 장들이 덮는다). 걷히는 쪽은 구멍(실 목표 노드).
+		if tex_cover != null:
+			draw_texture_rect(tex_cover, rect_l if dir == 1 else rect_r, false)
+		# K장 리플 — 스태거(§1) 후 덜 넘어간 장이 위(위에서 아래로 e 내림차순, 동률은 k 오름차순).
+		var sheets: Array = []
+		for k in range(K):
+			var st: float = (float(k) / float(K - 1)) * SPREAD
+			var lp: float = clampf((p - st) / FLIP, 0.0, 1.0)
+			var e: float = lp * lp * (3.0 - 2.0 * lp)  # smoothstep
+			sheets.append({"e": e, "k": k})
+		sheets.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			if a["e"] != b["e"]:
+				return a["e"] > b["e"]
+			return a["k"] < b["k"])
+		for s in sheets:
+			var e: float = s["e"]
+			var k: int = s["k"]
+			if e > 0.0001 or k == 0:
+				_draw_sheet(e, k)
+
+	## 낱장 한 장(§2·§3) — 스파인 폭-투영 + bow 사다리꼴 + 명암.
+	func _draw_sheet(e: float, k: int) -> void:
+		var pw: float = rect_l.size.x
+		var ph: float = rect_l.size.y
+		var oy: float = rect_l.position.y
+		var sp: float = rect_l.end.x + (rect_r.position.x - rect_l.end.x) * 0.5  # 스파인 x(거터 중앙)
+		var a: float = e * PI
+		var c: float = cos(a)
+		var w: float = pw * absf(c)
+		if w < 0.5:
+			return
+		var front: bool = c >= 0.0
+		var side_sign: float = (1.0 if dir == 1 else -1.0) * (1.0 if front else -1.0)
+		var rx: float = sp if side_sign > 0.0 else sp - w
+		var fe_x: float = rx + w if side_sign > 0.0 else rx
+		var bow: float = 12.0 * CURL * sin(a) * (pw / 260.0)
+		# bow 사다리꼴 — 스파인변 직선, 위/아래변은 자유변 쪽이 bow 만큼 들린 2차 베지어(분할 근사).
+		var pts: PackedVector2Array = PackedVector2Array()
+		var uvs: PackedVector2Array = PackedVector2Array()
+		for i in range(EDGE_SEGS + 1):  # 위변: 스파인 → 자유변
+			var t: float = float(i) / float(EDGE_SEGS)
+			var x: float = lerpf(sp, fe_x, t)
+			var y: float = _qbez(oy, oy - bow, oy - bow, t)
+			pts.append(Vector2(x, y))
+			uvs.append(Vector2(clampf((x - rx) / w, 0.0, 1.0), clampf((y - oy) / ph, 0.0, 1.0)))
+		for i in range(EDGE_SEGS + 1):  # 아래변: 자유변 → 스파인
+			var t2: float = float(i) / float(EDGE_SEGS)
+			var x2: float = lerpf(fe_x, sp, t2)
+			var y2: float = _qbez(oy + ph - bow, oy + ph - bow, oy + ph, t2)
+			pts.append(Vector2(x2, y2))
+			uvs.append(Vector2(clampf((x2 - rx) / w, 0.0, 1.0), clampf((y2 - oy) / ph, 0.0, 1.0)))
+		# 면 — k=0 앞면은 현재 페이지 캡처(미러 없음), 그 외는 불투명 양피지 더미(+괘선).
+		if front and k == 0 and tex_front != null:
+			var cols: PackedColorArray = PackedColorArray()
+			for i in range(pts.size()):
+				cols.append(Color.WHITE)
+			draw_polygon(pts, cols, uvs, tex_front)
+		else:
+			draw_colored_polygon(pts, UITheme.PAPER)
+			var lc := Color(UITheme.INK_FADE.r, UITheme.INK_FADE.g, UITheme.INK_FADE.b, 0.13)
+			var yl: float = oy + 92.0
+			while yl < oy + ph - 34.0:
+				draw_line(Vector2(minf(rx + 3.0, fe_x), yl), Vector2(maxf(rx + 3.0, fe_x - 3.0) if side_sign > 0.0 else rx + w - 3.0, yl), lc, 1.0)
+				yl += 42.0
+		# 명암(§3): ① 곧추섬 어둠(전체) ② 자유변 그라디언트(정점색) ③ 이동 하이라이트.
+		var stand: float = 1.0 - absf(c)
+		if stand > 0.01:
+			draw_colored_polygon(pts, Color(0.102, 0.063, 0.024, stand * 0.5))
+		var grad_cols: PackedColorArray = PackedColorArray()
+		var a_sp: float = 0.16
+		var a_fe: float = 0.10 + 0.2 * stand
+		for pt in pts:
+			var tt: float = clampf(absf(pt.x - sp) / maxf(w, 0.001), 0.0, 1.0)
+			grad_cols.append(Color(0.078, 0.047, 0.016, lerpf(a_sp, a_fe, tt)))
+		draw_polygon(pts, grad_cols)
+		var hi: float = maxf(0.0, 1.0 - absf(e - 0.35) / 0.4) * 0.18
+		if hi > 0.01:
+			draw_colored_polygon(pts, Color(1.0, 0.98, 0.92, hi))
+		# ④ 드리운 그림자 — 서 있는 낱장이 "떠나온 쪽" 페이지에 지운다(스파인에서 안쪽 150px 상당).
+		var sh_a: float = 0.34 * sin(a)
+		if sh_a > 0.01:
+			var sh_w: float = pw * 0.3 * float(dir)
+			var sh_pts := PackedVector2Array([
+				Vector2(sp, oy), Vector2(sp + sh_w, oy), Vector2(sp + sh_w, oy + ph), Vector2(sp, oy + ph)])
+			var sh_cols := PackedColorArray([
+				Color(0, 0, 0, sh_a), Color(0, 0, 0, 0.0), Color(0, 0, 0, 0.0), Color(0, 0, 0, sh_a)])
+			draw_polygon(sh_pts, sh_cols)
+
+	## 2차 베지어 1축 보간.
+	func _qbez(p0: float, p1: float, p2: float, t: float) -> float:
+		var u: float = 1.0 - t
+		return u * u * p0 + 2.0 * u * t * p1 + t * t * p2
 
 var _ribbon: Ribbon
 var _panel: Control
@@ -240,6 +397,7 @@ func open_journal(chapter: int = 0) -> void:
 	_opened_ms = Time.get_ticks_msec()
 	AudioManager.play_sfx("res://assets/sfx/sfx_page_1.wav")
 	_chapter = clampi(chapter, 0, CHAPTERS.size() - 1)
+	_book.thickness_cf = float(_chapter)  # 페이지 두께 스택(§5) 초기 위치
 	_apply_tab_state()
 	_render_chapter()
 
@@ -277,37 +435,48 @@ func _layout_book() -> void:
 
 # --- 챕터 (낱장 넘김) ---
 
-## 챕터 책갈피를 누름 — **낱장이 넘어간다**: 앞 챕터로 가면 오른쪽 잎이 스파인으로 접혀 왼쪽으로,
-## 뒤 챕터로 가면 왼쪽 잎이 접혀 오른쪽으로(방향 인식). 책 자체는 움직이지 않는다.
-## ⚠️ 1차 근사(스케일 접기) — 더 자연스러운 넘김은 외부 제작(docs/handoffs/일지_책장넘김_핸드오프.md).
+## 챕터 책갈피를 누름 — 책장 넘김 리플(외부 핸드오프 handoff_book_flip 이식, 확정값 450ms·8장).
+## 현재 두 페이지를 화면에서 캡처해 낱장 텍스처로 쓰고, 콘텐츠는 목표 챕터로 즉시 교체 —
+## 같은 프레임에 FlipDeck 가 위를 덮어(p=0 = 이전 모습) 팝이 없다. 점프는 최단 방향 1회(스펙).
 func _flip_to(idx: int) -> void:
 	if _flipping or idx == _chapter:
 		return
 	_flipping = true
-	AudioManager.play_sfx_random(PAGE_SFX)
-	var forward: bool = idx > _chapter   # 뒤 챕터로 = 앞으로 넘김(오→왼), 앞 챕터로 = 되넘김(왼→오)
-	var from_rect: Rect2 = _book.rect_r if forward else _book.rect_l
-	var to_rect: Rect2 = _book.rect_l if forward else _book.rect_r
-	var leaf := FlipLeaf.new()
-	leaf.size = from_rect.size
-	leaf.position = from_rect.position
-	# 스파인(책 가운데) 쪽 변을 축으로 접힘 — 오른쪽 잎은 왼쪽 변, 왼쪽 잎은 오른쪽 변.
-	leaf.pivot_offset = Vector2(0.0 if forward else leaf.size.x, leaf.size.y * 0.5)
-	leaf.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_book.add_child(leaf)
-	var tw := create_tween()
-	tw.tween_property(leaf, "scale:x", 0.03, 0.17).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
-	tw.tween_callback(func() -> void:
-		_chapter = idx
-		_apply_tab_state()
-		_render_chapter()
-		# 잎을 반대편 페이지 자리로 옮겨(스파인 축 반대 변) 마저 펼친다.
-		leaf.position = to_rect.position
-		leaf.pivot_offset = Vector2(leaf.size.x if forward else 0.0, leaf.size.y * 0.5))
-	tw.tween_property(leaf, "scale:x", 1.0, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_callback(func() -> void:
-		leaf.queue_free()  # 펼쳐진 자리 = 그 페이지와 같은 그림이라 사라져도 튀지 않는다
-		_flipping = false)
+	AudioManager.play_sfx_random(PAGE_SFX)  # 첫 장 집힐 때 1회(스펙 — 촤라락은 FlipDeck 이 t≈0.5 에 1회)
+	var dir: int = 1 if idx > _chapter else -1
+	# 이 프레임 렌더가 끝난 직후의 화면(아직 이전 챕터)에서 두 페이지 픽셀을 뜯는다.
+	await RenderingServer.frame_post_draw
+	var tex_l: ImageTexture = _capture_page(_book.rect_l)
+	var tex_r: ImageTexture = _capture_page(_book.rect_r)
+	var cf_from: float = float(_chapter)
+	_chapter = idx
+	_apply_tab_state()
+	_render_chapter()
+	var deck := FlipDeck.new()
+	deck.dir = dir
+	deck.rect_l = _book.rect_l
+	deck.rect_r = _book.rect_r
+	deck.tex_cover = tex_l if dir == 1 else tex_r   # 덮이는 쪽 = 현재 페이지(넘어온 장들이 덮음)
+	deck.tex_front = tex_r if dir == 1 else tex_l   # k=0 앞면 = 현재 페이지(시작 팝 없음)
+	deck.cf_from = cf_from
+	deck.on_progress = func(cf: float) -> void: _book.thickness_cf = cf
+	deck.on_done = func() -> void: _flipping = false
+	deck.set_anchors_preset(Control.PRESET_FULL_RECT)
+	deck.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_book.add_child(deck)
+
+## 책 로컬 rect 를 화면 물리 픽셀로 변환해 현재 화면에서 잘라낸다(낱장 텍스처).
+func _capture_page(r_local: Rect2) -> ImageTexture:
+	var img: Image = get_viewport().get_texture().get_image()
+	var ft: Transform2D = get_viewport().get_final_transform()
+	var gp: Vector2 = _book.global_position + r_local.position
+	var p0: Vector2 = ft * gp
+	var p1: Vector2 = ft * (gp + r_local.size)
+	var rect := Rect2i(Vector2i(p0.round()), Vector2i((p1 - p0).round()))
+	rect = rect.intersection(Rect2i(Vector2i.ZERO, img.get_size()))
+	if rect.size.x < 2 or rect.size.y < 2:
+		return ImageTexture.create_from_image(Image.create(2, 2, false, Image.FORMAT_RGBA8))
+	return ImageTexture.create_from_image(img.get_region(rect))
 
 ## 현재 챕터 책갈피는 진하고 길게, 나머지는 옅고 짧게.
 func _apply_tab_state() -> void:
