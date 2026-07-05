@@ -3,6 +3,8 @@ extends Control
 ## 엔딩 슬라이드쇼 — 순환/재회 (기획서 §3 결말). 오프닝식 삽화 + 내레이션 크로스페이드.
 ##  순환(cycle): 슬라이드 3장(47~49) → 암전 → 3초 후 "아무 키나 눌러 계속" → 타이틀. 49 에 언더테일식 암시.
 ##  재회(reunion): 슬라이드 3장(50~52) + `Other Side` 크레딧곡 → 타이틀.
+## 음악은 게임이 자르지 않는다 — 순환곡(`The Unresolved`)은 암전·안내까지 계속 흐르고,
+## 떠나는 순간 타이틀(Main)이 베드로 크로스페이드한다. 여운 길이는 플레이어가 정한다.
 ## kind 는 GameState.ending_kind_pending 로 주입(Expedition._show_ending). 어느 쪽이든 끝나면 타이틀 복귀.
 
 const FADE: float = 1.1
@@ -36,6 +38,8 @@ func _ready() -> void:
 	_build()
 	if _reunion:
 		AudioManager.play_reunion()   # 크레딧곡(잔잔 베드 → Other Side 크로스페이드)
+	else:
+		AudioManager.play_cycle()     # 순환곡(베드 → The Unresolved 크로스페이드, 루프)
 	_advance()
 
 func _build() -> void:
@@ -141,7 +145,7 @@ func _end_slides() -> void:
 		_reveal_prompt("여기까지.  아무 키나 누르면 돌아갑니다.")
 	else:
 		_phase = "blackout"
-		AudioManager.fade_out(2.5)   # 여운을 위해 음악도 서서히
+		# 음악은 자르지 않는다 — 암전·안내에서도 순환곡이 계속 흐른다(곡의 기승전결 보존).
 		var t := create_tween()
 		t.tween_property(_dim, "color:a", 1.0, 2.5)   # 암전
 		t.tween_interval(3.0)                          # 3초 여운

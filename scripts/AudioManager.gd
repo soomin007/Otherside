@@ -4,12 +4,18 @@ extends Node
 ## BGM: 잔잔 베드를 코어 루프 내내 재생. **끝을 다음 시작에 겹쳐 크로스페이드**해 이음매 없이 무한 루프
 ##      (파일 loop 대신 수동 크로스페이드 — 클릭·틈 없음). 곡 바꿈도 크로스페이드(폭풍·엔딩).
 ## SFX: 짧은 one-shot(겹침 허용). 발소리는 4변주 랜덤 회전(반복 티 방지).
-## 볼륨은 Master 버스(AppSettings 관리). 웹 안전: AudioStreamPlayer + mp3/ogg/wav, 파일 없으면 무음.
+## 버스: BGM 은 Music, 효과음은 SFX 버스(둘 다 여기서 코드로 생성, Master 로 send).
+##       볼륨은 AppSettings 가 버스별로 적용·저장. 웹 안전: AudioStreamPlayer + mp3/ogg/wav, 파일 없으면 무음.
+
+# --- 오디오 버스 (Music / SFX — 설정에서 따로 조절) ---
+const BUS_MUSIC: String = "Music"
+const BUS_SFX: String = "SFX"
 
 # --- BGM 트랙 ---
 const BED: String = "res://assets/bgm/Sand Erases the Words.mp3"      ## 코어 루프 잔잔 베드
 const REUNION: String = "res://assets/bgm/Other Side.mp3"             ## 재회 엔딩 크레딧(한 번만)
-const STORM: String = "res://assets/bgm/storm.ogg"                    ## 폭풍(뽑히면 이 이름으로)
+const STORM: String = "res://assets/bgm/The Wall of Sand.mp3"         ## 폭풍(폭풍 biome 노드에서 교체)
+const CYCLE: String = "res://assets/bgm/The Unresolved.mp3"           ## 순환 엔딩(슬라이드+암전 겸용)
 
 const FADE: float = 1.5        ## 트랙 교체 크로스페이드(초)
 const LOOP_XFADE: float = 4.0  ## 루프 이음매 크로스페이드(초) — 끝을 다음 시작에 겹친다
@@ -34,16 +40,27 @@ var _xfading: bool = false    ## 루프 크로스페이드 진행 중
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_rng.randomize()
-	_a = _make_player()
-	_b = _make_player()
+	_ensure_buses()
+	AppSettings.apply_saved()   # 버스 생성 직후 저장 음량 적용(첫 프레임 풀 볼륨 방지)
+	_a = _make_player(BUS_MUSIC)
+	_b = _make_player(BUS_MUSIC)
 	_cur = _a
 	for i in SFX_VOICES:
-		_sfx.append(_make_player())
+		_sfx.append(_make_player(BUS_SFX))
 	play_track(BED)   # 시작부터 베드(페이드 인)
 
-func _make_player() -> AudioStreamPlayer:
+## Music / SFX 버스가 없으면 만들어 Master 로 보낸다(버스 레이아웃 파일 없이 코드로 — 웹 안전).
+func _ensure_buses() -> void:
+	for bus_name in [BUS_MUSIC, BUS_SFX]:
+		if AudioServer.get_bus_index(str(bus_name)) < 0:
+			var idx: int = AudioServer.bus_count
+			AudioServer.add_bus(idx)
+			AudioServer.set_bus_name(idx, str(bus_name))
+			AudioServer.set_bus_send(idx, "Master")
+
+func _make_player(bus_name: String) -> AudioStreamPlayer:
 	var p := AudioStreamPlayer.new()
-	p.bus = "Master"
+	p.bus = bus_name
 	add_child(p)
 	return p
 
@@ -114,6 +131,10 @@ func play_storm() -> void:
 ## 재회 엔딩 크레딧곡 — 한 번만(루프 안 함).
 func play_reunion() -> void:
 	play_track(REUNION, FADE, false)
+
+## 순환 엔딩곡 — 슬라이드부터 암전·안내까지 계속(루프). 나갈 때 타이틀이 베드로 크로스페이드.
+func play_cycle() -> void:
+	play_track(CYCLE)
 
 ## 전부 서서히 끄기(암전·순환 엔딩 여운 등).
 func fade_out(fade: float = FADE) -> void:

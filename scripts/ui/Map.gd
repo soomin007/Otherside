@@ -105,6 +105,7 @@ var _hover_t: float = 0.0            ## hover 원 그려짐 경과(호버 바뀔
 func _ready() -> void:
 	if GameState.current_run == null or not GameState.current_run.alive:
 		GameState.begin_run_in_place()
+	AudioManager.play_bed()  # 폭풍 노드에서 돌아왔으면 베드로 복귀(이미 베드면 무시 — 연속 유지)
 
 	if ResourceLoader.exists(BG_PATH):
 		_bg_tex = load(BG_PATH)

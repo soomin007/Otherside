@@ -48,6 +48,11 @@ func _ready() -> void:
 		_show_ending()
 	else:
 		_section = SectionRun.new(_run, MapGraph.node(_run.target_node_id()))
+		# 폭풍 biome 노드는 위기곡으로 교체, 그 외엔 베드(이미 재생 중이면 무시 — 연속 유지).
+		if str(MapGraph.node(_run.target_node_id()).get("biome", "")) == "storm":
+			AudioManager.play_storm()
+		else:
+			AudioManager.play_bed()
 		_refresh()
 		queue_redraw()
 

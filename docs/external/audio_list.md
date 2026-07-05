@@ -7,11 +7,11 @@
 
 ## ★ 지금 남은 것 (2026-07-05 정리 · 여기서 하나씩 복붙)
 
-> **BGM 현황:** ✅ 코어 베드(8분) · ✅ 재회 크레딧곡 `Other Side` · ⬜ 폭풍 긴장 · ⬜ 순환 엔딩
-> **남은 곡은 딱 2개.** 아래 두 블록을 순서대로 Suno 스타일 칸에 붙여넣으면 끝(가사 칸은 비움).
-> 길이·루프·자르기는 신경 쓰지 말 것. 좋은 take 고르는 것만 하면 나머지는 Claude 가 처리.
+> **BGM 현황: 4곡 전부 완료(2026-07-05).** ✅ 코어 베드(8분) · ✅ 재회 크레딧곡 `Other Side` · ✅ 폭풍 긴장 `The Wall of Sand`(6:24) · ✅ 순환 엔딩 `The Unresolved`(2:57)
+> **새로 뽑을 곡 없음.** 아래 프롬프트는 재생성용 보관. 배선도 완료: 폭풍 biome 노드 진입 시 폭풍곡 크로스페이드,
+> 순환 엔딩은 슬라이드부터 암전·안내까지 곡이 계속 흐르고 타이틀 복귀 때 베드로 크로스페이드(곡을 게임이 안 자름).
 
-### ⬜ 1번째 · 폭풍 긴장 (폭풍 구간에서 코어 베드와 교체)
+### ✅ 1번째 · 폭풍 긴장 (폭풍 구간에서 코어 베드와 교체) — 제작됨: `The Wall of Sand.mp3`
 
 ```
 [Instrumental] dark cinematic sandstorm tension, a wall of roaring desert wind rising, low dissonant drone with detuned bowed strings, rattling sand grains and faint metallic groans, a distant slow heartbeat pulse, oppressive and suffocating, no clear melody, no vocals, slowly building dread, loopable
@@ -19,7 +19,7 @@
 
 - 더 애절한 결을 원하면 §1 의 변주 프롬프트(멀리서 우는 ney) 사용. 둘 중 하나면 충분.
 
-### ⬜ 2번째 · 순환 엔딩 (슬라이드 배경+암전 여운, 한 곡으로 통합 · 2026-07-05 결정)
+### ✅ 2번째 · 순환 엔딩 (슬라이드 배경+암전 여운, 한 곡으로 통합 · 2026-07-05 결정) — 제작됨: `The Unresolved.mp3`
 
 ```
 [Instrumental] cold solemn cinematic ambient, a lone piano motif circling and unresolved over a deep drone, distant frame drum like a slow heartbeat, a single faint warm note hidden underneath hinting at another way, austere and lingering, very slow, no vocals, loopable
@@ -59,12 +59,12 @@
 
 > **★ 최종 결정(2026-07-04): 화면별 곡 폐기 → 3트랙 방식.** 게임 무드가 하나(서늘·사막)라 화면마다 곡을 바꾸면 몰입만 깨진다. 대신:
 > 1. **잔잔한 코어 베드** — 코어 루프(타이틀·마을·지도·전진·단면·죽음) 내내 *끊기지 않고 계속* 재생(화면 전환에 restart 안 함). `AudioManager` 가 크로스페이드 무한 루프. **✅ 제작됨(8분, 길이 무관 — 안 자름).**
-> 2. **폭풍 긴장** — 폭풍 구간에서 베드를 크로스페이드로 잠깐 교체, 지나면 복귀. **⬜ 프롬프트 = 아래 "폭풍 긴장".**
-> 3. **엔딩 (둘 다 슬라이드쇼 — 2026-07-04):** 재회 = 따뜻한 슬라이드(47~52 중 50~52) + 크레딧곡 `Other Side`(✅). 순환 = 차가운 슬라이드(47~49, 언더테일식 암시) + **전용곡 1곡(슬라이드+암전 겸용, ⬜ · 2026-07-05 통합, 아래 "엔딩 음악")** → 암전 → "아무 키나 눌러 계속" → 타이틀.
+> 2. **폭풍 긴장** — 폭풍 구간에서 베드를 크로스페이드로 잠깐 교체, 지나면 복귀. **✅ 제작·배선됨(`The Wall of Sand.mp3`, 폭풍 biome 노드).**
+> 3. **엔딩 (둘 다 슬라이드쇼 — 2026-07-04):** 재회 = 따뜻한 슬라이드(47~52 중 50~52) + 크레딧곡 `Other Side`(✅). 순환 = 차가운 슬라이드(47~49, 언더테일식 암시) + **전용곡 1곡(슬라이드+암전 겸용, ✅ `The Unresolved.mp3` · 2026-07-05 통합·배선)** → 암전 → "아무 키나 눌러 계속" → 타이틀.
 >
 > 아래 B1~B10 per-screen 프롬프트는 **참고용(여유 시 마을·죽음 등 확장)** — 필수는 위 3개뿐이다.
 
-### 폭풍 긴장 (crisis / storm) — Suno 프롬프트 (⬜ 미제작)
+### 폭풍 긴장 (crisis / storm) — Suno 프롬프트 (✅ 제작됨 — `The Wall of Sand.mp3`)
 
 - **어디서:** 폭풍 구간·폭풍 노드(모래의 벽·폭풍의 문). 베드를 크로스페이드로 교체. 길이 무관(루프).
 - **역할:** 살을 베는 모래바람, 압박·불안. 액션 영화식 과장 말고 **서늘한 위협·질식감**(게임 팔레트 안에서).
@@ -82,7 +82,7 @@
 ### 엔딩 음악 (2026-07-04 · 2026-07-05 순환 1곡으로 통합)
 
 - **재회:** `Other Side`(✅ 제작됨). 따뜻한 슬라이드(50~52) + 크레딧.
-- **순환** (⬜): 슬라이드 배경과 암전 여운을 **한 곡**으로 덮는다(사용자 확정 2026-07-05. 짧은 화면에 두 곡은 과함, 슬라이드 루프·암전 페이드아웃은 코드 처리). 차갑고 미해결, 밑에 옅은 희망 한 줄기:
+- **순환** (✅ 제작됨 — `The Unresolved.mp3`): 슬라이드 배경과 암전 여운을 **한 곡**으로 덮는다(사용자 확정 2026-07-05). 곡은 게임이 안 자른다 — 암전·안내까지 계속 흐르고 타이틀 복귀 때 베드로 크로스페이드. 차갑고 미해결, 밑에 옅은 희망 한 줄기:
 ```
 [Instrumental] cold solemn cinematic ambient, a lone piano motif circling and unresolved over a deep drone, distant frame drum like a slow heartbeat, a single faint warm note hidden underneath hinting at another way, austere and lingering, very slow, no vocals, loopable
 ```
@@ -240,7 +240,7 @@ soft wordless choir or no vocals, no harsh percussion
 - **포맷:** 음악(Suno)은 `.ogg`(Vorbis, Godot 임포트에서 **Loop 켜기**). SFX(ElevenLabs)는 `.mp3` 그대로 임포트되나, 아주 짧고 자주 쓰는 건 `.wav`(AudioStreamWAV)로 변환하면 지연 없이 재생.
 - **경량(웹 첫 로딩):** 음악은 모노 또는 저비트레이트(96~128kbps), **루프 구간만**. 과대 파일 금지(GL Compatibility 로딩 부담). SFX 는 짧고 작게.
 - **루프 만들기:** Suno 생성물(길이 무관, 8분이 나와도)에서 이음매 없는 8~90s 구간만 잘라 쓰고, 시작·끝을 짧게 크로스페이드해 반복 티를 없앤다.
-- **볼륨:** 이미 `AppSettings`(master bus) + 설정 슬라이더 있음. **Music / SFX 버스를 나누면** 각각 볼륨 조절 가능 — 원하면 Claude 가 배선.
+- **볼륨:** ✅ **Music / SFX 버스 분리 완료(2026-07-05)** — `AudioManager` 가 버스 생성, `AppSettings` 가 버스별 음량 저장·적용, 설정창에 배경음악·효과음 슬라이더 2개(+ 전체 음소거). 배경음악 기본 70%(효과음 묻힘 방지).
 - **배치 제안:** `assets/audio/bgm/`, `assets/audio/sfx/`. 파일명 규칙 유지(예: `bgm_04_map.ogg`, `sfx_pickup.wav`).
 
 ### 넣기 전에 Claude 가 미리 해둘 수 있는 것 (원하면 말만)

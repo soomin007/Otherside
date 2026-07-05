@@ -17,6 +17,7 @@ var _stat_node: Control
 
 func _ready() -> void:
 	AppSettings.apply_saved()  # 저장된 음량 복원(앱 시작 = 항상 타이틀 경유)
+	AudioManager.play_bed()    # 엔딩곡에서 돌아왔으면 베드로 크로스페이드(이미 베드면 무시)
 	_build_background()
 	_build_logo()
 	_build_menu()
