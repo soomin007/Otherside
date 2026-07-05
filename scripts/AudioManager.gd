@@ -234,18 +234,9 @@ func warn_thirst(water: int) -> void:
 	else:
 		_thirst_low = false
 
-## 웹 백그라운드 음소거 — 다른 탭으로 가거나 최소화하면 조용히, 돌아오면 저장된 음량 복원.
-## (복원을 AppSettings.apply_saved 로 하므로 사용자가 설정에서 꺼둔 상태도 그대로 유지된다.)
-func _notification(what: int) -> void:
-	if not OS.has_feature("web"):
-		return
-	match what:
-		NOTIFICATION_APPLICATION_FOCUS_OUT:
-			var idx: int = AudioServer.get_bus_index("Master")
-			if idx >= 0:
-				AudioServer.set_bus_mute(idx, true)
-		NOTIFICATION_APPLICATION_FOCUS_IN:
-			AppSettings.apply_saved()
+# 웹 백그라운드 음소거는 여기(GDScript)서 못 한다 — 탭이 숨으면 엔진 프레임 루프가 멈춰
+# 코드가 실행될 기회가 없다. export 프리셋 head_include 의 페이지 JS(visibilitychange →
+# AudioContext suspend/resume)가 담당한다. (known_issues 2026-07-06)
 
 ## 종료 시 정리 — 재생 중 스트림 참조를 놓아 "리소스 사용 중" 누수 경고를 줄인다.
 func _exit_tree() -> void:
