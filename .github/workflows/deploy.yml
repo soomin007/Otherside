@@ -3,6 +3,15 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+    # 문서·세션로그·조율판만 바뀐 push 는 배포를 건너뛴다(웹 빌드에 안 들어가는 것들).
+    # 매번 [skip ci] 를 손으로 적지 않아도 자동으로 스킵 → 불필요한 배포·실패 메일·큐 경합 감소.
+    # (커밋에 코드·에셋이 하나라도 섞이면 정상 배포된다 — 전부 아래 경로에만 걸릴 때만 스킵.)
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'session_logs/**'
+      - 'ACTIVE_WORK.md'
+      - '.gitignore'
   workflow_dispatch:
 
 # GitHub Actions로 Pages에 직접 배포 (Branch 방식 아님).
@@ -105,8 +114,34 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      # 세 번 중 성공한 시도의 URL 을 쓴다(앞 시도가 실패하면 그 출력은 비어있음).
+      url: ${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy3.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
+      # GitHub Pages 백엔드 일시 장애("Deployment failed, try again later", ~10초 즉사)는
+      # 코드·설정 문제가 아니라 GitHub 측 flaky 라 재실행이 정답(known_issues §89~92).
+      # 예전엔 손으로 `gh run rerun --failed` 했지만, 아래처럼 백오프를 두고 최대 3번 자동 재시도한다.
+      # → 일시 장애는 조용히 자체 복구(실패 메일 안 옴). 진짜 실패는 3번째까지 실패해 그대로 표면화(메일 옴).
+      - name: Deploy to GitHub Pages (1차)
+        id: deploy1
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: 재시도 전 대기 (20초)
+        if: steps.deploy1.outcome == 'failure'
+        run: sleep 20
+
+      - name: Deploy to GitHub Pages (2차)
+        id: deploy2
+        if: steps.deploy1.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: 재시도 전 대기 (45초)
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        run: sleep 45
+
+      # 마지막 시도는 continue-on-error 없음 — 여기서도 실패하면 진짜 문제라 잡을 실패시킨다(메일 발송).
+      - name: Deploy to GitHub Pages (3차·최종)
+        id: deploy3
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
         uses: actions/deploy-pages@v4
