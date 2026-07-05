@@ -530,35 +530,6 @@ func _shadow(lbl: Label) -> void:
 	lbl.add_theme_constant_override("shadow_offset_y", 2)
 	lbl.add_theme_constant_override("shadow_outline_size", 5)
 
-## 국소 모래 퍼프(스펙 puff) — 위쪽 반구 분출 + 살짝 부양(ay<0). 담기 출발 9입자·도착 18입자.
-func _puff(gpos: Vector2, n: int) -> void:
-	var p := CPUParticles2D.new()
-	p.amount = n
-	p.lifetime = 0.7
-	p.lifetime_randomness = 0.5
-	p.one_shot = true
-	p.explosiveness = 1.0
-	p.direction = Vector2(0.0, -1.0)
-	p.spread = 75.0
-	p.initial_velocity_min = 60.0
-	p.initial_velocity_max = 240.0
-	p.gravity = Vector2(0.0, -70.0)  # 스펙 ay -0.02/frame ≈ -72px/s² (살짝 떠오름)
-	p.scale_amount_min = 1.2
-	p.scale_amount_max = 2.8
-	p.color = UITheme.SAND
-	var ramp := Gradient.new()
-	ramp.offsets = PackedFloat32Array([0.0, 0.2, 1.0])
-	ramp.colors = PackedColorArray([
-		Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.0),
-		Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.9),
-		Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.0),
-	])
-	p.color_ramp = ramp
-	add_child(p)
-	p.global_position = gpos
-	p.emitting = true
-	p.finished.connect(p.queue_free)
-
 ## 사진 라벨을 탭 — 그 물건이 라벨에서 가방 빈 칸으로 포물선을 그리며 날아가 담긴다. 가방이 다 차면 무시.
 func _pick_item(key: String, from: Control) -> void:
 	if _bag.size() >= BAG_SLOTS:
@@ -577,7 +548,7 @@ func _pick_item(key: String, from: Control) -> void:
 	if _bag_box != null and idx < _bag_box.get_child_count():
 		target = (_bag_box.get_child(idx) as Control).get_global_rect().get_center()
 	fly.global_position = start - fly.size * 0.5
-	_puff(start, 9)  # 출발 작은 퍼프(스펙 9입자)
+	UITheme.sand_puff_at(self, start, 9)  # 출발 작은 퍼프(스펙 9입자)
 	var t := create_tween()
 	t.tween_method(_fly_step.bind(fly, start, target), 0.0, 1.0, FLY_DUR).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
 	t.tween_callback(_finish_pick.bind(key, fly, target))
@@ -612,7 +583,7 @@ func _fly_step(t: float, fly: Control, a: Vector2, b: Vector2) -> void:
 func _finish_pick(key: String, fly: Control, target: Vector2) -> void:
 	if is_instance_valid(fly):
 		fly.queue_free()
-	_puff(target, 18)
+	UITheme.sand_puff_at(self, target, 18)
 	_add_item(key)
 
 ## 가방 물품 합산 → 시작 자원(core/Items.gd 카탈로그의 start 델타 합).

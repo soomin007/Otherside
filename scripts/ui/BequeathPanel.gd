@@ -1,39 +1,58 @@
 class_name BequeathPanel
 extends Control
 
-## 남기기 모달 (지도·단면 공유) — 물건 하나를 골라 태그를 얹어 그 자리에 둔다(런당 1회, 자원 -비용).
+## 남기기 화면 (지도·단면 공유) — 물건 하나를 골라 태그를 얹어 그 자리에 둔다(런당 1회, 자원 -비용).
 ## 죽음과 별개(자발적 죽음 없음) — 남기고도 계속 간다. 기획서 §3.
+## 게임의 정서적 핵(핸드오프 §3): 풀스크린 어두운 방사 배경 + 후보 사진 가로 배치,
+## 고른 물건은 그 자리에서 모래로 흩어져 사라진다("말은 남지 않는다. 물건만 남는다").
 ## 쓰임: 도착 화면(Expedition, 도착 노드에 남김) + 지도 이동 중(Map, 마지막 밟은 노드에 남김).
 ## core(ExpeditionRun.can_leave/do_leave/leave_cost) + GameState.leave_trace 호출. 위치(node_id)는 open 때 주입.
 
 signal committed   ## 남기기 완료 (자원 변경됨 — 호출측이 refresh/이동 재개)
 signal cancelled   ## 남기지 않고 닫음
 
+const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")     ## 에이브로우 영문 전용
+const COST_COL := Color(0.788, 0.541, 0.478)   ## 대가 문구(#c98a7a — 스펙)
+const NOTE_COL := Color(0.541, 0.478, 0.388)   ## "말은 남지 않는다" 소문구(#8a7a63 — 스펙)
+
 var _run: ExpeditionRun
 var _node_id: String = ""                            ## 남길 노드(도착=target, 이동 중=current)
 var _picked_kind: int = TraceData.ObjectKind.MARK    ## 남길 물건 종류
 var _picked_tags: Array[String] = []                 ## 얹을 태그(WordPool, 최대 2개)
 var _box: VBoxContainer                              ## 단계별 내용을 갈아끼우는 컨테이너
+var _busy: bool = false                              ## 흩어짐 연출 중 재입력 잠금
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	visible = false
 
-	var dim := ColorRect.new()
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = UITheme.SCRIM
-	add_child(dim)
+	# 어두운 방사 그라디언트 배경(스펙 — 사진 아님). 셰이더 금지라 GradientTexture2D FILL_RADIAL.
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
+	g.colors = PackedColorArray([
+		Color(0.165, 0.110, 0.063),  # 중심 #2a1c10
+		Color(0.090, 0.063, 0.039),  # 중간 #17100a
+		Color(0.039, 0.027, 0.020),  # 가장자리 #0a0705
+	])
+	var gt := GradientTexture2D.new()
+	gt.gradient = g
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.42)
+	gt.fill_to = Vector2(0.5, 1.15)
+	var bg := TextureRect.new()
+	bg.texture = gt
+	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(bg)
 
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 
-	var card := UITheme.make_card()
-	center.add_child(card)
-
 	_box = VBoxContainer.new()
 	_box.add_theme_constant_override("separation", UITheme.GAP)
-	card.add_child(_box)
+	_box.custom_minimum_size = Vector2(640, 0)  # 카드 없이 배경 위 직접 — 태그 flow 줄바꿈 기준 폭
+	center.add_child(_box)
 
 func is_open() -> bool:
 	return visible
@@ -49,10 +68,25 @@ func open(run: ExpeditionRun, node_id: String) -> void:
 	UITheme.sand_puff(self)
 
 ## 1단계 — 무엇을 남길까. 남기면 그만큼 잃는다(자기 수명 깎기). 생존 자원(물/식량)은 죽지 않을 만큼만 남길 수 있다.
+## 후보 = 사진(ItemIcon) + 이름 + 대가, 가로 배치(스펙 §3). 고르면 그 물건이 모래로 흩어진다.
 func _step_what() -> void:
+	_busy = false
 	_clear()
+	var eye := UITheme.make_label("BEQUEATH", 11, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.9))
+	var efv := FontVariation.new()
+	efv.base_font = EN_TITLE_FONT
+	efv.set_spacing(TextServer.SPACING_GLYPH, 4)  # 스펙 .32em
+	eye.add_theme_font_override("font", efv)
+	_box.add_child(eye)
 	_box.add_child(UITheme.make_label("무엇을 남길까", UITheme.FS_H1))
 	_box.add_child(UITheme.make_label("물건 하나를 여기 둔다. 그만큼 잃지만, 계속 갈 수 있다.", UITheme.FS_SMALL, UITheme.MUTED))
+	_box.add_child(UITheme.make_label("말은 남지 않는다. 물건만 남는다.", 13, NOTE_COL))
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_box.add_child(row)
 	var opts: Array = [
 		[TraceData.ObjectKind.WATER, "물통", "water"],
 		[TraceData.ObjectKind.FOOD, "식량 자루", "food"],
@@ -63,24 +97,71 @@ func _step_what() -> void:
 		var kind: int = o[0]
 		var label: String = o[1]
 		var res_key: String = o[2]
-		var cost: int = _run.leave_cost(res_key)
-		var have: int = _run.get_res(res_key)
-		var btn := UITheme.make_button("%s  (%s -%d / 보유 %d)" % [label, str(UITheme.RES_KO.get(res_key, res_key)), cost, have], false)
-		if _run.can_leave(res_key):
-			btn.pressed.connect(_pick_object.bind(kind))
-		else:
-			btn.disabled = true
-		_box.add_child(btn)
+		row.add_child(_make_candidate(kind, label, res_key))
 
-	_box.add_child(HSeparator.new())
-	var cancel := UITheme.make_button("그냥 간다", false)
-	cancel.add_theme_color_override("font_color", UITheme.MUTED)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 10)
+	_box.add_child(gap)
+	var cancel := EngravedItem.new()
+	cancel.init_item("아무것도 남기지 않고 간다", 18, false)
+	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	cancel.pressed.connect(_cancel)
 	_box.add_child(cancel)
 
-func _pick_object(kind: int) -> void:
+## 남길 후보 하나 — 사진(130×130) 위 이름(ivory)·대가(#c98a7a). 남길 수 없으면 흐리게+잠금.
+func _make_candidate(kind: int, label: String, res_key: String) -> Control:
+	var btn := Button.new()
+	btn.flat = true
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.custom_minimum_size = Vector2(148, 196)
+	var hov := StyleBoxFlat.new()
+	hov.bg_color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.10)
+	hov.set_corner_radius_all(12)
+	var emp := StyleBoxEmpty.new()
+	for st in ["normal", "pressed", "focus", "disabled"]:
+		btn.add_theme_stylebox_override(st, emp)
+	btn.add_theme_stylebox_override("hover", hov)
+	var v := VBoxContainer.new()
+	v.set_anchors_preset(Control.PRESET_FULL_RECT)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 4)
+	var icon := ItemIcon.new()
+	icon.key = res_key
+	icon.custom_minimum_size = Vector2(0, 130)
+	icon.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.add_child(icon)
+	var nm := UITheme.make_label(label, UITheme.FS_LABEL, UITheme.FG)
+	v.add_child(nm)
+	var cost: int = _run.leave_cost(res_key)
+	var have: int = _run.get_res(res_key)
+	var cl := UITheme.make_label("%s -%d · 보유 %d" % [str(UITheme.RES_KO.get(res_key, res_key)), cost, have], 13, COST_COL)
+	v.add_child(cl)
+	btn.add_child(v)
+	if _run.can_leave(res_key):
+		btn.pressed.connect(_pick_object.bind(kind, btn))
+	else:
+		btn.disabled = true
+		btn.modulate.a = 0.35
+	return btn
+
+## 후보를 고름 — 그 물건이 모래로 흩어져 사라진 뒤(스펙 leave: 40입자 + 흐려지며 소멸, 웹이라 blur 대신
+## 확대+페이드 근사) 태그 단계로 넘어간다. 연출 중 재입력 잠금.
+func _pick_object(kind: int, btn: Control) -> void:
+	if _busy:
+		return
+	_busy = true
 	_picked_kind = kind
-	_step_tags()
+	AudioManager.play_sfx("res://assets/sfx/sfx_leave.wav")
+	var c: Vector2 = btn.get_global_rect().get_center()
+	UITheme.sand_puff_at(self, c, 40)
+	btn.pivot_offset = btn.size * 0.5
+	var t := create_tween()
+	t.set_parallel(true)
+	t.tween_property(btn, "scale", Vector2(1.28, 1.28), 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	t.tween_property(btn, "modulate:a", 0.0, 0.4)
+	t.chain().tween_callback(_step_tags)
 
 ## 2단계 — 어떤 표식(태그)을 얹을까. WordPool 에서 최대 2개. 없이 남겨도 된다.
 func _step_tags() -> void:

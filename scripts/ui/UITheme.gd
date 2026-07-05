@@ -185,6 +185,36 @@ static func sand_puff(parent: Control) -> void:
 	p.emitting = true
 	p.finished.connect(p.queue_free)
 
+## 국소 모래 퍼프(핸드오프 puff) — 지정 지점에서 위쪽 반구로 분출 + 살짝 부양(ay<0).
+## 물건 상호작용용: 배낭 담기(출발 9·도착 18), 남기기(그 물건이 모래로 흩어짐, 40).
+static func sand_puff_at(parent: Node, gpos: Vector2, n: int) -> void:
+	var p := CPUParticles2D.new()
+	p.amount = n
+	p.lifetime = 0.7
+	p.lifetime_randomness = 0.5
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.direction = Vector2(0.0, -1.0)
+	p.spread = 75.0
+	p.initial_velocity_min = 60.0
+	p.initial_velocity_max = 240.0
+	p.gravity = Vector2(0.0, -70.0)  # 스펙 ay -0.02/frame ≈ -72px/s² (살짝 떠오름)
+	p.scale_amount_min = 1.2
+	p.scale_amount_max = 2.8
+	p.color = SAND
+	var ramp2 := Gradient.new()
+	ramp2.offsets = PackedFloat32Array([0.0, 0.2, 1.0])
+	ramp2.colors = PackedColorArray([
+		Color(SAND.r, SAND.g, SAND.b, 0.0),
+		Color(SAND.r, SAND.g, SAND.b, 0.9),
+		Color(SAND.r, SAND.g, SAND.b, 0.0),
+	])
+	p.color_ramp = ramp2
+	parent.add_child(p)
+	p.global_position = gpos
+	p.emitting = true
+	p.finished.connect(p.queue_free)
+
 static func _set_margin(mc: MarginContainer, v: int) -> void:
 	for s in ["left", "right", "top", "bottom"]:
 		mc.add_theme_constant_override("margin_" + s, v)
