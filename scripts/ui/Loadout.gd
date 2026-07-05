@@ -115,6 +115,7 @@ func _show_step(n: int) -> void:
 		_step_root.queue_free()
 	_step_root = Control.new()
 	_step_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_step_root.add_to_group("ui_scatter")  # 전환 OUT 때 UI 층만 흩어짐(배경 사진은 남는다)
 	add_child(_step_root)
 	if n == 1:
 		_build_step1()

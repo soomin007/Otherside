@@ -67,6 +67,7 @@ func _build_hud() -> void:
 	hud_sb.content_margin_top = UITheme.SAFE + 6.0
 	hud_sb.content_margin_bottom = 14.0
 	hud.add_theme_stylebox_override("panel", hud_sb)
+	hud.add_to_group("ui_scatter")  # 전환 OUT 때 UI 층만 흩어짐(단면 그림=배경은 남는다)
 	add_child(hud)
 
 	var top := VBoxContainer.new()
@@ -106,6 +107,7 @@ func _build_hud() -> void:
 	bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	bar.offset_top = -200.0
 	bar.offset_bottom = -UITheme.SAFE
+	bar.add_to_group("ui_scatter")
 	add_child(bar)
 
 	var bcol := VBoxContainer.new()

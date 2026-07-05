@@ -102,6 +102,7 @@ func _build_logo() -> void:
 	var glow := _dark_glow()
 	add_child(glow)
 	var logo := _logo_label(UITheme.FG, 0.0, 0.0)
+	logo.add_to_group("ui_scatter")  # 전환 OUT 때 UI 만 흩어짐(글로우=배경층이라 제외)
 	add_child(logo)
 	_logo_nodes = [glow, logo]
 
@@ -169,6 +170,7 @@ func _build_menu() -> void:
 	menu.anchor_right = 1.0
 	menu.anchor_top = 0.58
 	menu.anchor_bottom = 0.87  # 하단 13%
+	menu.add_to_group("ui_scatter")
 	add_child(menu)
 	_menu_node = menu
 
@@ -234,6 +236,7 @@ func _build_stat() -> void:
 	_stat_label.offset_left = 40.0
 	_stat_label.offset_top = -48.0
 	_stat_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_stat_label.add_to_group("ui_scatter")
 	add_child(_stat_label)
 	_stat_node = _stat_label
 
