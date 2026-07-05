@@ -147,6 +147,12 @@ func _logo_label(col: Color, dx: float, dy: float) -> Label:
 	l.add_theme_font_size_override("font_size", 62)
 	l.add_theme_constant_override("line_spacing", 2)
 	l.add_theme_color_override("font_color", col)
+	# 메뉴 각인 글씨와 같은 그림자·테두리(확정 튜닝값 공유) — 로고도 글자 단위로 배경에서 뜬다.
+	l.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, EngravedItem.tune_shadow_a))
+	l.add_theme_constant_override("shadow_offset_y", 2)
+	l.add_theme_constant_override("shadow_outline_size", EngravedItem.tune_shadow_blur)
+	l.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, EngravedItem.tune_outline_a))
+	l.add_theme_constant_override("outline_size", 4)
 	l.anchor_left = 0.0
 	l.anchor_right = 1.0
 	l.anchor_top = 0.13

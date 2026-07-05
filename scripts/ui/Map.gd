@@ -105,6 +105,8 @@ var _sit_box: VBoxContainer   ## 카드 내용(매번 갈아끼움)
 var _leave_btn: Button        ## "남기기" — 이동 중에도 물건 하나 두고 계속 (런당 1회)
 var _bequeath: BequeathPanel  ## 남기기 모달 (공유 컴포넌트 — 도착 화면과 같은 것)
 var _result_popup: ResultPopup ## 선택 결과 팝업 (공유)
+var _inventory: InventoryOverlay  ## 인벤토리 오버레이(§9) — 좌 칼럼 "가방 열기 →"
+var _bag_btn: EngravedItem    ## "가방 열기 →" (좌 칼럼 하단, 남기기 위)
 var _bg_tex: Texture2D
 var _bg_tex_land: Texture2D   ## 가로(데스크톱) 화면용 — 세로 원본을 90도 회전한 것. 없으면 세로본 fallback
 var _icon_tex: Dictionary = {}   ## 노드 id -> Texture2D (로드 성공한 것만)
@@ -185,12 +187,24 @@ func _build_chrome() -> void:
 	_guide = UITheme.make_label(_guide_text(), UITheme.FS_SMALL, Color(0.706, 0.643, 0.533), false)  # #b4a488
 	_guide.autowrap_mode = TextServer.AUTOWRAP_OFF
 	add_child(_guide)
+	# 가방 열기(§6 좌 칼럼 하단) — 인벤토리 오버레이(§9).
+	_bag_btn = EngravedItem.new()
+	_bag_btn.init_item("가방 열기 →", 15, false)
+	_bag_btn.pressed.connect(_on_bag_pressed)
+	add_child(_bag_btn)
 	# 남기기 — 좌 칼럼 하단(각인 key). 이동 중에도 상시(고갈사 전에 남길 기회).
 	var leave := EngravedItem.new()
 	leave.init_item("남기기", 20, true)
 	leave.pressed.connect(_on_leave_pressed)
 	add_child(leave)
 	_leave_btn = leave
+
+## 가방 열기 — 인벤토리 오버레이(정보 열람 — 이동은 계속 흐른다).
+func _on_bag_pressed() -> void:
+	var run: ExpeditionRun = GameState.current_run
+	if run == null or _inventory == null or _inventory.is_open():
+		return
+	_inventory.open(run)
 
 ## 크롬 배치 — STAGE 좌표(제목 230,46 · 안내문 제목 오른쪽 · 남기기 좌 칼럼 하단) → 화면 px. 리사이즈마다.
 func _layout_chrome() -> void:
@@ -201,6 +215,8 @@ func _layout_chrome() -> void:
 	_title_eye.position = st.position + Vector2(230.0, 24.0) * sc
 	_title_lbl.position = st.position + Vector2(228.0, 44.0) * sc
 	_guide.position = st.position + Vector2(474.0, 62.0) * sc
+	_bag_btn.size = Vector2((COL_L_W + 24.0) * sc, 46.0)
+	_bag_btn.position = st.position + Vector2(COL_L_X - 12.0, 580.0) * sc
 	_leave_btn.size = Vector2((COL_L_W + 24.0) * sc, 54.0)
 	_leave_btn.position = st.position + Vector2(COL_L_X - 12.0, 638.0) * sc
 
@@ -213,6 +229,8 @@ func _after_ready_setup() -> void:
 	add_child(_bequeath)
 	_result_popup = ResultPopup.new()
 	add_child(_result_popup)
+	_inventory = InventoryOverlay.new()
+	add_child(_inventory)
 	# 방금 도착(또는 시작)한 노드가 잉크로 번지듯 나타난다 — 지도 재진입마다 현재 노드에 재생.
 	if GameState.current_run != null:
 		_reveal_id = GameState.current_run.current_node
@@ -269,7 +287,7 @@ func _on_leave_pressed() -> void:
 	var run: ExpeditionRun = GameState.current_run
 	if run == null or not run.alive or run.bequeathed:
 		return
-	if _sit_panel.visible or _bequeath.is_open() or _result_popup.is_open():
+	if _sit_panel.visible or _bequeath.is_open() or _result_popup.is_open() or (_inventory != null and _inventory.is_open()):
 		return
 	_moving = false
 	if _guide != null:
@@ -337,7 +355,7 @@ func _process(delta: float) -> void:
 		_show_situation_card()  # 이동 중 마주친 상황 — 결정하면 이동을 잇는다
 
 func _gui_input(event: InputEvent) -> void:
-	if _moving or (_sit_panel != null and _sit_panel.visible) or (_bequeath != null and _bequeath.is_open()) or (_result_popup != null and _result_popup.is_open()):
+	if _moving or (_sit_panel != null and _sit_panel.visible) or (_bequeath != null and _bequeath.is_open()) or (_result_popup != null and _result_popup.is_open()) or (_inventory != null and _inventory.is_open()):
 		if _hovered_node != "":
 			_hovered_node = ""
 			queue_redraw()
