@@ -10,7 +10,22 @@ extends Node
 
 const ENABLED: bool = true
 
+## 가로 잠금 JS — 전체화면이 "되는 순간"(fullscreenchange)에 lock 을 건다(타이밍 경합 제거).
+## 결과를 window._lockRes 에 남겨 실패 사유를 세로 안내 화면에서 읽을 수 있게 한다(진단).
+const LOCK_JS: String = """
+(function(){
+	function tryLock(){
+		if (!screen.orientation || !screen.orientation.lock) { window._lockRes = 'no-api'; return; }
+		screen.orientation.lock('landscape').then(function(){ window._lockRes = 'ok'; })
+			.catch(function(e){ window._lockRes = e.name + ': ' + e.message; });
+	}
+	if (document.fullscreenElement) { tryLock(); }
+	else { document.addEventListener('fullscreenchange', function(){ if (document.fullscreenElement) { tryLock(); } }, {once: true}); }
+})();
+"""
+
 var _hint: CanvasLayer
+var _hint_sub: Label   ## 안내 보조 줄 — 잠금 실패 사유 진단 표시
 var _web: bool = false
 
 func _ready() -> void:
@@ -28,13 +43,11 @@ func _input(event: InputEvent) -> void:
 		return
 	# 창모드일 때만 전체화면으로 — 이미 전체화면이면 이 클릭은 게임 입력으로 흘려보낸다.
 	if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_FULLSCREEN:
+		_lock_landscape()  # 전체화면이 "되는 순간" 잠기도록 fullscreenchange 에 먼저 건다
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-		# 전체화면 전환은 비동기(브라우저 promise) — 가로 잠금은 전체화면 상태에서만 받아들여지므로
-		# 잠깐 뒤 명시 요청한다(두 번 — 기기별 전환 시간 편차). 성공하면 세로로 들고 있어도 스스로 돌아간다.
-		get_tree().create_timer(0.5).timeout.connect(_lock_landscape)
-		get_tree().create_timer(1.5).timeout.connect(_lock_landscape)
+		get_tree().create_timer(1.2).timeout.connect(_lock_landscape)  # 보험(이벤트가 씹힌 경우)
 	elif _hint != null and _hint.visible:
-		_lock_landscape()  # 전체화면인데 아직 세로(첫 잠금이 씹힘) — 안내 탭에서 재시도
+		_lock_landscape()  # 전체화면인데 아직 세로 — 안내 탭에서 재시도
 
 ## 화면을 가로로 잠근다(양방향 가로) — 브라우저 orientation API 를 JS 로 직접 호출.
 ## DisplayServer.screen_set_orientation 은 웹에서 동작하지 않음(실기기 확인 2026-07-06, known_issues).
@@ -42,9 +55,7 @@ func _input(event: InputEvent) -> void:
 func _lock_landscape() -> void:
 	if not _web:
 		return
-	JavaScriptBridge.eval(
-		"if (screen.orientation && screen.orientation.lock) { screen.orientation.lock('landscape').catch(function(e){}); }",
-		true)
+	JavaScriptBridge.eval(LOCK_JS, true)
 
 # --- 세로 화면 안내 (가로 고정) ---
 
@@ -76,6 +87,9 @@ func _build_hint() -> void:
 	var sub := UITheme.make_label("이 여정은 가로 화면에 맞춰져 있습니다.", UITheme.FS_SMALL, UITheme.MUTED)
 	sub.autowrap_mode = TextServer.AUTOWRAP_OFF
 	box.add_child(sub)
+	_hint_sub = UITheme.make_label("", UITheme.FS_TINY, Color(UITheme.MUTED.r, UITheme.MUTED.g, UITheme.MUTED.b, 0.7))
+	_hint_sub.autowrap_mode = TextServer.AUTOWRAP_OFF
+	box.add_child(_hint_sub)
 
 ## 세로(높이 > 너비)면 안내를 보이고, 가로가 되면 숨긴다. 뷰포트 크기 변화마다 호출.
 func _refresh_hint() -> void:
@@ -83,3 +97,13 @@ func _refresh_hint() -> void:
 		return
 	var s: Vector2 = get_viewport().get_visible_rect().size
 	_hint.visible = s.y > s.x
+	if _hint.visible:
+		_update_diag()
+		get_tree().create_timer(2.0).timeout.connect(_update_diag)  # lock 결과가 늦게 도착하는 경우
+
+## 가로 잠금 시도 결과(window._lockRes)를 안내에 작게 표시 — 실기기 진단용. 성공/미시도면 비움.
+func _update_diag() -> void:
+	if _hint_sub == null or not _web:
+		return
+	var res: String = str(JavaScriptBridge.eval("window._lockRes || ''", true))
+	_hint_sub.text = "" if (res == "" or res == "ok") else "[ %s ]" % res
