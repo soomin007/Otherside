@@ -44,7 +44,8 @@ index.audio.worklet.js
 index.audio.position.worklet.js
 index.service.worker.js
 index.offline.html
-*.png.import
+# (2026-07-05) *.png.import 를 추적으로 전환 — 임포트 설정(lossy WebP 등)이 CI 빌드에 반영되려면
+# .import 가 커밋돼야 한다. 미추적이던 동안 CI 는 항상 기본값(무손실)으로 임포트해 pck 가 컸다.
 !icon.svg.import
 
 # 작업 조율판 — 로컬 전용, 같은 머신의 여러 터미널이 즉시 공유 (CLAUDE.md 참고)
