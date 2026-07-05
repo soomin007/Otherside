@@ -277,17 +277,22 @@ func _layout_book() -> void:
 
 # --- 챕터 (낱장 넘김) ---
 
-## 챕터 책갈피를 누름 — **낱장이 넘어간다**: 오른쪽 페이지 자리의 잎이 스파인으로 접혔다(1단)
-## 내용이 바뀐 뒤 왼쪽 페이지 자리로 펼쳐진다(2단). 책 자체는 움직이지 않는다.
+## 챕터 책갈피를 누름 — **낱장이 넘어간다**: 앞 챕터로 가면 오른쪽 잎이 스파인으로 접혀 왼쪽으로,
+## 뒤 챕터로 가면 왼쪽 잎이 접혀 오른쪽으로(방향 인식). 책 자체는 움직이지 않는다.
+## ⚠️ 1차 근사(스케일 접기) — 더 자연스러운 넘김은 외부 제작(docs/handoffs/일지_책장넘김_핸드오프.md).
 func _flip_to(idx: int) -> void:
 	if _flipping or idx == _chapter:
 		return
 	_flipping = true
 	AudioManager.play_sfx_random(PAGE_SFX)
+	var forward: bool = idx > _chapter   # 뒤 챕터로 = 앞으로 넘김(오→왼), 앞 챕터로 = 되넘김(왼→오)
+	var from_rect: Rect2 = _book.rect_r if forward else _book.rect_l
+	var to_rect: Rect2 = _book.rect_l if forward else _book.rect_r
 	var leaf := FlipLeaf.new()
-	leaf.size = _book.rect_r.size
-	leaf.position = _book.rect_r.position
-	leaf.pivot_offset = Vector2(0.0, leaf.size.y * 0.5)  # 스파인(왼쪽 변) 기준으로 접힘
+	leaf.size = from_rect.size
+	leaf.position = from_rect.position
+	# 스파인(책 가운데) 쪽 변을 축으로 접힘 — 오른쪽 잎은 왼쪽 변, 왼쪽 잎은 오른쪽 변.
+	leaf.pivot_offset = Vector2(0.0 if forward else leaf.size.x, leaf.size.y * 0.5)
 	leaf.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_book.add_child(leaf)
 	var tw := create_tween()
@@ -296,12 +301,12 @@ func _flip_to(idx: int) -> void:
 		_chapter = idx
 		_apply_tab_state()
 		_render_chapter()
-		# 잎을 왼쪽 페이지 자리로 옮겨(스파인=오른쪽 변) 마저 펼친다.
-		leaf.position = _book.rect_l.position
-		leaf.pivot_offset = Vector2(leaf.size.x, leaf.size.y * 0.5))
+		# 잎을 반대편 페이지 자리로 옮겨(스파인 축 반대 변) 마저 펼친다.
+		leaf.position = to_rect.position
+		leaf.pivot_offset = Vector2(leaf.size.x if forward else 0.0, leaf.size.y * 0.5))
 	tw.tween_property(leaf, "scale:x", 1.0, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func() -> void:
-		leaf.queue_free()  # 펼쳐진 자리 = 왼쪽 페이지와 같은 그림이라 사라져도 튀지 않는다
+		leaf.queue_free()  # 펼쳐진 자리 = 그 페이지와 같은 그림이라 사라져도 튀지 않는다
 		_flipping = false)
 
 ## 현재 챕터 책갈피는 진하고 길게, 나머지는 옅고 짧게.

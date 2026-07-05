@@ -135,6 +135,19 @@ func _build() -> void:
 	_add_btn(col, "엔딩 바로보기: 순환", func() -> void: _show_ending("cycle"))
 	_add_btn(col, "엔딩 바로보기: 재회 (크레딧 롤)", func() -> void: _show_ending("reunion"))
 
+	# 각인 글씨(타이틀 메뉴 등) 실시간 튜닝 — 값을 정하면 EngravedItem 의 tune_* 기본값에 박는다.
+	_add_title(col, "글씨 튜닝 (각인 메뉴 — 실시간)")
+	_add_slider(col, "밑줄 두께", 0.2, 3.0, EngravedItem.tune_core,
+		func(v: float) -> void: EngravedItem.tune_core = v)
+	_add_slider(col, "밑줄 글로우", 0.0, 3.0, EngravedItem.tune_glow,
+		func(v: float) -> void: EngravedItem.tune_glow = v)
+	_add_slider(col, "그림자 진하기", 0.0, 1.0, EngravedItem.tune_shadow_a,
+		func(v: float) -> void: EngravedItem.tune_shadow_a = v)
+	_add_slider(col, "그림자 퍼짐", 0.0, 28.0, float(EngravedItem.tune_shadow_blur),
+		func(v: float) -> void: EngravedItem.tune_shadow_blur = int(v))
+	_add_slider(col, "테두리 어둠", 0.0, 1.0, EngravedItem.tune_outline_a,
+		func(v: float) -> void: EngravedItem.tune_outline_a = v)
+
 	_add_title(col, "세이브")
 	_add_btn(col, "세이브 초기화 → 타이틀", _reset)
 	_add_btn(col, "닫기", _toggle)
@@ -152,6 +165,24 @@ func _add_btn(col: VBoxContainer, text: String, cb: Callable) -> Button:
 	b.pressed.connect(cb)
 	col.add_child(b)
 	return b
+
+## 튜닝 슬라이더 한 줄 — 값 바꾸면 setter 실행 후 모든 각인 항목에 즉시 반영(타이틀 띄워놓고 조절).
+func _add_slider(col: VBoxContainer, text: String, lo: float, hi: float, cur: float, setter: Callable) -> void:
+	var lbl := Label.new()
+	lbl.text = "%s: %.2f" % [text, cur]
+	lbl.add_theme_font_size_override("font_size", 13)
+	col.add_child(lbl)
+	var s := HSlider.new()
+	s.min_value = lo
+	s.max_value = hi
+	s.step = 0.01
+	s.value = cur
+	s.custom_minimum_size = Vector2(0, 30)
+	s.value_changed.connect(func(v: float) -> void:
+		setter.call(v)
+		lbl.text = "%s: %.2f" % [text, v]
+		get_tree().call_group("engraved_item", "apply_tuning"))
+	col.add_child(s)
 
 # --- 동작 ---
 

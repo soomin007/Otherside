@@ -5,6 +5,13 @@ extends Button
 ## hover 시 모래색 + 자간(.18em→.26em) 확장 + 밑줄이 중앙에서 부드럽게(cubic ease-out) 펼쳐진다.
 ## 쓰기: var it := EngravedItem.new(); it.init_item("...", 22, false); it.pressed.connect(...)
 
+## 라이브 튜닝(DEV 오버레이 "글씨 튜닝" 슬라이더) — 전 인스턴스 공유. 값이 정해지면 여기 기본값을 갱신.
+static var tune_core: float = 0.45      ## 밑줄 심지 높이(px)
+static var tune_glow: float = 1.0       ## 밑줄 글로우 배율(0=글로우 없음)
+static var tune_shadow_a: float = 0.95  ## 글자 그림자 진하기
+static var tune_shadow_blur: int = 14   ## 글자 그림자 퍼짐(blur)
+static var tune_outline_a: float = 0.5  ## 글자 밀착 테두리 어둠(그림자와 별개 — halo 를 빽빽하게)
+
 var is_key: bool = false
 var _px: int = 22
 var _fv: FontVariation
@@ -12,6 +19,7 @@ var _spacing_cur: float = 0.0
 var _underline: float = 0.0
 var _u_rest: float = 0.0   ## 기본 밑줄 정도(대표 항목은 옅게 상시 — 원본 key::after)
 var _tween: Tween
+var _line_tex: GradientTexture2D  ## 밑줄 텍스처 — 가로로 투명→모래→투명(끝이 네모지지 않게 스르르 사라짐)
 
 ## 생성 직후 호출 — 문구·글자 크기(px)·대표 여부. add_child 전에 부른다.
 func init_item(txt: String, px: int, key: bool) -> void:
@@ -37,12 +45,25 @@ func _ready() -> void:
 	add_theme_color_override("font_hover_color", UITheme.SAND)
 	add_theme_color_override("font_focus_color", UITheme.SAND)
 	add_theme_color_override("font_pressed_color", UITheme.SAND)
-	# 글씨 소프트 글로우 그림자 — 글자 하나하나에 붙는 블러(원본 text-shadow 0 2px 12px rgba(0,0,0,.9)).
-	# 방사 덩어리 배경은 "가운데 뭉친 그림자"로 읽혀 폐기 — 글리프 단위, 눈에 보이는 농도로(.55 는 안 보였음).
-	add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
+	# 글씨 그림자·테두리 — 글자 하나하나에 붙는다(가운데 덩어리 금지). 농도·퍼짐은 tune_*(DEV 슬라이더).
 	add_theme_constant_override("shadow_offset_x", 0)
 	add_theme_constant_override("shadow_offset_y", 2)
-	add_theme_constant_override("shadow_outline_size", 13)
+	add_to_group("engraved_item")  # DEV 튜닝 브로드캐스트 대상
+	# 밑줄 텍스처 — 끝 12% 구간이 서서히 사라진다(draw_line 의 네모난 끝 대체).
+	var lg := Gradient.new()
+	lg.offsets = PackedFloat32Array([0.0, 0.12, 0.88, 1.0])
+	lg.colors = PackedColorArray([
+		Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.0),
+		UITheme.SAND, UITheme.SAND,
+		Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.0),
+	])
+	_line_tex = GradientTexture2D.new()
+	_line_tex.gradient = lg
+	_line_tex.fill_from = Vector2(0.0, 0.5)
+	_line_tex.fill_to = Vector2(1.0, 0.5)
+	_line_tex.width = 256
+	_line_tex.height = 4
+	apply_tuning()
 	# 순수 텍스트 + 안쪽 여백(원본 padding) — 밑줄이 글씨 아래에 오도록 하단 여백.
 	var empty := StyleBoxEmpty.new()
 	empty.content_margin_top = 14.0
@@ -87,12 +108,20 @@ func _draw() -> void:
 	var t: float = (_underline - _u_rest) / maxf(0.01, 1.0 - _u_rest)  # rest→hover 진행(0~1)
 	var a: float = lerpf(0.5, 1.0, t) if is_key else 0.95
 	a *= clampf(_underline * 1.6, 0.0, 1.0)  # 펼쳐지는 초입엔 옅게 — 빛이 스며들 듯
-	var s := UITheme.SAND
 	var x0: float = cx - w * 0.5
-	var x1: float = cx + w * 0.5
-	# 은은히 새어나오는 각인 밑줄 — 폭이 다른 저알파 글로우를 여러 겹 쌓아(soft bloom) 가는 본선을 감싼다.
-	# 두께 최종: 헤어라인 심지 0.6(사용자 "반 이상 더 가늘게", 2026-07-05) + 좁은 글로우.
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.05), 6.0, true)
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.14), 3.0, true)
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.32), 1.6, true)
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.9), 0.6, true)   # 헤어라인 심지
+	# 각인 밑줄 — 가로 그라디언트 텍스처(끝이 스르르 사라짐, draw_line 의 네모 끝 없음).
+	# 심지 + 글로우 두 겹, 두께·글로우는 tune_*(DEV 슬라이더).
+	if _line_tex != null and w > 2.0:
+		if tune_glow > 0.01:
+			var gh: float = 4.6 * tune_glow
+			draw_texture_rect(_line_tex, Rect2(x0, y - gh * 0.5, w, gh), false, Color(1, 1, 1, a * 0.16))
+		var ch: float = maxf(0.2, tune_core)
+		draw_texture_rect(_line_tex, Rect2(x0, y - ch * 0.5, w, ch), false, Color(1, 1, 1, a * 0.95))
+
+## 튜닝 적용 — 그림자·테두리 테마 갱신 + 밑줄 다시 그림(DEV 슬라이더가 그룹 호출).
+func apply_tuning() -> void:
+	add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, tune_shadow_a))
+	add_theme_constant_override("shadow_outline_size", tune_shadow_blur)
+	add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, tune_outline_a))
+	add_theme_constant_override("outline_size", 4)
+	queue_redraw()
