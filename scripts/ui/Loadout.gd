@@ -54,6 +54,7 @@ var _item_btns: Dictionary = {}    ## key -> {btn, delta(Label), base(String), p
 var _count_n: Label                ## "가방 N / 6" 의 N (Cinzel 24 sand)
 var _diegetic: Control             ## step2 사진 위 라벨 레이어(리사이즈 시 재배치)
 var _pouch_box: Container          ## 주머니 도구 한 칸(가방 옆) — 창고에서 집은 도구가 들어온다
+var _slot_lock: bool = false       ## 빼기 바스러짐 동안 담기/빼기 잠금(재배열을 연출 뒤로 미루는 창)
 
 var _pending_name: String = ""     ## 이번 원정대 이름 — 랜덤 초기값, 편집·다시 뽑기 가능
 var _pending_vocation: String = "" ## 이번 대장의 직능 id (기본 "" = 평범)
@@ -366,16 +367,24 @@ func _add_item(key: String) -> void:
 	_bag.append(key)
 	_refresh()
 
-## 가방에서 빼기 — 그 자리에서 물건이 모래로 바스러져 사라진다(고스트 아이콘 — 데이터는 즉시 반영, 연출만 잔상).
+## 가방에서 빼기 — 그 자리에서 물건이 모래로 바스러진 *뒤에* 뒤 칸들이 앞으로 당겨진다(사용자 지적:
+## 즉시 재배열되면 바스러짐이 어색). 연출 동안 담기/빼기를 잠깐 잠근다(_slot_lock, 0.45s).
 func _remove_slot(idx: int, slot: Control) -> void:
-	if idx < 0 or idx >= _bag.size():
+	if _slot_lock or idx < 0 or idx >= _bag.size():
 		return
-	_crumble_at(str(_bag[idx]), slot.get_global_rect().get_center())
+	_slot_lock = true
+	var key: String = str(_bag[idx])
 	_bag.remove_at(idx)
-	_refresh()
+	slot.modulate.a = 0.0  # 원본 칸은 즉시 숨김 — 같은 자리에서 고스트가 바스러진다(이중상 방지)
+	_refresh_meta()        # 수치·라벨은 즉시 갱신, 슬롯 재배열만 연출 뒤로
+	_crumble_at(key, slot.get_global_rect().get_center(), _after_slot_crumble)
 
-## 바스러짐 연출 — 아이콘 잔상이 커지며 모래 퍼프와 함께 흩어진다. 흐름을 막지 않는다(즉시 재조작 가능).
-func _crumble_at(key: String, gpos: Vector2) -> void:
+func _after_slot_crumble() -> void:
+	_slot_lock = false
+	_refresh()  # 이제 뒤 칸들이 앞으로 당겨진다
+
+## 바스러짐 연출 — 아이콘 잔상이 커지며 모래 퍼프와 함께 흩어진다. 끝나면 on_done.
+func _crumble_at(key: String, gpos: Vector2, on_done: Callable = Callable()) -> void:
 	var ghost := ItemIcon.new()
 	ghost.key = key
 	ghost.size = Vector2(52, 52)
@@ -389,9 +398,14 @@ func _crumble_at(key: String, gpos: Vector2) -> void:
 	t.set_parallel(true)
 	t.tween_property(ghost, "scale", Vector2(1.35, 1.35), 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	t.tween_property(ghost, "modulate:a", 0.0, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
-	t.chain().tween_callback(ghost.queue_free)
+	var tail := t.chain()
+	tail.tween_callback(ghost.queue_free)
+	if on_done.is_valid():
+		tail.tween_callback(on_done)
 
 func _apply_preset() -> void:
+	if _slot_lock:
+		return
 	_bag = PRESET.duplicate()
 	_refresh()
 
@@ -416,6 +430,12 @@ func _refresh() -> void:
 		else:
 			_pouch_box.add_child(_make_slot_empty())
 
+	_refresh_meta()
+
+## 수치·라벨 상태만 갱신(슬롯 재배열 없이) — 빼기 바스러짐 동안에도 즉시 반영되는 부분.
+func _refresh_meta() -> void:
+	if _preview == null:
+		return
 	var res: Dictionary = _bag_resources()
 	var wgt: int = Items.bag_weight(_bag) + (Items.weight_of(_pending_tool) if _pending_tool != "" else 0)
 	var pen: int = maxi(0, wgt - ExpeditionRun.WEIGHT_FREE) / maxi(1, ExpeditionRun.WEIGHT_STEP)
@@ -479,13 +499,16 @@ func _make_pouch_slot(key: String) -> Control:
 	slot.add_child(icon)
 	return slot
 
-## 주머니 비우기 — 도구가 그 자리에서 모래로 바스러지고, 창고 라벨이 되살아난다.
+## 주머니 비우기 — 도구가 그 자리에서 모래로 바스러진 뒤 칸이 빈다(가방 빼기와 같은 흐름).
 func _clear_pouch_from(slot: Control) -> void:
-	if _pending_tool == "":
+	if _slot_lock or _pending_tool == "":
 		return
-	_crumble_at(_pending_tool, slot.get_global_rect().get_center())
+	_slot_lock = true
+	var key: String = _pending_tool
 	_pending_tool = ""
-	_refresh()
+	slot.modulate.a = 0.0
+	_refresh_meta()
+	_crumble_at(key, slot.get_global_rect().get_center(), _after_slot_crumble)
 
 ## 빈칸 — 움푹한 자리(안 눌림).
 func _make_slot_empty() -> Control:
@@ -519,7 +542,9 @@ func _make_photo_label(entry: Dictionary) -> Control:
 	var item: Dictionary = Items.by_key(key)
 	var pouch: bool = bool(entry.get("pouch", false))
 	var btn := Button.new()
-	btn.flat = true
+	# flat=true 는 스타일박스 장식을 아예 안 그린다(hover 모래빛이 안 보이던 원인) —
+	# flat 끄고 normal 을 빈 스타일박스로: 외형은 같고 hover 만 그려진다.
+	btn.flat = false
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	btn.custom_minimum_size = Vector2(float(entry.get("w", 140.0)), float(entry.get("h", 250.0)))
@@ -626,6 +651,8 @@ func _shadow(lbl: Label) -> void:
 
 ## 사진 라벨(또는 그림)을 탭 — 그 물건이 가방 빈 칸(도구는 주머니)으로 포물선을 그리며 날아가 담긴다.
 func _pick_item(key: String, from: Control) -> void:
+	if _slot_lock:
+		return  # 빼기 바스러짐 중 — 슬롯 배열이 잠깐 잠겨 있다(0.45s)
 	if key in Items.POUCH_TOOLS:
 		_pick_pouch(key, from)
 		return

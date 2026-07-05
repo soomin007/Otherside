@@ -97,7 +97,7 @@ func open(run: ExpeditionRun, node_id: String) -> void:
 		var prog: float = 0.0
 		if MapGraph.NODES.has(_node_id):
 			prog = float(int(MapGraph.node(_node_id).get("row", 0))) / float(maxi(1, MapGraph.max_row()))
-		_ambient.amount = int(lerpf(52.0, 120.0, prog))
+		_ambient.amount = int(lerpf(104.0, 240.0, prog))  # 사용자: "두 배씩 올려도 될 것 같다"(2026-07-05)
 		_ambient.initial_velocity_min = lerpf(12.0, 44.0, prog)
 		_ambient.initial_velocity_max = lerpf(38.0, 140.0, prog)
 		_ambient.gravity = Vector2(lerpf(2.0, 30.0, prog), -2.0)
@@ -152,7 +152,7 @@ func _step_what() -> void:
 ## 남길 후보 하나 — 사진(130×130) 위 이름(ivory)·대가(#c98a7a). 남길 수 없으면 흐리게+잠금.
 func _make_candidate(kind: int, label: String, res_key: String) -> Control:
 	var btn := Button.new()
-	btn.flat = true
+	btn.flat = false  # flat=true 는 hover 스타일박스도 안 그림(모래빛 안 보이던 원인) — normal 은 빈 박스로 동일 외형
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	btn.custom_minimum_size = Vector2(148, 196)
