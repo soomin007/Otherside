@@ -160,4 +160,9 @@ func _apply_text(text: String, size: int, color: Color) -> void:
 
 func _finish() -> void:
 	GameState.mark_opening_seen()
-	GameState.go_to_loadout()
+	if GameState.opening_replay:
+		# 설정 "오프닝 다시보기" — 원정 준비가 아니라 온 곳(타이틀)으로 돌아간다.
+		GameState.opening_replay = false
+		GameState.go_to_title()
+	else:
+		GameState.go_to_loadout()

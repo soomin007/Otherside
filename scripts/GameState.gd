@@ -22,6 +22,7 @@ var deaths: Array = []         ## 죽은 자리 기록 — 지도 표식용
 var flags: Array = []  ## 영속 플래그(self-async). choice 의 sets_persist 가 쌓여 다음 원정 변형 이벤트를 깬다.
 var visited_nodes: Array = []  ## 방문한 노드 id (영속). 지도 안개 — 가본 곳 + 그 인접만 보인다(원정마다 더 드러남).
 var opening_seen: bool = false ## 오프닝 서사를 봤나 (영속). 첫 플레이만 자동 재생, 이후 스킵.
+var opening_replay: bool = false ## 설정 "오프닝 다시보기"로 재생 중(비영속) — 끝나면 마을이 아니라 타이틀로.
 var record_seen: bool = false  ## 시장이 원정 기록지를 건넸나 (영속). give_record 로 켜면 책갈피(Bookmark)가 상시 뜬다.
 var controls_tutorial_seen: bool = false ## 첫 원정 조작 오버레이 튜토리얼을 봤나 (영속). Tutorial autoload 자동재생 게이트.
 var expedition_names: Array = [] ## 원정별 이름 (인덱스 = 회차-1, 영속). 랜덤(ExpeditionNamer) 또는 직접 입력(Loadout).

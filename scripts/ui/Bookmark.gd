@@ -375,14 +375,17 @@ func _tut_next() -> void:
 	AudioManager.play_sfx_random(PAGE_SFX)
 	_show_tutorial()
 
-# --- 챕터: 설정 (옛 SettingsPanel 을 흡수 — 소리·음소거·세계 지우기) ---
+# --- 챕터: 설정 (소리·화면·이야기 / 여정·위험 구역) ---
 
-## 왼쪽: 소리(음소거·슬라이더 2), 오른쪽: 위험 구역(세계 지우기) + 덮기.
+## 왼쪽: 소리 + 화면·이야기(전체화면·오프닝 다시보기). 오른쪽: 여정(타이틀로·끝내기) + 위험 구역 + 덮기.
+## 웹에선 게임 끝내기·전체화면 토글을 숨긴다(브라우저가 관장 — Fullscreen autoload 가 자동 전체화면).
 func _show_settings() -> void:
 	_in_confirm = false
 	_clear(_box_l)
 	_clear(_box_r)
+	var web: bool = OS.has_feature("web")
 
+	# ── 왼쪽: 소리
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 10)
 	var htext := _brush_heading("소리", 40, INK)
@@ -398,45 +401,110 @@ func _show_settings() -> void:
 	_music_value = _add_volume_row(_box_l, "배경음악", AppSettings.load_music_volume(), _on_music_changed, Callable())
 	_sfx_value = _add_volume_row(_box_l, "효과음", AppSettings.load_sfx_volume(), _on_sfx_changed, _on_sfx_drag_ended)
 
-	_box_r.add_child(_brush_heading("위험 구역", 40, RED))
+	# ── 왼쪽: 화면 · 이야기
+	_box_l.add_child(_brush_heading("화면 · 이야기", 34, INK))
+	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	if not web:
+		var fs_on: bool = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+		var fs := UITheme.make_pill("창 화면으로" if fs_on else "전체 화면으로", INK, Color(0, 0, 0, 0),
+			Color(INK.r, INK.g, INK.b, 0.4))
+		fs.pressed.connect(_toggle_fullscreen)
+		_box_l.add_child(fs)
+	var replay := UITheme.make_pill("오프닝 다시보기", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
+	replay.pressed.connect(_replay_opening)
+	_box_l.add_child(replay)
+
+	# ── 오른쪽: 여정 (타이틀 화면에선 의미 없어 숨김)
+	var on_title: bool = get_tree().current_scene != null \
+		and get_tree().current_scene.scene_file_path == "res://scenes/main.tscn"
+	if not on_title:
+		_box_r.add_child(_brush_heading("여정", 40, INK))
+		_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+		var to_title := UITheme.make_pill("타이틀로 나간다", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
+		to_title.pressed.connect(_on_leave_to_title)
+		_box_r.add_child(to_title)
+	if not web:
+		var quit := UITheme.make_pill("게임을 끝낸다", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
+		quit.pressed.connect(_on_quit_pressed)
+		_box_r.add_child(quit)
+
+	# ── 오른쪽: 위험 구역
+	_box_r.add_child(_brush_heading("위험 구역", 34, RED))
 	_box_r.add_child(UITheme.make_hairline(Color(RED.r, RED.g, RED.b, 0.5), 2.0))
 	_box_r.add_child(_ink_label("저장된 이 세계를 지웁니다.\n원정·흔적·죽은 자리가 모두 사라지고, 처음부터 시작합니다.",
 		UITheme.FS_SMALL, INK_FADE))
 	var wipe := UITheme.make_pill("저장 데이터 지우기", RED, Color(0, 0, 0, 0), Color(RED.r, RED.g, RED.b, 0.55))
-	wipe.pressed.connect(_show_confirm)
+	wipe.pressed.connect(_confirm_wipe)
 	_box_r.add_child(wipe)
 	_add_close(_box_r)
 
-## 세계 지우기 확인 — 두 쪽 다 전환(장부의 confirm 흐름 그대로).
-func _show_confirm() -> void:
+## 확인 페이지(공용) — 왼쪽: 경고·제목·설명, 오른쪽: 머문다/실행. 지우기·타이틀로·끝내기가 공유.
+func _show_confirm_page(warn: String, title: String, desc: String, yes_txt: String, yes_cb: Callable) -> void:
 	_in_confirm = true
 	AudioManager.play_sfx_random(PAGE_SFX)
 	_clear(_box_l)
 	_clear(_box_r)
-	_box_l.add_child(_ink_label("되돌릴 수 없습니다", UITheme.FS_SMALL, RED))
-	_box_l.add_child(_brush_heading("이 세계를 지울까요", 40, INK))
+	_box_l.add_child(_ink_label(warn, UITheme.FS_SMALL, RED))
+	_box_l.add_child(_brush_heading(title, 40, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(RED.r, RED.g, RED.b, 0.5), 2.0))
-	_box_l.add_child(_ink_label("모래폭풍이 모든 원정과 흔적을 쓸어 갑니다. 처음부터 다시 시작합니다.",
-		UITheme.FS_SMALL, INK))
-	_box_l.add_child(_ink_label("원정 %d회 · 흔적 %d개가 사라집니다." % [GameState.expedition_count, GameState.traces.size()],
-		UITheme.FS_SMALL, INK_FADE))
+	_box_l.add_child(_ink_label(desc, UITheme.FS_SMALL, INK))
 	var sp := Control.new()
 	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_box_r.add_child(sp)
-	var keep := UITheme.make_pill("아니, 둔다", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
+	var keep := UITheme.make_pill("아니, 머문다", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
 	keep.pressed.connect(_show_settings)
 	_box_r.add_child(keep)
-	var wipe := UITheme.make_pill("지운다", PAPER, RED, RED)
-	wipe.pressed.connect(_do_reset)
-	_box_r.add_child(wipe)
+	var yes := UITheme.make_pill(yes_txt, PAPER, RED, RED)
+	yes.pressed.connect(yes_cb)
+	_box_r.add_child(yes)
 	var sp2 := Control.new()
 	sp2.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_box_r.add_child(sp2)
+
+## 세계 지우기 확인.
+func _confirm_wipe() -> void:
+	_show_confirm_page("되돌릴 수 없습니다", "이 세계를 지울까요",
+		"모래폭풍이 모든 원정과 흔적을 쓸어 갑니다. 처음부터 다시 시작합니다.\n원정 %d회 · 흔적 %d개가 사라집니다." % [GameState.expedition_count, GameState.traces.size()],
+		"지운다", _do_reset)
 
 func _do_reset() -> void:
 	GameState.reset_save()
 	data_reset.emit()
 	_close()
+
+# --- 여정 (타이틀로 · 게임 끝내기 · 화면 · 오프닝) ---
+
+## 타이틀로 — 진행 중 원정이 있으면 한 번 묻는다(원정은 저장되지 않아 모래에 묻힌다).
+func _on_leave_to_title() -> void:
+	if GameState.current_run != null and GameState.current_run.alive:
+		_show_confirm_page("지금 원정은 돌아오지 못합니다", "타이틀로 나갈까요",
+			"길 위의 원정대는 모래에 묻히고, 세계의 기록만 남습니다.", "나간다", _go_title)
+	else:
+		_go_title()
+
+func _go_title() -> void:
+	_close()
+	GameState.go_to_title()
+
+## 게임 끝내기(데스크톱만) — 한 번 묻고 종료. 세계(세이브)는 남는다.
+func _on_quit_pressed() -> void:
+	var desc: String = "세계의 기록은 남습니다. 다음에 이어서 원정을 보낼 수 있습니다."
+	if GameState.current_run != null and GameState.current_run.alive:
+		desc = "길 위의 원정대는 모래에 묻히고, 세계의 기록만 남습니다."
+	_show_confirm_page("게임을 끝냅니다", "여기서 덮을까요", desc, "끝낸다",
+		func() -> void: get_tree().quit())
+
+## 전체화면 토글(데스크톱만 — 웹은 Fullscreen autoload 가 자동).
+func _toggle_fullscreen() -> void:
+	var fs_on: bool = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if fs_on else DisplayServer.WINDOW_MODE_FULLSCREEN)
+	_show_settings()  # 버튼 문구 갱신
+
+## 오프닝 다시보기 — 일지를 덮고 서사를 재생, 끝나면 타이틀로(Opening 이 opening_replay 를 본다).
+func _replay_opening() -> void:
+	_close()
+	GameState.opening_replay = true
+	GameState.go_to_opening()
 
 # --- 소리 핸들러 (옛 장부 그대로) ---
 
