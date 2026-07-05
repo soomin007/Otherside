@@ -39,7 +39,12 @@ const RESOURCE: String = "res://assets/sfx/sfx_resource.wav"
 const PICKUP: String = "res://assets/sfx/sfx_pickup.wav"
 const ROPE: String = "res://assets/sfx/sfx_rope.wav"
 const REVEAL: String = "res://assets/sfx/sfx_reveal.wav"
-const DRAW: String = "res://assets/sfx/sfx_draw.wav"   ## 손그림 원(호버) — 전용 파일은 미제작(audio_list §2 ⬜), 있으면 자동 사용
+## 손그림 원(호버) 6변주 — freesound "Marker Circle"(tubbsmedia, CC0) 분할. 원마다 다른 획 소리.
+const DRAW_SET: Array = [
+	"res://assets/sfx/sfx_draw_1.wav", "res://assets/sfx/sfx_draw_2.wav",
+	"res://assets/sfx/sfx_draw_3.wav", "res://assets/sfx/sfx_draw_4.wav",
+	"res://assets/sfx/sfx_draw_5.wav", "res://assets/sfx/sfx_draw_6.wav",
+]
 const STORM_GUST: String = "res://assets/sfx/sfx_storm_gust.wav"
 const CRACK: String = "res://assets/sfx/sfx_crack.wav"
 const THIRST: String = "res://assets/sfx/sfx_thirst.wav"
@@ -190,12 +195,9 @@ func play_sfx_random(paths: Array, vol_db: float = 0.0) -> void:
 func play_step() -> void:
 	play_sfx_random(STEP_SET, STEP_DB)
 
-## 지도 호버 — 손그림 원이 그려지는 소리. 전용 sfx_draw 가 생기면 그걸, 없으면 잉크 리빌을 옅게.
+## 지도 호버 — 손그림 원이 그려지는 소리(6변주 랜덤 — 원 모양이 매번 다르듯 획 소리도 다르게).
 func play_circle_draw() -> void:
-	if ResourceLoader.exists(DRAW):
-		play_sfx(DRAW, -6.0)
-	else:
-		play_sfx(REVEAL, -12.0)
+	play_sfx_random(DRAW_SET, -6.0)
 
 ## 모든 버튼 공통 탭 — 트리에 새로 들어오는 BaseButton 의 pressed 에 자동 연결.
 ## 자기 소리를 가진 버튼은 meta "no_tap" 으로 제외 가능. autoload 순서상 AudioManager 가

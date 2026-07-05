@@ -28,10 +28,10 @@
 
 - 원래 "슬라이드 배경곡"+"엔딩곡" 2곡 계획이었으나 **한 곡으로 통일**(짧은 화면에 두 곡은 과함). 슬라이드에서 루프, 암전에서 페이드아웃은 코드가 처리.
 
-### 효과음(SFX)은 필수는 다 있음 (선택 1개만 ⬜)
+### 효과음(SFX) 전부 완료
 
-- **23종 완료** (`assets/sfx/`, 상세는 §2. 발소리 3번은 결이 안 맞아 삭제 — 3변주로 운용).
-- ⬜ 선택: **원 그리기** `sfx_draw`(지도 호버 손그림 원. 지금은 reveal 폴백으로 소리 남 — 전용 소리를 원하면 §2 UI 프롬프트로 뽑아 `sfx_draw.wav` 로 넣으면 자동 교체).
+- **29종 완료** (`assets/sfx/`, 상세는 §2. 발소리 3번은 결이 안 맞아 삭제 — 3변주로 운용).
+- ✅ **원 그리기** `sfx_draw_1~6`(지도 호버 손그림 원, 6변주 랜덤) — freesound "Marker Circle"(tubbsmedia, **CC0** — 표기 불요) 원본을 6분할·정규화. 원본 = `assets_src/sfx_original/`.
 - 단 3개는 원본이 너무 조용해 +27~32dB 증폭했다. **폰이나 스피커로 들어보고 노이즈가 거슬릴 때만** ElevenLabs 재생성(프롬프트는 §2 의 ⚠️ 항목 그대로):
   - `sfx_resource` 자원 감소 표시음 · `sfx_reveal` 노드 공개 · `sfx_cycle` 순환 저음 울림
 
@@ -205,8 +205,8 @@ soft wordless choir or no vocals, no harsh percussion
 
 > **★ 요령 — "단 한 번"을 강하게 (중요):** ElevenLabs 는 `tick`·`tap` 만 쓰면 **시계·톱니처럼 여러 번 반복되는 기계음(타다다닥)**으로 만든다. 일회성 소리는 반드시 **`a single one-shot ...` + `one hit only` + `not repeating` + `no rhythm, no sequence` + `very short`** 를 넣어 못 박는다. (지속·앰비언트 소리만 길게/반복 허용.)
 
-**UI (전부 일회성) · ✅ 완료 (+ ⬜ 선택 1개)**
-- ⬜ **원 그리기**(지도 호버 손그림 원, `sfx_draw` — 미제작. 지금은 reveal 을 -12dB 로 폴백, 파일이 생기면 자동 교체): `a single one-shot quick soft charcoal stroke drawing a small circle on rough paper, one circular stroke only, not repeating, dry and quiet, very short`
+**UI (전부 일회성) · ✅ 완료**
+- ✅ **원 그리기**(지도 호버 손그림 원, `sfx_draw_1~6` 랜덤 · -6dB): freesound "Marker Circle"(tubbsmedia, CC0) 6분할. AI 프롬프트 불필요해짐.
 - 탭 / 버튼: `a single one-shot soft muted tap on paper, one hit only, not repeating, no rhythm, very short, dry`
 - 카드 열기: `a single one-shot soft parchment card sliding open once, one motion only, not repeating, dry paper rustle, short`
 - 카드 닫기: `a single one-shot soft parchment card closing once, one motion only, not repeating, brief dry paper, short`
