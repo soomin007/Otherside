@@ -7,12 +7,12 @@ extends Button
 
 ## 라이브 튜닝(DEV 오버레이 "글씨 튜닝" 슬라이더) — 전 인스턴스 공유. 기본값 = 사용자 확정(2026-07-05).
 static var tune_core: float = 1.0       ## 밑줄 심지 높이(px)
-static var tune_glow: float = 0.7       ## 밑줄 글로우 배율(0=글로우 없음)
+static var tune_glow: float = 0.55      ## 밑줄 글로우 배율(0=글로우 없음)
 static var tune_shadow_a: float = 0.25  ## 글자 그림자 진하기
 static var tune_shadow_blur: int = 3    ## 글자 그림자 퍼짐(blur)
 static var tune_outline_a: float = 0.1  ## 글자 밀착 테두리 어둠(그림자와 별개 — halo 를 빽빽하게)
-static var tune_bg_a: float = 0.3       ## 항목 뒤 은은한 어둠(로고 방사 어둠처럼 넓게) 진하기
-static var tune_bg_scale: float = 2.2   ## 그 어둠이 항목보다 얼마나 넓게 퍼지나(배율)
+static var tune_bg_a: float = 0.15      ## 항목 뒤 은은한 어둠(로고 방사 어둠처럼 넓게) 진하기
+static var tune_bg_scale: float = 1.3   ## 그 어둠이 항목보다 얼마나 넓게 퍼지나(배율)
 
 var is_key: bool = false
 var _px: int = 22
