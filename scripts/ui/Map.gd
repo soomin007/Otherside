@@ -374,6 +374,7 @@ func _gui_input(event: InputEvent) -> void:
 			if hov != "":
 				_circle_cache["__hover"] = _gen_grading_circle()  # 목적지에 올릴 때마다 새 손그림 원
 				_hover_t = 0.0
+				AudioManager.play_circle_draw()  # 원이 그려지기 시작하는 소리(옅게)
 			queue_redraw()
 
 ## 좌표 위의 도달 가능 노드 id(없으면 ""). 판정 반경 = 그 노드 크기 기준(터치 여유 포함).

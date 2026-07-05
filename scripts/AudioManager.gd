@@ -24,11 +24,12 @@ const QUIET_DB: float = -40.0
 
 # --- SFX ---
 const SFX_VOICES: int = 6   ## 동시에 겹칠 수 있는 최대 효과음
-## 발소리 4변주(이동 중 랜덤 회전 — 반복 티 방지). 그 외 SFX 는 assets/sfx/ 참고.
+## 발소리 3변주(이동 중 랜덤 회전 — 반복 티 방지). 3번은 결이 안 맞아 제거(사용자, 2026-07-05).
 const STEP_SET: Array = [
 	"res://assets/sfx/sfx_step_1.wav", "res://assets/sfx/sfx_step_2.wav",
-	"res://assets/sfx/sfx_step_3.wav", "res://assets/sfx/sfx_step_4.wav",
+	"res://assets/sfx/sfx_step_4.wav",
 ]
+const STEP_DB: float = -7.0   ## 발소리 볼륨 — 걸음마다 나므로 낮게 깔리게(사용자 피드백)
 ## 배선된 효과음 경로(전체 목록·프롬프트 = docs/external/audio_list.md §2)
 const TAP: String = "res://assets/sfx/sfx_tap.wav"
 const CARD_OPEN: String = "res://assets/sfx/sfx_card_open.wav"
@@ -38,6 +39,7 @@ const RESOURCE: String = "res://assets/sfx/sfx_resource.wav"
 const PICKUP: String = "res://assets/sfx/sfx_pickup.wav"
 const ROPE: String = "res://assets/sfx/sfx_rope.wav"
 const REVEAL: String = "res://assets/sfx/sfx_reveal.wav"
+const DRAW: String = "res://assets/sfx/sfx_draw.wav"   ## 손그림 원(호버) — 전용 파일은 미제작(audio_list §2 ⬜), 있으면 자동 사용
 const STORM_GUST: String = "res://assets/sfx/sfx_storm_gust.wav"
 const CRACK: String = "res://assets/sfx/sfx_crack.wav"
 const THIRST: String = "res://assets/sfx/sfx_thirst.wav"
@@ -184,9 +186,16 @@ func play_sfx_random(paths: Array, vol_db: float = 0.0) -> void:
 		return
 	play_sfx(str(paths[_rng.randi_range(0, paths.size() - 1)]), vol_db)
 
-## 발소리 한 걸음(4변주 랜덤). 이동(step)마다 호출.
+## 발소리 한 걸음(3변주 랜덤). 이동(step)마다 호출.
 func play_step() -> void:
-	play_sfx_random(STEP_SET)
+	play_sfx_random(STEP_SET, STEP_DB)
+
+## 지도 호버 — 손그림 원이 그려지는 소리. 전용 sfx_draw 가 생기면 그걸, 없으면 잉크 리빌을 옅게.
+func play_circle_draw() -> void:
+	if ResourceLoader.exists(DRAW):
+		play_sfx(DRAW, -6.0)
+	else:
+		play_sfx(REVEAL, -12.0)
 
 ## 모든 버튼 공통 탭 — 트리에 새로 들어오는 BaseButton 의 pressed 에 자동 연결.
 ## 자기 소리를 가진 버튼은 meta "no_tap" 으로 제외 가능. autoload 순서상 AudioManager 가

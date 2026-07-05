@@ -28,9 +28,10 @@
 
 - 원래 "슬라이드 배경곡"+"엔딩곡" 2곡 계획이었으나 **한 곡으로 통일**(짧은 화면에 두 곡은 과함). 슬라이드에서 루프, 암전에서 페이드아웃은 코드가 처리.
 
-### 효과음(SFX)은 새로 뽑을 것 없음
+### 효과음(SFX)은 필수는 다 있음 (선택 1개만 ⬜)
 
-- **24종 전부 완료** (`assets/sfx/`, 상세는 §2). 미제작 ⬜ 없음.
+- **23종 완료** (`assets/sfx/`, 상세는 §2. 발소리 3번은 결이 안 맞아 삭제 — 3변주로 운용).
+- ⬜ 선택: **원 그리기** `sfx_draw`(지도 호버 손그림 원. 지금은 reveal 폴백으로 소리 남 — 전용 소리를 원하면 §2 UI 프롬프트로 뽑아 `sfx_draw.wav` 로 넣으면 자동 교체).
 - 단 3개는 원본이 너무 조용해 +27~32dB 증폭했다. **폰이나 스피커로 들어보고 노이즈가 거슬릴 때만** ElevenLabs 재생성(프롬프트는 §2 의 ⚠️ 항목 그대로):
   - `sfx_resource` 자원 감소 표시음 · `sfx_reveal` 노드 공개 · `sfx_cycle` 순환 저음 울림
 
@@ -193,7 +194,7 @@ soft wordless choir or no vocals, no harsh percussion
 
 > **★ 제작 현황(2026-07-05): 효과음 24종 전부 처리 완료 → `assets/sfx/` (wav 24개, 모노 44.1k, 피크 -4dB).**
 > - **UI:** `sfx_tap`·`sfx_card_open`·`sfx_card_close`(open/close 구분 불가라 close 로 통일)·`sfx_bag_add`·`sfx_page_1~3`(5초 3연속을 분할, 랜덤 회전)·`sfx_settings`
-> - **걸음·자원:** `sfx_step_1~4`(발소리 4변주 — `play_step()` 랜덤)·`sfx_water`(물 한 모금)·`sfx_resource`(자원 표시음)
+> - **걸음·자원:** `sfx_step_1·2·4`(발소리 3변주 — `play_step()` 랜덤, -7dB. **3번은 결이 안 맞아 삭제**, 2026-07-05)·`sfx_water`(물 한 모금)·`sfx_resource`(자원 표시음)
 > - **이벤트:** `sfx_pickup`(줍기)·`sfx_rope`(로프)·`sfx_reveal`(노드 공개)·`sfx_leave`(남기기)
 > - **위협:** `sfx_storm_gust`(폭풍 돌풍)·`sfx_crack`(갈라진 틈)·`sfx_thirst`(갈증 경고) — crack/thirst 는 첫 원본이 손상돼 한 번 유실됐다가 **재생성해 복구**(정상 레벨).
 > - **결말:** `sfx_death`(스러짐)·`sfx_reunion_chime`(재회 차임)·`sfx_cycle`(순환 울림)
@@ -204,7 +205,8 @@ soft wordless choir or no vocals, no harsh percussion
 
 > **★ 요령 — "단 한 번"을 강하게 (중요):** ElevenLabs 는 `tick`·`tap` 만 쓰면 **시계·톱니처럼 여러 번 반복되는 기계음(타다다닥)**으로 만든다. 일회성 소리는 반드시 **`a single one-shot ...` + `one hit only` + `not repeating` + `no rhythm, no sequence` + `very short`** 를 넣어 못 박는다. (지속·앰비언트 소리만 길게/반복 허용.)
 
-**UI (전부 일회성) · ✅ 완료**
+**UI (전부 일회성) · ✅ 완료 (+ ⬜ 선택 1개)**
+- ⬜ **원 그리기**(지도 호버 손그림 원, `sfx_draw` — 미제작. 지금은 reveal 을 -12dB 로 폴백, 파일이 생기면 자동 교체): `a single one-shot quick soft charcoal stroke drawing a small circle on rough paper, one circular stroke only, not repeating, dry and quiet, very short`
 - 탭 / 버튼: `a single one-shot soft muted tap on paper, one hit only, not repeating, no rhythm, very short, dry`
 - 카드 열기: `a single one-shot soft parchment card sliding open once, one motion only, not repeating, dry paper rustle, short`
 - 카드 닫기: `a single one-shot soft parchment card closing once, one motion only, not repeating, brief dry paper, short`
