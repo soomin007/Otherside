@@ -11,12 +11,38 @@ var _title_tr: TextureRect   ## 타이틀 키아트 배경 — 방향 따라 세
 var _title_port: Texture2D
 var _title_land: Texture2D
 
+var _logo_nodes: Array = []   ## 등장 stagger 대상(로고 글로우+글자)
+var _menu_node: Control
+var _stat_node: Control
+
 func _ready() -> void:
 	AppSettings.apply_saved()  # 저장된 음량 복원(앱 시작 = 항상 타이틀 경유)
 	_build_background()
 	_build_logo()
 	_build_menu()
 	_build_stat()
+	# 등장 stagger(스펙 inScatter) — 로고 → 메뉴 → 통계 순으로 "모래가 모여 형체를 이루듯".
+	# blur 는 웹 금지 → 페이드 + scale 1.16→1 근사. 배경(키아트)은 움직이지 않는다(원칙: 배경/UI 분리).
+	for n in _logo_nodes:
+		_appear(n, 0.08)
+	if _menu_node != null:
+		_appear(_menu_node, 0.16)
+	if _stat_node != null:
+		_appear(_stat_node, 0.30)
+
+## 등장 한 요소 — 지연 후 0.9s 페이드+수축(1.16→1). 레이아웃 확정 뒤 pivot 을 중심으로.
+func _appear(node: Control, delay: float) -> void:
+	node.modulate.a = 0.0
+	await get_tree().process_frame
+	if not is_instance_valid(node):
+		return
+	node.pivot_offset = node.size * 0.5
+	node.scale = Vector2(1.16, 1.16)
+	var t := create_tween()
+	t.tween_interval(delay)
+	t.set_parallel(true)
+	t.tween_property(node, "modulate:a", 1.0, 0.9).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	t.tween_property(node, "scale", Vector2.ONE, 0.9).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 # --- 배경(키아트 + 스크림) ---
 
@@ -39,10 +65,10 @@ func _build_background() -> void:
 	else:
 		add_child(Backdrop.new())  # fallback: 사막 밤 공통 배경
 
-	# 하단 그라디언트 스크림(원본: 하단 56% 투명→어둠) — 메뉴·통계 가독.
+	# 하단 그라디언트 스크림(원본: 하단 56% 투명→어둠 .78) — 메뉴·통계 가독.
 	var grad := Gradient.new()
 	grad.offsets = PackedFloat32Array([0.0, 1.0])
-	grad.colors = PackedColorArray([Color(0.035, 0.024, 0.016, 0.0), Color(0.035, 0.024, 0.016, 0.82)])
+	grad.colors = PackedColorArray([Color(0.035, 0.024, 0.016, 0.0), Color(0.035, 0.024, 0.016, 0.78)])
 	var gt := GradientTexture2D.new()
 	gt.gradient = grad
 	gt.fill = GradientTexture2D.FILL_LINEAR
@@ -72,17 +98,21 @@ func _update_title_art() -> void:
 
 func _build_logo() -> void:
 	# 로고 뒤 어두운 방사 글로우 — 글씨마다 그림자 대신 영역 언저리에 두꺼운 어둠(밝은 배경에서 가독 + 무게).
-	add_child(_dark_glow())
-	add_child(_logo_label(UITheme.FG, 0.0, 0.0))
+	var glow := _dark_glow()
+	add_child(glow)
+	var logo := _logo_label(UITheme.FG, 0.0, 0.0)
+	add_child(logo)
+	_logo_nodes = [glow, logo]
 
 ## 로고 뒤 어두운 방사 그라디언트(중앙 어둠 → 가장자리 투명). 로고를 넓게 감싼다.
+## 스펙 (a): radial 58%×42% at (50%,25%), rgba(16,10,5,.55) → transparent 70%.
 func _dark_glow() -> TextureRect:
 	var grad := Gradient.new()
-	grad.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
+	grad.offsets = PackedFloat32Array([0.0, 0.7, 1.0])
 	grad.colors = PackedColorArray([
-		Color(0.0, 0.0, 0.0, 0.5),
-		Color(0.0, 0.0, 0.0, 0.26),
-		Color(0.0, 0.0, 0.0, 0.0),
+		Color(0.063, 0.039, 0.020, 0.55),
+		Color(0.063, 0.039, 0.020, 0.14),
+		Color(0.063, 0.039, 0.020, 0.0),
 	])
 	var gt := GradientTexture2D.new()
 	gt.gradient = grad
@@ -94,12 +124,11 @@ func _dark_glow() -> TextureRect:
 	var tr := TextureRect.new()
 	tr.texture = gt
 	tr.stretch_mode = TextureRect.STRETCH_SCALE
-	tr.anchor_left = 0.0
-	tr.anchor_right = 1.0
-	tr.anchor_top = 0.03
-	tr.anchor_bottom = 0.40
-	tr.offset_left = -60.0
-	tr.offset_right = 60.0
+	# 타원 58%×42%가 (50%,25%)에 놓이는 외접 rect — 화면 기준 anchors.
+	tr.anchor_left = -0.08
+	tr.anchor_right = 1.08
+	tr.anchor_top = -0.17
+	tr.anchor_bottom = 0.67
 	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return tr
 
@@ -129,6 +158,9 @@ func _logo_label(col: Color, dx: float, dy: float) -> Label:
 # --- 각인 메뉴(하단 13%) ---
 
 func _build_menu() -> void:
+	# 메뉴 뒤 은은한 방사 어둠(스펙 Legibility (c)) — 스크림 위 한 겹 더, 메뉴 글씨만 감싼다.
+	var mg := _menu_glow()
+	add_child(mg)
 	var menu := VBoxContainer.new()
 	menu.alignment = BoxContainer.ALIGNMENT_CENTER
 	menu.add_theme_constant_override("separation", 2)
@@ -137,6 +169,7 @@ func _build_menu() -> void:
 	menu.anchor_top = 0.58
 	menu.anchor_bottom = 0.87  # 하단 13%
 	add_child(menu)
+	_menu_node = menu
 
 	var start := EngravedItem.new()
 	start.init_item("원정을 떠나 보낸다", 27, true)
@@ -152,6 +185,32 @@ func _build_menu() -> void:
 	settings.init_item("설정", 22, false)
 	settings.pressed.connect(_on_settings_pressed)
 	menu.add_child(settings)
+
+## 메뉴 뒤 방사 어둠 — 중앙 하단(메뉴 영역)만 은은하게(가장자리 투명).
+func _menu_glow() -> TextureRect:
+	var grad := Gradient.new()
+	grad.offsets = PackedFloat32Array([0.0, 0.6, 1.0])
+	grad.colors = PackedColorArray([
+		Color(0.03, 0.02, 0.01, 0.38),
+		Color(0.03, 0.02, 0.01, 0.18),
+		Color(0.03, 0.02, 0.01, 0.0),
+	])
+	var gt := GradientTexture2D.new()
+	gt.gradient = grad
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.5)
+	gt.fill_to = Vector2(1.0, 0.5)
+	gt.width = 256
+	gt.height = 128
+	var tr := TextureRect.new()
+	tr.texture = gt
+	tr.stretch_mode = TextureRect.STRETCH_SCALE
+	tr.anchor_left = 0.14
+	tr.anchor_right = 0.86
+	tr.anchor_top = 0.52
+	tr.anchor_bottom = 0.95
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return tr
 
 # --- 통계(좌하단) ---
 
@@ -175,6 +234,7 @@ func _build_stat() -> void:
 	_stat_label.offset_top = -48.0
 	_stat_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_stat_label)
+	_stat_node = _stat_label
 
 func _stat_text() -> String:
 	return "보낸 원정 %d  ·  남긴 흔적 %d" % [GameState.expedition_count, GameState.traces.size()]

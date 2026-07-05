@@ -41,15 +41,50 @@ func _refresh_icon() -> void:
 
 # --- UI 구성 ---
 
+## 책갈피 버튼 — 각인형 텍스트 + 모래색 책갈피 클립(핸드오프 타이틀 스펙: 알약 상자 대신 각인).
+## 클립(8×20, 아래 V홈)은 오목 다각형이라 Polygon2D(자체 삼각화)로. 글자는 자간 .22em + 그림자.
+func _make_bookmark_btn() -> Button:
+	var btn := Button.new()
+	btn.flat = true
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.custom_minimum_size = Vector2(96, 48)  # 터치 타깃 확보(글자보다 넉넉히)
+	var emp := StyleBoxEmpty.new()
+	for st in ["normal", "hover", "pressed", "focus", "disabled"]:
+		btn.add_theme_stylebox_override(st, emp)
+	var clip := Polygon2D.new()
+	clip.polygon = PackedVector2Array([
+		Vector2(0, 0), Vector2(8, 0), Vector2(8, 20), Vector2(4, 16.4), Vector2(0, 20),
+	])
+	clip.color = UITheme.SAND
+	clip.position = Vector2(16.0, 14.0)
+	btn.add_child(clip)
+	var lbl := Label.new()
+	lbl.text = "기록"
+	lbl.add_theme_font_size_override("font_size", 16)
+	var fv := FontVariation.new()
+	var base: Font = btn.get_theme_default_font()
+	if base != null:
+		fv.base_font = base
+	fv.set_spacing(TextServer.SPACING_GLYPH, 4)  # 스펙 .22em ≈ 16*0.22
+	lbl.add_theme_font_override("font", fv)
+	lbl.add_theme_color_override("font_color", Color(UITheme.FG.r, UITheme.FG.g, UITheme.FG.b, 0.75))
+	lbl.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
+	lbl.add_theme_constant_override("shadow_offset_y", 2)
+	lbl.add_theme_constant_override("shadow_outline_size", 4)
+	lbl.position = Vector2(34.0, 12.0)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(lbl)
+	return btn
+
 func _build() -> void:
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 
-	_icon_btn = UITheme.make_pill("기록", UITheme.INK, UITheme.PAPER, UITheme.PAPER_EDGE)
+	_icon_btn = _make_bookmark_btn()
 	_icon_btn.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	_icon_btn.custom_minimum_size = Vector2(100, UITheme.BTN_H_SM)
 	_icon_btn.offset_left = UITheme.PAD
 	_icon_btn.offset_top = UITheme.SAFE
 	_icon_btn.pressed.connect(_open)

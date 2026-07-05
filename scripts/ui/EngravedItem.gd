@@ -61,7 +61,7 @@ func _animate(on: bool) -> void:
 	_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	var u: float = 1.0 if on else _u_rest
 	var sp: float = _px * (0.26 if on else 0.18)
-	_tween.tween_method(_set_underline, _underline, u, 0.4)   # 밑줄이 사라락 펼쳐짐
+	_tween.tween_method(_set_underline, _underline, u, 0.35)  # 밑줄이 사라락 펼쳐짐(스펙 .35s)
 	_tween.tween_method(_set_spacing_px, _spacing_cur, sp, 0.3)  # 자간(원래 속도)
 
 func _set_underline(v: float) -> void:
