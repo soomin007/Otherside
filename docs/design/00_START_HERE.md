@@ -3,7 +3,7 @@
 > **이 파일은 프로젝트 현재 상태의 단일 진실이다.** 새 세션/새 대화는 *본격 작업 전 이 문서를 먼저 읽는다*(CLAUDE.md 세션 시작 루틴).
 > 오해가 단 하나도 없도록 쓴다 — 특히 §9 "자주 오해하는 것"을 반드시 본다.
 > 상세 사양은 `SYOTOS_기획서_v0.1.md`, 할 일은 `backlog.md`, 분업은 `parallel_tracks.md`, 함정은 `known_issues.md`, 최근 맥락은 `session_logs/`.
-> 마지막 대규모 갱신: 2026-07-01 (지도/횡스크롤 재구조 ①~⑥ + 오프닝 + 가방 꾸리기 + 결말 확정 이후).
+> 마지막 대규모 갱신: 2026-07-06 (오디오 BGM 4곡+SFX 29종 배선 · 엔딩 슬라이드쇼 · 가로 고정 · 책장 넘김 · 씬 등장 stagger · 지도 렌더 개편 · 핸드오프 폴더 정리 이후).
 
 ---
 
@@ -57,10 +57,10 @@
 
 **ui (`scripts/ui/`, 렌더·입력) + scenes:**
 - `Main.gd`(타이틀) → `Opening.gd`(서사 5장+제목) → `Loadout.gd`(가방·시장 NPC) → `Map.gd`(양피지 지도, 마커 이동, 이동 중 상황 카드) → `Expedition.gd`(도착 단면 탐색 + 남기기 + 죽음 + **결말 엔딩**).
-- `SectionArt.gd` — kind별 절차적 단면 그림(static). `UITheme.gd` — 색·헬퍼(양피지 팔레트 `PAPER/INK/...` 포함). `SettingsPanel.gd`·`StormFX.gd`.
+- `SectionArt.gd` — kind별 절차적 단면 그림(static). `UITheme.gd` — 색·헬퍼(양피지 팔레트 `PAPER/INK/...` 포함). `StormFX.gd`(폭풍 파티클). **설정·조작 안내·원정 일대기는 autoload `Bookmark.gd`**(원정 일지 한 권 — 옛 `SettingsPanel` 폐지).
 - **모든 비주얼은 절차적 `draw_*` 1차** — 나중에 실제 그림 에셋으로 교체 예정(SectionArt/오프닝).
 
-**autoload:** `GameState.gd` — 전역 상태·씬 라우팅·세이브(JSON). `traces/deaths/flags/visited_nodes/opening_seen/expedition_count`. `begin_run_with(resources)`(가방→시작 자원), `ending_kind`, `go_to_*`.
+**autoload:** `GameState.gd` — 전역 상태·씬 라우팅·세이브(JSON). `traces/deaths/flags/visited_nodes/opening_seen/expedition_count`. `begin_run_with(resources)`(가방→시작 자원), `ending_kind`, `go_to_*`. (그 외 autoload: `Transition` 화면 전환·`Bookmark` 원정 일지·`Tutorial` 오버레이 튜토리얼·`Fullscreen` 가로 잠금·`AudioManager` BGM/SFX·`Debug` 개발 오버레이.)
 
 **됐음:** 코어 루프 전 구간 + 오프닝 + 가방 꾸리기 + 결말(순환/재회) + 흔적 남기기·줍기·차단 로프·선택 반영 플래그·거리 곡선·이동 중 상황·노드 콘텐츠(9노드 spots·이벤트 풀)·양피지 비주얼·설정·한글 폰트.
 
@@ -106,11 +106,11 @@
 
 ## 10. 남은 일 (backlog 요약 — 상세는 backlog.md)
 
-- **★ 방향 결정(2026-07-05): 게임 = 가로 고정(landscape).** 모든 풀스크린 아트가 16:9 → 세로 아트 추가 불필요. `project.godot` 뷰포트·UI 전환은 map-render 반응형 지도 조율 후.
+- **★ 방향 = 가로 고정(landscape), 구현 완료(2026-07-05).** `project.godot` orientation=sensor_landscape(전체화면 진입 시 가로 잠금) + 세로 안내(`Fullscreen.gd`, 웹 전용). 모든 풀스크린 아트 16:9. 남은 것 = 실기기 확인만.
 - **★ 온보딩/UX:** 화면 문구·HUD·blind choice·조작 오버레이 튜토리얼(autoload `Tutorial`)·상시 책갈피(`Bookmark`, 원정 일대기 도달/재회 표시)·원정대 이름까지 모두 완료. 남은 것은 작음(이름 풀 확장·실기기 미세조정).
 - **⑥ 결말:** **엔딩 슬라이드쇼 구현됨**(`Ending.gd` 오버레이, 순환/재회 47~52 아트+음악, 2026-07-05, 둘 다 타이틀 복귀). 남은 것: 순환의 *물리적* 반영(도달점=다음 목표=맵 변화, 설계 큼), 재회 임계(`REUNION_TRACES`) 밸런싱, 엔딩 폴백(기록 버튼 숨김·순환 배경곡·실플레이).
-- **콘텐츠·비주얼:** **모든 실제 아트 삽입 완료(01~52 + 38, 2026-07-05).** 남은 것: 단면 맞춤 아트(트랙 B), 노드 콘텐츠 더, 폭풍 파티클 3층. 지도 렌더 다듬기는 map-render 진행 중.
-- **오디오:** **에셋·인프라 완료(2026-07-05)** — BGM 2곡(베드 재생 중)·SFX 24종 + `AudioManager`(베드 크로스페이드 루프·`play_sfx`/`play_step`). 남은 것: **SFX 를 UI 이벤트에 배선**. 상세 `../external/audio_list.md`.
+- **콘텐츠·비주얼:** **모든 실제 아트 삽입 완료(01~52 + 38, 2026-07-05).** 지도 렌더 개편·잉크 reveal·나침반 배치 완료(2026-07-06). 남은 것: 단면 맞춤 아트(트랙 B), 노드 콘텐츠 더, 폭풍 파티클 3층, 지도 미세 다듬기(자원 점 범례·이름 겹침).
+- **오디오:** **제작·배선 완료(2026-07-05)** — BGM 4곡·SFX 29종 + `AudioManager`(베드 크로스페이드 루프·`play_sfx`/`play_step`, Music/SFX 버스·설정 볼륨 2). 남은 것: 실플레이 소리 밸런스·웹 오디오 확인. 상세 `../external/audio_list.md`.
 - **오프닝/가방 확장:** 오프닝 문구 다듬기(사용자: 나중에), 가방 밸런싱·물품 확장, 오프닝 다시보기.
 - **밸런싱:** 자원=수명 수치, 남기기 비용·줍기 값, 재회 난이도 — 전부 폰 테스트로.
 - **배포:** GitHub Pages 웹 export(외부 설정 대기).
@@ -118,4 +118,4 @@
 ## 11. 실행 / 문서 지도
 
 - 열기 `godot --path .` · 파싱 `--headless --path . --import` · 부팅 `--headless --path . --quit-after 5` · 웹 export `--headless --path . --export-release "Web" build/web/index.html`
-- **문서:** `00_START_HERE.md`(이 문서, 현재 상태) · `SYOTOS_기획서_v0.1.md`(상세 사양·단일 진실) · `backlog.md`(할 일) · `parallel_tracks.md`(분업) · `known_issues.md`(함정) · `wordpool_v0.1.md`(태그 단어) · `../external/art_prompts.md`(이미지 프롬프트·진행표) · `balance_notes.md`(밸런스 이어받기) · `../external/audio_list.md`(오디오 · BGM Suno·SFX ElevenLabs) · `../handoffs/`(외부 의뢰용 핸드오프 모음 — 남김 딜레마·UI 스타일, 인덱스 README) · `session_logs/`(세션별 맥락).
+- **문서:** `00_START_HERE.md`(이 문서, 현재 상태) · `SYOTOS_기획서_v0.1.md`(상세 사양·단일 진실) · `backlog.md`(할 일) · `parallel_tracks.md`(분업) · `known_issues.md`(함정) · `wordpool_v0.1.md`(태그 단어) · `../external/art_prompts.md`(이미지 프롬프트·진행표) · `balance_notes.md`(밸런스 이어받기) · `../external/audio_list.md`(오디오 · BGM Suno·SFX ElevenLabs) · `../handoffs/`(외부 의뢰용 핸드오프 모음 — 남김 딜레마·UI 스타일·지도·책장 넘김, 인덱스 README + 원본 HTML 목업 번들 2종은 로컬 보관·git 미추적) · `session_logs/`(세션별 맥락).

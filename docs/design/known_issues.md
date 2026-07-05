@@ -60,7 +60,7 @@
 
 - **증상:** 오버레이/배경(FULL_RECT Control)이 화면 중앙 정렬 안 되고 왼쪽 위(0,0)로 쏠리거나, 절차적 배경이 아예 안 그려짐. (2026-07-01)
   **원인:** `add_child` 직후 `_ready` 에선 그 Control 의 `size` 가 아직 0(레이아웃 패스 전). `CenterContainer` 는 size 0 이면 (0,0) 정렬, `_draw` 는 size 0 이면 아무것도 안 그린다.
-  **방지:** `_ready` 에서 `size = get_viewport_rect().size` 로 즉시 확정하거나, `_draw` 에서 `get_viewport_rect().size` 를 쓴다. (Backdrop·SettingsPanel 이 이걸 겪음.)
+  **방지:** `_ready` 에서 `size = get_viewport_rect().size` 로 즉시 확정하거나, `_draw` 에서 `get_viewport_rect().size` 를 쓴다. (Backdrop 등 FULL_RECT 오버레이가 이걸 겪음.)
 
 - **증상:** 지도 이동 중 죽으면(예: 열병 "버틴다" 물 -5) 넘어간 단면의 사망 안내·[지도로] 화면 **위에 조사 튜토리얼**이 겹쳐 뜬다. (2026-07-03)
   **원인:** `Tutorial`(autoload CanvasLayer)이 **현재 씬 경로만** 보고 단계를 띄운다. 지도 튜토리얼을 이미 넘겨 `_step_idx` 가 expedition 단계인 채로 이동 중 사망→단면 전환되면, 씬이 일치해 "죽은 화면"인 줄 모르고 뜬다. **autoload 오버레이가 씬은 보는데 게임 상태(생존)는 안 봤다.**

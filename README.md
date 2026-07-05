@@ -11,11 +11,11 @@ Clair Obscur 형식의 부제. 앞 주제목은 세계관 구체화 후 결정.
 ## 구조
 
 ```
-project.godot          # Godot 4.6, GL Compatibility, autoload=GameState
-scenes/                # main(타이틀) · map(탑뷰 지도) · expedition(횡스크롤 단면)
+project.godot          # Godot 4.6, GL Compatibility, autoload=GameState 외(Transition·Bookmark·AudioManager 등)
+scenes/                # main(타이틀) · opening(오프닝) · loadout(가방 꾸리기) · map(지도 노드 그래프) · expedition(도착 노드 단면 탐색)
 scripts/
   GameState.gd         # autoload: 전역 상태 + 씬 라우팅 + 세이브(JSON, user://)
-  core/                # 순수 데이터·로직 (노드/렌더링 무의존) — Threats, WordPool, TraceData
+  core/                # 순수 데이터·로직 (노드/렌더링 무의존) — MapGraph·ExpeditionRun·SectionRun·Situations·TraceData·Threats·Items·Vocations·WordPool
   ui/                  # 렌더링·입력 (씬 스크립트)
 docs/design/           # 기획서·단어풀 (단일 진실) + backlog + known_issues
 session_logs/          # 세션별 작업 기록
