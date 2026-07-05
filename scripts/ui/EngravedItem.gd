@@ -8,9 +8,11 @@ extends Button
 ## 라이브 튜닝(DEV 오버레이 "글씨 튜닝" 슬라이더) — 전 인스턴스 공유. 기본값 = 사용자 확정(2026-07-05).
 static var tune_core: float = 1.0       ## 밑줄 심지 높이(px)
 static var tune_glow: float = 0.7       ## 밑줄 글로우 배율(0=글로우 없음)
-static var tune_shadow_a: float = 0.9   ## 글자 그림자 진하기
-static var tune_shadow_blur: int = 14   ## 글자 그림자 퍼짐(blur)
+static var tune_shadow_a: float = 0.25  ## 글자 그림자 진하기
+static var tune_shadow_blur: int = 3    ## 글자 그림자 퍼짐(blur)
 static var tune_outline_a: float = 0.1  ## 글자 밀착 테두리 어둠(그림자와 별개 — halo 를 빽빽하게)
+static var tune_bg_a: float = 0.3       ## 항목 뒤 은은한 어둠(로고 방사 어둠처럼 넓게) 진하기
+static var tune_bg_scale: float = 2.2   ## 그 어둠이 항목보다 얼마나 넓게 퍼지나(배율)
 
 var is_key: bool = false
 var _px: int = 22
@@ -20,6 +22,7 @@ var _underline: float = 0.0
 var _u_rest: float = 0.0   ## 기본 밑줄 정도(대표 항목은 옅게 상시 — 원본 key::after)
 var _tween: Tween
 var _line_tex: GradientTexture2D  ## 밑줄 텍스처 — 가로로 투명→모래→투명(끝이 네모지지 않게 스르르 사라짐)
+var _bg_tex: GradientTexture2D    ## 항목 뒤 은은한 방사 어둠(로고 _dark_glow 와 같은 결 — 넓게 퍼져 상자로 안 읽힘)
 var _lbl: Label                   ## 실제 글자 렌더 — Button 은 그림자 테마가 없어(무시됨) Label 이 그린다
 var _base_col: Color              ## 평상시 글자색(hover 해제 시 복귀)
 
@@ -78,6 +81,21 @@ func _ready() -> void:
 	_line_tex.fill_to = Vector2(1.0, 0.5)
 	_line_tex.width = 256
 	_line_tex.height = 4
+	# 항목 뒤 방사 어둠 — 로고 뒤 어둠(_dark_glow)과 같은 프로필(중앙→0.55→가장자리 0). 넓게 퍼져 덩어리로 안 읽힘.
+	var bgg := Gradient.new()
+	bgg.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
+	bgg.colors = PackedColorArray([
+		Color(0.0, 0.0, 0.0, 1.0),
+		Color(0.0, 0.0, 0.0, 0.45),
+		Color(0.0, 0.0, 0.0, 0.0),
+	])
+	_bg_tex = GradientTexture2D.new()
+	_bg_tex.gradient = bgg
+	_bg_tex.fill = GradientTexture2D.FILL_RADIAL
+	_bg_tex.fill_from = Vector2(0.5, 0.5)
+	_bg_tex.fill_to = Vector2(0.98, 0.5)
+	_bg_tex.width = 128
+	_bg_tex.height = 64
 	apply_tuning()
 	# 순수 텍스트 + 안쪽 여백(원본 padding) — 밑줄이 글씨 아래에 오도록 하단 여백.
 	var empty := StyleBoxEmpty.new()
@@ -116,6 +134,12 @@ func _apply_spacing() -> void:
 		_fv.set_spacing(TextServer.SPACING_GLYPH, int(round(_spacing_cur)))
 
 func _draw() -> void:
+	# 항목 뒤 은은한 어둠(상시) — 로고처럼 항목 전체를 넓게 감싼다. 진하기·퍼짐 = tune_bg_*(DEV 슬라이더).
+	if _bg_tex != null and tune_bg_a > 0.01:
+		var bw: float = size.x * tune_bg_scale
+		var bh: float = size.y * tune_bg_scale * 0.9
+		draw_texture_rect(_bg_tex, Rect2((size.x - bw) * 0.5, (size.y - bh) * 0.5, bw, bh), false,
+			Color(1, 1, 1, tune_bg_a))
 	if _underline <= 0.01:
 		return
 	var text_w: float = maxf(0.0, size.x - 52.0)  # 좌우 여백(26*2) 뺀 글씨 폭 — hover(_underline=1) 면 밑줄이 글씨 전체 길이

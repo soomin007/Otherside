@@ -147,6 +147,10 @@ func _build() -> void:
 		func(v: float) -> void: EngravedItem.tune_shadow_blur = int(v))
 	_add_slider(col, "테두리 어둠", 0.0, 1.0, EngravedItem.tune_outline_a,
 		func(v: float) -> void: EngravedItem.tune_outline_a = v)
+	_add_slider(col, "배경 어둠 진하기", 0.0, 1.0, EngravedItem.tune_bg_a,
+		func(v: float) -> void: EngravedItem.tune_bg_a = v)
+	_add_slider(col, "배경 어둠 퍼짐", 1.0, 4.0, EngravedItem.tune_bg_scale,
+		func(v: float) -> void: EngravedItem.tune_bg_scale = v)
 
 	_add_title(col, "세이브")
 	_add_btn(col, "세이브 초기화 → 타이틀", _reset)
