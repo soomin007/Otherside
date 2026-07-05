@@ -156,13 +156,11 @@ func _make_candidate(kind: int, label: String, res_key: String) -> Control:
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	btn.custom_minimum_size = Vector2(148, 196)
-	var hov := StyleBoxFlat.new()
-	hov.bg_color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.15)
-	hov.set_corner_radius_all(12)
 	var emp := StyleBoxEmpty.new()
 	for st in ["normal", "pressed", "focus", "disabled"]:
 		btn.add_theme_stylebox_override(st, emp)
-	btn.add_theme_stylebox_override("hover", hov)
+	# hover = 햇빛 웅덩이(경계 없는 방사 글로우) — 둥근 상자 자제(각인 미학).
+	btn.add_theme_stylebox_override("hover", UITheme.sun_glow_stylebox(0.22))
 	var v := VBoxContainer.new()
 	v.set_anchors_preset(Control.PRESET_FULL_RECT)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -218,17 +216,17 @@ func _hover_candidate(btn: Control, nm: Label, on: bool) -> void:
 	t.tween_property(btn, "scale", Vector2(1.045, 1.045) if on else Vector2.ONE, 0.3)
 	nm.add_theme_color_override("font_color", UITheme.SAND if on else UITheme.FG)
 
-## 태그 칩 스타일 — selected 는 모래빛이 배어난 상태, hover 는 살짝 밝게.
+## 태그 칩 스타일 — 각인 톤(거의 투명 + 밑선), selected 만 모래빛이 은은히 배어난다. 둥근 모서리 자제.
 func _chip_stylebox(selected: bool, hover: bool = false) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	if selected:
-		sb.bg_color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.20 if hover else 0.16)
+		sb.bg_color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.18 if hover else 0.14)
 		sb.border_color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.65)
 	else:
-		sb.bg_color = Color(0.07, 0.055, 0.04, 0.62 if hover else 0.5)
+		sb.bg_color = Color(0.06, 0.05, 0.035, 0.4 if hover else 0.26)
 		sb.border_color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.45 if hover else 0.22)
 	sb.border_width_bottom = 1
-	sb.set_corner_radius_all(8)
+	sb.set_corner_radius_all(3)
 	sb.content_margin_left = 16.0
 	sb.content_margin_right = 16.0
 	sb.content_margin_top = 8.0

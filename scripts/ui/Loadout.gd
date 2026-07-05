@@ -551,13 +551,11 @@ func _make_photo_label(entry: Dictionary) -> Control:
 	btn.custom_minimum_size = Vector2(float(entry.get("w", 140.0)), float(entry.get("h", 250.0)))
 	btn.size = btn.custom_minimum_size  # 컨테이너 밖 절대 배치 — size 직접 확정(정렬 계산용)
 	btn.tooltip_text = str(item.get("desc", ""))
-	var hov := StyleBoxFlat.new()
-	hov.bg_color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.16)  # .07 은 안 보였음 — 또렷하게
-	hov.set_corner_radius_all(14)
 	var emp := StyleBoxEmpty.new()
 	for st in ["normal", "pressed", "focus", "disabled"]:
 		btn.add_theme_stylebox_override(st, emp)
-	btn.add_theme_stylebox_override("hover", hov)
+	# hover = 햇빛 웅덩이 — 경계 없는 방사 글로우(네모 상자는 각인 미학과 어긋남).
+	btn.add_theme_stylebox_override("hover", UITheme.sun_glow_stylebox(0.24))
 	btn.pressed.connect(_pick_item.bind(key, btn))
 	var v := VBoxContainer.new()
 	v.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -833,13 +831,13 @@ func _style_field(le: LineEdit) -> void:
 	le.add_theme_stylebox_override("normal", _field_stylebox(0.28))
 	le.add_theme_stylebox_override("focus", _field_stylebox(0.6))
 
-## 필드 공통 스타일 — 어두운 반투명 몸통 + 모래빛 밑선 1px(각인형, 상자 테두리 대신).
+## 필드 공통 스타일 — 거의 투명한 바탕 + 모래빛 밑선 1px(각인형 — 상자로 안 읽히게, 둥근 모서리 자제).
 func _field_stylebox(line_alpha: float) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.06, 0.05, 0.04, 0.55)
+	sb.bg_color = Color(0.05, 0.04, 0.03, 0.3)
 	sb.border_color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, line_alpha)
 	sb.border_width_bottom = 1
-	sb.set_corner_radius_all(7)
+	sb.set_corner_radius_all(2)
 	sb.content_margin_left = 16.0
 	sb.content_margin_right = 16.0
 	sb.content_margin_top = 10.0

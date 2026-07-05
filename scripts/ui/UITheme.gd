@@ -138,13 +138,16 @@ const FADE_DUR: float = 0.4  ## 팝업·오버레이 페이드 기본 길이(초
 
 ## 모달·오버레이가 스르륵 나타난다(투명도 0→1). visible 을 직접 켜지 말고 이걸 쓴다.
 static func fade_in(node: CanvasItem, dur: float = FADE_DUR) -> void:
+	_kill_fade(node)
 	node.modulate.a = 0.0
 	node.visible = true
 	var tw: Tween = node.create_tween()
 	tw.tween_property(node, "modulate:a", 1.0, dur).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	node.set_meta("_fade_tw", tw)
 
 ## 모달이 스르륵 사라진다(투명도 1→0 후 hide). 끝나면 on_done 실행(닫힘 콜백/시그널을 여기 넘긴다).
 static func fade_out(node: CanvasItem, on_done: Callable = Callable(), dur: float = FADE_DUR) -> void:
+	_kill_fade(node)
 	var tw: Tween = node.create_tween()
 	tw.tween_property(node, "modulate:a", 0.0, dur * 0.85).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	tw.tween_callback(func() -> void:
@@ -152,6 +155,16 @@ static func fade_out(node: CanvasItem, on_done: Callable = Callable(), dur: floa
 		node.modulate.a = 1.0
 		if on_done.is_valid():
 			on_done.call())
+	node.set_meta("_fade_tw", tw)
+
+## 같은 노드의 진행 중 페이드를 죽인다 — 겹쳐 뜨는 팝업에서 늦게 끝난 옛 fade_out 이
+## 새로 연 팝업을 몰래 숨기는(visible=false) 경합 방지.
+static func _kill_fade(node: CanvasItem) -> void:
+	if not node.has_meta("_fade_tw"):
+		return
+	var old: Tween = node.get_meta("_fade_tw")
+	if old != null and old.is_valid():
+		old.kill()
 
 ## 모래 한 줌이 바람에 흩날린다 — 팝업이 뜰 때 카드 위로 뿌린다(CPUParticles2D, 웹 안전·one_shot).
 ## parent = 팝업 루트(Control). 화면 중앙에서 바람 방향(오른쪽 위)으로 날려 페이드아웃한다.
@@ -214,6 +227,27 @@ static func sand_puff_at(parent: Node, gpos: Vector2, n: int) -> void:
 	p.global_position = gpos
 	p.emitting = true
 	p.finished.connect(p.queue_free)
+
+## 햇빛 웅덩이 hover — 경계 없는 방사 글로우(둥근 상자 대신, 그 자리에 볕이 드는 느낌).
+## Button 의 hover 스타일박스로 쓴다. StyleBoxTexture 가 버튼 rect 에 맞춰 늘어나 타원 글로우가 된다.
+static func sun_glow_stylebox(alpha: float = 0.2) -> StyleBoxTexture:
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
+	g.colors = PackedColorArray([
+		Color(SAND.r, SAND.g, SAND.b, alpha),
+		Color(SAND.r, SAND.g, SAND.b, alpha * 0.42),
+		Color(SAND.r, SAND.g, SAND.b, 0.0),
+	])
+	var gt := GradientTexture2D.new()
+	gt.gradient = g
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.5)
+	gt.fill_to = Vector2(0.98, 0.5)
+	gt.width = 128
+	gt.height = 128
+	var sb := StyleBoxTexture.new()
+	sb.texture = gt
+	return sb
 
 static func _set_margin(mc: MarginContainer, v: int) -> void:
 	for s in ["left", "right", "top", "bottom"]:
