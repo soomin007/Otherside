@@ -199,7 +199,8 @@ soft wordless choir or no vocals, no harsh percussion
 > - **결말:** `sfx_death`(스러짐)·`sfx_reunion_chime`(재회 차임)·`sfx_cycle`(순환 울림)
 > - ⚠️ `sfx_resource`·`sfx_reveal`·`sfx_cycle` 은 원본이 매우 조용해 **+27~32dB 보강** → 노이즈 있으면 재생성 후보(당장은 이대로). 인게임 볼륨은 `play_sfx(path, vol_db)` 로 조절 가능(파일 노이즈는 재생성만이 답).
 > - `reveal`/`cycle` 은 접두사(`de`)가 겹쳐 고역 분석으로 구분(#3=reveal 밝음·#2=cycle 저역, 신뢰 보통 — 바뀌었으면 스왑).
-> - 배선 인프라 = `AudioManager.play_sfx`/`play_sfx_random`/`play_step` **준비됨**. UI 이벤트·걸음·엔딩 훅은 map-render 페이드 확산과 겹쳐 순차.
+> - **✅ 배선 완료(2026-07-05):** 모든 버튼 공통 탭(트리 추가 시 자동 연결, `AudioManager._on_node_added` · meta `no_tap` 으로 제외 가능) · 걸음(지도 step마다 4변주) · 갈증 경고(물≤3 진입 시 1회, `warn_thirst`) · 상황 카드 = 위협별(폭풍 돌풍/차단 crack/그 외 card_open, `play_situation_card`) · 결과 팝업 자원 변화(물 획득 water/그 외 resource) · 조사 reveal · 줍기 pickup · 로프 rope · 죽음 death · 재회 마지막 슬라이드 chime · 순환 암전 cycle · 남기기 leave · 가방 담기 bag_add · 장부 열닫 card_open/close · 확인 전환·일지 챕터 page.
+> - ⏸ `sfx_settings`(따뜻한 저음 톤)는 설정이 장부(양피지 소리)로 바뀌며 자리를 잃음 — **보류.** 후보: 특별한 확인음(첫 기록지 수령 등).
 
 > **★ 요령 — "단 한 번"을 강하게 (중요):** ElevenLabs 는 `tick`·`tap` 만 쓰면 **시계·톱니처럼 여러 번 반복되는 기계음(타다다닥)**으로 만든다. 일회성 소리는 반드시 **`a single one-shot ...` + `one hit only` + `not repeating` + `no rhythm, no sequence` + `very short`** 를 넣어 못 박는다. (지속·앰비언트 소리만 길게/반복 허용.)
 

@@ -203,6 +203,7 @@ func _refresh() -> void:
 	_status_label.text = "원정 %d째 · %d걸음\n물 -%d/걸음 · 식량 -1/%d걸음" % [GameState.expedition_count, _run.leg, _run.water_cost(), ExpeditionRun.FOOD_EVERY]
 	var water: int = maxi(0, _run.get_res("water"))
 	var food: int = maxi(0, _run.get_res("food"))
+	AudioManager.warn_thirst(water)  # 물이 임계로 떨어지는 순간 경고음 1회(지도와 공용 상태)
 	_water_label.text = "물 %d" % water
 	_food_label.text = "식량 %d" % food
 	_water_label.add_theme_color_override("font_color", _res_color(water, 3, Color(0.55, 0.78, 0.97)))
@@ -266,6 +267,7 @@ func _show_situation() -> void:
 	_sit_name_label.text = place_name
 	_sit_name_label.visible = place_name != ""
 	var threat_kind: int = int(sit.get("threat", Threats.Kind.CONSUMPTION))
+	AudioManager.play_situation_card(threat_kind)  # 카드 열림 — 위협 종류별 소리(폭풍 돌풍·갈라진 울림·양피지)
 	var threat_info: Dictionary = Threats.info(threat_kind)
 	_sit_threat_label.text = "[ %s ]" % str(threat_info.get("label", "상황"))
 	_sit_text_label.text = str(sit.get("text", ""))
@@ -304,6 +306,7 @@ func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, a
 	# 과거 흔적 줍기 — 자원 보충 후 그 노드 흔적의 uses 를 깎는다(소진되면 사라짐).
 	if action == "pickup" and trace_kind >= 0:
 		GameState.use_trace(here_node, trace_kind)
+		AudioManager.play_sfx(AudioManager.PICKUP)  # 이전 원정대의 흔적을 줍는다
 	# 선택 반영 — 플래그를 켠다. sets(같은 런 즉시) + sets_persist(다음 원정에도, GameState 영속).
 	for f in sets:
 		_run.set_flag(str(f))
@@ -325,6 +328,7 @@ func _after_choice() -> void:
 ## 지금 선 차단 노드에 로프를 건다 - core 에 표시(같은 런 즉시 반영) + ROPE 흔적(node_id)을 남기고 저장(다음 원정에 영속).
 ## "남김 한 번"과 별개의 부산물 흔적이다(통과의 결과로 길이 영구히 바뀐다).
 func _bridge_here(node_id: String, at_leg: int) -> void:
+	AudioManager.play_sfx(AudioManager.ROPE)  # 로프가 팽팽하게 걸린다
 	_run.mark_bridged(node_id)
 	var tags: Array[String] = []
 	tags.assign(["건너"])
@@ -387,6 +391,7 @@ func _death_message(cause: String) -> String:
 		_: return "여기서 끝났다."
 
 func _show_death(cause: String, tags: Array[String], kind: int = TraceData.ObjectKind.BODY) -> void:
+	AudioManager.play_sfx(AudioManager.DEATH)  # 스러짐 — 낮게 울리고 잦아든다
 	_advance_btn.disabled = true
 	_sit_panel.visible = false
 	if _bequeath != null:
@@ -424,6 +429,7 @@ func _probe_spot(i: int) -> void:
 	var res: Dictionary = _section.probe(i)
 	if res.is_empty():
 		return
+	AudioManager.play_sfx(AudioManager.REVEAL, -4.0)  # 조사 — 잉크가 번지듯 드러난다
 	var t: String = str(res.get("type", ""))
 	if t == "event":
 		_run.raise_situation(res.get("event", {}))

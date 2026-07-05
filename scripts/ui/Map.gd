@@ -243,6 +243,7 @@ func _refresh_hud() -> void:
 	var run: ExpeditionRun = GameState.current_run
 	if run == null:
 		return
+	AudioManager.warn_thirst(run.get_res("water"))  # 물이 임계로 떨어지는 순간 경고음 1회
 	_update_leave_btn(run)
 	queue_redraw()  # 좌 칼럼(지닌 것)이 _draw 에서 자원을 직접 읽는다
 
@@ -323,6 +324,7 @@ func _process(delta: float) -> void:
 		_moving = false
 		return
 	run.step()
+	AudioManager.play_step()   # 모래 발소리(4변주 랜덤)
 	_refresh_hud()
 	# 이 걸음이 닿은 자리에 잉크가 번진다(잉크처럼 퍼지는 이동).
 	if run.alive:
@@ -415,6 +417,7 @@ func _show_situation_card() -> void:
 	if _guide != null:
 		_guide.text = "멈춰 선다."
 	var threat_kind: int = int(sit.get("threat", Threats.Kind.CONSUMPTION))
+	AudioManager.play_situation_card(threat_kind)  # 카드 열림 — 위협 종류별 소리(폭풍 돌풍·갈라진 울림·양피지)
 	var threat_info: Dictionary = Threats.info(threat_kind)
 	_sit_box.add_child(UITheme.make_label("[ %s ]" % str(threat_info.get("label", "상황")), UITheme.FS_SMALL, UITheme.SAND))
 	_sit_box.add_child(UITheme.make_label(str(sit.get("text", "")), UITheme.FS_BODY))

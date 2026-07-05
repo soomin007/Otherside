@@ -29,6 +29,21 @@ const STEP_SET: Array = [
 	"res://assets/sfx/sfx_step_1.wav", "res://assets/sfx/sfx_step_2.wav",
 	"res://assets/sfx/sfx_step_3.wav", "res://assets/sfx/sfx_step_4.wav",
 ]
+## 배선된 효과음 경로(전체 목록·프롬프트 = docs/external/audio_list.md §2)
+const TAP: String = "res://assets/sfx/sfx_tap.wav"
+const CARD_OPEN: String = "res://assets/sfx/sfx_card_open.wav"
+const CARD_CLOSE: String = "res://assets/sfx/sfx_card_close.wav"
+const WATER: String = "res://assets/sfx/sfx_water.wav"
+const RESOURCE: String = "res://assets/sfx/sfx_resource.wav"
+const PICKUP: String = "res://assets/sfx/sfx_pickup.wav"
+const ROPE: String = "res://assets/sfx/sfx_rope.wav"
+const REVEAL: String = "res://assets/sfx/sfx_reveal.wav"
+const STORM_GUST: String = "res://assets/sfx/sfx_storm_gust.wav"
+const CRACK: String = "res://assets/sfx/sfx_crack.wav"
+const THIRST: String = "res://assets/sfx/sfx_thirst.wav"
+const DEATH: String = "res://assets/sfx/sfx_death.wav"
+const REUNION_CHIME: String = "res://assets/sfx/sfx_reunion_chime.wav"
+const CYCLE_HIT: String = "res://assets/sfx/sfx_cycle.wav"
 
 var _a: AudioStreamPlayer
 var _b: AudioStreamPlayer
@@ -37,6 +52,7 @@ var _sfx: Array = []          ## SFX 보이스 풀
 var _rng := RandomNumberGenerator.new()
 var _loop_path: String = ""   ## 루프 대상 트랙(베드·폭풍). "" = 원샷(엔딩 크레딧)
 var _xfading: bool = false    ## 루프 크로스페이드 진행 중
+var _thirst_low: bool = false ## 갈증 경고를 이미 울렸나(물이 임계 위로 회복하면 리셋)
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -48,6 +64,7 @@ func _ready() -> void:
 	_cur = _a
 	for i in SFX_VOICES:
 		_sfx.append(_make_player(BUS_SFX))
+	get_tree().node_added.connect(_on_node_added)  # 모든 버튼 공통 탭 소리(자동 배선)
 	play_track(BED)   # 시작부터 베드(페이드 인)
 
 ## Music / SFX 버스가 없으면 만들어 Master 로 보낸다(버스 레이아웃 파일 없이 코드로 — 웹 안전).
@@ -170,6 +187,37 @@ func play_sfx_random(paths: Array, vol_db: float = 0.0) -> void:
 ## 발소리 한 걸음(4변주 랜덤). 이동(step)마다 호출.
 func play_step() -> void:
 	play_sfx_random(STEP_SET)
+
+## 모든 버튼 공통 탭 — 트리에 새로 들어오는 BaseButton 의 pressed 에 자동 연결.
+## 자기 소리를 가진 버튼은 meta "no_tap" 으로 제외 가능. autoload 순서상 AudioManager 가
+## 마지막이라 먼저 만들어진 디버그(DEV) 버튼들은 빠지는데, 개발용이라 오히려 알맞다.
+func _on_node_added(n: Node) -> void:
+	if n is BaseButton and not n.has_meta("no_tap"):
+		var b: BaseButton = n
+		if not b.pressed.is_connected(_play_tap):
+			b.pressed.connect(_play_tap)
+
+func _play_tap() -> void:
+	play_sfx(TAP, -6.0)   # 살짝 낮게 — 다른 효과음 밑에 깔리는 기본 감촉
+
+## 상황 카드 열림 — 위협 종류에 맞는 소리(폭풍=돌풍, 차단=갈라진 울림, 그 외=양피지 카드).
+func play_situation_card(threat_kind: int) -> void:
+	match threat_kind:
+		Threats.Kind.STORM:
+			play_sfx(STORM_GUST, -4.0)
+		Threats.Kind.BLOCKAGE:
+			play_sfx(CRACK, -4.0)
+		_:
+			play_sfx(CARD_OPEN)
+
+## 갈증 경고 — 물이 임계(3) 이하로 "떨어지는 순간" 한 번만. 회복하면 리셋(지도·단면 공용).
+func warn_thirst(water: int) -> void:
+	if water <= 3:
+		if not _thirst_low:
+			_thirst_low = true
+			play_sfx(THIRST)
+	else:
+		_thirst_low = false
 
 ## 종료 시 정리 — 재생 중 스트림 참조를 놓아 "리소스 사용 중" 누수 경고를 줄인다.
 func _exit_tree() -> void:

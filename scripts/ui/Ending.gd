@@ -132,6 +132,9 @@ func _advance() -> void:
 	t.tween_property(_label, "modulate:a", 0.0, FADE * 0.5)
 	t.parallel().tween_property(_illus, "modulate:a", 0.0, FADE * 0.5)
 	t.tween_callback(_apply_slide.bind(tex, str(slide["text"])))
+	if _reunion and _idx == _slides.size() - 1:
+		# 마지막 재회 슬라이드("모두가 기다리고 있었다")가 떠오르는 순간 — 따뜻한 차임.
+		t.tween_callback(AudioManager.play_sfx.bind(AudioManager.REUNION_CHIME))
 	t.tween_property(_illus, "modulate:a", 1.0, FADE * 0.7)
 	t.parallel().tween_property(_label, "modulate:a", 1.0, FADE)
 	t.tween_callback(_clear_busy)
@@ -150,6 +153,7 @@ func _end_slides() -> void:
 		_start_credits()
 	else:
 		_phase = "blackout"
+		AudioManager.play_sfx(AudioManager.CYCLE_HIT)  # 순환 저음 울림 — 해소 없이 잦아든다
 		# 음악은 자르지 않는다 — 암전·안내에서도 순환곡이 계속 흐른다(곡의 기승전결 보존).
 		var t := create_tween()
 		t.tween_property(_dim, "color:a", 1.0, 2.5)   # 암전

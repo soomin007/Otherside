@@ -53,6 +53,11 @@ func show_result(body: String, effect: Dictionary, cb: Callable = Callable()) ->
 		_delta_label.text = UITheme.effect_hint(effect)
 		_delta_label.add_theme_color_override("font_color", UITheme.SAND)
 		_delta_label.visible = true
+		# 자원 변화 소리 — 물을 얻으면 한 모금, 그 외엔 작은 표시음.
+		if int(effect.get("water", 0)) > 0:
+			AudioManager.play_sfx(AudioManager.WATER)
+		else:
+			AudioManager.play_sfx(AudioManager.RESOURCE, -4.0)
 	elif body == "":
 		# 묘사도 변화도 없을 때만 명시 (묘사가 있으면 그게 결과를 말한다).
 		_delta_label.text = "달라진 건 없다."

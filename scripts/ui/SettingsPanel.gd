@@ -39,7 +39,7 @@ func _ready() -> void:
 	_layout()
 	resized.connect(_layout)
 	_show_main()
-	AudioManager.play_sfx("res://assets/sfx/sfx_settings.wav")
+	AudioManager.play_sfx(AudioManager.CARD_OPEN)  # 장부가 펼쳐지는 양피지 소리(sfx_settings 톤은 보류 — audio_list §2)
 	# 장부가 스르륵 펼쳐짐
 	modulate.a = 0.0
 	create_tween().tween_property(self, "modulate:a", 1.0, 0.22).set_ease(Tween.EASE_OUT)
@@ -317,4 +317,5 @@ func _back_or_close() -> void:
 		_close()
 
 func _close() -> void:
+	AudioManager.play_sfx(AudioManager.CARD_CLOSE)  # 장부를 덮는 소리(보이스는 AudioManager 소유라 해제 후에도 끝까지 재생)
 	queue_free()
