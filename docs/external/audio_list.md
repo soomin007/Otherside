@@ -5,6 +5,36 @@
 
 ---
 
+## ★ 지금 남은 것 (2026-07-05 정리 · 여기서 하나씩 복붙)
+
+> **BGM 현황:** ✅ 코어 베드(8분) · ✅ 재회 크레딧곡 `Other Side` · ⬜ 폭풍 긴장 · ⬜ 순환 엔딩
+> **남은 곡은 딱 2개.** 아래 두 블록을 순서대로 Suno 스타일 칸에 붙여넣으면 끝(가사 칸은 비움).
+> 길이·루프·자르기는 신경 쓰지 말 것. 좋은 take 고르는 것만 하면 나머지는 Claude 가 처리.
+
+### ⬜ 1번째 · 폭풍 긴장 (폭풍 구간에서 코어 베드와 교체)
+
+```
+[Instrumental] dark cinematic sandstorm tension, a wall of roaring desert wind rising, low dissonant drone with detuned bowed strings, rattling sand grains and faint metallic groans, a distant slow heartbeat pulse, oppressive and suffocating, no clear melody, no vocals, slowly building dread, loopable
+```
+
+- 더 애절한 결을 원하면 §1 의 변주 프롬프트(멀리서 우는 ney) 사용. 둘 중 하나면 충분.
+
+### ⬜ 2번째 · 순환 엔딩 (슬라이드 배경+암전 여운, 한 곡으로 통합 · 2026-07-05 결정)
+
+```
+[Instrumental] cold solemn cinematic ambient, a lone piano motif circling and unresolved over a deep drone, distant frame drum like a slow heartbeat, a single faint warm note hidden underneath hinting at another way, austere and lingering, very slow, no vocals, loopable
+```
+
+- 원래 "슬라이드 배경곡"+"엔딩곡" 2곡 계획이었으나 **한 곡으로 통일**(짧은 화면에 두 곡은 과함). 슬라이드에서 루프, 암전에서 페이드아웃은 코드가 처리.
+
+### 효과음(SFX)은 새로 뽑을 것 없음
+
+- **24종 전부 완료** (`assets/sfx/`, 상세는 §2). 미제작 ⬜ 없음.
+- 단 3개는 원본이 너무 조용해 +27~32dB 증폭했다. **폰이나 스피커로 들어보고 노이즈가 거슬릴 때만** ElevenLabs 재생성(프롬프트는 §2 의 ⚠️ 항목 그대로):
+  - `sfx_resource` 자원 감소 표시음 · `sfx_reveal` 노드 공개 · `sfx_cycle` 순환 저음 울림
+
+---
+
 ## 0. 사운드 정체성 (전체 톤 — 먼저 읽기)
 
 **서늘·건조·고독·사막.** 모래폭풍이 글씨를 지우는 세계, 거의 다 죽는 원정대의 릴레이, 죽기 전 단 한 번의 남김.
@@ -30,7 +60,7 @@
 > **★ 최종 결정(2026-07-04): 화면별 곡 폐기 → 3트랙 방식.** 게임 무드가 하나(서늘·사막)라 화면마다 곡을 바꾸면 몰입만 깨진다. 대신:
 > 1. **잔잔한 코어 베드** — 코어 루프(타이틀·마을·지도·전진·단면·죽음) 내내 *끊기지 않고 계속* 재생(화면 전환에 restart 안 함). `AudioManager` 가 크로스페이드 무한 루프. **✅ 제작됨(8분, 길이 무관 — 안 자름).**
 > 2. **폭풍 긴장** — 폭풍 구간에서 베드를 크로스페이드로 잠깐 교체, 지나면 복귀. **⬜ 프롬프트 = 아래 "폭풍 긴장".**
-> 3. **엔딩 (둘 다 슬라이드쇼 — 2026-07-04):** 재회 = 따뜻한 슬라이드(47~52 중 50~52) + 크레딧곡 `Other Side`(✅). 순환 = 차가운 슬라이드(47~49, 언더테일식 암시) + **전용 배경곡·엔딩곡(아래 "엔딩 음악", ⬜)** → 암전 → "아무 키나 눌러 계속" → 타이틀.
+> 3. **엔딩 (둘 다 슬라이드쇼 — 2026-07-04):** 재회 = 따뜻한 슬라이드(47~52 중 50~52) + 크레딧곡 `Other Side`(✅). 순환 = 차가운 슬라이드(47~49, 언더테일식 암시) + **전용곡 1곡(슬라이드+암전 겸용, ⬜ · 2026-07-05 통합, 아래 "엔딩 음악")** → 암전 → "아무 키나 눌러 계속" → 타이틀.
 >
 > 아래 B1~B10 per-screen 프롬프트는 **참고용(여유 시 마을·죽음 등 확장)** — 필수는 위 3개뿐이다.
 
@@ -49,18 +79,14 @@
 ```
 > 여느 때처럼 인스트루멘탈, 길이 신경 X(내가 루프·크로스페이드 처리). Suno 는 한 번에 2 take 주니 골라서.
 
-### 엔딩 음악 (2026-07-04)
+### 엔딩 음악 (2026-07-04 · 2026-07-05 순환 1곡으로 통합)
 
-- **재회:** `Other Side`(✅ 제작됨) — 따뜻한 슬라이드(50~52) + 크레딧.
-- **순환 슬라이드 배경곡** (⬜) — 차갑고 미해결, 밑에 옅은 희망 한 줄기(암시):
+- **재회:** `Other Side`(✅ 제작됨). 따뜻한 슬라이드(50~52) + 크레딧.
+- **순환** (⬜): 슬라이드 배경과 암전 여운을 **한 곡**으로 덮는다(사용자 확정 2026-07-05. 짧은 화면에 두 곡은 과함, 슬라이드 루프·암전 페이드아웃은 코드 처리). 차갑고 미해결, 밑에 옅은 희망 한 줄기:
 ```
-[Instrumental] cold solemn cinematic ambient, a circular unresolved motif over a deep drone, distant frame drum like a slow heartbeat, a faint flicker of a warmer note hidden underneath, austere and lingering, very slow, no vocals, loopable
+[Instrumental] cold solemn cinematic ambient, a lone piano motif circling and unresolved over a deep drone, distant frame drum like a slow heartbeat, a single faint warm note hidden underneath hinting at another way, austere and lingering, very slow, no vocals, loopable
 ```
-- **순환 엔딩곡** (⬜) — 암전 직전 여운용, 차갑지만 "다른 길" 씨앗:
-```
-[Instrumental] a spare cold ending piece, a lone piano motif circling and unresolved over a low drone, a single faint warm chord that hints at another way, austere then fading to silence, slow, no vocals
-```
-> 순환은 배경곡 하나로 슬라이드+암전 다 덮어도 되고, 위 두 곡으로 나눠도 됨(취향). 재회는 `Other Side`.
+> 맨 위 ★섹션의 2번째 블록과 같은 프롬프트다(원래 2곡 프롬프트를 하나로 합침: 순환 모티프·심장박동 프레임드럼 + 외로운 피아노·옅은 온기 힌트).
 
 ### B1 · 타이틀 테마  · P0
 - **어디서:** 타이틀 화면(Main). 첫인상. 루프 60~90s.
@@ -156,13 +182,13 @@ soft wordless choir or no vocals, no harsh percussion
 
 ---
 
-## 2. 효과음 (SFX) — ElevenLabs Sound Effects
+## 2. 효과음 (SFX) — ElevenLabs Sound Effects · ✅ 24종 전부 완료
 
 > **ElevenLabs 의 Sound Effects(text-to-SFX)로 만든다.** 짧은 자연어 설명을 넣으면 짧은 효과음이 나온다. 게임 SFX에 잘 맞는다(Suno는 BGM 전용).
 > **팁:** ① 설명은 짧고 구체적으로(재료·질감·동작 단어: dry, soft, paper, sand, leather). ② Duration 0.3~3s 로 짧게. ③ Prompt influence 높이면 설명에 충실(사실적)·낮추면 창의적. ④ 바람·공허 같은 앰비언트는 Loop 옵션. ⑤ 출력은 `.mp3`(Godot 가 그대로 임포트, 필요 시 `.wav` 변환). **⑥ 일회성 소리는 `a single one-shot ..., one hit only, not repeating` 을 꼭 넣기(아래 ★요령 — tick/tap 만 쓰면 반복 기계음이 됨).**
 > **톤(§0 유지):** 건조·성글게. 종이·모래·가죽·나무 질감. 날카롭거나 만화 같지 않게. 과장 금지.
 
-각 항목: 용도 + ElevenLabs 프롬프트(영어, 그대로 붙여넣기).
+각 항목: 용도 + ElevenLabs 프롬프트(영어, 그대로 붙여넣기). **전부 제작 완료 상태라 아래 프롬프트는 재생성용 보관.** ⚠️ 표시 3개만 노이즈 확인 후 재생성 후보.
 
 > **★ 제작 현황(2026-07-05): 효과음 24종 전부 처리 완료 → `assets/sfx/` (wav 24개, 모노 44.1k, 피크 -4dB).**
 > - **UI:** `sfx_tap`·`sfx_card_open`·`sfx_card_close`(open/close 구분 불가라 close 로 통일)·`sfx_bag_add`·`sfx_page_1~3`(5초 3연속을 분할, 랜덤 회전)·`sfx_settings`
@@ -176,7 +202,7 @@ soft wordless choir or no vocals, no harsh percussion
 
 > **★ 요령 — "단 한 번"을 강하게 (중요):** ElevenLabs 는 `tick`·`tap` 만 쓰면 **시계·톱니처럼 여러 번 반복되는 기계음(타다다닥)**으로 만든다. 일회성 소리는 반드시 **`a single one-shot ...` + `one hit only` + `not repeating` + `no rhythm, no sequence` + `very short`** 를 넣어 못 박는다. (지속·앰비언트 소리만 길게/반복 허용.)
 
-**UI (전부 일회성)**
+**UI (전부 일회성) · ✅ 완료**
 - 탭 / 버튼: `a single one-shot soft muted tap on paper, one hit only, not repeating, no rhythm, very short, dry`
 - 카드 열기: `a single one-shot soft parchment card sliding open once, one motion only, not repeating, dry paper rustle, short`
 - 카드 닫기: `a single one-shot soft parchment card closing once, one motion only, not repeating, brief dry paper, short`
@@ -184,26 +210,26 @@ soft wordless choir or no vocals, no harsh percussion
 - 페이지 넘김: `a single one-shot old paper page turning once, one page only, not repeating, dry and quiet, short`
 - 설정 열기: `a single one-shot soft muted low ui tone, one gentle tone only, not repeating, warm, short`
 
-**걸음 · 자원 (전부 일회성)**
+**걸음 · 자원 (전부 일회성) · ✅ 완료**
 - 모래 걸음: `a single one-shot footstep pressing into dry desert sand once, one step only, not repeating, soft close crunch`
 - 물 한 모금: `a single one-shot short quiet gulp of water from a metal flask, one sip only, not repeating`
-- 자원 감소 표시음: `a single one-shot tiny dry soft blip, one hit only, not repeating, no ticking, no rhythm, minimal and short`
+- ⚠️ 자원 감소 표시음(`sfx_resource`, 노이즈 시 재생성 후보): `a single one-shot tiny dry soft blip, one hit only, not repeating, no ticking, no rhythm, minimal and short`
 
-**이벤트 결과 (전부 일회성)**
+**이벤트 결과 (전부 일회성) · ✅ 완료**
 - 줍기(획득): `a single one-shot soft warm confirmation, picking up one small item, one hit only, not repeating, gentle and brief`
 - 로프 걸기: `a single one-shot taut rope pulling tight and creaking once, secured across a gap, one motion, not repeating`
-- 노드 공개(잉크 리빌): `a single one-shot delicate ink bloom on parchment with a soft airy shimmer, one reveal only, not repeating, short`
+- ⚠️ 노드 공개(잉크 리빌, `sfx_reveal`, 노이즈 시 재생성 후보): `a single one-shot delicate ink bloom on parchment with a soft airy shimmer, one reveal only, not repeating, short`
 - 남기기(내려놓음): `a single one-shot small object set down onto sand once, one soft placement with low resonance, not repeating`
 
-**위협 (지속 ~2s, 반복 아님 — 앰비언트)**
+**위협 (지속 ~2s, 반복 아님 — 앰비언트) · ✅ 완료**
 - 폭풍 돌풍(경고): `one sustained gust of harsh sandstorm wind rising and holding for about 2 seconds, grains rattling, single continuous swell, not looping` (또는 Loop 로 배경)
 - 갈라진 틈(공허): `a single hollow low echo rising once from a deep crack in the ground, empty and cold, one sustained tail, not repeating`
 - 갈증 경고: `a single low subtle warning drone, one sustained tone about 1.5 seconds, dry and tense but not alarming, not repeating`
 
-**결말 · 죽음 (전부 일회성)**
+**결말 · 죽음 (전부 일회성) · ✅ 완료**
 - 죽음(스러짐): `a single one-shot low mournful impact with a long fading resonance, a body settling into sand once, not repeating`
 - 재회 차임: `a single one-shot warm resolving bell shimmer, one gentle bloom, tender and hopeful, not repeating`
-- 순환 저음 울림: `a single one-shot deep low resonant drone hit, one strike, cold and unresolved, slowly fading, not repeating`
+- ⚠️ 순환 저음 울림(`sfx_cycle`, 노이즈 시 재생성 후보): `a single one-shot deep low resonant drone hit, one strike, cold and unresolved, slowly fading, not repeating`
 
 > 톤은 전부 §0. ElevenLabs 가 또 반복하면 `one hit only, not repeating` 를 맨 앞에 더 세게. 다 뽑아 오면 Claude 가 -4dB 정규화·wav 변환·배선.
 
