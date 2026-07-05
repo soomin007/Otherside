@@ -83,15 +83,12 @@ func _draw() -> void:
 	var w: float = text_w * _underline
 	var cx: float = size.x * 0.5
 	var y: float = size.y - 9.0
-	var h: float = 2.6  # 중앙 두께(반), 양끝은 뾰족(0)
 	var t: float = (_underline - _u_rest) / maxf(0.01, 1.0 - _u_rest)  # rest→hover 진행(0~1)
 	var a: float = lerpf(0.5, 1.0, t) if is_key else 0.95
 	var s := UITheme.SAND
-	# 끝이 뾰족한 마름모형 밑줄(<=>) — 중앙이 두껍고 양끝으로 갈수록 얇아진다.
-	var pts := PackedVector2Array([
-		Vector2(cx - w * 0.5, y),
-		Vector2(cx, y - h),
-		Vector2(cx + w * 0.5, y),
-		Vector2(cx, y + h),
-	])
-	draw_colored_polygon(pts, Color(s.r, s.g, s.b, a))
+	var x0: float = cx - w * 0.5
+	var x1: float = cx + w * 0.5
+	# 가느다란 각인 밑줄(원본 1px + glow) — 마름모(두꺼운 브러쉬)는 draw_colored_polygon 이라 계단(픽셀)이 보였음.
+	# antialiased draw_line 으로 매끈하게: 넓고 옅은 글로우선(box-shadow 0 0 8px 대체) 위에 가는 본선.
+	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.20), 4.5, true)  # 소프트 글로우
+	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a), 1.2, true)          # 가는 본선(≈1px)
