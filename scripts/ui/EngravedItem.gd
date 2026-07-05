@@ -12,6 +12,7 @@ var _spacing_cur: float = 0.0
 var _underline: float = 0.0
 var _u_rest: float = 0.0   ## 기본 밑줄 정도(대표 항목은 옅게 상시 — 원본 key::after)
 var _tween: Tween
+var _dark_tex: GradientTexture2D  ## 항목 뒤 약한 어둠(방사) — 사진 위 가독
 
 ## 생성 직후 호출 — 문구·글자 크기(px)·대표 여부. add_child 전에 부른다.
 func init_item(txt: String, px: int, key: bool) -> void:
@@ -37,10 +38,26 @@ func _ready() -> void:
 	add_theme_color_override("font_hover_color", UITheme.SAND)
 	add_theme_color_override("font_focus_color", UITheme.SAND)
 	add_theme_color_override("font_pressed_color", UITheme.SAND)
-	add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
+	# 글씨 소프트 글로우 그림자 — 원본 text-shadow(0 2px 12px) 근사: 넓게 번지는 어두운 블러(outline 크게).
+	add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.85))
 	add_theme_constant_override("shadow_offset_x", 0)
 	add_theme_constant_override("shadow_offset_y", 2)
-	add_theme_constant_override("shadow_outline_size", 5)
+	add_theme_constant_override("shadow_outline_size", 10)
+	# 항목 뒤 약한 어둠(원본 — 사진 위 가독) — 경계 없는 방사, _draw 가 매 프레임 깐다.
+	var dg := Gradient.new()
+	dg.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
+	dg.colors = PackedColorArray([
+		Color(0.02, 0.013, 0.007, 0.30),
+		Color(0.02, 0.013, 0.007, 0.16),
+		Color(0.02, 0.013, 0.007, 0.0),
+	])
+	_dark_tex = GradientTexture2D.new()
+	_dark_tex.gradient = dg
+	_dark_tex.fill = GradientTexture2D.FILL_RADIAL
+	_dark_tex.fill_from = Vector2(0.5, 0.5)
+	_dark_tex.fill_to = Vector2(0.98, 0.5)
+	_dark_tex.width = 128
+	_dark_tex.height = 64
 	# 순수 텍스트 + 안쪽 여백(원본 padding) — 밑줄이 글씨 아래에 오도록 하단 여백.
 	var empty := StyleBoxEmpty.new()
 	empty.content_margin_top = 14.0
@@ -76,6 +93,9 @@ func _apply_spacing() -> void:
 		_fv.set_spacing(TextServer.SPACING_GLYPH, int(round(_spacing_cur)))
 
 func _draw() -> void:
+	# 항목 뒤 약한 어둠(상시) — 원본 HTML 의 메뉴 가독 배경. 경계 없는 방사라 상자로 안 읽힌다.
+	if _dark_tex != null:
+		draw_texture_rect(_dark_tex, Rect2(-16.0, -6.0, size.x + 32.0, size.y + 12.0), false)
 	if _underline <= 0.01:
 		return
 	var text_w: float = maxf(0.0, size.x - 52.0)  # 좌우 여백(26*2) 뺀 글씨 폭 — hover(_underline=1) 면 밑줄이 글씨 전체 길이
@@ -89,8 +109,9 @@ func _draw() -> void:
 	var x0: float = cx - w * 0.5
 	var x1: float = cx + w * 0.5
 	# 은은히 새어나오는 각인 밑줄 — 폭이 다른 저알파 글로우를 여러 겹 쌓아(soft bloom) 가는 본선을 감싼다.
-	# (마름모 폴리곤은 계단이 보였고, 단일 글로우선은 딱딱했음. 셰이더 금지라 겹선으로 bloom 근사.)
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.05), 9.0, true)
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.12), 5.0, true)
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.30), 2.6, true)
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.9), 1.1, true)   # 가는 심지
+	# 두께는 1920×1080 체감 기준(사용자 "훨씬 가늘어 보인다", 2026-07-05 — 논리 캔버스가 1280×720 로 같아도
+	# 큰 화면에선 헤어라인이 얇게 읽힘 → 심지 1.1→1.8 + 글로우 층 확대).
+	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.05), 12.0, true)
+	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.13), 6.5, true)
+	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.32), 3.4, true)
+	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.9), 1.8, true)   # 심지

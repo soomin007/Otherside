@@ -76,6 +76,7 @@ var _chapter: int = 0
 var _tut_idx: int = 0
 var _flipping: bool = false
 var _rib_tw: Tween
+var _opened_ms: int = 0        ## 일지를 연 시각 — 여는 클릭이 스크림 닫기로 새는 것 방지 가드
 
 func _ready() -> void:
 	if not ENABLED:
@@ -163,11 +164,16 @@ func _ribbon_hover(on: bool) -> void:
 func _on_ribbon_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed) \
 			or (event is InputEventScreenTouch and event.pressed):
-		_open()
+		# 같은 클릭(또는 마우스가 만든 합성 터치)이 방금 열린 일지의 스크림까지 흘러가
+		# 열리자마자 닫아버리던 버그 — 이벤트를 여기서 소비하고, 열기는 다음 프레임으로 미룬다.
+		_ribbon.accept_event()
+		call_deferred("_open")
 
 func _on_tab_input(event: InputEvent, idx: int) -> void:
 	if (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed) \
 			or (event is InputEventScreenTouch and event.pressed):
+		var tab: Ribbon = _tabs[idx]
+		tab.accept_event()
 		_flip_to(idx)
 
 # --- 열기/닫기/레이아웃 ---
@@ -176,6 +182,7 @@ func _open() -> void:
 	_layout_book()
 	_panel.visible = true
 	UITheme.fade_in(_panel)
+	_opened_ms = Time.get_ticks_msec()
 	_chapter = 0
 	_apply_tab_state()
 	_render_chapter()
@@ -185,7 +192,8 @@ func _close() -> void:
 
 func _on_scrim_input(event: InputEvent) -> void:
 	var tap: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed)
-	if tap:
+	# 연 직후 250ms 는 무시 — 여는 클릭의 잔여 이벤트(합성 터치 등)가 바로 닫는 것 방지.
+	if tap and Time.get_ticks_msec() - _opened_ms > 250:
 		_close()
 
 ## 일지 크기 — 화면 중앙, 여유 있게(가로 72%·세로 86% 상한). pivot 은 왼쪽 스파인(책이 접히는 축).

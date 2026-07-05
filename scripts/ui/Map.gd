@@ -117,6 +117,7 @@ var _dragging: bool = false       ## 누름~뗌 사이 드래그 추적(임계 �
 var _drag_start_y: float = 0.0    ## 드래그 시작 지점 y(스크린)
 var _drag_moved: float = 0.0      ## 드래그 누적 이동(임계 넘으면 탭 아님)
 ## 손그림 채점 원 캐시·타이머 — 랜덤 생성은 _draw 밖에서 한 번(프레임마다 흔들리면 안 됨), _draw 는 캐시만 렌더.
+var _label_pool_tex: GradientTexture2D  ## 라벨 뒤 크림 빛 웅덩이(방사) — 낙서·배경 위 가독성(상자 없이)
 var _circle_cache: Dictionary = {}   ## key(노드 id 또는 "__hover") -> PackedVector2Array(중심 기준 오프셋, 잉크 거칠기 baked)
 var _circle_cur_id: String = ""      ## 현재 채점 원이 걸린 노드
 var _circle_cur_t: float = 0.0       ## current 원 경과(그려짐→점멸)
@@ -142,6 +143,22 @@ func _ready() -> void:
 		var spath: String = str(SKETCH_PATHS[k])
 		if ResourceLoader.exists(spath):
 			_sketch_tex[str(k)] = load(spath)
+
+	# 라벨 빛 웅덩이 텍스처 — 한 번 생성해 _draw 가 재사용.
+	var pg := Gradient.new()
+	pg.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
+	pg.colors = PackedColorArray([
+		Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.62),
+		Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.34),
+		Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.0),
+	])
+	_label_pool_tex = GradientTexture2D.new()
+	_label_pool_tex.gradient = pg
+	_label_pool_tex.fill = GradientTexture2D.FILL_RADIAL
+	_label_pool_tex.fill_from = Vector2(0.5, 0.5)
+	_label_pool_tex.fill_to = Vector2(0.98, 0.5)
+	_label_pool_tex.width = 128
+	_label_pool_tex.height = 64
 
 	_build_chrome()
 	resized.connect(_layout_chrome)
@@ -1031,10 +1048,17 @@ func _draw_red_path(pts: PackedVector2Array, icon_size: float) -> void:
 	draw_polyline(pts, Color(RED_PATH.r, RED_PATH.g, RED_PATH.b, 0.22), w * 2.4)
 	draw_polyline(pts, RED_PATH, w)
 
-## 지도 라벨 — 크림 후광(§2, 다중 오프셋으로 text-shadow 대체) 위에 상태색 글자. draw_string 은 그림자가 없어 손으로 겹쳐 그린다.
+## 지도 라벨 — 크림 빛 웅덩이(방사, 상자 없음) + 후광(§2) 위에 상태색 글자.
+## 웅덩이가 뒤의 낙서·배경 결을 은은하게 밀어내 이름이 항상 읽힌다(사용자 가독성 지적, 2026-07-05).
 func _draw_map_label(font: Font, pos: Vector2, text: String, width: float, fs: int, col: Color) -> void:
 	if font == null:
 		return
+	if _label_pool_tex != null:
+		# 실제 글자 폭에 맞춘 타원 웅덩이 — 텍스트보다 사방 한 뼘 넓게.
+		var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+		var pw: float = minf(width, tw + fs * 2.6)
+		var ph: float = fs * 2.4
+		draw_texture_rect(_label_pool_tex, Rect2(pos.x + (width - pw) * 0.5, pos.y - fs * 0.35 - ph * 0.5, pw, ph), false)
 	var halo: Color = Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.5)
 	for off in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1), Vector2(-1, -1), Vector2(1, 1), Vector2(1, -1), Vector2(-1, 1)]:
 		draw_string(font, pos + off, text, HORIZONTAL_ALIGNMENT_CENTER, width, fs, halo)
