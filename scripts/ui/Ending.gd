@@ -2,12 +2,14 @@ extends Control
 
 ## 엔딩 슬라이드쇼 — 순환/재회 (기획서 §3 결말). 오프닝식 삽화 + 내레이션 크로스페이드.
 ##  순환(cycle): 슬라이드 3장(47~49) → 암전 → 3초 후 "아무 키나 눌러 계속" → 타이틀. 49 에 언더테일식 암시.
-##  재회(reunion): 슬라이드 3장(50~52) + `Other Side` 크레딧곡 → 타이틀.
+##  재회(reunion): 슬라이드 3장(50~52) + `Other Side` 크레딧곡 → **크레딧 롤**(지금까지의 모든
+##   원정대 이름이 올라간다 — "먼저 간 모든 원정대"의 시각화, 2026-07-05) → 안내 → 타이틀.
 ## 음악은 게임이 자르지 않는다 — 순환곡(`The Unresolved`)은 암전·안내까지 계속 흐르고,
 ## 떠나는 순간 타이틀(Main)이 베드로 크로스페이드한다. 여운 길이는 플레이어가 정한다.
 ## kind 는 GameState.ending_kind_pending 로 주입(Expedition._show_ending). 어느 쪽이든 끝나면 타이틀 복귀.
 
 const FADE: float = 1.1
+const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")  ## 크레딧 마지막 영어 타이틀(타이틀 화면과 동일)
 const CYCLE_SLIDES: Array = [
 	{"img": "res://assets/arts/47_엔딩순환_도착.png", "text": "재앙의 자리엔, 먼저 간 원정대가 서 있었다."},
 	{"img": "res://assets/arts/48_엔딩순환_밀어냄.png", "text": "멈추려면 그를 밀어내야 했다.\n이제 이 자리에 선 것은 우리다."},
@@ -22,13 +24,15 @@ const REUNION_SLIDES: Array = [
 var _slides: Array = []
 var _reunion: bool = false
 var _idx: int = -1
-var _phase: String = "slides"   ## slides / prompt / blackout
+var _phase: String = "slides"   ## slides / credits / prompt / blackout
 var _busy: bool = false          ## 페이드 중 입력 무시
 
 var _illus: TextureRect
 var _label: Label
 var _dim: ColorRect
 var _prompt: Label
+var _credits_box: VBoxContainer  ## 재회 크레딧 롤(원정대 이름들)
+var _credits_tw: Tween
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -138,11 +142,11 @@ func _apply_slide(tex: Texture2D, text: String) -> void:
 func _clear_busy() -> void:
 	_busy = false
 
-## 마지막 슬라이드 후 — 재회는 크레딧 여운, 순환은 암전 후 안내.
+## 마지막 슬라이드 후 — 재회는 크레딧 롤, 순환은 암전 후 안내.
 func _end_slides() -> void:
 	if _reunion:
-		_phase = "prompt"
-		_reveal_prompt("여기까지.  아무 키나 누르면 돌아갑니다.")
+		_phase = "credits"
+		_start_credits()
 	else:
 		_phase = "blackout"
 		# 음악은 자르지 않는다 — 암전·안내에서도 순환곡이 계속 흐른다(곡의 기승전결 보존).
@@ -155,6 +159,89 @@ func _reveal_prompt(text: String) -> void:
 	_prompt.text = text
 	var t := create_tween()
 	t.tween_property(_prompt, "modulate:a", 1.0, 1.3)
+
+# --- 재회 크레딧 롤 ---
+
+## `Other Side` 가 흐르는 동안 1번째부터 이번 원정까지 모든 원정대의 이름이 올라간다.
+## 마지막 그림(모두의 재회)은 어스름하게 뒤에 남긴다. 탭하면 크레딧을 건너뛰고 안내로.
+func _start_credits() -> void:
+	var t := create_tween()
+	t.tween_property(_illus, "modulate:a", 0.22, FADE)
+	t.parallel().tween_property(_label, "modulate:a", 0.0, FADE * 0.5)
+	t.parallel().tween_property(_dim, "color:a", 0.5, FADE)
+
+	var host := Control.new()
+	host.set_anchors_preset(Control.PRESET_FULL_RECT)
+	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	host.clip_contents = true
+	add_child(host)
+	move_child(host, _prompt.get_index())  # 안내문·건너뛰기 버튼 아래에 깔린다
+
+	_credits_box = VBoxContainer.new()
+	_credits_box.add_theme_constant_override("separation", 6)
+	host.add_child(_credits_box)
+
+	var n: int = GameState.expedition_count
+	if n > 1:
+		_credits_add("먼저 간 원정대", UITheme.FS_SMALL, UITheme.MUTED)
+		_credits_spacer(26.0)
+		for exp in range(1, n):
+			_credits_add("%d번째 원정" % exp, UITheme.FS_SMALL, UITheme.MUTED)
+			_credits_add(GameState.expedition_name(exp), UITheme.FS_H2, UITheme.FG)
+			_credits_spacer(22.0)
+		_credits_spacer(30.0)
+		_credits_add("그리고", UITheme.FS_SMALL, UITheme.MUTED)
+		_credits_spacer(8.0)
+	_credits_add("%d번째 원정" % n, UITheme.FS_SMALL, UITheme.MUTED)
+	_credits_add(GameState.expedition_name(n), UITheme.FS_H2, UITheme.SAND)
+	_credits_add("건너편에 닿았다.", UITheme.FS_SMALL, UITheme.MUTED)
+	_credits_spacer(56.0)
+	var title := _credits_add("SEE YOU ON THE OTHER SIDE", UITheme.FS_LABEL, UITheme.SAND)
+	var fv := FontVariation.new()
+	fv.base_font = EN_TITLE_FONT
+	fv.set_spacing(TextServer.SPACING_GLYPH, 3)
+	title.add_theme_font_override("font", fv)
+
+	_roll_credits()
+
+func _credits_add(text: String, font_size: int, color: Color) -> Label:
+	var l := UITheme.make_label(text, font_size, color)
+	_credits_box.add_child(l)
+	return l
+
+func _credits_spacer(h: float) -> void:
+	var sp := Control.new()
+	sp.custom_minimum_size = Vector2(0, h)
+	_credits_box.add_child(sp)
+
+## 화면 아래에서 위로 일정한 속도로 흘린다. 끝나면 안내문.
+func _roll_credits() -> void:
+	await get_tree().process_frame  # VBox 높이 확정 대기
+	if _phase != "credits" or _credits_box == null:
+		return
+	var vp: Vector2 = get_viewport_rect().size
+	var w: float = minf(vp.x * 0.86, 560.0)
+	var h: float = _credits_box.get_combined_minimum_size().y
+	_credits_box.size = Vector2(w, h)
+	_credits_box.position = Vector2((vp.x - w) * 0.5, vp.y)
+	var speed: float = maxf(vp.y / 13.0, 34.0)  # 화면 하나를 약 13초에 — 느긋하게
+	_credits_tw = create_tween()
+	_credits_tw.tween_property(_credits_box, "position:y", -(h + 40.0), (vp.y + h + 40.0) / speed)
+	_credits_tw.tween_callback(_credits_done)
+
+## 크레딧이 끝나면(또는 탭으로 건너뛰면) 안내문으로.
+func _credits_done() -> void:
+	if _phase != "credits":
+		return
+	_phase = "prompt"
+	_reveal_prompt("여기까지.  아무 키나 누르면 돌아갑니다.")
+
+func _skip_credits() -> void:
+	if _credits_tw != null and _credits_tw.is_valid():
+		_credits_tw.kill()
+	if _credits_box != null:
+		create_tween().tween_property(_credits_box, "modulate:a", 0.0, 0.5)
+	_credits_done()
 
 func _exit() -> void:
 	GameState.ending_kind_pending = ""
@@ -175,6 +262,8 @@ func _handle_go() -> void:
 	match _phase:
 		"slides":
 			_advance()
+		"credits":
+			_skip_credits()
 		"prompt":
 			_exit()
 		"blackout":

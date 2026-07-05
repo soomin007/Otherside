@@ -306,22 +306,23 @@ static func _pill_sb(fill: Color, border: Color) -> StyleBoxFlat:
 	sb.set_content_margin_all(12)
 	return sb
 
-## 모래색 슬라이더 — 얇은 트랙 + 채움(모래) + 모래알 그래버. 기본 밋밋한 슬라이더 대체.
-static func style_slider(s: HSlider) -> void:
+## 모래색 슬라이더 — 얇은 트랙 + 채움 + 모래알 그래버. 기본 밋밋한 슬라이더 대체.
+## col 로 색을 바꿀 수 있다(설정 장부의 잉크 슬라이더 등). 기본은 모래색.
+static func style_slider(s: HSlider, col: Color = SAND) -> void:
 	var track := StyleBoxFlat.new()
-	track.bg_color = Color(SAND.r, SAND.g, SAND.b, 0.16)
+	track.bg_color = Color(col.r, col.g, col.b, 0.16)
 	track.set_corner_radius_all(4)
 	track.content_margin_top = 3.0
 	track.content_margin_bottom = 3.0
 	var fill := StyleBoxFlat.new()
-	fill.bg_color = SAND
+	fill.bg_color = col
 	fill.set_corner_radius_all(4)
 	fill.content_margin_top = 3.0
 	fill.content_margin_bottom = 3.0
 	s.add_theme_stylebox_override("slider", track)
 	s.add_theme_stylebox_override("grabber_area", fill)
 	s.add_theme_stylebox_override("grabber_area_highlight", fill)
-	var dot: ImageTexture = _grain_texture(22, SAND)
+	var dot: ImageTexture = _grain_texture(22, col)
 	s.add_theme_icon_override("grabber", dot)
 	s.add_theme_icon_override("grabber_highlight", dot)
 

@@ -1,152 +1,263 @@
 extends Control
 
-## 설정창 — 타이틀 위에 띄우는 오버레이(씬 전환 없이 add_child).
-## 다듬은 모양: 어두운 배경 + 모래 지평선 액센트가 있는 카드. 초기화는 게임 픽션 그대로
-##   "모래폭풍이 이 세계를 지운다"로 framing 하되 결과는 명확히. 기본 ConfirmationDialog 대신
-##   같은 카드 안에서 확인 화면으로 전환(템플릿 다이얼로그 제거).
-## 음량은 AppSettings 가 적용+저장(user://settings.cfg).
+## 설정 — 디에게틱 풀스크린 "원정 장부" (2026-07-05 리디자인, 사용자 확정).
+## 어두운 책상 위에 펼친 장부 두 페이지. 왼쪽 = 세계 기록 + 위험 구역(세계 지우기),
+## 오른쪽 = 소리(배경음악·효과음 따로 + 전체 음소거) + 덮기. 지우기 확인은 페이지를 넘기듯 전환.
+## 양피지·잉크는 지도와 같은 팔레트(UITheme.PAPER/INK) — 셰이더 없이 _draw 로 그린다(웹 안전).
+## 호출부 API 는 이전과 동일: SettingsPanel.new() 를 씬에 add_child, data_reset 시그널.
 
 signal data_reset  ## 데이터 초기화가 끝났을 때 (부모가 통계 라벨 등을 갱신)
 
-const QUIET_FG := Color(0.82, 0.82, 0.86)
-const QUIET_BORDER := Color(0.5, 0.49, 0.56, 0.4)
-const DANGER_BORDER := Color(UITheme.DANGER.r, UITheme.DANGER.g, UITheme.DANGER.b, 0.6)
-const HORIZON := Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.38)
+const INK := UITheme.INK
+const INK_FADE := UITheme.INK_FADE
+const PAPER := UITheme.PAPER
+const PAPER_EDGE := UITheme.PAPER_EDGE
+const RED_INK := UITheme.MARKER_INK
 
-var _content: VBoxContainer  ## 카드 안 내용(메인 ↔ 확인 전환)
+const PAGE_PAD: float = 30.0   ## 페이지 안쪽 여백
+const PAGE_SFX: Array = [
+	"res://assets/sfx/sfx_page_1.wav", "res://assets/sfx/sfx_page_2.wav", "res://assets/sfx/sfx_page_3.wav",
+]
+
+var _page_l_box: VBoxContainer   ## 왼쪽 페이지 내용
+var _page_r_box: VBoxContainer   ## 오른쪽 페이지 내용
 var _music_value: Label
 var _sfx_value: Label
 var _in_confirm: bool = false
-var _pre_mute: float = 0.6   ## 음소거 직전 전체 볼륨(음소거 해제 시 복원)
+var _pre_mute: float = 1.0   ## 음소거 직전 전체 볼륨(음소거 해제 시 복원)
+
+var _rect_l: Rect2   ## 왼쪽 페이지(그리기와 내용 배치가 공유)
+var _rect_r: Rect2
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	size = get_viewport_rect().size  # 오버레이 크기 즉시 확정 — 레이아웃 대기 중 CenterContainer 가 0 → 카드가 왼쪽 위로 쏠리는 것 방지
-
-	# 어두운 배경 — 뒤 입력 차단 + 집중. 빈 곳을 누르면 닫힌다.
-	var dim := ColorRect.new()
-	dim.color = UITheme.SCRIM
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	dim.gui_input.connect(_on_dim_input)
-	add_child(dim)
-
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(center)
-
-	var card := UITheme.make_card(480.0)
-	center.add_child(card)
-
-	_content = VBoxContainer.new()
-	_content.add_theme_constant_override("separation", 14)
-	card.add_child(_content)
-
+	size = get_viewport_rect().size  # 레이아웃 패스 전 size 0 방지(known_issues)
+	mouse_filter = Control.MOUSE_FILTER_STOP  # 풀스크린 — 뒤 화면 입력 차단
+	_page_l_box = _make_page_box()
+	_page_r_box = _make_page_box()
+	_layout()
+	resized.connect(_layout)
 	_show_main()
-
-	# 부드럽게 떠오름 (절제된 micro-interaction)
+	AudioManager.play_sfx("res://assets/sfx/sfx_settings.wav")
+	# 장부가 스르륵 펼쳐짐
 	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, 0.16).set_ease(Tween.EASE_OUT)
+	create_tween().tween_property(self, "modulate:a", 1.0, 0.22).set_ease(Tween.EASE_OUT)
 
-func _clear() -> void:
-	for c in _content.get_children():
-		_content.remove_child(c)
+func _make_page_box() -> VBoxContainer:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	add_child(box)
+	return box
+
+## 화면 크기에서 두 페이지 자리를 잡는다. 가로면 좌우 펼침, 세로(예외)면 위아래.
+func _layout() -> void:
+	var vp: Vector2 = size
+	var horizontal: bool = vp.x >= vp.y * 1.05
+	var bw: float
+	var bh: float
+	if horizontal:
+		bw = minf(vp.x * 0.9, 1080.0)
+		bh = minf(vp.y * 0.86, 640.0)
+	else:
+		bw = minf(vp.x * 0.94, 560.0)
+		bh = minf(vp.y * 0.9, 1040.0)
+	var origin := Vector2((vp.x - bw) * 0.5, (vp.y - bh) * 0.5)
+	var gutter: float = 16.0
+	if horizontal:
+		var pw: float = bw * 0.5 - gutter * 0.5
+		_rect_l = Rect2(origin, Vector2(pw, bh))
+		_rect_r = Rect2(origin + Vector2(bw - pw, 0.0), Vector2(pw, bh))
+	else:
+		var ph: float = bh * 0.5 - gutter * 0.5
+		_rect_l = Rect2(origin, Vector2(bw, ph))
+		_rect_r = Rect2(origin + Vector2(0.0, bh - ph), Vector2(bw, ph))
+	_place(_page_l_box, _rect_l)
+	_place(_page_r_box, _rect_r)
+	queue_redraw()
+
+func _place(box: VBoxContainer, r: Rect2) -> void:
+	box.position = r.position + Vector2(PAGE_PAD, PAGE_PAD)
+	box.size = r.size - Vector2(PAGE_PAD * 2.0, PAGE_PAD * 2.0)
+
+# --- 장부 그리기 (셰이더 없이) ---
+
+func _draw() -> void:
+	# 책상 — 따뜻한 어둠, 아래쪽에 아주 옅은 온기
+	draw_rect(Rect2(Vector2.ZERO, size), UITheme.BG_TOP)
+	draw_rect(Rect2(0.0, size.y * 0.6, size.x, size.y * 0.4),
+		Color(UITheme.BG_BOT.r, UITheme.BG_BOT.g, UITheme.BG_BOT.b, 0.22))
+
+	var book: Rect2 = _rect_l.merge(_rect_r).grow(16.0)
+	# 그림자
+	var shadow_sb := StyleBoxFlat.new()
+	shadow_sb.bg_color = Color(0, 0, 0, 0.38)
+	shadow_sb.set_corner_radius_all(18)
+	shadow_sb.draw(get_canvas_item(), Rect2(book.position + Vector2(0.0, 10.0), book.size).grow(4.0))
+	# 가죽 표지
+	var cover_sb := StyleBoxFlat.new()
+	cover_sb.bg_color = UITheme.PANEL
+	cover_sb.border_color = UITheme.PANEL_BORDER
+	cover_sb.set_border_width_all(2)
+	cover_sb.set_corner_radius_all(14)
+	cover_sb.draw(get_canvas_item(), book)
+
+	for r in [_rect_l, _rect_r]:
+		_draw_page(r)
+
+	# 가운데 접힘 그림자 — 두 페이지의 마주 보는 안쪽 변
+	var horizontal: bool = _rect_r.position.x > _rect_l.position.x
+	for i in range(3):
+		var a: float = 0.05 + 0.035 * float(i)
+		var w: float = 12.0 - 4.0 * float(i)
+		if horizontal:
+			draw_rect(Rect2(_rect_l.end.x - w, _rect_l.position.y, w, _rect_l.size.y), Color(0, 0, 0, a))
+			draw_rect(Rect2(_rect_r.position.x, _rect_r.position.y, w, _rect_r.size.y), Color(0, 0, 0, a))
+		else:
+			draw_rect(Rect2(_rect_l.position.x, _rect_l.end.y - w, _rect_l.size.x, w), Color(0, 0, 0, a))
+			draw_rect(Rect2(_rect_r.position.x, _rect_r.position.y, _rect_r.size.x, w), Color(0, 0, 0, a))
+
+## 양피지 한 장 — 바탕 + 그을린 가장자리 두 겹 + 옅은 장부 괘선.
+func _draw_page(r: Rect2) -> void:
+	var page_sb := StyleBoxFlat.new()
+	page_sb.bg_color = PAPER
+	page_sb.border_color = Color(PAPER_EDGE.r, PAPER_EDGE.g, PAPER_EDGE.b, 0.9)
+	page_sb.set_border_width_all(1)
+	page_sb.set_corner_radius_all(4)
+	page_sb.draw(get_canvas_item(), r)
+	draw_rect(r.grow(-3.0), Color(PAPER_EDGE.r, PAPER_EDGE.g, PAPER_EDGE.b, 0.28), false, 1.5)
+	draw_rect(r.grow(-7.0), Color(PAPER_EDGE.r, PAPER_EDGE.g, PAPER_EDGE.b, 0.12), false, 1.0)
+	var y: float = r.position.y + 92.0
+	while y < r.end.y - 34.0:
+		draw_line(Vector2(r.position.x + 20.0, y), Vector2(r.end.x - 20.0, y),
+			Color(INK_FADE.r, INK_FADE.g, INK_FADE.b, 0.13), 1.0)
+		y += 42.0
+
+func _clear(box: VBoxContainer) -> void:
+	for c in box.get_children():
+		box.remove_child(c)
 		c.queue_free()
 
-# --- 메인 화면 ---
+# --- 메인 (왼쪽 = 기록·위험 구역 / 오른쪽 = 소리·덮기) ---
 
 func _show_main() -> void:
 	_in_confirm = false
-	_clear()
+	_clear(_page_l_box)
+	_clear(_page_r_box)
 
-	_content.add_child(UITheme.make_label("설정", UITheme.FS_H1, UITheme.FG, false))
-	_content.add_child(UITheme.make_label(
-		"원정 %d회 · 흔적 %d · 죽은 자리 %d" % [GameState.expedition_count, GameState.traces.size(), GameState.deaths.size()],
-		UITheme.FS_SMALL, UITheme.MUTED, false))
-	_content.add_child(UITheme.make_hairline(HORIZON, 2.0))  # 모래 지평선 (시그니처)
-
-	# --- 소리 (배경음악·효과음 따로 + 전체 음소거) ---
-	var master := AppSettings.load_master_volume()
-	var srow := HBoxContainer.new()
-	srow.add_theme_constant_override("separation", 10)
-	var slabel := UITheme.make_label("소리", UITheme.FS_LABEL, UITheme.SAND, false)
-	slabel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	srow.add_child(slabel)
-	var mute := UITheme.make_pill("소리 켜기" if master <= 0.0 else "전체 음소거", QUIET_FG, Color(0, 0, 0, 0), QUIET_BORDER)
-	mute.pressed.connect(_toggle_mute)
-	srow.add_child(mute)
-	_content.add_child(srow)
-
-	_music_value = _add_volume_row("배경음악", AppSettings.load_music_volume(), _on_music_changed, Callable())
-	_sfx_value = _add_volume_row("효과음", AppSettings.load_sfx_volume(), _on_sfx_changed, _on_sfx_drag_ended)
-
-	_content.add_child(UITheme.make_hairline())
-
-	# --- 데이터 (모래폭풍 framing, 결과는 명확히) ---
-	_content.add_child(UITheme.make_label(
-		"저장된 이 세계를 지웁니다.\n원정·흔적·죽은 자리가 모두 사라지고, 처음부터 시작합니다.",
-		UITheme.FS_SMALL, UITheme.MUTED, false))
-	var wipe := UITheme.make_pill("저장 데이터 지우기", UITheme.DANGER, Color(0, 0, 0, 0), DANGER_BORDER)
+	# ── 왼쪽 페이지: 세계 기록
+	_page_l_box.add_child(_brush_heading("원정 장부", 44, INK))
+	_page_l_box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	_page_l_box.add_child(_ledger_row("보낸 원정", "%d회" % GameState.expedition_count))
+	_page_l_box.add_child(_ledger_row("남긴 흔적", "%d" % GameState.traces.size()))
+	_page_l_box.add_child(_ledger_row("죽은 자리", "%d" % GameState.deaths.size()))
+	_page_l_box.add_child(_expand_spacer())
+	_page_l_box.add_child(_ink_label("저장된 이 세계를 지웁니다.\n원정·흔적·죽은 자리가 모두 사라지고, 처음부터 시작합니다.",
+		UITheme.FS_SMALL, INK_FADE))
+	var wipe := UITheme.make_pill("저장 데이터 지우기", RED_INK, Color(0, 0, 0, 0),
+		Color(RED_INK.r, RED_INK.g, RED_INK.b, 0.55))
 	wipe.pressed.connect(_show_confirm)
-	_content.add_child(wipe)
+	_page_l_box.add_child(wipe)
 
-	_content.add_child(UITheme.make_hairline())
+	# ── 오른쪽 페이지: 소리
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 10)
+	var htext := _brush_heading("소리", 38, INK)
+	htext.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(htext)
+	var master := AppSettings.load_master_volume()
+	var mute := UITheme.make_pill("소리 켜기" if master <= 0.0 else "전체 음소거", INK, Color(0, 0, 0, 0),
+		Color(INK.r, INK.g, INK.b, 0.4))
+	mute.pressed.connect(_toggle_mute)
+	head.add_child(mute)
+	_page_r_box.add_child(head)
+	_page_r_box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 
-	var close_btn := UITheme.make_pill("닫기", QUIET_FG, Color(0, 0, 0, 0), QUIET_BORDER)
+	_music_value = _add_volume_row(_page_r_box, "배경음악", AppSettings.load_music_volume(), _on_music_changed, Callable())
+	_sfx_value = _add_volume_row(_page_r_box, "효과음", AppSettings.load_sfx_volume(), _on_sfx_changed, _on_sfx_drag_ended)
+
+	_page_r_box.add_child(_expand_spacer())
+	var close_btn := UITheme.make_pill("장부를 덮는다", PAPER, INK, Color(INK.r, INK.g, INK.b, 0.8))
 	close_btn.pressed.connect(_close)
-	_content.add_child(close_btn)
+	_page_r_box.add_child(close_btn)
 
-# --- 확인 화면 (기본 다이얼로그 대체) ---
+# --- 확인 (지우기 — 페이지를 넘기듯 두 쪽 다 전환) ---
 
 func _show_confirm() -> void:
 	_in_confirm = true
-	_clear()
+	AudioManager.play_sfx_random(PAGE_SFX)
+	_clear(_page_l_box)
+	_clear(_page_r_box)
 
-	_content.add_child(UITheme.make_label("되돌릴 수 없습니다", UITheme.FS_SMALL, UITheme.DANGER, false))
-	_content.add_child(UITheme.make_label("이 세계를 지울까요", UITheme.FS_H1, UITheme.FG, false))
-	_content.add_child(UITheme.make_hairline(DANGER_BORDER, 2.0))
-	_content.add_child(UITheme.make_label(
-		"모래폭풍이 모든 원정과 흔적을 쓸어 갑니다. 처음부터 다시 시작합니다.",
-		UITheme.FS_SMALL, UITheme.MUTED, false))
-	_content.add_child(UITheme.make_label(
-		"원정 %d · 흔적 %d 가 사라집니다." % [GameState.expedition_count, GameState.traces.size()],
-		UITheme.FS_SMALL, UITheme.MUTED, false))
+	_page_l_box.add_child(_ink_label("되돌릴 수 없습니다", UITheme.FS_SMALL, RED_INK))
+	_page_l_box.add_child(_brush_heading("이 세계를 지울까요", 40, INK))
+	_page_l_box.add_child(UITheme.make_hairline(Color(RED_INK.r, RED_INK.g, RED_INK.b, 0.5), 2.0))
+	_page_l_box.add_child(_ink_label("모래폭풍이 모든 원정과 흔적을 쓸어 갑니다. 처음부터 다시 시작합니다.",
+		UITheme.FS_SMALL, INK))
+	_page_l_box.add_child(_ink_label("원정 %d회 · 흔적 %d개가 사라집니다." % [GameState.expedition_count, GameState.traces.size()],
+		UITheme.FS_SMALL, INK_FADE))
 
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 6)
-	_content.add_child(spacer)
-
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	var keep := UITheme.make_pill("아니, 둔다", QUIET_FG, Color(0, 0, 0, 0), QUIET_BORDER)
-	keep.pressed.connect(_show_main)
-	row.add_child(keep)
-	var wipe := UITheme.make_pill("지운다", UITheme.FG, UITheme.DANGER, UITheme.DANGER)
+	_page_r_box.add_child(_expand_spacer())
+	var keep := UITheme.make_pill("아니, 둔다", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
+	keep.pressed.connect(_back_to_main)
+	_page_r_box.add_child(keep)
+	var wipe := UITheme.make_pill("지운다", PAPER, RED_INK, RED_INK)
 	wipe.pressed.connect(_do_reset)
-	row.add_child(wipe)
-	_content.add_child(row)
+	_page_r_box.add_child(wipe)
+	_page_r_box.add_child(_expand_spacer())
+
+func _back_to_main() -> void:
+	AudioManager.play_sfx_random(PAGE_SFX)
+	_show_main()
 
 func _do_reset() -> void:
 	GameState.reset_save()
 	data_reset.emit()
 	_close()
 
-# --- 소리 ---
+# --- 잉크 위젯 헬퍼 ---
 
-## 라벨 + % 값 + 슬라이더 한 묶음을 _content 에 추가하고 % 라벨을 돌려준다.
-## on_drag_end 가 유효하면 손을 뗄 때 호출(효과음 미리듣기용).
-func _add_volume_row(text: String, vol: float, on_changed: Callable, on_drag_end: Callable) -> Label:
+## 붓글씨 표제(나눔손글씨 붓 — 지도 지명과 같은 결).
+func _brush_heading(text: String, font_size: int, color: Color) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_override("font", UITheme.BRUSH_FONT)
+	l.add_theme_font_size_override("font_size", font_size)
+	l.add_theme_color_override("font_color", color)
+	return l
+
+func _ink_label(text: String, font_size: int, color: Color) -> Label:
+	return UITheme.make_label(text, font_size, color, false)
+
+## 장부 한 줄 — 항목은 왼쪽 잉크, 값은 오른쪽 붓글씨(손으로 적은 숫자).
+func _ledger_row(name_text: String, value_text: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
-	var lbl := UITheme.make_label(text, UITheme.FS_SMALL, QUIET_FG, false)
+	var lbl := _ink_label(name_text, UITheme.FS_LABEL, INK)
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(lbl)
-	var value := UITheme.make_label(_pct(vol), UITheme.FS_SMALL, UITheme.MUTED, false)
+	var val := _brush_heading(value_text, 30, INK)
+	row.add_child(val)
+	return row
+
+func _expand_spacer() -> Control:
+	var sp := Control.new()
+	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	sp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return sp
+
+## 라벨 + % 값 + 잉크 슬라이더 한 묶음을 페이지에 추가하고 % 라벨을 돌려준다.
+## on_drag_end 가 유효하면 손을 뗄 때 호출(효과음 미리듣기용).
+func _add_volume_row(box: VBoxContainer, text: String, vol: float, on_changed: Callable, on_drag_end: Callable) -> Label:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var lbl := _ink_label(text, UITheme.FS_LABEL, INK)
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(lbl)
+	var value := _ink_label(_pct(vol), UITheme.FS_SMALL, INK_FADE)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	value.autowrap_mode = TextServer.AUTOWRAP_OFF  # "50%" 가 좁은 폭에서 세로로 쪼개지지 않게(가로 유지)
+	value.autowrap_mode = TextServer.AUTOWRAP_OFF  # "50%" 가 좁은 폭에서 세로로 쪼개지지 않게
 	row.add_child(value)
-	_content.add_child(row)
+	box.add_child(row)
 
 	var slider := HSlider.new()
 	slider.min_value = 0.0
@@ -154,12 +265,14 @@ func _add_volume_row(text: String, vol: float, on_changed: Callable, on_drag_end
 	slider.step = 0.01
 	slider.value = vol
 	slider.custom_minimum_size = Vector2(0, UITheme.SLIDER_H)
-	UITheme.style_slider(slider)
+	UITheme.style_slider(slider, INK)
 	slider.value_changed.connect(on_changed)
 	if on_drag_end.is_valid():
 		slider.drag_ended.connect(on_drag_end)
-	_content.add_child(slider)
+	box.add_child(slider)
 	return value
+
+# --- 소리 핸들러 ---
 
 func _on_music_changed(value: float) -> void:
 	AppSettings.set_music_volume(value)
@@ -190,12 +303,6 @@ func _pct(v: float) -> String:
 
 # --- 닫기 / 뒤로 ---
 
-func _on_dim_input(event: InputEvent) -> void:
-	var clicked: bool = (event is InputEventMouseButton and event.pressed) \
-		or (event is InputEventScreenTouch and event.pressed)
-	if clicked:
-		_back_or_close()
-
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		_back_or_close()
@@ -204,7 +311,7 @@ func _input(event: InputEvent) -> void:
 ## 확인 화면이면 메인으로, 아니면 닫는다.
 func _back_or_close() -> void:
 	if _in_confirm:
-		_show_main()
+		_back_to_main()
 	else:
 		_close()
 
