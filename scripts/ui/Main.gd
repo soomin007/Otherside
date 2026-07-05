@@ -3,7 +3,6 @@ extends Control
 ## 타이틀 — 코어 루프의 입구(디자인 원본 재현). 로고 상단·각인 메뉴 하단·통계 좌하단·기록 좌상단(Bookmark autoload).
 ## 배경 키아트(방향 자동 교체) + 하단 그라디언트 스크림으로 글씨 가독. 부제 없음(원본 구도).
 
-const SettingsPanel := preload("res://scripts/ui/SettingsPanel.gd")
 const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")  ## 영어 타이틀·통계 전용(비문풍 세리프)
 
 var _stat_label: Label
@@ -17,6 +16,7 @@ var _stat_node: Control
 
 func _ready() -> void:
 	AppSettings.apply_saved()  # 저장된 음량 복원(앱 시작 = 항상 타이틀 경유)
+	Bookmark.data_reset.connect(_on_data_reset)  # 일지 설정 챕터에서 세계를 지우면 통계 갱신
 	AudioManager.play_bed()    # 엔딩곡에서 돌아왔으면 베드로 크로스페이드(이미 베드면 무시)
 	_build_background()
 	_build_logo()
@@ -252,12 +252,10 @@ func _on_start_pressed() -> void:
 		GameState.go_to_opening()
 
 func _on_record_pressed() -> void:
-	Bookmark._open()  # 상시 책갈피(autoload) — 원정 일대기·조작 안내
+	Bookmark.open_journal(0)  # 원정 일지(autoload) — 일대기 챕터
 
 func _on_settings_pressed() -> void:
-	var panel := SettingsPanel.new()
-	panel.data_reset.connect(_on_data_reset)
-	add_child(panel)
+	Bookmark.open_journal(2)  # 원정 일지의 설정 챕터(옛 별도 장부는 일지로 흡수 통합)
 
 func _on_data_reset() -> void:
 	_stat_label.text = _stat_text()

@@ -37,12 +37,12 @@ func _ready() -> void:
 	add_theme_color_override("font_hover_color", UITheme.SAND)
 	add_theme_color_override("font_focus_color", UITheme.SAND)
 	add_theme_color_override("font_pressed_color", UITheme.SAND)
-	# 글씨 소프트 글로우 그림자 — 글자 하나하나에 붙는 은은한 블러(원본 text-shadow 근사).
-	# 방사 덩어리 배경은 "가운데 뭉친 그림자"로 읽혀 폐기(2026-07-05 사용자) — 글리프 단위 그림자만.
-	add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.55))
+	# 글씨 소프트 글로우 그림자 — 글자 하나하나에 붙는 블러(원본 text-shadow 0 2px 12px rgba(0,0,0,.9)).
+	# 방사 덩어리 배경은 "가운데 뭉친 그림자"로 읽혀 폐기 — 글리프 단위, 눈에 보이는 농도로(.55 는 안 보였음).
+	add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
 	add_theme_constant_override("shadow_offset_x", 0)
 	add_theme_constant_override("shadow_offset_y", 2)
-	add_theme_constant_override("shadow_outline_size", 8)
+	add_theme_constant_override("shadow_outline_size", 13)
 	# 순수 텍스트 + 안쪽 여백(원본 padding) — 밑줄이 글씨 아래에 오도록 하단 여백.
 	var empty := StyleBoxEmpty.new()
 	empty.content_margin_top = 14.0
@@ -91,8 +91,8 @@ func _draw() -> void:
 	var x0: float = cx - w * 0.5
 	var x1: float = cx + w * 0.5
 	# 은은히 새어나오는 각인 밑줄 — 폭이 다른 저알파 글로우를 여러 겹 쌓아(soft bloom) 가는 본선을 감싼다.
-	# 두께 1080p 체감 보정 2차(1.1=가늘다 → 1.8=두껍다 → 1.4 중간, 2026-07-05).
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.04), 10.0, true)
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.11), 5.5, true)
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.28), 3.0, true)
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.9), 1.4, true)   # 심지
+	# 두께 최종: 헤어라인 심지 0.6(사용자 "반 이상 더 가늘게", 2026-07-05) + 좁은 글로우.
+	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.05), 6.0, true)
+	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.14), 3.0, true)
+	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.32), 1.6, true)
+	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.9), 0.6, true)   # 헤어라인 심지

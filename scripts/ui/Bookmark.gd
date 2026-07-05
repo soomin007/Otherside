@@ -1,11 +1,12 @@
 extends CanvasLayer
 
-## 원정 일지 — 모든 화면 왼쪽 가장자리에 **빨간 책갈피 리본**이 삐져나와 있다(autoload CanvasLayer).
-## 호버하면 리본이 좀 더 빠져나오고, 누르면 일지가 펼쳐진다.
-## 일지의 생김새 = **원정 장부(SettingsPanel)와 동일한 시각 언어**(가죽 표지·양피지 두 페이지·괘선·붓글씨
-## 제목·잉크 글) — 설정 장부와 한 권의 책처럼 읽히게(2026-07-05 사용자 확정).
-## 챕터(일대기·조작·설정)는 책 오른쪽의 빨간 책갈피로 넘긴다 — 전환마다 책장 넘김(scale.x) + 종이 SFX.
-## 시장이 기록지를 건넨 뒤(GameState.record_seen)에만 리본이 보인다.
+## 원정 일지 — 이 게임의 **유일한 장부**(autoload CanvasLayer). 일대기·조작·설정이 전부 이 책의 챕터다.
+## (예전의 별도 SettingsPanel 은 이 책의 "설정" 챕터로 흡수 통합 — 2026-07-05 사용자 확정.)
+## 왼쪽 가장자리에 빨간 책갈피 리본이 삐져나와 있다 — 호버하면 더 나오고, 누르면 일지가 펼쳐진다.
+## 챕터는 책 오른쪽의 빨간 책갈피로. 전환 = **낱장이 넘어가는 연출**(오른쪽 잎이 스파인으로 접혔다
+## 왼쪽으로 펼쳐짐) + 종이 SFX. 시장이 기록지를 건넨 뒤(GameState.record_seen)에만 리본이 보인다.
+
+signal data_reset  ## 설정 챕터에서 세계를 지웠을 때(타이틀 통계 갱신용)
 
 const ENABLED: bool = true
 const RED := UITheme.MARKER_INK      ## 책갈피 리본·붉은 잉크
@@ -30,6 +31,23 @@ const TUTORIAL_PAGES: Array = [
 
 const CHAPTERS: Array = ["일대기", "조작", "설정"]
 
+## 양피지 낱장 그리기 — LedgerBook(펼친 두 쪽)과 FlipLeaf(넘어가는 잎)가 공유.
+class PageArt:
+	static func paint(c: Control, r: Rect2) -> void:
+		var page_sb := StyleBoxFlat.new()
+		page_sb.bg_color = UITheme.PAPER
+		page_sb.border_color = Color(UITheme.PAPER_EDGE.r, UITheme.PAPER_EDGE.g, UITheme.PAPER_EDGE.b, 0.9)
+		page_sb.set_border_width_all(1)
+		page_sb.set_corner_radius_all(4)
+		page_sb.draw(c.get_canvas_item(), r)
+		c.draw_rect(r.grow(-3.0), Color(UITheme.PAPER_EDGE.r, UITheme.PAPER_EDGE.g, UITheme.PAPER_EDGE.b, 0.28), false, 1.5)
+		c.draw_rect(r.grow(-7.0), Color(UITheme.PAPER_EDGE.r, UITheme.PAPER_EDGE.g, UITheme.PAPER_EDGE.b, 0.12), false, 1.0)
+		var y: float = r.position.y + 92.0
+		while y < r.end.y - 34.0:
+			c.draw_line(Vector2(r.position.x + 20.0, y), Vector2(r.end.x - 20.0, y),
+				Color(UITheme.INK_FADE.r, UITheme.INK_FADE.g, UITheme.INK_FADE.b, 0.13), 1.0)
+			y += 42.0
+
 ## 책갈피 리본 — 오른쪽 끝에 V 홈이 파인 빨간 리본. length 로 삐져나온 정도를 조절(호버 애니).
 ## V 홈은 오목 다각형이라 위/아래 두 볼록 조각으로 나눠 그린다.
 class Ribbon extends Control:
@@ -53,7 +71,7 @@ class Ribbon extends Control:
 			if f != null:
 				draw_string(f, Vector2(9.0, h * 0.5 + 5.0), text, HORIZONTAL_ALIGNMENT_LEFT, length - 16.0, 13, Color(0.96, 0.92, 0.86, 0.95))
 
-## 일지 책 — 원정 장부(SettingsPanel)와 동일한 렌더: 가죽 표지 + 양피지 두 페이지 + 괘선 + 가운데 접힘.
+## 일지 책 — 가죽 표지 + 양피지 두 페이지 + 괘선 + 가운데 접힘(옛 장부의 렌더).
 class LedgerBook extends Control:
 	var rect_l: Rect2   ## 왼쪽 페이지(로컬) — 내용 배치가 공유
 	var rect_r: Rect2
@@ -75,29 +93,19 @@ class LedgerBook extends Control:
 		cover_sb.set_border_width_all(2)
 		cover_sb.set_corner_radius_all(14)
 		cover_sb.draw(get_canvas_item(), book)
-		_draw_page(rect_l)
-		_draw_page(rect_r)
-		# 가운데 접힘 그림자 — 두 페이지의 마주 보는 안쪽 변(가로 고정).
+		PageArt.paint(self, rect_l)
+		PageArt.paint(self, rect_r)
+		# 가운데 접힘 그림자 — 두 페이지의 마주 보는 안쪽 변.
 		for i in range(3):
 			var a: float = 0.05 + 0.035 * float(i)
 			var w: float = 12.0 - 4.0 * float(i)
 			draw_rect(Rect2(rect_l.end.x - w, rect_l.position.y, w, rect_l.size.y), Color(0, 0, 0, a))
 			draw_rect(Rect2(rect_r.position.x, rect_r.position.y, w, rect_r.size.y), Color(0, 0, 0, a))
-	## 양피지 한 장 — 바탕 + 그을린 가장자리 두 겹 + 옅은 장부 괘선(SettingsPanel._draw_page 와 동일).
-	func _draw_page(r: Rect2) -> void:
-		var page_sb := StyleBoxFlat.new()
-		page_sb.bg_color = UITheme.PAPER
-		page_sb.border_color = Color(UITheme.PAPER_EDGE.r, UITheme.PAPER_EDGE.g, UITheme.PAPER_EDGE.b, 0.9)
-		page_sb.set_border_width_all(1)
-		page_sb.set_corner_radius_all(4)
-		page_sb.draw(get_canvas_item(), r)
-		draw_rect(r.grow(-3.0), Color(UITheme.PAPER_EDGE.r, UITheme.PAPER_EDGE.g, UITheme.PAPER_EDGE.b, 0.28), false, 1.5)
-		draw_rect(r.grow(-7.0), Color(UITheme.PAPER_EDGE.r, UITheme.PAPER_EDGE.g, UITheme.PAPER_EDGE.b, 0.12), false, 1.0)
-		var y: float = r.position.y + 92.0
-		while y < r.end.y - 34.0:
-			draw_line(Vector2(r.position.x + 20.0, y), Vector2(r.end.x - 20.0, y),
-				Color(UITheme.INK_FADE.r, UITheme.INK_FADE.g, UITheme.INK_FADE.b, 0.13), 1.0)
-			y += 42.0
+
+## 넘어가는 낱장 — 챕터 전환 때 오른쪽 페이지 자리에서 스파인으로 접혔다 왼쪽 자리로 펼쳐진다.
+class FlipLeaf extends Control:
+	func _draw() -> void:
+		PageArt.paint(self, Rect2(Vector2.ZERO, size))
 
 var _ribbon: Ribbon
 var _panel: Control
@@ -111,6 +119,10 @@ var _tut_idx: int = 0
 var _flipping: bool = false
 var _rib_tw: Tween
 var _opened_ms: int = 0        ## 일지를 연 시각 — 여는 클릭이 스크림 닫기로 새는 것 방지 가드
+var _in_confirm: bool = false  ## 설정 챕터의 "세계 지우기" 확인 화면
+var _music_value: Label
+var _sfx_value: Label
+var _pre_mute: float = 1.0     ## 음소거 직전 전체 볼륨(해제 시 복원)
 
 func _ready() -> void:
 	if not ENABLED:
@@ -125,7 +137,16 @@ func _process(_delta: float) -> void:
 	if ENABLED:
 		_refresh_icon()
 
-## 기록지를 받은 뒤에만 리본을 보인다. 일지가 열려 있거나 풀스크린 오버레이(설정 장부·엔딩)가 떠 있으면 숨김.
+## ESC — 확인 화면이면 설정으로, 열려 있으면 덮는다.
+func _input(event: InputEvent) -> void:
+	if _panel != null and _panel.visible and event.is_action_pressed("ui_cancel"):
+		if _in_confirm:
+			_show_settings()
+		else:
+			_close()
+		get_viewport().set_input_as_handled()
+
+## 기록지를 받은 뒤에만 리본을 보인다. 일지가 열려 있거나 풀스크린 오버레이(엔딩 등)가 떠 있으면 숨김.
 func _refresh_icon() -> void:
 	if _ribbon != null:
 		_ribbon.visible = GameState.record_seen and not _panel.visible \
@@ -154,14 +175,14 @@ func _build() -> void:
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	root.add_child(_panel)
 
-	# 책상 어둠(장부와 같은 무대) — 탭하면 덮는다.
+	# 책상 어둠 — 탭하면 덮는다.
 	var scrim := ColorRect.new()
 	scrim.color = Color(UITheme.BG_TOP.r, UITheme.BG_TOP.g, UITheme.BG_TOP.b, 0.94)
 	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	scrim.gui_input.connect(_on_scrim_input)
 	_panel.add_child(scrim)
 
-	# 일지 본체 — 장부와 같은 두 페이지 책. 챕터 flip 은 이 노드의 scale.x 로.
+	# 일지 본체 — 두 페이지 책.
 	_book = LedgerBook.new()
 	_panel.add_child(_book)
 	_box_l = VBoxContainer.new()
@@ -170,6 +191,7 @@ func _build() -> void:
 	_scroll_l.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_scroll_l.add_child(_box_l)
 	_box_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_box_l.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_book.add_child(_scroll_l)
 	_box_r = VBoxContainer.new()
 	_box_r.add_theme_constant_override("separation", 12)
@@ -199,7 +221,7 @@ func _on_ribbon_input(event: InputEvent) -> void:
 			or (event is InputEventScreenTouch and event.pressed):
 		# 같은 클릭(또는 합성 터치)이 방금 열린 스크림까지 흘러가 즉시 닫던 버그 — 소비 + 다음 프레임 열기.
 		_ribbon.accept_event()
-		call_deferred("_open")
+		call_deferred("open_journal", 0)
 
 func _on_tab_input(event: InputEvent, idx: int) -> void:
 	if (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed) \
@@ -210,17 +232,23 @@ func _on_tab_input(event: InputEvent, idx: int) -> void:
 
 # --- 열기/닫기/레이아웃 ---
 
-func _open() -> void:
+## 일지를 특정 챕터로 연다(0=일대기·1=조작·2=설정). 타이틀 메뉴 등 외부 진입점.
+func open_journal(chapter: int = 0) -> void:
 	_layout_book()
 	_panel.visible = true
 	UITheme.fade_in(_panel)
 	_opened_ms = Time.get_ticks_msec()
 	AudioManager.play_sfx("res://assets/sfx/sfx_page_1.wav")
-	_chapter = 0
+	_chapter = clampi(chapter, 0, CHAPTERS.size() - 1)
 	_apply_tab_state()
 	_render_chapter()
 
+## (구 진입점 호환 — 기존 호출부가 _open 을 부른다.)
+func _open() -> void:
+	open_journal(0)
+
 func _close() -> void:
+	AudioManager.play_sfx(AudioManager.CARD_CLOSE)  # 일지를 덮는 소리
 	_panel.visible = false
 
 func _on_scrim_input(event: InputEvent) -> void:
@@ -229,16 +257,15 @@ func _on_scrim_input(event: InputEvent) -> void:
 	if tap and Time.get_ticks_msec() - _opened_ms > 250:
 		_close()
 
-## 일지 크기 — 장부(_layout)와 같은 비율(가로 90%·상한 1080×640). pivot 은 왼쪽 스파인(책이 접히는 축).
+## 일지 크기 — 화면 90%·상한 1080×640(옛 장부와 동일 비율).
 func _layout_book() -> void:
 	var vp: Vector2 = get_viewport().get_visible_rect().size
 	var w: float = minf(vp.x * 0.9, 1080.0)
 	var h: float = minf(vp.y * 0.86, 640.0)
 	_book.size = Vector2(w, h)
 	_book.position = (vp - Vector2(w, h)) * 0.5
-	_book.pivot_offset = Vector2(0.0, h * 0.5)
 	_book.relayout()
-	# 페이지 내용 배치(장부 _place 와 동일 여백).
+	# 페이지 내용 배치.
 	_scroll_l.position = _book.rect_l.position + Vector2(PAGE_PAD, PAGE_PAD)
 	_scroll_l.size = _book.rect_l.size - Vector2(PAGE_PAD * 2.0, PAGE_PAD * 2.0)
 	_box_l.custom_minimum_size.x = _scroll_l.size.x - 12.0
@@ -248,22 +275,34 @@ func _layout_book() -> void:
 		var tab: Ribbon = _tabs[i]
 		tab.position = Vector2(w - 4.0, 36.0 + float(i) * 44.0)
 
-# --- 챕터 (책장 넘김) ---
+# --- 챕터 (낱장 넘김) ---
 
-## 챕터 책갈피를 누름 — 책장이 넘어가듯 접혔다 펴지며 내용이 바뀐다. 설정 챕터는 원정 장부(SettingsPanel)로.
+## 챕터 책갈피를 누름 — **낱장이 넘어간다**: 오른쪽 페이지 자리의 잎이 스파인으로 접혔다(1단)
+## 내용이 바뀐 뒤 왼쪽 페이지 자리로 펼쳐진다(2단). 책 자체는 움직이지 않는다.
 func _flip_to(idx: int) -> void:
 	if _flipping or idx == _chapter:
 		return
 	_flipping = true
 	AudioManager.play_sfx_random(PAGE_SFX)
+	var leaf := FlipLeaf.new()
+	leaf.size = _book.rect_r.size
+	leaf.position = _book.rect_r.position
+	leaf.pivot_offset = Vector2(0.0, leaf.size.y * 0.5)  # 스파인(왼쪽 변) 기준으로 접힘
+	leaf.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_book.add_child(leaf)
 	var tw := create_tween()
-	tw.tween_property(_book, "scale:x", 0.04, 0.16).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+	tw.tween_property(leaf, "scale:x", 0.03, 0.17).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
 	tw.tween_callback(func() -> void:
 		_chapter = idx
 		_apply_tab_state()
-		_render_chapter())
-	tw.tween_property(_book, "scale:x", 1.0, 0.2).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_callback(func() -> void: _flipping = false)
+		_render_chapter()
+		# 잎을 왼쪽 페이지 자리로 옮겨(스파인=오른쪽 변) 마저 펼친다.
+		leaf.position = _book.rect_l.position
+		leaf.pivot_offset = Vector2(leaf.size.x, leaf.size.y * 0.5))
+	tw.tween_property(leaf, "scale:x", 1.0, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func() -> void:
+		leaf.queue_free()  # 펼쳐진 자리 = 왼쪽 페이지와 같은 그림이라 사라져도 튀지 않는다
+		_flipping = false)
 
 ## 현재 챕터 책갈피는 진하고 길게, 나머지는 옅고 짧게.
 func _apply_tab_state() -> void:
@@ -279,15 +318,11 @@ func _render_chapter() -> void:
 		1:
 			_show_tutorial()
 		2:
-			# 설정 = 원정 장부(SettingsPanel, 같은 책의 다른 장) — 일지를 덮고 장부를 편다.
-			_close()
-			var scn: Node = get_tree().current_scene
-			if scn != null:
-				scn.add_child(load("res://scripts/ui/SettingsPanel.gd").new())
+			_show_settings()
 
-# --- 챕터 내용 (장부와 같은 붓글씨 제목 + 잉크 글) ---
+# --- 챕터: 일대기 ---
 
-## 일대기 — 왼쪽: 원정 목록(스크롤), 오른쪽: 세계 행적 요약 + 덮기.
+## 왼쪽: 원정 목록(스크롤), 오른쪽: 행적 요약 + 덮기.
 func _show_chronicle() -> void:
 	_clear(_box_l)
 	_clear(_box_r)
@@ -299,13 +334,16 @@ func _show_chronicle() -> void:
 		for exp in range(1, n + 1):
 			_box_l.add_child(_chronicle_line(exp))
 	_box_r.add_child(_brush_heading("행적", 40, INK))
+	_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	_box_r.add_child(_ledger_row("보낸 원정", "%d회" % GameState.expedition_count))
-	_box_r.add_child(_ledger_row("남긴 흔적", "%d개" % GameState.traces.size()))
-	_box_r.add_child(_ledger_row("죽은 자리", "%d곳" % GameState.deaths.size()))
+	_box_r.add_child(_ledger_row("남긴 흔적", "%d" % GameState.traces.size()))
+	_box_r.add_child(_ledger_row("죽은 자리", "%d" % GameState.deaths.size()))
 	_box_r.add_child(_ledger_row("끝에 닿음", "%d번" % GameState.arrivals.size()))
 	_add_close(_box_r)
 
-## 조작 안내 — 왼쪽: 현재 장 내용, 오른쪽: 장 넘기기 + 덮기.
+# --- 챕터: 조작 안내 ---
+
+## 왼쪽: 현재 장 내용, 오른쪽: 장 넘기기 + 덮기.
 func _show_tutorial() -> void:
 	_clear(_box_l)
 	_clear(_box_r)
@@ -322,12 +360,6 @@ func _show_tutorial() -> void:
 	_box_r.add_child(row)
 	_add_close(_box_r)
 
-func _add_close(box: VBoxContainer) -> void:
-	var sp := Control.new()
-	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.add_child(sp)
-	box.add_child(_ink_btn("일지를 덮는다", _close))
-
 func _tut_back() -> void:
 	_tut_idx = maxi(0, _tut_idx - 1)
 	AudioManager.play_sfx_random(PAGE_SFX)
@@ -338,7 +370,132 @@ func _tut_next() -> void:
 	AudioManager.play_sfx_random(PAGE_SFX)
 	_show_tutorial()
 
-## 붓글씨 제목 — 장부(_brush_heading)와 동일.
+# --- 챕터: 설정 (옛 SettingsPanel 을 흡수 — 소리·음소거·세계 지우기) ---
+
+## 왼쪽: 소리(음소거·슬라이더 2), 오른쪽: 위험 구역(세계 지우기) + 덮기.
+func _show_settings() -> void:
+	_in_confirm = false
+	_clear(_box_l)
+	_clear(_box_r)
+
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 10)
+	var htext := _brush_heading("소리", 40, INK)
+	htext.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(htext)
+	var master: float = AppSettings.load_master_volume()
+	var mute := UITheme.make_pill("소리 켜기" if master <= 0.0 else "전체 음소거", INK, Color(0, 0, 0, 0),
+		Color(INK.r, INK.g, INK.b, 0.4))
+	mute.pressed.connect(_toggle_mute)
+	head.add_child(mute)
+	_box_l.add_child(head)
+	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	_music_value = _add_volume_row(_box_l, "배경음악", AppSettings.load_music_volume(), _on_music_changed, Callable())
+	_sfx_value = _add_volume_row(_box_l, "효과음", AppSettings.load_sfx_volume(), _on_sfx_changed, _on_sfx_drag_ended)
+
+	_box_r.add_child(_brush_heading("위험 구역", 40, RED))
+	_box_r.add_child(UITheme.make_hairline(Color(RED.r, RED.g, RED.b, 0.5), 2.0))
+	_box_r.add_child(_ink_label("저장된 이 세계를 지웁니다.\n원정·흔적·죽은 자리가 모두 사라지고, 처음부터 시작합니다.",
+		UITheme.FS_SMALL, INK_FADE))
+	var wipe := UITheme.make_pill("저장 데이터 지우기", RED, Color(0, 0, 0, 0), Color(RED.r, RED.g, RED.b, 0.55))
+	wipe.pressed.connect(_show_confirm)
+	_box_r.add_child(wipe)
+	_add_close(_box_r)
+
+## 세계 지우기 확인 — 두 쪽 다 전환(장부의 confirm 흐름 그대로).
+func _show_confirm() -> void:
+	_in_confirm = true
+	AudioManager.play_sfx_random(PAGE_SFX)
+	_clear(_box_l)
+	_clear(_box_r)
+	_box_l.add_child(_ink_label("되돌릴 수 없습니다", UITheme.FS_SMALL, RED))
+	_box_l.add_child(_brush_heading("이 세계를 지울까요", 40, INK))
+	_box_l.add_child(UITheme.make_hairline(Color(RED.r, RED.g, RED.b, 0.5), 2.0))
+	_box_l.add_child(_ink_label("모래폭풍이 모든 원정과 흔적을 쓸어 갑니다. 처음부터 다시 시작합니다.",
+		UITheme.FS_SMALL, INK))
+	_box_l.add_child(_ink_label("원정 %d회 · 흔적 %d개가 사라집니다." % [GameState.expedition_count, GameState.traces.size()],
+		UITheme.FS_SMALL, INK_FADE))
+	var sp := Control.new()
+	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_box_r.add_child(sp)
+	var keep := UITheme.make_pill("아니, 둔다", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
+	keep.pressed.connect(_show_settings)
+	_box_r.add_child(keep)
+	var wipe := UITheme.make_pill("지운다", PAPER, RED, RED)
+	wipe.pressed.connect(_do_reset)
+	_box_r.add_child(wipe)
+	var sp2 := Control.new()
+	sp2.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_box_r.add_child(sp2)
+
+func _do_reset() -> void:
+	GameState.reset_save()
+	data_reset.emit()
+	_close()
+
+# --- 소리 핸들러 (옛 장부 그대로) ---
+
+## 라벨 + % 값 + 잉크 슬라이더 한 묶음을 페이지에 추가하고 % 라벨을 돌려준다.
+func _add_volume_row(box: VBoxContainer, txt: String, vol: float, on_changed: Callable, on_drag_end: Callable) -> Label:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var lbl := _ink_label(txt, UITheme.FS_LABEL, INK)
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(lbl)
+	var value := _ink_label(_pct(vol), UITheme.FS_SMALL, INK_FADE)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value.autowrap_mode = TextServer.AUTOWRAP_OFF  # "50%" 가 좁은 폭에서 세로로 쪼개지지 않게
+	row.add_child(value)
+	box.add_child(row)
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.01
+	slider.value = vol
+	slider.custom_minimum_size = Vector2(0, UITheme.SLIDER_H)
+	UITheme.style_slider(slider, INK)
+	slider.value_changed.connect(on_changed)
+	if on_drag_end.is_valid():
+		slider.drag_ended.connect(on_drag_end)
+	box.add_child(slider)
+	return value
+
+func _on_music_changed(value: float) -> void:
+	AppSettings.set_music_volume(value)
+	if _music_value != null:
+		_music_value.text = _pct(value)
+
+func _on_sfx_changed(value: float) -> void:
+	AppSettings.set_sfx_volume(value)
+	if _sfx_value != null:
+		_sfx_value.text = _pct(value)
+
+## 효과음 슬라이더에서 손을 떼면 탭 소리로 미리듣기 — 배경음악 위에서 실제 크기를 바로 확인.
+func _on_sfx_drag_ended(_changed: bool) -> void:
+	AudioManager.play_sfx("res://assets/sfx/sfx_tap.wav")
+
+## 전체 음소거 토글 — Master 볼륨을 0 ↔ 직전 값으로.
+func _toggle_mute() -> void:
+	var v: float = AppSettings.load_master_volume()
+	if v > 0.0:
+		_pre_mute = v
+		AppSettings.set_master_volume(0.0)
+	else:
+		AppSettings.set_master_volume(_pre_mute if _pre_mute > 0.0 else 1.0)
+	_show_settings()  # 슬라이더·값·버튼 텍스트 갱신
+
+func _pct(v: float) -> String:
+	return "%d%%" % int(round(v * 100.0))
+
+# --- 잉크 위젯 헬퍼 ---
+
+func _add_close(box: VBoxContainer) -> void:
+	var sp := Control.new()
+	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(sp)
+	box.add_child(_ink_btn("일지를 덮는다", _close))
+
+## 붓글씨 제목(나눔손글씨 붓 — 지도 지명과 같은 결).
 func _brush_heading(txt: String, fs: int, col: Color) -> Label:
 	var l := Label.new()
 	l.text = txt
@@ -347,18 +504,14 @@ func _brush_heading(txt: String, fs: int, col: Color) -> Label:
 	l.add_theme_color_override("font_color", col)
 	return l
 
-## 장부 행 — 이름(잉크) + 값(붉은 잉크, 오른쪽 끝).
+## 장부 한 줄 — 항목은 왼쪽 잉크, 값은 오른쪽 붓글씨(손으로 적은 숫자).
 func _ledger_row(name_txt: String, value_txt: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
 	var nm := _ink_label(name_txt, UITheme.FS_LABEL, INK)
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(nm)
-	var val := Label.new()
-	val.text = value_txt
-	val.add_theme_font_override("font", UITheme.BRUSH_FONT)
-	val.add_theme_font_size_override("font_size", 30)
-	val.add_theme_color_override("font_color", RED)
-	row.add_child(val)
+	row.add_child(_brush_heading(value_txt, 30, RED))
 	return row
 
 ## 양피지 위 잉크 라벨.
