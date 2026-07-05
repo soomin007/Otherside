@@ -91,6 +91,11 @@ const CIRC_PULSE: float = 2.2         ## current 원 점멸 주기(초, cpulse)
 const CIRC_CURRENT: Color = Color(0.984, 0.149, 0.0)   ## #fb2600 현재 위치(밝은 주홍)
 const CIRC_HOVER: Color = Color(0.290, 0.184, 0.094)   ## #4a2f18 목적지 잉크원
 const RED_PATH: Color = Color(0.824, 0.235, 0.118)     ## #d23c1e 선택 가능한 붉은 길(§3)
+## 남긴 자원 점 안료색 — 세피아 양피지 위 형광점 금지(죽은 픽셀처럼 보임). 잉크에 갠 안료 톤으로,
+## 색 구분(물=청록·식량=황토·은신막=올리브)은 유지. 마커·범례가 공유한다.
+const TRACE_WATER: Color = Color(0.25, 0.44, 0.55)
+const TRACE_FOOD: Color = Color(0.63, 0.44, 0.19)
+const TRACE_SHELTER: Color = Color(0.45, 0.51, 0.30)
 const LABEL_HALO: Color = Color(0.914, 0.839, 0.686)   ## 라벨 크림 후광 rgb(233,214,175)(§2)
 const LABEL_DIM: Color = Color(0.290, 0.196, 0.071)    ## #4a3212 방문·미답 라벨
 const LABEL_MK: Color = Color(0.541, 0.184, 0.106)     ## #8a2f1b 선택 가능·현재 라벨
@@ -901,8 +906,11 @@ func _draw_dashed_poly(pts: PackedVector2Array, col: Color, w: float) -> void:
 				draw_on = not draw_on
 				acc = 0.0
 
-## 노드별 흔적 마커 — 죽음 X·로프 다리·자원 점. 가본 노드에만(흔적은 가본 곳에서만 생긴다). 한 노드에 여러 개면 옆으로 쌓는다.
+## 노드별 흔적 마커 — 죽음 X·로프 다리·자원 점. 가본 노드에만(흔적은 가본 곳에서만 생긴다).
+## 위치 = 아이콘 왼쪽 옆구리(세로 중앙) — 라벨(아이콘 아래)·경고 표식(오른쪽 위)·원정대 태그(위)를 전부 피한다.
+## (예전 왼쪽 아래(half+6)는 라벨 글자 줄과 정확히 겹쳤다 — 2026-07-06 사용자 지적.) 여러 개면 위로 쌓는다.
 func _draw_traces(area: Rect2) -> void:
+	var ms: float = _mscale()
 	var per_node: Dictionary = {}
 	for tr in GameState.loaded_traces():
 		var nid: String = tr.node_id
@@ -912,29 +920,36 @@ func _draw_traces(area: Rect2) -> void:
 		per_node[nid] = idx + 1
 		var base: Vector2 = _node_screen(nid, area)
 		var half: float = _node_size(nid) * 0.5
-		_draw_trace_marker(base + Vector2(-half - 4.0 - float(idx) * 12.0, half + 6.0), tr.object_kind)
+		_draw_trace_marker(base + Vector2(-half - 9.0 * ms, 2.0 * ms - float(idx) * 15.0 * ms), tr.object_kind, ms)
 
-func _draw_trace_marker(p: Vector2, kind: int) -> void:
+func _draw_trace_marker(p: Vector2, kind: int, ms: float = 1.0) -> void:
 	match kind:
 		TraceData.ObjectKind.BODY:
 			# 죽은 자리 — 원정대가 남긴 해골 스케치(있으면), 없으면 작은 X.
 			var skull: Texture2D = _sketch_tex.get("skull", null)
 			if skull != null:
-				_draw_sketch(skull, p, 18.0)
+				_draw_sketch(skull, p, 18.0 * ms)
 			else:
-				var s: float = 4.5
+				var s: float = 4.5 * ms
 				draw_line(p + Vector2(-s, -s), p + Vector2(s, s), UITheme.DANGER, 2.0)
 				draw_line(p + Vector2(-s, s), p + Vector2(s, -s), UITheme.DANGER, 2.0)
 		TraceData.ObjectKind.ROPE:
-			draw_line(p + Vector2(-5.0, 0.0), p + Vector2(5.0, 0.0), UITheme.SAND, 2.5)  # 로프 다리
+			draw_line(p + Vector2(-5.0 * ms, 0.0), p + Vector2(5.0 * ms, 0.0), UITheme.SAND, 2.5)  # 로프 다리
 		TraceData.ObjectKind.WATER:
-			draw_circle(p, 3.5, Color(0.55, 0.78, 0.97))
+			_draw_resource_dot(p, TRACE_WATER, ms)
 		TraceData.ObjectKind.FOOD:
-			draw_circle(p, 3.5, Color(0.88, 0.72, 0.42))
+			_draw_resource_dot(p, TRACE_FOOD, ms)
 		TraceData.ObjectKind.SHELTER:
-			draw_circle(p, 3.5, Color(0.70, 0.85, 0.70))
+			_draw_resource_dot(p, TRACE_SHELTER, ms)
 		_:
-			draw_circle(p, 2.5, UITheme.MUTED)
+			draw_circle(p, 2.5 * ms, UITheme.MUTED)
+
+## 자원 점 — 크림 빛 웅덩이(라벨과 같은 가독 장치) 위에 안료색 점 + 잉크 테두리.
+## 후광이 바쁜 지도 위에서 시선을 잡고, 잉크 링이 "지도에 일부러 찍은 표기"로 읽히게 한다.
+func _draw_resource_dot(p: Vector2, pigment: Color, ms: float) -> void:
+	draw_circle(p, 8.5 * ms, Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.45))
+	draw_circle(p, 4.2 * ms, pigment)
+	draw_arc(p, 4.6 * ms, 0.0, TAU, 20, Color(INK.r, INK.g, INK.b, 0.75), maxf(1.0, 1.3 * ms), true)
 
 # --- 여백 칼럼(§6) — 각인형: 헤어라인 + 텍스트, 상자 없음 ---
 
@@ -1005,6 +1020,13 @@ func _draw_col_left(font: Font, sc: float) -> void:
 		y += 21.0 * sc
 		_draw_sketch(warn, Vector2(x + 9.0 * sc, y - 5.0 * sc), 17.0 * sc)
 		draw_string(font, Vector2(x + sym_w, y), "위험", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
+	# 남긴 자원 점 — 점 셋을 글 순서대로(물·식량·은신막) 찍어 색↔자원 대응을 보여준다(2026-07-06 사용자 지시).
+	y += 21.0 * sc
+	var trace_cols: Array = [TRACE_WATER, TRACE_FOOD, TRACE_SHELTER]
+	for i in trace_cols.size():
+		var tc: Color = trace_cols[i]
+		_draw_resource_dot(Vector2(x + (5.0 + 12.0 * float(i)) * sc, y - 4.0 * sc), tc, sc * 0.75)
+	draw_string(font, Vector2(x + sym_w + 16.0 * sc, y), "남긴 물·식량·은신막", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w - 16.0 * sc, fs, tcol)
 	# 통계 한 줄(컴팩트).
 	y += 24.0 * sc
 	draw_string(font, Vector2(x, y), "원정 %d · 흔적 %d · 죽음 %d" % [GameState.expedition_count, GameState.traces.size(), GameState.deaths.size()], HORIZONTAL_ALIGNMENT_LEFT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))

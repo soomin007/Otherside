@@ -34,7 +34,9 @@ const PHOTO_ITEMS: Array = [
 	{"key": "shelter",  "u": 0.634, "w": 140.0, "h": 250.0, "delta": "폭풍 버팀"},
 	{"key": "medicine", "u": 0.755, "w": 112.0, "h": 240.0, "pouch": true, "name": "약초", "delta": "열·탈진 다스림"},  # 약초 다발 그림이 커서 히트 영역도 넓게
 	{"key": "flint",    "u": 0.835, "w": 88.0, "h": 160.0, "pouch": true, "delta": "언 밤의 불"},
-	{"key": "filter",   "u": 0.925, "w": 92.0, "h": 165.0, "pouch": true, "delta": "탁한 물 거름"},
+	# 정화천 그림 실측 = 사진 px x1102~1268·y408~520 (폭 165). 폭을 그림에 맞추되 부싯돌 히트(우변 1113)와
+	# 안 겹치게 중심을 살짝 오른쪽(0.930)으로 — 좌측 접힌 그림자 끝 ~10px 만 양보.
+	{"key": "filter",   "u": 0.930, "w": 152.0, "h": 180.0, "pouch": true, "delta": "탁한 물 거름"},
 ]
 const PHOTO_LABEL_V: float = 0.775   ## 라벨 세로 위치(사진 정규화) — 테이블 앞판
 const FLY_DUR: float = 0.42          ## 담기 비행 시간(스펙 420ms)
