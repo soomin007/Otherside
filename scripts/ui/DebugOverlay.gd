@@ -152,6 +152,15 @@ func _build() -> void:
 	_add_slider(col, "배경 어둠 퍼짐", 1.0, 4.0, EngravedItem.tune_bg_scale,
 		func(v: float) -> void: EngravedItem.tune_bg_scale = v)
 
+	_add_title(col, "제목 튜닝 (타이틀 로고 — 실시간)")
+	var main_scr := preload("res://scripts/ui/Main.gd")
+	_add_tslider(col, "제목 그림자 진하기", 0.0, 1.0, main_scr.title_shadow_a,
+		func(v: float) -> void: main_scr.title_shadow_a = v)
+	_add_tslider(col, "제목 그림자 퍼짐", 0.0, 28.0, float(main_scr.title_shadow_blur),
+		func(v: float) -> void: main_scr.title_shadow_blur = int(v))
+	_add_tslider(col, "제목 테두리 어둠", 0.0, 1.0, main_scr.title_outline_a,
+		func(v: float) -> void: main_scr.title_outline_a = v)
+
 	_add_title(col, "세이브")
 	_add_btn(col, "세이브 초기화 → 타이틀", _reset)
 	_add_btn(col, "닫기", _toggle)
@@ -169,6 +178,24 @@ func _add_btn(col: VBoxContainer, text: String, cb: Callable) -> Button:
 	b.pressed.connect(cb)
 	col.add_child(b)
 	return b
+
+## 제목 튜닝 슬라이더 — setter 후 타이틀(title_screen 그룹)에 적용 브로드캐스트.
+func _add_tslider(col: VBoxContainer, text: String, lo: float, hi: float, cur: float, setter: Callable) -> void:
+	var lbl := Label.new()
+	lbl.text = "%s: %.2f" % [text, cur]
+	lbl.add_theme_font_size_override("font_size", 13)
+	col.add_child(lbl)
+	var s := HSlider.new()
+	s.min_value = lo
+	s.max_value = hi
+	s.step = 0.01
+	s.value = cur
+	s.custom_minimum_size = Vector2(0, 30)
+	s.value_changed.connect(func(v: float) -> void:
+		setter.call(v)
+		lbl.text = "%s: %.2f" % [text, v]
+		get_tree().call_group("title_screen", "apply_title_tuning"))
+	col.add_child(s)
 
 ## 튜닝 슬라이더 한 줄 — 값 바꾸면 setter 실행 후 모든 각인 항목에 즉시 반영(타이틀 띄워놓고 조절).
 func _add_slider(col: VBoxContainer, text: String, lo: float, hi: float, cur: float, setter: Callable) -> void:

@@ -10,7 +10,13 @@ var _title_tr: TextureRect   ## 타이틀 키아트 배경 — 방향 따라 세
 var _title_port: Texture2D
 var _title_land: Texture2D
 
+## 제목(로고) 전용 그림자·테두리 튜닝(DEV 슬라이더) — 메뉴 각인 글씨(tune_*)와 별도, 기본은 더 짙게.
+static var title_shadow_a: float = 0.45
+static var title_shadow_blur: int = 6
+static var title_outline_a: float = 0.18
+
 var _logo_nodes: Array = []   ## 등장 stagger 대상(로고 글로우+글자)
+var _logo_lbl: Label          ## 로고 글자(튜닝 적용 대상)
 var _menu_node: Control
 var _stat_node: Control
 
@@ -105,6 +111,18 @@ func _build_logo() -> void:
 	logo.add_to_group("ui_scatter")  # 전환 OUT 때 UI 만 흩어짐(글로우=배경층이라 제외)
 	add_child(logo)
 	_logo_nodes = [glow, logo]
+	_logo_lbl = logo
+	add_to_group("title_screen")  # DEV 제목 튜닝 브로드캐스트 대상
+	apply_title_tuning()
+
+## 제목 그림자·테두리 적용 — DEV "제목 튜닝" 슬라이더가 그룹 호출.
+func apply_title_tuning() -> void:
+	if _logo_lbl == null:
+		return
+	_logo_lbl.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, title_shadow_a))
+	_logo_lbl.add_theme_constant_override("shadow_outline_size", title_shadow_blur)
+	_logo_lbl.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, title_outline_a))
+	_logo_lbl.add_theme_constant_override("outline_size", 4)
 
 ## 로고 뒤 어두운 방사 그라디언트(중앙 어둠 → 가장자리 투명). 로고를 넓게 감싼다.
 ## 스펙 (a): radial 58%×42% at (50%,25%), rgba(16,10,5,.55) → transparent 70%.
@@ -147,12 +165,7 @@ func _logo_label(col: Color, dx: float, dy: float) -> Label:
 	l.add_theme_font_size_override("font_size", 62)
 	l.add_theme_constant_override("line_spacing", 2)
 	l.add_theme_color_override("font_color", col)
-	# 메뉴 각인 글씨와 같은 그림자·테두리(확정 튜닝값 공유) — 로고도 글자 단위로 배경에서 뜬다.
-	l.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, EngravedItem.tune_shadow_a))
 	l.add_theme_constant_override("shadow_offset_y", 2)
-	l.add_theme_constant_override("shadow_outline_size", EngravedItem.tune_shadow_blur)
-	l.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, EngravedItem.tune_outline_a))
-	l.add_theme_constant_override("outline_size", 4)
 	l.anchor_left = 0.0
 	l.anchor_right = 1.0
 	l.anchor_top = 0.13

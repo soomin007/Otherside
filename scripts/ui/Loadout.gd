@@ -32,7 +32,7 @@ const PHOTO_ITEMS: Array = [
 	{"key": "jerky",    "u": 0.372, "w": 140.0, "h": 250.0},
 	{"key": "rope",     "u": 0.497, "w": 140.0, "h": 250.0, "delta": "험지 통과"},
 	{"key": "shelter",  "u": 0.634, "w": 140.0, "h": 250.0, "delta": "폭풍 버팀"},
-	{"key": "medicine", "u": 0.755, "w": 92.0, "h": 175.0, "pouch": true, "name": "약초", "delta": "열·탈진 다스림"},
+	{"key": "medicine", "u": 0.755, "w": 112.0, "h": 240.0, "pouch": true, "name": "약초", "delta": "열·탈진 다스림"},  # 약초 다발 그림이 커서 히트 영역도 넓게
 	{"key": "flint",    "u": 0.835, "w": 88.0, "h": 160.0, "pouch": true, "delta": "언 밤의 불"},
 	{"key": "filter",   "u": 0.925, "w": 92.0, "h": 165.0, "pouch": true, "delta": "탁한 물 거름"},
 ]
@@ -292,7 +292,7 @@ func _build_step2() -> void:
 	c2.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_shadow(c2)
 	crow.add_child(c2)
-	var hint := UITheme.make_label("담은 것은 눌러 뺀다", 11, Color(UITheme.MUTED.r, UITheme.MUTED.g, UITheme.MUTED.b, 0.85))
+	var hint := UITheme.make_label("담은 물건을 누르면 뺍니다", 11, Color(UITheme.MUTED.r, UITheme.MUTED.g, UITheme.MUTED.b, 0.85))
 	hint.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_shadow(hint)
 	mid.add_child(hint)
@@ -474,7 +474,7 @@ func _make_slot_filled(idx: int, key: String) -> Control:
 	slot.add_theme_stylebox_override("hover", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("pressed", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("focus", _slot_stylebox(true))
-	slot.tooltip_text = "%s  (탭해서 빼기)" % Items.label_of(key)
+	slot.tooltip_text = "%s  (누르면 뺍니다)" % Items.label_of(key)
 	slot.pressed.connect(_remove_slot.bind(idx, slot))
 	var icon := ItemIcon.new()
 	icon.key = key
@@ -491,7 +491,7 @@ func _make_pouch_slot(key: String) -> Control:
 	slot.add_theme_stylebox_override("hover", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("pressed", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("focus", _slot_stylebox(true))
-	slot.tooltip_text = "%s  (탭해서 되돌리기)" % Items.label_of(key)
+	slot.tooltip_text = "%s  (누르면 창고로 되돌립니다)" % Items.label_of(key)
 	slot.pressed.connect(_clear_pouch_from.bind(slot))
 	var icon := ItemIcon.new()
 	icon.key = key
