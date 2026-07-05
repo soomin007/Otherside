@@ -29,6 +29,15 @@ func _input(event: InputEvent) -> void:
 	# 창모드일 때만 전체화면으로 — 이미 전체화면이면 이 클릭은 게임 입력으로 흘려보낸다.
 	if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_FULLSCREEN:
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+		# 전체화면 전환은 비동기(브라우저 promise) — 가로 잠금은 전체화면 상태에서만 받아들여지므로
+		# 잠깐 뒤 명시 요청한다. 성공하면 세로로 들고 있어도 화면이 스스로 가로로 돌아간다(안드로이드).
+		get_tree().create_timer(0.5).timeout.connect(_lock_landscape)
+	elif _hint != null and _hint.visible:
+		_lock_landscape()  # 전체화면인데 아직 세로(첫 잠금이 씹힘) — 안내 탭에서 재시도
+
+## 화면을 가로로 잠근다(양방향 가로). 잠금이 불가능한 환경(iOS 사파리)에선 조용히 무시된다.
+func _lock_landscape() -> void:
+	DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
 
 # --- 세로 화면 안내 (가로 고정) ---
 
