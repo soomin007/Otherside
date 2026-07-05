@@ -56,6 +56,26 @@ const INK_FADE: Color = UITheme.INK_FADE
 const ROUTE: Color = UITheme.ROUTE
 const MARKER_INK: Color = UITheme.MARKER_INK
 
+# --- "살아있는 잉크" (핸드오프 MAP_지도화면.md §2~4) ---
+## 손그림 채점 원(§4.1): 240 viewBox·중심(120,120)·기준 반지름 74 로 생성한 폴리라인을
+## 노드 크기에 맞춰 스케일. current 는 밝은 주홍으로 그려진 뒤 점멸, hover 는 잉크색으로 그려짐.
+const NCIRC_BOX: float = 240.0        ## 생성 좌표계(viewBox) 한 변
+const NCIRC_R: float = 74.0           ## 기준 반지름(240 기준)
+const NCIRC_STEP: float = 0.11        ## 각 스텝(rad) — 곡률 샘플 간격
+const NCIRC_WMAX: float = 3.7         ## 리본 half-width 최대(240 기준) — 중간이 굵음
+const NCIRC_WMIN: float = 0.9         ## 리본 half-width 최소 — 처음·끝이 가늘음
+const NCIRC_SCALE_FRAC: float = 1.68  ## 원이 놓이는 박스 = 노드 크기의 168%(§4.2)
+const CIRC_DRAW_CUR: float = 0.55     ## current 원 그려짐 시간(초, §4.2 drawpen)
+const CIRC_DRAW_HOV: float = 0.42     ## hover 원 그려짐 시간(초)
+const CIRC_PULSE: float = 2.2         ## current 원 점멸 주기(초, cpulse)
+
+const CIRC_CURRENT: Color = Color(0.984, 0.149, 0.0)   ## #fb2600 현재 위치(밝은 주홍)
+const CIRC_HOVER: Color = Color(0.290, 0.184, 0.094)   ## #4a2f18 목적지 잉크원
+const RED_PATH: Color = Color(0.824, 0.235, 0.118)     ## #d23c1e 선택 가능한 붉은 길(§3)
+const LABEL_HALO: Color = Color(0.914, 0.839, 0.686)   ## 라벨 크림 후광 rgb(233,214,175)(§2)
+const LABEL_DIM: Color = Color(0.290, 0.196, 0.071)    ## #4a3212 방문·미답 라벨
+const LABEL_MK: Color = Color(0.541, 0.184, 0.106)     ## #8a2f1b 선택 가능·현재 라벨
+
 var _hud: Label
 var _guide: Label
 var _moving: bool = false
@@ -76,6 +96,11 @@ var _hovered_node: String = ""   ## 마우스가 올라간 도달 가능 노드(
 var _dragging: bool = false       ## 누름~뗌 사이 드래그 추적(임계 넘으면 탭 취소 — 오터치 방지)
 var _drag_start_y: float = 0.0    ## 드래그 시작 지점 y(스크린)
 var _drag_moved: float = 0.0      ## 드래그 누적 이동(임계 넘으면 탭 아님)
+## 손그림 채점 원 캐시·타이머 — 랜덤 생성은 _draw 밖에서 한 번(프레임마다 흔들리면 안 됨), _draw 는 캐시만 렌더.
+var _circle_cache: Dictionary = {}   ## key(노드 id 또는 "__hover") -> PackedVector2Array(중심 기준 오프셋, 잉크 거칠기 baked)
+var _circle_cur_id: String = ""      ## 현재 채점 원이 걸린 노드
+var _circle_cur_t: float = 0.0       ## current 원 경과(그려짐→점멸)
+var _hover_t: float = 0.0            ## hover 원 그려짐 경과(호버 바뀔 때 0 으로)
 
 func _ready() -> void:
 	if GameState.current_run == null or not GameState.current_run.alive:
@@ -152,6 +177,10 @@ func _ready() -> void:
 	if GameState.current_run != null:
 		_reveal_id = GameState.current_run.current_node
 	_reveal_t = 0.0
+	# 현재 위치 채점 원 — 이 지도 방문의 현재 노드에 한 번 생성(그려짐→점멸은 _process 가 진행).
+	_circle_cur_id = _current_node_id()
+	_circle_cache[_circle_cur_id] = _gen_grading_circle()
+	_circle_cur_t = 0.0
 	_refresh_hud()
 	queue_redraw()
 
@@ -235,6 +264,14 @@ func _process(delta: float) -> void:
 		_reveal_t += delta
 		queue_redraw()
 	if not _moving:
+		# 정지 시 — 현재 채점 원이 그려진 뒤 점멸(살아있는 잉크). hover 원 그려짐도 진행.
+		# 점멸이 무한이라 지도가 계속 다시 그려진다(정지 중). 2D 벡터 렌더라 데스크톱은 가벼움 — 폰 배터리는 플레이테스트에서 확인.
+		var run: ExpeditionRun = GameState.current_run
+		if run != null and run.alive:
+			_circle_cur_t += delta
+			if _hovered_node != "":
+				_hover_t += delta
+			queue_redraw()
 		return
 	queue_redraw()  # 이동 중엔 매 프레임 다시 그린다(마커가 곡선 위를 부드럽게 미끄러진다)
 	_move_timer += delta
@@ -292,6 +329,9 @@ func _gui_input(event: InputEvent) -> void:
 		var hov: String = _reachable_at((event as InputEventMouseMotion).position, area)
 		if hov != _hovered_node:
 			_hovered_node = hov
+			if hov != "":
+				_circle_cache["__hover"] = _gen_grading_circle()  # 목적지에 올릴 때마다 새 손그림 원
+				_hover_t = 0.0
 			queue_redraw()
 
 ## 좌표 위의 도달 가능 노드 id(없으면 ""). 판정 반경 = 아이콘을 감싸는 클릭 원 크기.
@@ -567,7 +607,10 @@ func _draw() -> void:
 				continue
 			# 지형 곡선 — 두 노드를 잇는 엣지를 biome 에 맞춰 굽이치게(강=사행/바위=우회/폭풍=흔들림).
 			var pts: PackedVector2Array = _edge_polyline(str(id), nx_s, area)
-			if _is_revealed(nx_s):
+			if from_cur and nx_s in nexts:
+				# 지금 갈 수 있는 다음 길 — 붉게(§3). 터치엔 호버가 없으니 이 붉은 길이 "여기로 갈 수 있다" 어포던스.
+				_draw_red_path(pts, icon_size)
+			elif _is_revealed(nx_s):
 				# 밟은 길 — 옅은 실선 위에 발자국(원정대가 지나간 자취).
 				draw_polyline(pts, Color(ROUTE.r, ROUTE.g, ROUTE.b, 0.4), 1.5)
 				_draw_footprints(pts)
@@ -581,12 +624,9 @@ func _draw() -> void:
 		if not (revealed or reachable):
 			continue
 		var p: Vector2 = _node_screen(MapGraph.NODES[id], area)
-		if reachable and not _moving:
-			# 아이콘을 감싸는 클릭 원 — 여기를 누르면 간다. 마우스 올리면 살짝 커진다(누를 수 있다는 신호).
-			var ring: float = icon_size * 0.4
-			if str(id) == _hovered_node:
-				ring += icon_size * 0.05
-			draw_arc(p, ring, 0.0, TAU, 40, INK, 2.5)
+		if reachable and not _moving and str(id) == _hovered_node:
+			# 목적지 호버 — 잉크 손그림 원이 그려진다(§4.2). 평소엔 원 없음: 붉은 길이 "갈 수 있다" 신호(터치 우선).
+			_draw_grading_circle(p, icon_size, CIRC_HOVER, clampf(_hover_t / CIRC_DRAW_HOV, 0.0, 1.0), 1.0, "__hover")
 		if revealed:
 			_draw_landmark(str(id), str(MapGraph.NODES[id].get("kind", "")), p, icon_size)
 			# 위험 노드(차단·폭풍)엔 원정대가 남긴 경고 표식(방문한 곳만, 아이콘 오른쪽 위).
@@ -595,8 +635,12 @@ func _draw() -> void:
 			if warn_tex != null and (knd == "blockage" or knd == "storm"):
 				_draw_sketch(warn_tex, p + Vector2(icon_size * 0.34, -icon_size * 0.34), icon_size * 0.4)
 			if font != null:
-				# 이름은 아이콘 아래 중앙에(아이콘과 안 겹치게).
-				draw_string(font, p + Vector2(-75.0, icon_size * 0.5 + 12.0), str(MapGraph.NODES[id].get("name", "")), HORIZONTAL_ALIGNMENT_CENTER, 150.0, UITheme.FS_TINY, INK)
+				# 이름은 아이콘 아래 중앙에(아이콘과 안 겹치게). 크림 후광(§2) + 상태색: 현재/다음 갈 곳은 붉은 잉크, 나머지는 옅은 잉크.
+				var lcol: Color = LABEL_MK if (str(id) == cur or id in nexts) else LABEL_DIM
+				_draw_map_label(font, p + Vector2(-75.0, icon_size * 0.5 + 12.0), str(MapGraph.NODES[id].get("name", "")), 150.0, UITheme.FS_TINY, lcol)
+				if str(id) == cur:
+					# 현재 위치 태그 "원정대" — 노드 위. 삼각형은 절차적으로(장식 유니코드 두부 방지, known_issues §38).
+					_draw_expedition_tag(font, p + Vector2(0.0, -icon_size * 0.5 - 6.0))
 		else:
 			draw_circle(p, NODE_R - 2.0, Color(INK_FADE.r, INK_FADE.g, INK_FADE.b, 0.22))
 			if font != null:
@@ -614,11 +658,20 @@ func _draw() -> void:
 	for sp in _splashes:
 		var st: float = clampf(float(sp["t"]) / SPLASH_DUR, 0.0, 1.0)
 		draw_circle(sp["pos"], lerpf(3.0, 13.0, st), Color(MARKER_INK.r, MARKER_INK.g, MARKER_INK.b, lerpf(0.32, 0.0, st)))
-	# 원정대 마커 — 현재 위치(이동 중이면 곡선 위를 미끄러진다). 잉크 방울처럼(번짐 후광 + 심).
+	# 원정대 마커 — 이동 중엔 잉크 방울이 곡선 위를 미끄러지고, 정지 시엔 손그림 채점 원(그려짐→점멸, §4).
 	var mp: Vector2 = _marker_pos(area)
-	draw_circle(mp, 9.0, Color(MARKER_INK.r, MARKER_INK.g, MARKER_INK.b, 0.22))
-	draw_circle(mp, 5.5, MARKER_INK)
-	draw_arc(mp, 10.0, 0.0, TAU, 22, MARKER_INK, 1.5)
+	if _moving:
+		draw_circle(mp, 9.0, Color(MARKER_INK.r, MARKER_INK.g, MARKER_INK.b, 0.22))
+		draw_circle(mp, 5.5, MARKER_INK)
+		draw_arc(mp, 10.0, 0.0, TAU, 22, MARKER_INK, 1.5)
+	else:
+		var dp: float = clampf(_circle_cur_t / CIRC_DRAW_CUR, 0.0, 1.0)
+		dp = 1.0 - pow(1.0 - dp, 2.0)                       # ease-out 그려짐
+		var pulse: float = 1.0
+		if _circle_cur_t > CIRC_DRAW_CUR:
+			var ph: float = fmod(_circle_cur_t - CIRC_DRAW_CUR, CIRC_PULSE) / CIRC_PULSE
+			pulse = 0.75 - 0.25 * cos(ph * TAU)             # .5↔1 부드러운 점멸
+		_draw_grading_circle(mp, icon_size, CIRC_CURRENT, dp, pulse, _circle_cur_id)
 
 ## 배경 텍스처를 area 에 종횡비 유지 cover(넘치는 쪽을 잘라 왜곡·여백 없이 채움).
 func _draw_bg_cover(area: Rect2) -> void:
@@ -812,3 +865,91 @@ func _draw_trace_marker(p: Vector2, kind: int) -> void:
 			draw_circle(p, 3.5, Color(0.70, 0.85, 0.70))
 		_:
 			draw_circle(p, 2.5, UITheme.MUTED)
+
+# --- "살아있는 잉크" 헬퍼 (핸드오프 MAP_지도화면.md §2~4) ---
+
+## 손그림 채점 O 생성(§4.1) — 240 viewBox·중심(0,0) 기준 오프셋 폴리라인. 잉크 거칠기(점별 미세 노이즈)를 구워 넣는다.
+## _draw 밖에서만 호출(랜덤이라 프레임마다 흔들리면 안 됨). 결과를 _circle_cache 에 담아 _draw 가 재사용한다.
+func _gen_grading_circle() -> PackedVector2Array:
+	var r_base: float = NCIRC_R + randf_range(-4.0, 4.0)
+	var tilt: float = randf_range(-0.25, 0.25)              # 기울기(rad)
+	var sq: float = 0.90 + randf() * 0.14                    # 가로눌림(정원≈1)
+	var turns: float = 1.14 + randf() * 0.22                 # >1 이라 끝이 시작을 지나쳐 겹친다
+	var start: float = PI * 0.5 - 0.1 + randf_range(-0.25, 0.25)  # 대략 아래에서 시작
+	var end_a: float = start + TAU * turns                   # 시계방향(각 증가, y-down)
+	var wob_f: float = 1.6 + randf() * 1.4
+	var wob_p: float = randf() * 6.0
+	var wob2: float = 0.6 + randf() * 1.0
+	var pts: PackedVector2Array = PackedVector2Array()
+	var a: float = start
+	while a <= end_a:
+		var t: float = (a - start) / (end_a - start)
+		var rr: float = r_base + sin(a * wob_f + wob_p) * 3.0 + sin(a * 4.3 + 1.0) * wob2
+		if t > 0.9:
+			rr *= 1.0 + (t - 0.9) * (0.6 + randf() * 0.5)   # 꼬리 바깥으로 삐침
+		if t < 0.05:
+			rr *= 1.06
+		var ex: float = cos(a) * rr * sq
+		var ey: float = sin(a) * rr
+		var px: float = ex * cos(tilt) - ey * sin(tilt)
+		var py: float = ex * sin(tilt) + ey * cos(tilt)
+		# 잉크 거칠기 — 미세 노이즈 offset(셰이더 대체, §11). 한 번 구워 넣으므로 프레임마다 동일.
+		px += randf_range(-0.7, 0.7)
+		py += randf_range(-0.7, 0.7)
+		pts.append(Vector2(px, py))
+		a += NCIRC_STEP
+	return pts
+
+## 채점 원 렌더 — 캐시된 오프셋을 노드 크기에 맞춰 스케일, 가변 리본(중간 굵음)으로 진행도(progress)까지만 그린다.
+## alpha = 점멸/페이드 배수. id = _circle_cache 키(노드 id 또는 "__hover").
+func _draw_grading_circle(center: Vector2, node_size: float, col: Color, progress: float, alpha: float, id: String) -> void:
+	var offs: PackedVector2Array = _circle_cache.get(id, PackedVector2Array())
+	var n: int = offs.size()
+	if n < 3:
+		return
+	var scale: float = node_size * NCIRC_SCALE_FRAC / NCIRC_BOX
+	var count: int = clampi(int(2.0 + clampf(progress, 0.0, 1.0) * float(n - 2)), 2, n)
+	var c: Color = Color(col.r, col.g, col.b, col.a * clampf(alpha, 0.0, 1.0))
+	# 세그먼트마다 사각 리본(quad) — 자기교차 나선도 겹쳐 그려져 안전(한 폴리곤 삼각화 문제 회피).
+	for i in range(count - 1):
+		var pa: Vector2 = center + offs[i] * scale
+		var pb: Vector2 = center + offs[i + 1] * scale
+		var dir: Vector2 = offs[i + 1] - offs[i]
+		if dir.length() < 0.0001:
+			continue
+		var nrm: Vector2 = Vector2(-dir.y, dir.x).normalized()
+		var ha: float = _ribbon_hw(i, n) * scale
+		var hb: float = _ribbon_hw(i + 1, n) * scale
+		var quad: PackedVector2Array = PackedVector2Array([pa + nrm * ha, pb + nrm * hb, pb - nrm * hb, pa - nrm * ha])
+		draw_colored_polygon(quad, c)
+
+## 리본 half-width(§4.1b) — 처음·끝은 가늘고 중간이 굵게(sin^0.65).
+func _ribbon_hw(i: int, n: int) -> float:
+	var t: float = minf(1.0, float(i) / float(maxi(1, n - 1)))
+	return NCIRC_WMIN + (NCIRC_WMAX - NCIRC_WMIN) * pow(sin(t * PI), 0.65)
+
+## 붉은 선택길(§3) — 넓고 옅은 밑 글로우 위에 진한 붉은 선(셰이더 없이 두 겹).
+func _draw_red_path(pts: PackedVector2Array, icon_size: float) -> void:
+	if pts.size() < 2:
+		return
+	var w: float = clampf(icon_size * 0.045, 2.6, 5.0)
+	draw_polyline(pts, Color(RED_PATH.r, RED_PATH.g, RED_PATH.b, 0.22), w * 2.4)
+	draw_polyline(pts, RED_PATH, w)
+
+## 지도 라벨 — 크림 후광(§2, 다중 오프셋으로 text-shadow 대체) 위에 상태색 글자. draw_string 은 그림자가 없어 손으로 겹쳐 그린다.
+func _draw_map_label(font: Font, pos: Vector2, text: String, width: float, fs: int, col: Color) -> void:
+	if font == null:
+		return
+	var halo: Color = Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.5)
+	for off in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1), Vector2(-1, -1), Vector2(1, 1), Vector2(1, -1), Vector2(-1, 1)]:
+		draw_string(font, pos + off, text, HORIZONTAL_ALIGNMENT_CENTER, width, fs, halo)
+	var halo2: Color = Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.22)
+	for off in [Vector2(-2, 0), Vector2(2, 0), Vector2(0, -2), Vector2(0, 2)]:
+		draw_string(font, pos + off, text, HORIZONTAL_ALIGNMENT_CENTER, width, fs, halo2)
+	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, width, fs, col)
+
+## 현재 위치 태그 "원정대" — 삼각형은 절차적(draw_colored_polygon), 글자는 후광 라벨. 노드 위 중앙.
+func _draw_expedition_tag(font: Font, center: Vector2) -> void:
+	var tri: PackedVector2Array = PackedVector2Array([center + Vector2(-4.0, 0.0), center + Vector2(4.0, 0.0), center + Vector2(0.0, -5.0)])
+	draw_colored_polygon(tri, LABEL_MK)
+	_draw_map_label(font, center + Vector2(-75.0, 2.0), "원정대", 150.0, UITheme.FS_TINY, LABEL_MK)
