@@ -1,11 +1,10 @@
 extends Control
 
 ## 마을 · 원정 준비 — 매 원정 출발 전. 두 단계로 나눈다:
-##  1) 원정대를 꾸린다 — 이름 + 대장 특기(직능) + 챙길 도구 하나. (대장 초상)
-##  2) 배낭을 챙긴다 — 6칸 가방에 책상 물품을 담는다(합산 = 시작 자원). (배낭 초상)
-## 단계를 나눠 각 화면이 짧고, 스크롤 컨테이너로 감싸 넘쳐도 떠나기 버튼까지 도달한다(이전엔 세로 초과로 잘림).
+##  1) 원정대를 꾸린다 — 이름 + 대장 특기(직능) + 챙길 도구 하나. (중앙 컬럼 폼)
+##  2) 배낭을 챙긴다 — 창고 사진(39) 디에게틱: 찍혀 있는 물건에 각인 라벨, 탭하면 가방으로
+##     포물선을 그리며 날아가 담긴다(합산 = 시작 자원). 핸드오프 §2/§19, 가로 창고 = 사용자 확정(2026-07-05).
 ## 첫 원정엔 시장 NPC(초상)가 규칙을 안내하고 기록지를 건넨다.
-## 모바일 우선: 중앙 최대폭 컬럼, 큰 버튼, 탭.
 
 const BAG_SLOTS: int = 6
 const PRESET: Array = ["water", "water", "food", "food", "rope", "shelter"]  ## 표준 구성 (아이템 정의는 core/Items.gd)
@@ -24,13 +23,33 @@ const MARKET_PAGES: Array = [
 const MARKET_INTRO_DELAY: float = 1.3  ## 나타나기까지 뜸(초)
 const MARKET_INTRO_FADE: float = 1.1   ## 페이드 인(초)
 
+## 창고 사진(39) 속 물건들의 정규화 좌표(u,v — 원본 1680×944 기준 중심/라벨 지점).
+## 가방 물품 5종만 각인 라벨을 얹는다. 주머니 도구 3종(약초·부싯돌·정화천)은 단계 1에서 고르므로 배경 소품로 남긴다.
+## 라벨 v 는 테이블 앞판(물건 바로 아래) 높이로 통일 — 각인 글씨가 나무 위에 새겨진 느낌.
+const PHOTO_ITEMS: Array = [
+	{"key": "water",   "u": 0.101},
+	{"key": "food",    "u": 0.259},
+	{"key": "jerky",   "u": 0.372},
+	{"key": "rope",    "u": 0.497, "delta": "험지 통과"},
+	{"key": "shelter", "u": 0.634, "delta": "폭풍 버팀"},
+]
+const PHOTO_LABEL_V: float = 0.775   ## 라벨 세로 위치(사진 정규화) — 테이블 앞판
+const FLY_DUR: float = 0.42          ## 담기 비행 시간(스펙 420ms)
+const FLY_APEX: float = 110.0        ## 포물선 정점 = 목표보다 이만큼 위(스펙)
+const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")  ## 에이브로우 영문 전용
+
 var _step: int = 1
-var _col: VBoxContainer            ## 단계 콘텐츠 컨테이너(스크롤 안). _show_step 이 자식을 갈아끼운다.
+var _step_root: Control            ## 단계 전체 루트 — _show_step 이 통째로 갈아끼운다(1=컬럼, 2=디에게틱)
+var _col: VBoxContainer            ## 단계 1 콘텐츠 컨테이너(스크롤 안)
 
 var _bag: Array = []               ## 담은 물품 key 배열(최대 BAG_SLOTS) — 단계 넘어 유지
-var _bag_box: GridContainer        ## step2 가방 슬롯 그리드(담은 아이템이 여기 아이콘으로 들어간다)
+var _bag_box: Container            ## step2 가방 슬롯 줄(담은 아이템이 여기 아이콘으로 들어간다)
 var _preview: Label                ## step2 위젯
 var _depart_btn: Button            ## step2 위젯
+var _bg_tex: Texture2D             ## 창고 사진 — cover 매핑(라벨 좌표)에 필요
+var _item_btns: Dictionary = {}    ## key -> {btn, delta(Label), base(String)} — 담김 ×N·가방 참 상태 갱신
+var _count_n: Label                ## "가방 N / 6" 의 N (Cinzel 24 sand)
+var _diegetic: Control             ## step2 사진 위 라벨 레이어(리사이즈 시 재배치)
 
 var _pending_name: String = ""     ## 이번 원정대 이름 — 랜덤 초기값, 편집·다시 뽑기 가능
 var _pending_vocation: String = "" ## 이번 대장의 직능 id (기본 "" = 평범)
@@ -46,11 +65,17 @@ var _market_ready: bool = false    ## 페이드 인 완료 전엔 입력 무시(
 
 func _ready() -> void:
 	_rng.randomize()
-	# 배경 — 가방 준비(밤 책상에 펼친 배낭·물품) 그림. 없으면 사막 밤 공통 배경으로 fallback(웹 안전).
-	const BAG_BG: String = "res://assets/arts/22_배경_가방.png"
-	if ResourceLoader.exists(BAG_BG):
+	# 배경 — 마을 창고(램프 밝힌 준비 테이블, 가로 16:9 사진). 물건이 찍혀 있는 디에게틱 무대(핸드오프 §19, 사용자 확정).
+	# 없으면 옛 가방 그림 → 절차적 마을 배경 순 fallback(웹 안전).
+	var bg_path: String = ""
+	for p in ["res://assets/arts/39_배경_창고_가로.png", "res://assets/arts/22_배경_가방.png"]:
+		if ResourceLoader.exists(p):
+			bg_path = p
+			break
+	if bg_path != "":
+		_bg_tex = load(bg_path)
 		var tr := TextureRect.new()
-		tr.texture = load(BAG_BG)
+		tr.texture = _bg_tex
 		tr.set_anchors_preset(Control.PRESET_FULL_RECT)
 		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED  # 화면 꽉 채우기(cover)
@@ -61,8 +86,49 @@ func _ready() -> void:
 		bg.scene_kind = "village"
 		add_child(bg)
 
-	# UI 가독성 — 컬럼 뒤에 어두운 세로 띠를 깐다(지평선·색 변화가 글씨를 방해하지 않게).
-	# Backdrop 위, 스크롤 아래. 화면 세로로 꽉 차 스크롤해도 글씨는 늘 어두운 면 위에 있다.
+	_pending_name = ExpeditionNamer.random(_rng)
+	_bag = PRESET.duplicate()  # 처음엔 표준 구성(빠른 출발)
+	resized.connect(_layout_photo_labels)  # 창 크기 변화 → 사진 라벨 재배치(단계 2 아닐 땐 no-op)
+	_show_step(1)
+
+	# 첫 원정이면 시장이 규칙을 쭉 설명하고 기록지를 건넨다(책갈피가 켜진다).
+	if GameState.expedition_count == 0 and not GameState.record_seen:
+		_show_market_intro()
+
+## 단계 전환 — 단계 루트를 통째로 갈아끼운다(1=중앙 컬럼, 2=창고 사진 디에게틱). _pending_* 은 멤버라 단계 넘어 유지된다.
+func _show_step(n: int) -> void:
+	_step = n
+	_bag_box = null
+	_preview = null
+	_depart_btn = null
+	_name_edit = null
+	_voc_desc = null
+	_tool_desc = null
+	_count_n = null
+	_diegetic = null
+	_item_btns.clear()
+	if _step_root != null:
+		_step_root.queue_free()
+	_step_root = Control.new()
+	_step_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_step_root)
+	if n == 1:
+		_build_step1()
+	else:
+		_build_step2()
+
+## 절차적 초상(Figures) — 단계 상단에 얹는다.
+func _portrait(kind: String, h: float) -> Figures:
+	var fig := Figures.new()
+	fig.kind = kind
+	fig.custom_minimum_size = Vector2(0, h)
+	fig.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return fig
+
+# --- 단계 1: 원정대를 꾸린다 (중앙 컬럼 — 폼 위주라 컬럼이 낫다. 디에게틱은 단계 2) ---
+
+func _build_step1() -> void:
+	# UI 가독성 — 컬럼 뒤 어두운 세로 띠(사진 위 글씨 보호). 스크롤 아래.
 	var band := ColorRect.new()
 	band.color = Color(0.05, 0.05, 0.07, 0.95)
 	band.anchor_left = 0.5
@@ -72,14 +138,14 @@ func _ready() -> void:
 	band.offset_left = -(UITheme.COLUMN_W * 0.5 + UITheme.PAD)
 	band.offset_right = UITheme.COLUMN_W * 0.5 + UITheme.PAD
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE  # 클릭은 위 스크롤/버튼으로 통과
-	add_child(band)
+	_step_root.add_child(band)
 
-	# 스크롤 컬럼 — 콘텐츠가 화면보다 길어도 아래 버튼까지 스크롤로 도달(중앙 최대폭 정렬). 휠은 부드럽게(SmoothScroll).
+	# 스크롤 컬럼 — 콘텐츠가 화면보다 길어도 아래 버튼까지 도달(중앙 최대폭). 휠은 부드럽게(SmoothScroll).
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "top", "bottom"]:
 		margin.add_theme_constant_override("margin_" + side, int(UITheme.PAD))
-	add_child(margin)
+	_step_root.add_child(margin)
 	var scroll := SmoothScroll.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	margin.add_child(scroll)
@@ -92,46 +158,6 @@ func _ready() -> void:
 	_col.custom_minimum_size = Vector2(UITheme.COLUMN_W, 0)
 	center.add_child(_col)
 
-	_pending_name = ExpeditionNamer.random(_rng)
-	_bag = PRESET.duplicate()  # 처음엔 표준 구성(빠른 출발)
-	_show_step(1)
-
-	# 첫 원정이면 시장이 규칙을 쭉 설명하고 기록지를 건넨다(책갈피가 켜진다).
-	if GameState.expedition_count == 0 and not GameState.record_seen:
-		_show_market_intro()
-
-## 단계 전환 — 컬럼 자식을 비우고 그 단계 UI 를 다시 짓는다. _pending_* 은 멤버라 단계 넘어 유지된다.
-func _show_step(n: int) -> void:
-	_step = n
-	_bag_box = null
-	_preview = null
-	_depart_btn = null
-	_name_edit = null
-	_voc_desc = null
-	_tool_desc = null
-	for c in _col.get_children():
-		_col.remove_child(c)
-		c.queue_free()
-	if n == 1:
-		_build_step1()
-	else:
-		_build_step2()
-	# 웹 브라우저 주소창이 하단을 가려도 마지막 버튼까지 스크롤로 도달하도록 여유(전체화면 실패 대비).
-	var tail := Control.new()
-	tail.custom_minimum_size = Vector2(0, UITheme.SAFE * 2.5)
-	_col.add_child(tail)
-
-## 절차적 초상(Figures) — 단계 상단에 얹는다.
-func _portrait(kind: String, h: float) -> Figures:
-	var fig := Figures.new()
-	fig.kind = kind
-	fig.custom_minimum_size = Vector2(0, h)
-	fig.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	return fig
-
-# --- 단계 1: 원정대를 꾸린다 ---
-
-func _build_step1() -> void:
 	_col.add_child(_portrait("leader", 150.0))
 	_col.add_child(UITheme.make_label("원정대를 꾸린다", UITheme.FS_H1))
 	_col.add_child(UITheme.make_label(_npc_line(), UITheme.FS_SMALL, UITheme.SAND))
@@ -191,76 +217,128 @@ func _build_step1() -> void:
 	var nxt := UITheme.make_button("배낭 챙기기 →")
 	nxt.pressed.connect(_show_step.bind(2))
 	_col.add_child(nxt)
+	# 웹 브라우저 주소창이 하단을 가려도 마지막 버튼까지 스크롤로 도달하도록 여유(전체화면 실패 대비).
+	var tail := Control.new()
+	tail.custom_minimum_size = Vector2(0, UITheme.SAFE * 2.5)
+	_col.add_child(tail)
 
-# --- 단계 2: 배낭을 챙긴다 ---
+# --- 단계 2: 배낭을 챙긴다 (창고 디에게틱 — 사진 속 물건에 각인 라벨, 탭하면 가방으로 날아간다. 핸드오프 §2/§19) ---
 
 func _build_step2() -> void:
-	_col.add_child(_portrait("pack", 130.0))
-	_col.add_child(UITheme.make_label("배낭을 챙긴다", UITheme.FS_H1))
-	_col.add_child(UITheme.make_label("가방은 여섯 칸. 담은 만큼이 이번 원정의 목숨이다.", UITheme.FS_SMALL, UITheme.MUTED))
+	# 사진 위 글씨 가독성 — 상하단 그라디언트 스크림(README Legibility). 셰이더 금지라 GradientTexture2D.
+	_step_root.add_child(_make_scrim(true))
+	_step_root.add_child(_make_scrim(false))
 
-	_col.add_child(UITheme.make_label("책상에서 챙긴다  (탭하면 가방으로 쏙)", UITheme.FS_LABEL, UITheme.MUTED))
-	# 책상 — 각 물품을 삽화 타일로. 탭하면 그 자리에서 가방 빈 칸으로 슥 날아가 담긴다(_pick_item).
-	var desk_panel := PanelContainer.new()
-	desk_panel.add_theme_stylebox_override("panel", _desk_stylebox())
-	desk_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	var desk := GridContainer.new()
-	desk.columns = 3
-	desk.add_theme_constant_override("h_separation", 8)
-	desk.add_theme_constant_override("v_separation", 8)
-	for it in Items.CATALOG:
-		var item: Dictionary = it
-		if str(item.get("key", "")) in Items.POUCH_TOOLS:
-			continue  # 주머니 도구는 단계 1에서 따로 고른다(가방 칸과 별개)
-		desk.add_child(_make_desk_tile(item))
-	desk_panel.add_child(desk)
-	_col.add_child(desk_panel)
+	# 헤더 — 에이브로우(Cinzel 영문 전용) + 제목 + 부제.
+	var head := VBoxContainer.new()
+	head.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	head.offset_top = UITheme.SAFE
+	head.add_theme_constant_override("separation", 3)
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_step_root.add_child(head)
+	var eye := UITheme.make_label("VILLAGE · LOADOUT", 11, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.9))
+	var efv := FontVariation.new()
+	efv.base_font = EN_TITLE_FONT
+	efv.set_spacing(TextServer.SPACING_GLYPH, 4)  # 스펙 .32em ≈ 11px*0.32
+	eye.add_theme_font_override("font", efv)
+	head.add_child(eye)
+	var title := UITheme.make_label("배낭을 챙긴다", UITheme.FS_H1)
+	_shadow(title)
+	head.add_child(title)
+	var sub := UITheme.make_label("가방은 여섯 칸. 담은 만큼이 이번 원정의 목숨이다.", UITheme.FS_SMALL, Color(0.788, 0.718, 0.565))
+	_shadow(sub)
+	head.add_child(sub)
 
-	_col.add_child(UITheme.make_label("가방  (담은 것을 탭하면 뺀다)", UITheme.FS_LABEL, UITheme.MUTED))
-	# 가방 그래픽 — 담은 아이템이 이 틀 '안'에 아이콘으로 들어가 책상(위 버튼)과 시각적으로 구분된다.
-	var bag_panel := PanelContainer.new()
-	bag_panel.add_theme_stylebox_override("panel", _bag_stylebox())
-	bag_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	# 슬롯 뒤에 배낭 그림을 은은히 깔아 '가방 안'으로 읽히게. 전용 열린가방(38) 우선, 없으면 배낭 초상(21).
-	var bag_art: String = ""
-	for p in ["res://assets/arts/transparent/38_배경_열린가방.png", "res://assets/arts/transparent/21_초상_배낭.png"]:
-		if ResourceLoader.exists(p):
-			bag_art = p
-			break
-	if bag_art != "":
+	# 사진 속 물건 라벨 레이어 — cover 매핑으로 물건 바로 아래(테이블 앞판)에 각인. 리사이즈마다 재배치.
+	_diegetic = Control.new()
+	_diegetic.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_diegetic.mouse_filter = Control.MOUSE_FILTER_PASS
+	_step_root.add_child(_diegetic)
+	for it in PHOTO_ITEMS:
+		var entry: Dictionary = it
+		_diegetic.add_child(_make_photo_label(entry))
+
+	# 하단 가방 줄 — 한 줄 컴팩트: 열린 가방 그림 + "가방 N / 6"(N=Cinzel) + 아이콘 슬롯 6칸(탭하면 뺀다).
+	# 사진 라벨(테이블 앞판, y≈600까지)과 안 겹치게 낮고 얇게. 슬롯은 아이콘만(이름은 툴팁).
+	var bagc := CenterContainer.new()
+	bagc.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	bagc.offset_top = -104.0
+	bagc.offset_bottom = -34.0
+	bagc.mouse_filter = Control.MOUSE_FILTER_IGNORE  # 빈 영역이 하단 버튼 클릭을 막지 않게(자식 버튼은 받음)
+	_step_root.add_child(bagc)
+	var brow := HBoxContainer.new()
+	brow.add_theme_constant_override("separation", 10)
+	brow.alignment = BoxContainer.ALIGNMENT_CENTER
+	bagc.add_child(brow)
+	var bag_art: String = "res://assets/arts/transparent/38_배경_열린가방.png"
+	if ResourceLoader.exists(bag_art):
 		var art := TextureRect.new()
 		art.texture = load(bag_art)
+		art.custom_minimum_size = Vector2(64, 64)
 		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		art.modulate = Color(1.0, 1.0, 1.0, 0.5)  # 은은히 — 슬롯이 위에 읽히게
-		bag_panel.add_child(art)
-	_bag_box = GridContainer.new()
-	_bag_box.columns = 3
-	_bag_box.add_theme_constant_override("h_separation", 10)
-	_bag_box.add_theme_constant_override("v_separation", 10)
-	bag_panel.add_child(_bag_box)
-	_col.add_child(bag_panel)
+		brow.add_child(art)
+	var c1 := UITheme.make_label("가방", UITheme.FS_SMALL, UITheme.MUTED)
+	c1.autowrap_mode = TextServer.AUTOWRAP_OFF  # HBox 안에서 "가/방" 세로 줄바꿈 방지
+	_shadow(c1)
+	brow.add_child(c1)
+	_count_n = UITheme.make_label(str(_bag.size()), 22, UITheme.SAND)  # 숫자만 Cinzel(스펙 — 한글 두부 방지, known_issues §42)
+	_count_n.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_shadow(_count_n)
+	var cfv := FontVariation.new()
+	cfv.base_font = EN_TITLE_FONT
+	_count_n.add_theme_font_override("font", cfv)
+	brow.add_child(_count_n)
+	var c2 := UITheme.make_label("/ %d" % BAG_SLOTS, UITheme.FS_SMALL, UITheme.MUTED)
+	c2.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_shadow(c2)
+	brow.add_child(c2)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(8, 0)
+	brow.add_child(gap)
+	var slots := HBoxContainer.new()
+	slots.add_theme_constant_override("separation", 5)
+	brow.add_child(slots)
+	_bag_box = slots
 
-	_preview = UITheme.make_label("", UITheme.FS_LABEL, UITheme.FG)
-	_col.add_child(_preview)
+	# 자원 미리보기 — 담은 합계 한 줄(가방 줄 아래, 맨 밑).
+	_preview = UITheme.make_label("", UITheme.FS_SMALL, UITheme.FG)
+	_shadow(_preview)
+	_preview.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_preview.offset_top = -32.0
+	_preview.offset_bottom = -8.0
+	_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_step_root.add_child(_preview)
 
-	var preset_btn := UITheme.make_button("표준 구성으로 채우기", false)
-	preset_btn.pressed.connect(_apply_preset)
-	_col.add_child(preset_btn)
-
-	# 뒤로(단계 1) + 떠난다 — 스크롤 안이라 세로가 길어도 도달한다.
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	var back := UITheme.make_button("← 뒤로", false)
+	# 하단 좌 — 뒤로·표준 구성(각인형). 하단 우 — 떠난다(대표). 나중에 add = 위에 그려져 클릭 우선.
+	var bl := HBoxContainer.new()
+	bl.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	bl.offset_left = 8.0
+	bl.offset_top = -76.0
+	bl.offset_bottom = -8.0
+	_step_root.add_child(bl)
+	var back := EngravedItem.new()
+	back.init_item("← 뒤로", 16, false)
 	back.pressed.connect(_show_step.bind(1))
-	row.add_child(back)
-	_depart_btn = UITheme.make_button("떠난다", false)  # 뒤로 버튼과 같은 크기(혼자 커 보이던 것 통일)
-	_depart_btn.pressed.connect(_depart)
-	row.add_child(_depart_btn)
-	_col.add_child(row)
+	bl.add_child(back)
+	var preset_btn := EngravedItem.new()
+	preset_btn.init_item("표준 구성", 16, false)
+	preset_btn.pressed.connect(_apply_preset)
+	bl.add_child(preset_btn)
+	var depart := EngravedItem.new()
+	depart.init_item("떠난다", 22, true)
+	depart.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	depart.offset_left = -226.0
+	depart.offset_top = -84.0
+	depart.offset_right = -10.0
+	depart.offset_bottom = -8.0
+	depart.pressed.connect(_depart)
+	_step_root.add_child(depart)
+	_depart_btn = depart
 
 	_refresh()
+	call_deferred("_layout_photo_labels")  # 첫 프레임엔 size 미확정 — 레이아웃 후 배치
 
 ## 시장 NPC 한 마디 — 첫 원정이면 규칙 안내, 이후엔 짧게.
 func _npc_line() -> String:
@@ -298,62 +376,50 @@ func _refresh() -> void:
 	var wgt: int = Items.bag_weight(_bag) + (Items.weight_of(_pending_tool) if _pending_tool != "" else 0)
 	var pen: int = maxi(0, wgt - ExpeditionRun.WEIGHT_FREE) / maxi(1, ExpeditionRun.WEIGHT_STEP)
 	var pen_str: String = "  · 무거워 물 +%d/걸음" % pen if pen > 0 else ""
-	_preview.text = "물 %d · 식량 %d · %s\n무게 %d%s    (%d/%d칸)" % [
-		int(res["water"]), int(res["food"]), Items.tools_summary(res), wgt, pen_str, _bag.size(), BAG_SLOTS]
+	_preview.text = "물 %d · 식량 %d · %s · 무게 %d%s" % [
+		int(res["water"]), int(res["food"]), Items.tools_summary(res), wgt, pen_str]
+	if _count_n != null:
+		_count_n.text = str(_bag.size())
+	# 사진 라벨 상태 — 담은 개수 ×N 표기, 가방이 차면 전부 흐리게+잠금(스펙 taken 응용 — 중복 담기 허용).
+	var full: bool = _bag.size() >= BAG_SLOTS
+	for key in _item_btns:
+		var info: Dictionary = _item_btns[key]
+		var cnt: int = _bag.count(key)
+		var dl: Label = info["delta"]
+		dl.text = str(info["base"]) + ("  · ×%d 담김" % cnt if cnt > 0 else "")
+		var btn: Button = info["btn"]
+		btn.disabled = full
+		btn.modulate.a = 0.42 if full else 1.0
 	if _depart_btn != null:
 		_depart_btn.disabled = int(res["water"]) <= 0 and int(res["food"]) <= 0
+		_depart_btn.modulate.a = 0.35 if _depart_btn.disabled else 1.0
 
 # --- 가방 슬롯 (담은 아이템 = 아이콘, 빈칸 = 움푹한 자리) ---
 
-## 담긴 칸 — 아이템 아이콘(삽화 or 절차적) + 이름. 탭하면 뺀다.
+## 담긴 칸 — 아이템 아이콘만(하단 한 줄 컴팩트 — 이름은 툴팁). 탭하면 뺀다.
 func _make_slot_filled(idx: int, key: String) -> Control:
 	var slot := Button.new()
-	slot.custom_minimum_size = Vector2(90, 106)
+	slot.custom_minimum_size = Vector2(54, 54)
 	slot.add_theme_stylebox_override("normal", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("hover", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("pressed", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("focus", _slot_stylebox(true))
 	slot.tooltip_text = "%s  (탭해서 빼기)" % Items.label_of(key)
 	slot.pressed.connect(_remove_item.bind(idx))
-	# 내용(아이콘+이름)은 버튼 위에 얹되 클릭은 버튼이 받게(mouse ignore + full rect).
-	var v := VBoxContainer.new()
-	v.set_anchors_preset(Control.PRESET_FULL_RECT)
-	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	v.add_theme_constant_override("separation", 2)
 	var icon := ItemIcon.new()
 	icon.key = key
-	icon.custom_minimum_size = Vector2(0, 58)
-	icon.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(icon)
-	var lbl := UITheme.make_label(Items.label_of(key), UITheme.FS_TINY, UITheme.FG)
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	v.add_child(lbl)
-	slot.add_child(v)
+	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(icon)
 	return slot
 
 ## 빈칸 — 움푹한 자리(안 눌림).
 func _make_slot_empty() -> Control:
 	var slot := PanelContainer.new()
-	slot.custom_minimum_size = Vector2(90, 106)
+	slot.custom_minimum_size = Vector2(54, 54)
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_theme_stylebox_override("panel", _slot_stylebox(false))
-	var lbl := UITheme.make_label("빈칸", UITheme.FS_TINY, UITheme.MUTED)
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	slot.add_child(lbl)
 	return slot
-
-## 가방 틀 — 어두운 가죽 안쪽 + 가죽 테두리(이 안이 '가방 속').
-func _bag_stylebox() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.15, 0.11, 0.07, 0.94)
-	sb.border_color = Color(0.40, 0.29, 0.17)
-	sb.set_border_width_all(3)
-	sb.set_corner_radius_all(14)
-	sb.set_content_margin_all(12)
-	return sb
 
 ## 슬롯 칸 — filled(밝은 가죽) / empty(움푹 어둡게).
 func _slot_stylebox(filled: bool) -> StyleBoxFlat:
@@ -369,77 +435,184 @@ func _slot_stylebox(filled: bool) -> StyleBoxFlat:
 	sb.set_content_margin_all(4)
 	return sb
 
-# --- 책상 물품 타일 + 가방으로 슬라이드 ---
+# --- 창고 사진 라벨 + 가방으로 날아가는 담기 (핸드오프 §2 인터랙션) ---
 
-## 책상 물품 타일 — 삽화(ItemIcon) + 이름(+ 자원 물품은 효과). 탭하면 가방으로 날아간다.
-func _make_desk_tile(item: Dictionary) -> Control:
-	var key: String = str(item.get("key", ""))
-	var tile := Button.new()
-	tile.custom_minimum_size = Vector2(100, 122)
-	for st in ["normal", "hover", "pressed", "focus"]:
-		tile.add_theme_stylebox_override(st, _slot_stylebox(true))
-	tile.tooltip_text = str(item.get("desc", ""))
-	tile.pressed.connect(_pick_item.bind(key, tile))
+## 사진 물건 각인 라벨 — 이름(20 ivory) + 델타(13 sand). hover 시 모래빛 옅은 배경(스펙 rgba .12, r11).
+## 게임은 같은 물건을 여러 개 담을 수 있어(표준 구성 = 물통×2·식량×2) 스펙의 "담김 1회" 대신 ×N 표기를 쓴다.
+func _make_photo_label(entry: Dictionary) -> Control:
+	var key: String = str(entry.get("key", ""))
+	var item: Dictionary = Items.by_key(key)
+	var btn := Button.new()
+	btn.flat = true
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	btn.custom_minimum_size = Vector2(164, 64)
+	btn.size = btn.custom_minimum_size  # 컨테이너 밖 절대 배치 — size 직접 확정(중심 정렬 계산용)
+	btn.tooltip_text = str(item.get("desc", ""))
+	var hov := StyleBoxFlat.new()
+	hov.bg_color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.12)
+	hov.set_corner_radius_all(11)
+	var emp := StyleBoxEmpty.new()
+	for st in ["normal", "pressed", "focus", "disabled"]:
+		btn.add_theme_stylebox_override(st, emp)
+	btn.add_theme_stylebox_override("hover", hov)
+	btn.pressed.connect(_pick_item.bind(key, btn))
 	var v := VBoxContainer.new()
 	v.set_anchors_preset(Control.PRESET_FULL_RECT)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	v.add_theme_constant_override("separation", 1)
-	var icon := ItemIcon.new()
-	icon.key = key
-	icon.custom_minimum_size = Vector2(0, 56)
-	icon.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	v.add_child(icon)
-	var nm := UITheme.make_label(str(item.get("label", "")), UITheme.FS_TINY, UITheme.FG)
-	nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_theme_constant_override("separation", 0)
+	var nm := UITheme.make_label(str(item.get("label", "")), 20, UITheme.FG)
+	_shadow(nm)
 	v.add_child(nm)
-	# 자원 물품은 효과를 작게(물통=물+7). 도구(로프·은신막)는 이름만 — 시장이 쓰임을 설명한다.
-	if not (key in Items.TOOL_KEYS):
-		var hint := UITheme.make_label(UITheme.effect_hint(item.get("start", {})), UITheme.FS_TINY, UITheme.SAND)
-		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		v.add_child(hint)
-	tile.add_child(v)
-	return tile
+	var base: String = str(entry.get("delta", UITheme.effect_hint(item.get("start", {}))))
+	var dl := UITheme.make_label(base, 13, UITheme.SAND)
+	_shadow(dl)
+	v.add_child(dl)
+	btn.add_child(v)
+	_item_btns[key] = {"btn": btn, "delta": dl, "base": base}
+	return btn
 
-## 책상 틀 — 나뭇결 톤(가방=가죽과 구분).
-func _desk_stylebox() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.14, 0.11, 0.08, 0.92)
-	sb.border_color = Color(0.34, 0.26, 0.17)
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(12)
-	sb.set_content_margin_all(10)
-	return sb
+## 사진 라벨 재배치 — 배경 cover(화면 채움·넘침 크롭) 매핑으로 사진 좌표(u,v)→화면 px. 단계 2 아닐 땐 no-op.
+func _layout_photo_labels() -> void:
+	if _diegetic == null:
+		return
+	var r: Rect2 = _photo_rect()
+	for it in PHOTO_ITEMS:
+		var entry: Dictionary = it
+		var key: String = str(entry.get("key", ""))
+		if not _item_btns.has(key):
+			continue
+		var info: Dictionary = _item_btns[key]
+		var btn: Control = info["btn"]
+		var c: Vector2 = r.position + Vector2(float(entry.get("u", 0.5)), PHOTO_LABEL_V) * r.size
+		btn.position = c - btn.size * 0.5
 
-## 책상 물품을 탭 — 가방 다음 빈 칸으로 아이콘이 슥 날아간 뒤 담긴다. 가방이 다 차면 무시.
+## 배경 사진이 cover 로 그려지는 rect(화면을 채우고 넘침은 크롭) — 라벨 좌표 매핑의 기준.
+func _photo_rect() -> Rect2:
+	var tw: float = 1680.0
+	var th: float = 944.0
+	if _bg_tex != null:
+		tw = float(_bg_tex.get_width())
+		th = float(_bg_tex.get_height())
+	var sc: float = maxf(size.x / tw, size.y / th)
+	var drawn: Vector2 = Vector2(tw, th) * sc
+	return Rect2((size - drawn) * 0.5, drawn)
+
+## 상/하단 그라디언트 스크림 — 사진 위 글씨 가독성(README Legibility). GradientTexture2D = 웹 안전.
+func _make_scrim(top: bool) -> TextureRect:
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 1.0])
+	if top:
+		g.colors = PackedColorArray([Color(0.0, 0.0, 0.0, 0.66), Color(0.0, 0.0, 0.0, 0.0)])
+	else:
+		g.colors = PackedColorArray([Color(0.0, 0.0, 0.0, 0.0), Color(0.035, 0.024, 0.016, 0.8)])
+	var gt := GradientTexture2D.new()
+	gt.gradient = g
+	gt.fill_from = Vector2(0.0, 0.0)
+	gt.fill_to = Vector2(0.0, 1.0)
+	var tr := TextureRect.new()
+	tr.texture = gt
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if top:
+		tr.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		tr.offset_bottom = 140.0
+	else:
+		tr.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		tr.offset_top = -240.0
+	return tr
+
+## 라벨/헤더 그림자 — 밝은 사진 위 글씨 필수 그림자(README).
+func _shadow(lbl: Label) -> void:
+	lbl.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
+	lbl.add_theme_constant_override("shadow_offset_x", 0)
+	lbl.add_theme_constant_override("shadow_offset_y", 2)
+	lbl.add_theme_constant_override("shadow_outline_size", 5)
+
+## 국소 모래 퍼프(스펙 puff) — 위쪽 반구 분출 + 살짝 부양(ay<0). 담기 출발 9입자·도착 18입자.
+func _puff(gpos: Vector2, n: int) -> void:
+	var p := CPUParticles2D.new()
+	p.amount = n
+	p.lifetime = 0.7
+	p.lifetime_randomness = 0.5
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.direction = Vector2(0.0, -1.0)
+	p.spread = 75.0
+	p.initial_velocity_min = 60.0
+	p.initial_velocity_max = 240.0
+	p.gravity = Vector2(0.0, -70.0)  # 스펙 ay -0.02/frame ≈ -72px/s² (살짝 떠오름)
+	p.scale_amount_min = 1.2
+	p.scale_amount_max = 2.8
+	p.color = UITheme.SAND
+	var ramp := Gradient.new()
+	ramp.offsets = PackedFloat32Array([0.0, 0.2, 1.0])
+	ramp.colors = PackedColorArray([
+		Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.0),
+		Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.9),
+		Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.0),
+	])
+	p.color_ramp = ramp
+	add_child(p)
+	p.global_position = gpos
+	p.emitting = true
+	p.finished.connect(p.queue_free)
+
+## 사진 라벨을 탭 — 그 물건이 라벨에서 가방 빈 칸으로 포물선을 그리며 날아가 담긴다. 가방이 다 차면 무시.
 func _pick_item(key: String, from: Control) -> void:
 	if _bag.size() >= BAG_SLOTS:
 		return
+	AudioManager.play_sfx("res://assets/sfx/sfx_bag_add.wav")
 	var fly := ItemIcon.new()
 	fly.key = key
-	fly.size = Vector2(56, 56)
+	fly.size = Vector2(64, 64)
 	fly.pivot_offset = fly.size * 0.5
 	fly.z_index = 50
 	fly.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(fly)
-	fly.global_position = from.global_position + (from.size - fly.size) * 0.5
-	var target: Vector2 = fly.global_position
+	var start: Vector2 = from.get_global_rect().get_center()
+	var target: Vector2 = start
 	var idx: int = _bag.size()  # 다음 빈 칸(담긴 칸 뒤에 빈 칸이 온다)
 	if _bag_box != null and idx < _bag_box.get_child_count():
-		var slot: Control = _bag_box.get_child(idx)
-		target = slot.global_position + (slot.size - fly.size) * 0.5
+		target = (_bag_box.get_child(idx) as Control).get_global_rect().get_center()
+	fly.global_position = start - fly.size * 0.5
+	_puff(start, 9)  # 출발 작은 퍼프(스펙 9입자)
 	var t := create_tween()
-	t.set_parallel(true)
-	t.tween_property(fly, "global_position", target, 0.32).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
-	t.tween_property(fly, "scale", Vector2(0.72, 0.72), 0.32)
-	t.chain().tween_callback(_finish_pick.bind(key, fly))
+	t.tween_method(_fly_step.bind(fly, start, target), 0.0, 1.0, FLY_DUR).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+	t.tween_callback(_finish_pick.bind(key, fly, target))
 
-## 슬라이드 끝 — 날던 아이콘을 치우고 실제로 가방에 담는다(슬롯이 그 자리에 채워짐).
-func _finish_pick(key: String, fly: Control) -> void:
+## 비행 보간(스펙 키프레임) — 55% 정점(목표 위 110px·scale .72·rot -10°) → 끝(scale .22·rot -22°·투명 .1).
+func _fly_step(t: float, fly: Control, a: Vector2, b: Vector2) -> void:
+	if not is_instance_valid(fly):
+		return
+	var x: float = lerpf(a.x, b.x, t)
+	var apex: float = b.y - FLY_APEX
+	var y: float
+	var s: float
+	var rot: float
+	var al: float = 1.0
+	if t < 0.55:
+		var u: float = t / 0.55
+		y = lerpf(a.y, apex, u)
+		s = lerpf(1.0, 0.72, u)
+		rot = lerpf(0.0, -10.0, u)
+	else:
+		var u: float = (t - 0.55) / 0.45
+		y = lerpf(apex, b.y, u)
+		s = lerpf(0.72, 0.22, u)
+		rot = lerpf(-10.0, -22.0, u)
+		al = lerpf(1.0, 0.1, u)
+	fly.global_position = Vector2(x, y) - fly.size * 0.5
+	fly.scale = Vector2(s, s)
+	fly.rotation_degrees = rot
+	fly.modulate.a = al
+
+## 비행 끝 — 도착 큰 퍼프(스펙 18입자), 날던 아이콘을 치우고 실제로 가방에 담는다.
+func _finish_pick(key: String, fly: Control, target: Vector2) -> void:
 	if is_instance_valid(fly):
 		fly.queue_free()
+	_puff(target, 18)
 	_add_item(key)
 
 ## 가방 물품 합산 → 시작 자원(core/Items.gd 카탈로그의 start 델타 합).
