@@ -10,10 +10,10 @@ var _title_tr: TextureRect   ## 타이틀 키아트 배경 — 방향 따라 세
 var _title_port: Texture2D
 var _title_land: Texture2D
 
-## 제목(로고) 전용 그림자·테두리 튜닝(DEV 슬라이더) — 메뉴 각인 글씨(tune_*)와 별도, 기본은 더 짙게.
-static var title_shadow_a: float = 0.45
-static var title_shadow_blur: int = 6
-static var title_outline_a: float = 0.18
+## 제목(로고) 전용 그림자·테두리 튜닝(DEV 슬라이더) — 메뉴 각인 글씨(tune_*)와 별도. 확정값(2026-07-06).
+static var title_shadow_a: float = 0.5
+static var title_shadow_blur: int = 7
+static var title_outline_a: float = 0.2
 
 var _logo_nodes: Array = []   ## 등장 stagger 대상(로고 글로우+글자)
 var _logo_lbl: Label          ## 로고 글자(튜닝 적용 대상)
@@ -161,6 +161,7 @@ func _logo_label(col: Color, dx: float, dy: float) -> Label:
 	var fv := FontVariation.new()
 	fv.base_font = EN_TITLE_FONT
 	fv.set_spacing(TextServer.SPACING_GLYPH, 3)  # letter-spacing .045em × 62 ≈ 3px
+	fv.variation_opentype = {"wght": 700}  # Cinzel 가변 폰트 — bold(사용자 확정). 소문자는 폰트 특성상 스몰캡
 	l.add_theme_font_override("font", fv)
 	l.add_theme_font_size_override("font_size", 62)
 	l.add_theme_constant_override("line_spacing", 2)
