@@ -5,12 +5,12 @@ extends Button
 ## hover 시 모래색 + 자간(.18em→.26em) 확장 + 밑줄이 중앙에서 부드럽게(cubic ease-out) 펼쳐진다.
 ## 쓰기: var it := EngravedItem.new(); it.init_item("...", 22, false); it.pressed.connect(...)
 
-## 라이브 튜닝(DEV 오버레이 "글씨 튜닝" 슬라이더) — 전 인스턴스 공유. 값이 정해지면 여기 기본값을 갱신.
-static var tune_core: float = 0.45      ## 밑줄 심지 높이(px)
-static var tune_glow: float = 1.0       ## 밑줄 글로우 배율(0=글로우 없음)
-static var tune_shadow_a: float = 0.95  ## 글자 그림자 진하기
+## 라이브 튜닝(DEV 오버레이 "글씨 튜닝" 슬라이더) — 전 인스턴스 공유. 기본값 = 사용자 확정(2026-07-05).
+static var tune_core: float = 1.0       ## 밑줄 심지 높이(px)
+static var tune_glow: float = 0.7       ## 밑줄 글로우 배율(0=글로우 없음)
+static var tune_shadow_a: float = 0.9   ## 글자 그림자 진하기
 static var tune_shadow_blur: int = 14   ## 글자 그림자 퍼짐(blur)
-static var tune_outline_a: float = 0.5  ## 글자 밀착 테두리 어둠(그림자와 별개 — halo 를 빽빽하게)
+static var tune_outline_a: float = 0.1  ## 글자 밀착 테두리 어둠(그림자와 별개 — halo 를 빽빽하게)
 
 var is_key: bool = false
 var _px: int = 22
@@ -20,6 +20,8 @@ var _underline: float = 0.0
 var _u_rest: float = 0.0   ## 기본 밑줄 정도(대표 항목은 옅게 상시 — 원본 key::after)
 var _tween: Tween
 var _line_tex: GradientTexture2D  ## 밑줄 텍스처 — 가로로 투명→모래→투명(끝이 네모지지 않게 스르르 사라짐)
+var _lbl: Label                   ## 실제 글자 렌더 — Button 은 그림자 테마가 없어(무시됨) Label 이 그린다
+var _base_col: Color              ## 평상시 글자색(hover 해제 시 복귀)
 
 ## 생성 직후 호출 — 문구·글자 크기(px)·대표 여부. add_child 전에 부른다.
 func init_item(txt: String, px: int, key: bool) -> void:
@@ -40,14 +42,27 @@ func _ready() -> void:
 	_spacing_cur = _px * 0.18
 	_apply_spacing()
 	add_theme_font_override("font", _fv)
-	var base_col: Color = UITheme.FG if is_key else Color(UITheme.FG.r, UITheme.FG.g, UITheme.FG.b, 0.8)
-	add_theme_color_override("font_color", base_col)
-	add_theme_color_override("font_hover_color", UITheme.SAND)
-	add_theme_color_override("font_focus_color", UITheme.SAND)
-	add_theme_color_override("font_pressed_color", UITheme.SAND)
-	# 글씨 그림자·테두리 — 글자 하나하나에 붙는다(가운데 덩어리 금지). 농도·퍼짐은 tune_*(DEV 슬라이더).
-	add_theme_constant_override("shadow_offset_x", 0)
-	add_theme_constant_override("shadow_offset_y", 2)
+	# ⚠️ Button 테마엔 글자 그림자 속성이 없다(오버라이드가 조용히 무시됨 — DEV 슬라이더가 안 먹히던 원인).
+	# → Button 글자는 투명(자리·크기 계산용)으로 두고, 같은 자리의 내부 Label 이 실제 렌더(그림자·테두리 지원).
+	for ck in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color", "font_disabled_color"]:
+		add_theme_color_override(ck, Color(0.0, 0.0, 0.0, 0.0))
+	_base_col = UITheme.FG if is_key else Color(UITheme.FG.r, UITheme.FG.g, UITheme.FG.b, 0.8)
+	_lbl = Label.new()
+	_lbl.text = text
+	_lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_lbl.offset_left = 26.0
+	_lbl.offset_right = -26.0
+	_lbl.offset_top = 14.0
+	_lbl.offset_bottom = -16.0
+	_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_lbl.add_theme_font_override("font", _fv)
+	_lbl.add_theme_font_size_override("font_size", _px)
+	_lbl.add_theme_color_override("font_color", _base_col)
+	_lbl.add_theme_constant_override("shadow_offset_x", 0)
+	_lbl.add_theme_constant_override("shadow_offset_y", 2)
+	_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_lbl)
 	add_to_group("engraved_item")  # DEV 튜닝 브로드캐스트 대상
 	# 밑줄 텍스처 — 끝 12% 구간이 서서히 사라진다(draw_line 의 네모난 끝 대체).
 	var lg := Gradient.new()
@@ -84,6 +99,8 @@ func _animate(on: bool) -> void:
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
 	pivot_offset = size * 0.5  # 중앙 기준으로 벌어짐(레이아웃 확정 후라 size 유효)
+	if _lbl != null:
+		_lbl.add_theme_color_override("font_color", UITheme.SAND if on else _base_col)
 	_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	var u: float = 1.0 if on else _u_rest
 	var sx: float = 1.045 if on else 1.0  # .18em→.26em 상당의 폭 확장을 연속 스케일로
@@ -118,10 +135,11 @@ func _draw() -> void:
 		var ch: float = maxf(0.2, tune_core)
 		draw_texture_rect(_line_tex, Rect2(x0, y - ch * 0.5, w, ch), false, Color(1, 1, 1, a * 0.95))
 
-## 튜닝 적용 — 그림자·테두리 테마 갱신 + 밑줄 다시 그림(DEV 슬라이더가 그룹 호출).
+## 튜닝 적용 — 그림자·테두리를 내부 Label 에(Button 은 그림자 미지원) + 밑줄 다시 그림(DEV 슬라이더가 그룹 호출).
 func apply_tuning() -> void:
-	add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, tune_shadow_a))
-	add_theme_constant_override("shadow_outline_size", tune_shadow_blur)
-	add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, tune_outline_a))
-	add_theme_constant_override("outline_size", 4)
+	if _lbl != null:
+		_lbl.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, tune_shadow_a))
+		_lbl.add_theme_constant_override("shadow_outline_size", tune_shadow_blur)
+		_lbl.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, tune_outline_a))
+		_lbl.add_theme_constant_override("outline_size", 4)
 	queue_redraw()
