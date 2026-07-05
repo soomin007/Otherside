@@ -14,6 +14,8 @@ config/name="See you on the other side"
 config/description="비동기 로그라이트. 매년 원정대가 떠나고 거의 다 죽는다. 후대는 곧 나 자신이며, 죽기 전 단 한 번 미래의 나에게 물건을 남긴다."
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
+boot_splash/bg_color=Color(0.031, 0.027, 0.039, 1)
+boot_splash/image="res://assets/arts/29_타이틀_키아트_가로.png"
 config/icon="res://icon.svg"
 
 [autoload]

@@ -74,7 +74,8 @@ func _ready() -> void:
 	get_tree().node_added.connect(_on_node_added)  # 모든 버튼 공통 탭 소리(자동 배선)
 	play_track(BED)   # 시작부터 베드(페이드 인)
 
-## Music / SFX 버스가 없으면 만들어 Master 로 보낸다(버스 레이아웃 파일 없이 코드로 — 웹 안전).
+## Music / SFX 버스 확보 — 기본은 default_bus_layout.tres 가 시동 때 등록한다(웹 샘플 경로도 인식).
+## 레이아웃이 없거나 깨졌을 때만 코드로 보강(멱등 — 있으면 건너뜀).
 func _ensure_buses() -> void:
 	for bus_name in [BUS_MUSIC, BUS_SFX]:
 		if AudioServer.get_bus_index(str(bus_name)) < 0:
@@ -86,6 +87,9 @@ func _ensure_buses() -> void:
 func _make_player(bus_name: String) -> AudioStreamPlayer:
 	var p := AudioStreamPlayer.new()
 	p.bus = bus_name
+	# 웹(스레드 없음) 기본은 "샘플" 재생 — JS 쪽 경로라 커스텀 버스(Music/SFX)로 보낸 소리가
+	# 안 나온다(2026-07-05 폰에서 전체 무음 확인). 스트림 = 네이티브 믹서 경로 강제 → 버스·크로스페이드 전부 정상.
+	p.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 	add_child(p)
 	return p
 

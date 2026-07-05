@@ -401,8 +401,8 @@ func _show_settings() -> void:
 	_music_value = _add_volume_row(_box_l, "배경음악", AppSettings.load_music_volume(), _on_music_changed, Callable())
 	_sfx_value = _add_volume_row(_box_l, "효과음", AppSettings.load_sfx_volume(), _on_sfx_changed, _on_sfx_drag_ended)
 
-	# ── 왼쪽: 화면 · 이야기
-	_box_l.add_child(_brush_heading("화면 · 이야기", 34, INK))
+	# ── 왼쪽: 화면과 이야기 (가운뎃점(·)은 붓 폰트에 글리프가 없어 웹에서 두부(□) — 순한글로)
+	_box_l.add_child(_brush_heading("화면과 이야기", 34, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	if not web:
 		var fs_on: bool = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
