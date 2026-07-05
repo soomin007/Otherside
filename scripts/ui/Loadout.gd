@@ -366,10 +366,30 @@ func _add_item(key: String) -> void:
 	_bag.append(key)
 	_refresh()
 
-func _remove_item(idx: int) -> void:
-	if idx >= 0 and idx < _bag.size():
-		_bag.remove_at(idx)
-		_refresh()
+## 가방에서 빼기 — 그 자리에서 물건이 모래로 바스러져 사라진다(고스트 아이콘 — 데이터는 즉시 반영, 연출만 잔상).
+func _remove_slot(idx: int, slot: Control) -> void:
+	if idx < 0 or idx >= _bag.size():
+		return
+	_crumble_at(str(_bag[idx]), slot.get_global_rect().get_center())
+	_bag.remove_at(idx)
+	_refresh()
+
+## 바스러짐 연출 — 아이콘 잔상이 커지며 모래 퍼프와 함께 흩어진다. 흐름을 막지 않는다(즉시 재조작 가능).
+func _crumble_at(key: String, gpos: Vector2) -> void:
+	var ghost := ItemIcon.new()
+	ghost.key = key
+	ghost.size = Vector2(52, 52)
+	ghost.pivot_offset = ghost.size * 0.5
+	ghost.z_index = 50
+	ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(ghost)
+	ghost.global_position = gpos - ghost.size * 0.5
+	UITheme.sand_puff_at(self, gpos, 14)
+	var t := create_tween()
+	t.set_parallel(true)
+	t.tween_property(ghost, "scale", Vector2(1.35, 1.35), 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	t.tween_property(ghost, "modulate:a", 0.0, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	t.chain().tween_callback(ghost.queue_free)
 
 func _apply_preset() -> void:
 	_bag = PRESET.duplicate()
@@ -434,7 +454,7 @@ func _make_slot_filled(idx: int, key: String) -> Control:
 	slot.add_theme_stylebox_override("pressed", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("focus", _slot_stylebox(true))
 	slot.tooltip_text = "%s  (탭해서 빼기)" % Items.label_of(key)
-	slot.pressed.connect(_remove_item.bind(idx))
+	slot.pressed.connect(_remove_slot.bind(idx, slot))
 	var icon := ItemIcon.new()
 	icon.key = key
 	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -451,7 +471,7 @@ func _make_pouch_slot(key: String) -> Control:
 	slot.add_theme_stylebox_override("pressed", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("focus", _slot_stylebox(true))
 	slot.tooltip_text = "%s  (탭해서 되돌리기)" % Items.label_of(key)
-	slot.pressed.connect(_clear_pouch)
+	slot.pressed.connect(_clear_pouch_from.bind(slot))
 	var icon := ItemIcon.new()
 	icon.key = key
 	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -459,8 +479,11 @@ func _make_pouch_slot(key: String) -> Control:
 	slot.add_child(icon)
 	return slot
 
-## 주머니 비우기 — 도구를 창고에 되돌린다.
-func _clear_pouch() -> void:
+## 주머니 비우기 — 도구가 그 자리에서 모래로 바스러지고, 창고 라벨이 되살아난다.
+func _clear_pouch_from(slot: Control) -> void:
+	if _pending_tool == "":
+		return
+	_crumble_at(_pending_tool, slot.get_global_rect().get_center())
 	_pending_tool = ""
 	_refresh()
 
@@ -503,7 +526,7 @@ func _make_photo_label(entry: Dictionary) -> Control:
 	btn.size = btn.custom_minimum_size  # 컨테이너 밖 절대 배치 — size 직접 확정(정렬 계산용)
 	btn.tooltip_text = str(item.get("desc", ""))
 	var hov := StyleBoxFlat.new()
-	hov.bg_color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.07)
+	hov.bg_color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.16)  # .07 은 안 보였음 — 또렷하게
 	hov.set_corner_radius_all(14)
 	var emp := StyleBoxEmpty.new()
 	for st in ["normal", "pressed", "focus", "disabled"]:
@@ -526,8 +549,22 @@ func _make_photo_label(entry: Dictionary) -> Control:
 	_shadow(dl)
 	v.add_child(dl)
 	btn.add_child(v)
-	_item_btns[key] = {"btn": btn, "delta": dl, "base": base, "pouch": pouch}
+	# hover — 이름이 모래빛으로(배경 틴트만으론 약했음).
+	btn.mouse_entered.connect(_hover_label.bind(key, true))
+	btn.mouse_exited.connect(_hover_label.bind(key, false))
+	_item_btns[key] = {"btn": btn, "delta": dl, "name": nm, "base": base, "pouch": pouch}
 	return btn
+
+## 라벨 hover — 이름 모래빛 점등(잠긴 라벨은 무시).
+func _hover_label(key: String, on: bool) -> void:
+	if not _item_btns.has(key):
+		return
+	var info: Dictionary = _item_btns[key]
+	var btn: Button = info["btn"]
+	if btn.disabled:
+		return
+	var nm: Label = info["name"]
+	nm.add_theme_color_override("font_color", UITheme.SAND if on else UITheme.FG)
 
 ## 사진 라벨 재배치 — 배경 cover(화면 채움·넘침 크롭) 매핑으로 사진 좌표(u,v)→화면 px. 단계 2 아닐 땐 no-op.
 func _layout_photo_labels() -> void:

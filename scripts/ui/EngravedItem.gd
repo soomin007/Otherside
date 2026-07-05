@@ -61,11 +61,11 @@ func _animate(on: bool) -> void:
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
 	pivot_offset = size * 0.5  # 중앙 기준으로 벌어짐(레이아웃 확정 후라 size 유효)
-	_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	var u: float = 1.0 if on else _u_rest
-	var sx: float = 1.05 if on else 1.0   # .18em→.26em 상당의 폭 확장을 연속 스케일로
-	_tween.tween_method(_set_underline, _underline, u, 0.5)  # 밑줄이 은은하게 배어나옴
-	_tween.tween_property(self, "scale", Vector2(sx, 1.0), 0.5)
+	var sx: float = 1.045 if on else 1.0  # .18em→.26em 상당의 폭 확장을 연속 스케일로
+	_tween.tween_method(_set_underline, _underline, u, 0.55)  # 밑줄이 은은하게 배어나옴
+	_tween.tween_property(self, "scale", Vector2(sx, 1.0), 0.55)
 
 func _set_underline(v: float) -> void:
 	_underline = v

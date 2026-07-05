@@ -93,6 +93,15 @@ func open(run: ExpeditionRun, node_id: String) -> void:
 	if _ambient != null:
 		_ambient.position = size * 0.5
 		_ambient.emission_rect_extents = size * 0.46
+		# 원정대의 현 위치가 험할수록(진행 row 가 깊을수록) 모래가 더 많이, 더 세게 휘날린다.
+		var prog: float = 0.0
+		if MapGraph.NODES.has(_node_id):
+			prog = float(int(MapGraph.node(_node_id).get("row", 0))) / float(maxi(1, MapGraph.max_row()))
+		_ambient.amount = int(lerpf(52.0, 120.0, prog))
+		_ambient.initial_velocity_min = lerpf(12.0, 44.0, prog)
+		_ambient.initial_velocity_max = lerpf(38.0, 140.0, prog)
+		_ambient.gravity = Vector2(lerpf(2.0, 30.0, prog), -2.0)
+		_ambient.lifetime = lerpf(5.0, 3.4, prog)
 		_ambient.emitting = true
 	_step_what()
 	UITheme.fade_in(self)
@@ -148,7 +157,7 @@ func _make_candidate(kind: int, label: String, res_key: String) -> Control:
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	btn.custom_minimum_size = Vector2(148, 196)
 	var hov := StyleBoxFlat.new()
-	hov.bg_color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.10)
+	hov.bg_color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.15)
 	hov.set_corner_radius_all(12)
 	var emp := StyleBoxEmpty.new()
 	for st in ["normal", "pressed", "focus", "disabled"]:
@@ -261,8 +270,8 @@ func _shadow_tex() -> GradientTexture2D:
 	gt.height = 24
 	return gt
 
-## 후보를 고름 — 그 물건이 모래로 흩어져 사라진 뒤(스펙 leave: 40입자 + 흐려지며 소멸, 웹이라 blur 대신
-## 확대+페이드 근사) 태그 단계로 넘어간다. 연출 중 재입력 잠금.
+## 후보를 고름 — 그 물건이 천천히 모래로 바스러진다(약 1초: 확대+지연 페이드 + 세 번에 나눠 이는 모래).
+## 게임 정서의 핵이라 조급하지 않게. 연출 중 재입력 잠금. (연출 속도 설정 옵션은 backlog.)
 func _pick_object(kind: int, btn: Control) -> void:
 	if _busy:
 		return
@@ -270,13 +279,21 @@ func _pick_object(kind: int, btn: Control) -> void:
 	_picked_kind = kind
 	AudioManager.play_sfx("res://assets/sfx/sfx_leave.wav")
 	var c: Vector2 = btn.get_global_rect().get_center()
-	UITheme.sand_puff_at(self, c, 40)
 	btn.pivot_offset = btn.size * 0.5
+	UITheme.sand_puff_at(self, c, 18)
 	var t := create_tween()
 	t.set_parallel(true)
-	t.tween_property(btn, "scale", Vector2(1.28, 1.28), 0.4).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	t.tween_property(btn, "modulate:a", 0.0, 0.4)
-	t.chain().tween_callback(_step_tags)
+	t.tween_property(btn, "scale", Vector2(1.34, 1.34), 0.95).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	# 페이드는 EASE_IN — 형체가 한동안 버티다가 끝에서 모래가 되어 무너진다.
+	t.tween_property(btn, "modulate:a", 0.0, 0.95).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	# 세 번에 나눠 이는 모래 — 무너지는 동안 계속 흩어진다.
+	var t2 := create_tween()
+	t2.tween_interval(0.32)
+	t2.tween_callback(func() -> void: UITheme.sand_puff_at(self, c + Vector2(randf_range(-24.0, 24.0), randf_range(-30.0, 6.0)), 24))
+	t2.tween_interval(0.3)
+	t2.tween_callback(func() -> void: UITheme.sand_puff_at(self, c + Vector2(randf_range(-20.0, 20.0), randf_range(-12.0, 16.0)), 20))
+	t2.tween_interval(0.4)
+	t2.tween_callback(_step_tags)
 
 ## 2단계 — 어떤 표식(태그)을 얹을까. WordPool 에서 최대 2개. 없이 남겨도 된다.
 func _step_tags() -> void:
