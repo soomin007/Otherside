@@ -54,23 +54,22 @@ func _ready() -> void:
 	mouse_entered.connect(_animate.bind(true))
 	mouse_exited.connect(_animate.bind(false))
 
-## hover 진입/이탈 — 밑줄과 자간을 동시에 부드럽게(cubic ease-out) 애니.
+## hover 진입/이탈 — 밑줄과 벌어짐을 동시에 부드럽게 애니.
+## 자간(glyph spacing)은 정수 px 단위라 트윈하면 2~3단 점프로 뚝뚝 끊긴다(딱딱함의 원인).
+## → 자간은 rest(.18em) 고정, 벌어짐은 scale.x(연속값)로 — 끊김 없이 사라락 넓어진다.
 func _animate(on: bool) -> void:
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
-	_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	pivot_offset = size * 0.5  # 중앙 기준으로 벌어짐(레이아웃 확정 후라 size 유효)
+	_tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	var u: float = 1.0 if on else _u_rest
-	var sp: float = _px * (0.26 if on else 0.18)
-	_tween.tween_method(_set_underline, _underline, u, 0.35)  # 밑줄이 사라락 펼쳐짐(스펙 .35s)
-	_tween.tween_method(_set_spacing_px, _spacing_cur, sp, 0.3)  # 자간(원래 속도)
+	var sx: float = 1.05 if on else 1.0   # .18em→.26em 상당의 폭 확장을 연속 스케일로
+	_tween.tween_method(_set_underline, _underline, u, 0.5)  # 밑줄이 은은하게 배어나옴
+	_tween.tween_property(self, "scale", Vector2(sx, 1.0), 0.5)
 
 func _set_underline(v: float) -> void:
 	_underline = v
 	queue_redraw()
-
-func _set_spacing_px(v: float) -> void:
-	_spacing_cur = v
-	_apply_spacing()
 
 func _apply_spacing() -> void:
 	if _fv != null:
@@ -85,10 +84,13 @@ func _draw() -> void:
 	var y: float = size.y - 9.0
 	var t: float = (_underline - _u_rest) / maxf(0.01, 1.0 - _u_rest)  # rest→hover 진행(0~1)
 	var a: float = lerpf(0.5, 1.0, t) if is_key else 0.95
+	a *= clampf(_underline * 1.6, 0.0, 1.0)  # 펼쳐지는 초입엔 옅게 — 빛이 스며들 듯
 	var s := UITheme.SAND
 	var x0: float = cx - w * 0.5
 	var x1: float = cx + w * 0.5
-	# 가느다란 각인 밑줄(원본 1px + glow) — 마름모(두꺼운 브러쉬)는 draw_colored_polygon 이라 계단(픽셀)이 보였음.
-	# antialiased draw_line 으로 매끈하게: 넓고 옅은 글로우선(box-shadow 0 0 8px 대체) 위에 가는 본선.
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.20), 4.5, true)  # 소프트 글로우
-	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a), 1.2, true)          # 가는 본선(≈1px)
+	# 은은히 새어나오는 각인 밑줄 — 폭이 다른 저알파 글로우를 여러 겹 쌓아(soft bloom) 가는 본선을 감싼다.
+	# (마름모 폴리곤은 계단이 보였고, 단일 글로우선은 딱딱했음. 셰이더 금지라 겹선으로 bloom 근사.)
+	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.05), 9.0, true)
+	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.12), 5.0, true)
+	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.30), 2.6, true)
+	draw_line(Vector2(x0, y), Vector2(x1, y), Color(s.r, s.g, s.b, a * 0.9), 1.1, true)   # 가는 심지
