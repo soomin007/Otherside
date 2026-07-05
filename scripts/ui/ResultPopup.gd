@@ -9,6 +9,7 @@ extends Control
 var _body_label: Label
 var _delta_label: Label
 var _cb: Callable
+var _closing: bool = false  ## "계속" 연타 방지 — 첫 탭의 닫힘 콜백이 유실되지 않게
 
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -44,6 +45,8 @@ func _init() -> void:
 ## cb = "계속"을 누를 때 실행할 콜백(다음 단계로 잇기 — 이동 재개·죽음 처리 등).
 func show_result(body: String, effect: Dictionary, cb: Callable = Callable()) -> void:
 	_cb = cb
+	_closing = false
+	move_to_front()  # 연속 모달에서 새로 뜬 팝업이 다른 패널 아래에 깔리지 않게 — 항상 맨 위
 	_body_label.text = body
 	_body_label.visible = body != ""
 	if not effect.is_empty():
@@ -64,6 +67,9 @@ func is_open() -> bool:
 	return visible
 
 func _on_close() -> void:
+	if _closing:
+		return  # 연타 — 두 번째 fade_out 이 첫 번째를 죽여 콜백(이동 재개 등)이 유실되는 것 방지
+	_closing = true
 	var cb: Callable = _cb
 	_cb = Callable()
 	UITheme.fade_out(self, func() -> void:

@@ -290,6 +290,7 @@ func _show_situation() -> void:
 
 	_advance_btn.disabled = true
 	_leave_btn.disabled = true
+	_sit_panel.move_to_front()  # 직전 결과 팝업이 페이드 중이어도 카드가 그 아래 깔리지 않게
 	_sit_panel.visible = true
 
 func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, action: String = "", sets: Array = [], sets_persist: Array = [], trace_kind: int = -1) -> void:
@@ -395,6 +396,7 @@ func _show_death(cause: String, tags: Array[String], kind: int = TraceData.Objec
 		_death_label.text = "%s\n\n남긴 것: %s" % [_death_message(cause), left]
 	else:
 		_death_label.text = "%s\n\n남긴 것: %s  [ %s ]" % [_death_message(cause), left, " · ".join(PackedStringArray(tags))]
+	_death_panel.move_to_front()  # 죽음은 항상 최상단(팝업·카드 위)
 	_death_panel.visible = true
 	queue_redraw()
 

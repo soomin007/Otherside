@@ -132,6 +132,8 @@ func _build() -> void:
 
 	_add_title(col, "결말")
 	_add_btn(col, "재회 임계 채우기 (더미 흔적 %d개)" % GameState.REUNION_TRACES, _fill_reunion)
+	_add_btn(col, "엔딩 바로보기: 순환", func() -> void: _show_ending("cycle"))
+	_add_btn(col, "엔딩 바로보기: 재회 (크레딧 롤)", func() -> void: _show_ending("reunion"))
 
 	_add_title(col, "세이브")
 	_add_btn(col, "세이브 초기화 → 타이틀", _reset)
@@ -219,6 +221,15 @@ func _set_flag(flag: String) -> void:
 	GameState.current_run.set_flag(flag)
 	GameState.add_persist_flags([flag])  # 다음 원정 재방문 변형까지 켠다
 	_refresh_state()
+
+## 엔딩 슬라이드쇼를 현재 화면 위에 바로 띄운다(세이브·런 상태는 안 건드림 — 연출 확인용).
+## 재회 크레딧 롤은 실제 expedition_names 로 돈다. 끝나면 평소처럼 타이틀 복귀.
+func _show_ending(kind: String) -> void:
+	GameState.ending_kind_pending = kind
+	var scn: Node = get_tree().current_scene
+	if scn != null:
+		scn.add_child(load("res://scripts/ui/Ending.gd").new())
+	_panel.visible = false
 
 func _fill_reunion() -> void:
 	for i in range(GameState.REUNION_TRACES):

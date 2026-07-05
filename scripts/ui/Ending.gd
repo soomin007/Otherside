@@ -35,6 +35,7 @@ var _credits_box: VBoxContainer  ## 재회 크레딧 롤(원정대 이름들)
 var _credits_tw: Tween
 
 func _ready() -> void:
+	add_to_group("fullscreen_overlay")  # 기록 책갈피(Bookmark)가 이 그룹을 보고 아이콘을 숨긴다
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	size = get_viewport_rect().size   # 오버레이 크기 즉시 확정(레이아웃 패스 전 size 0 방지 — known_issues)
 	_reunion = (GameState.ending_kind_pending == "reunion")

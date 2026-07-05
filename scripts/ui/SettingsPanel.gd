@@ -30,6 +30,7 @@ var _rect_l: Rect2   ## 왼쪽 페이지(그리기와 내용 배치가 공유)
 var _rect_r: Rect2
 
 func _ready() -> void:
+	add_to_group("fullscreen_overlay")  # 기록 책갈피(Bookmark)가 이 그룹을 보고 아이콘을 숨긴다
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	size = get_viewport_rect().size  # 레이아웃 패스 전 size 0 방지(known_issues)
 	mouse_filter = Control.MOUSE_FILTER_STOP  # 풀스크린 — 뒤 화면 입력 차단

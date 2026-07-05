@@ -34,10 +34,12 @@ func _process(_delta: float) -> void:
 	if ENABLED:
 		_refresh_icon()
 
-## 기록지를 받은 뒤에만 아이콘을 보인다. 패널이 열려 있으면 숨겨 겹침을 막는다.
+## 기록지를 받은 뒤에만 아이콘을 보인다. 패널이 열려 있거나 풀스크린 오버레이(설정 장부·엔딩)가
+## 떠 있으면 숨겨 겹침·분위기 깨짐을 막는다.
 func _refresh_icon() -> void:
 	if _icon_btn != null:
-		_icon_btn.visible = GameState.record_seen and not _panel.visible
+		_icon_btn.visible = GameState.record_seen and not _panel.visible \
+			and get_tree().get_first_node_in_group("fullscreen_overlay") == null
 
 # --- UI 구성 ---
 
