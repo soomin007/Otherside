@@ -12,10 +12,11 @@ const BUS_MUSIC: String = "Music"
 const BUS_SFX: String = "SFX"
 
 # --- BGM 트랙 ---
-const BED: String = "res://assets/bgm/Sand Erases the Words.mp3"      ## 코어 루프 잔잔 베드
-const REUNION: String = "res://assets/bgm/Other Side.mp3"             ## 재회 엔딩 크레딧(한 번만)
-const STORM: String = "res://assets/bgm/The Wall of Sand.mp3"         ## 폭풍(폭풍 biome 노드에서 교체)
-const CYCLE: String = "res://assets/bgm/The Unresolved.mp3"           ## 순환 엔딩(슬라이드+암전 겸용)
+# 웹 용량 때문에 전 곡 ogg 약 96kbps(2026-07-05, 사용자 A/B 확인). 원본 mp3 = assets_src/bgm_original(.gdignore, 앱 배포 시 원본 탑재 후보).
+const BED: String = "res://assets/bgm/Sand Erases the Words.ogg"      ## 코어 루프 잔잔 베드
+const REUNION: String = "res://assets/bgm/Other Side.ogg"             ## 재회 엔딩 크레딧(한 번만)
+const STORM: String = "res://assets/bgm/The Wall of Sand.ogg"         ## 폭풍(폭풍 biome 노드에서 교체)
+const CYCLE: String = "res://assets/bgm/The Unresolved.ogg"           ## 순환 엔딩(슬라이드+암전 겸용)
 
 const FADE: float = 1.5        ## 트랙 교체 크로스페이드(초)
 const LOOP_XFADE: float = 4.0  ## 루프 이음매 크로스페이드(초) — 끝을 다음 시작에 겹친다

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://bewflorsao2vi"
+path="res://.godot/imported/Sand Erases the Words.ogg-86afabc2cf32b1e2c94c6711c68bee1f.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/bgm/Sand Erases the Words.ogg"
+dest_files=["res://.godot/imported/Sand Erases the Words.ogg-86afabc2cf32b1e2c94c6711c68bee1f.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://dycg4gcxbpgte"
+path="res://.godot/imported/The Wall of Sand.ogg-a874d50f0987e10a74aa91ad269bf04b.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/bgm/The Wall of Sand.ogg"
+dest_files=["res://.godot/imported/The Wall of Sand.ogg-a874d50f0987e10a74aa91ad269bf04b.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
