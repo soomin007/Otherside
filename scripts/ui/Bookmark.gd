@@ -130,18 +130,22 @@ class LedgerBook extends Control:
 ## 걷히며 드러나는 쪽 베이스는 구멍(실제 목표 콘텐츠 노드가 보임), 덮이는 쪽 베이스 = 현재 페이지 캡처.
 class FlipDeck extends Control:
 	const DUR: float = 0.45      ## 속도(확정)
-	const K: int = 8             ## 장수(확정)
-	const SPREAD: float = 0.45   ## 퍼짐(확정)
-	const FLIP: float = 0.5      ## 넘김창(확정)
 	const CURL: float = 1.2      ## 휨(확정)
 	const EDGE_SEGS: int = 6     ## 자유변 bow 곡선 분할
+
+	## 리플 구성 — 챕터 점프 기본(확정값). 조작 장 넘기기는 낱장 1장(sheets_n 1·flip_win 1)로 쓴다.
+	var sheets_n: int = 8            ## 장수(K)
+	var spread: float = 0.45         ## 퍼짐(스태거 폭)
+	var flip_win: float = 0.5        ## 넘김창(한 장이 넘어가는 시간 비율)
+	var riffle_sfx: bool = true      ## 수직 통과(t≈.5) 촤라락 SFX — 낱장 1장일 땐 끔
 
 	var dir: int = 1                 ## +1 = 다음 챕터(오른쪽 낱장이 왼쪽으로) / -1 = 앞 챕터
 	var rect_l: Rect2                ## 왼쪽 페이지(로컬) — LedgerBook 과 동일
 	var rect_r: Rect2
 	var tex_cover: Texture2D         ## 덮이는 쪽 베이스(현재 페이지 캡처 — dir=+1 이면 왼쪽)
 	var tex_front: Texture2D         ## k=0 낱장 앞면(현재 페이지 캡처 — dir=+1 이면 오른쪽)
-	var cf_from: float = 0.0         ## 두께 스택용 시작 챕터
+	var cf_from: float = 0.0         ## 두께 스택용 시작 챕터 위치
+	var cf_to: float = 0.0           ## 끝 위치(장 넘기기는 from=to — 두께 변화 없음)
 	var on_progress: Callable        ## 매 프레임 (cf) — LedgerBook 두께 갱신
 	var on_done: Callable
 	var _p: float = 0.0
@@ -149,7 +153,7 @@ class FlipDeck extends Control:
 
 	func _process(delta: float) -> void:
 		_p += delta / DUR
-		if not _riffled and _p >= 0.5:
+		if riffle_sfx and not _riffled and _p >= 0.5:
 			_riffled = true
 			AudioManager.play_sfx_random([
 				"res://assets/sfx/sfx_page_1.wav",
@@ -157,7 +161,7 @@ class FlipDeck extends Control:
 				"res://assets/sfx/sfx_page_3.wav",
 			])
 		if on_progress.is_valid():
-			on_progress.call(cf_from + float(dir) * _ease(clampf(_p, 0.0, 1.0)))
+			on_progress.call(lerpf(cf_from, cf_to, _ease(clampf(_p, 0.0, 1.0))))
 		queue_redraw()
 		if _p >= 1.0:
 			set_process(false)
@@ -174,11 +178,11 @@ class FlipDeck extends Control:
 		# 덮이는 쪽 베이스 = 현재 페이지 캡처(넘어온 장들이 덮는다). 걷히는 쪽은 구멍(실 목표 노드).
 		if tex_cover != null:
 			draw_texture_rect(tex_cover, rect_l if dir == 1 else rect_r, false)
-		# K장 리플 — 스태거(§1) 후 덜 넘어간 장이 위(위에서 아래로 e 내림차순, 동률은 k 오름차순).
+		# 리플 — 스태거(§1) 후 덜 넘어간 장이 위(위에서 아래로 e 내림차순, 동률은 k 오름차순).
 		var sheets: Array = []
-		for k in range(K):
-			var st: float = (float(k) / float(K - 1)) * SPREAD
-			var lp: float = clampf((p - st) / FLIP, 0.0, 1.0)
+		for k in range(sheets_n):
+			var st: float = 0.0 if sheets_n <= 1 else (float(k) / float(sheets_n - 1)) * spread
+			var lp: float = clampf((p - st) / flip_win, 0.0, 1.0)
 			var e: float = lp * lp * (3.0 - 2.0 * lp)  # smoothstep
 			sheets.append({"e": e, "k": k})
 		sheets.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
@@ -441,24 +445,38 @@ func _layout_book() -> void:
 func _flip_to(idx: int) -> void:
 	if _flipping or idx == _chapter:
 		return
-	_flipping = true
-	AudioManager.play_sfx_random(PAGE_SFX)  # 첫 장 집힐 때 1회(스펙 — 촤라락은 FlipDeck 이 t≈0.5 에 1회)
 	var dir: int = 1 if idx > _chapter else -1
-	# 이 프레임 렌더가 끝난 직후의 화면(아직 이전 챕터)에서 두 페이지 픽셀을 뜯는다.
+	_run_flip(dir, 8, 0.45, 0.5, true, float(_chapter), float(idx), func() -> void:
+		_chapter = idx
+		_apply_tab_state()
+		_render_chapter())
+
+## 조작 챕터의 장 넘기기 — 낱장 1장이 전체 시간으로 넘어간다(리플·촤라락 SFX 없음, 두께 변화 없음).
+func _flip_page(dir: int, swap: Callable) -> void:
+	_run_flip(dir, 1, 0.0, 1.0, false, float(_chapter), float(_chapter), swap)
+
+## 공용 넘김 실행 — 현재 두 페이지를 캡처하고, 내용을 교체(swap)한 뒤 FlipDeck 연출을 얹는다.
+## 캡처는 이 프레임 렌더 직후의 화면(아직 이전 내용)에서 — 같은 프레임에 덮개가 올라가 팝이 없다.
+func _run_flip(dir: int, sheets_n: int, spread: float, flip_win: float, riffle: bool,
+		cf_from: float, cf_to: float, swap: Callable) -> void:
+	_flipping = true
+	AudioManager.play_sfx_random(PAGE_SFX)  # 장 집힐 때 1회
 	await RenderingServer.frame_post_draw
 	var tex_l: ImageTexture = _capture_page(_book.rect_l)
 	var tex_r: ImageTexture = _capture_page(_book.rect_r)
-	var cf_from: float = float(_chapter)
-	_chapter = idx
-	_apply_tab_state()
-	_render_chapter()
+	swap.call()
 	var deck := FlipDeck.new()
 	deck.dir = dir
+	deck.sheets_n = sheets_n
+	deck.spread = spread
+	deck.flip_win = flip_win
+	deck.riffle_sfx = riffle
 	deck.rect_l = _book.rect_l
 	deck.rect_r = _book.rect_r
-	deck.tex_cover = tex_l if dir == 1 else tex_r   # 덮이는 쪽 = 현재 페이지(넘어온 장들이 덮음)
-	deck.tex_front = tex_r if dir == 1 else tex_l   # k=0 앞면 = 현재 페이지(시작 팝 없음)
+	deck.tex_cover = tex_l if dir == 1 else tex_r   # 덮이는 쪽 = 이전 내용(넘어온 장들이 덮음)
+	deck.tex_front = tex_r if dir == 1 else tex_l   # k=0 앞면 = 이전 내용(시작 팝 없음)
 	deck.cf_from = cf_from
+	deck.cf_to = cf_to
 	deck.on_progress = func(cf: float) -> void: _book.thickness_cf = cf
 	deck.on_done = func() -> void: _flipping = false
 	deck.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -535,14 +553,18 @@ func _show_tutorial() -> void:
 	_add_close(_box_r)
 
 func _tut_back() -> void:
-	_tut_idx = maxi(0, _tut_idx - 1)
-	AudioManager.play_sfx_random(PAGE_SFX)
-	_show_tutorial()
+	if _flipping or _tut_idx <= 0:
+		return
+	_flip_page(-1, func() -> void:
+		_tut_idx = maxi(0, _tut_idx - 1)
+		_show_tutorial())
 
 func _tut_next() -> void:
-	_tut_idx = mini(TUTORIAL_PAGES.size() - 1, _tut_idx + 1)
-	AudioManager.play_sfx_random(PAGE_SFX)
-	_show_tutorial()
+	if _flipping or _tut_idx >= TUTORIAL_PAGES.size() - 1:
+		return
+	_flip_page(1, func() -> void:
+		_tut_idx = mini(TUTORIAL_PAGES.size() - 1, _tut_idx + 1)
+		_show_tutorial())
 
 # --- 챕터: 설정 (소리·화면·이야기 / 여정·위험 구역) ---
 
