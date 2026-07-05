@@ -132,10 +132,12 @@ func _ready() -> void:
 
 	if ResourceLoader.exists(BG_PATH):
 		_bg_tex = load(BG_PATH)
-		# 가로 화면(데스크톱)용 — 세로 원본(720x1280)을 90도 돌려 가로(1280x720)로. 나침반이 방사대칭이라 회전 티 안 남.
+		# 가로 화면(데스크톱)용 — 세로 원본(720x1280)을 90도 돌려 가로(1280x720)로.
+		# 반시계 방향: 시계 방향이면 원본의 나침반 그림이 좌하단(마른 강 노드 자리)에 와서 정확히 가려진다
+		# → 180도 반대(반시계)로 돌려 나침반을 우상단 여백으로 보낸다(사용자 지시, 2026-07-06).
 		var _bimg: Image = _bg_tex.get_image()
 		if _bimg != null:
-			_bimg.rotate_90(CLOCKWISE)
+			_bimg.rotate_90(COUNTERCLOCKWISE)
 			_bg_tex_land = ImageTexture.create_from_image(_bimg)
 	for id in ICON_PATHS:
 		var path: String = str(ICON_PATHS[id])
