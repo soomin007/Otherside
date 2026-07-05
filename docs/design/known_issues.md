@@ -26,6 +26,10 @@
   **원인:** Threads 지원 ON 이면 COOP/COEP cross-origin isolation 헤더가 필요한데 Pages 설정이 까다로움.
   **방지:** export 프리셋 "Web" 에서 Threads Support **끄기** + `ensure_cross_origin_isolation_headers` ON (반영됨).
 
+- **증상:** 문서/참고용으로 프로젝트 하위에 둔 png(캡처·핸드오프 아트)가 **웹 pck 에 실려 용량을 불림**. (2026-07-06 확인)
+  **원인:** Godot 은 프로젝트 하위 모든 폴더의 리소스를 임포트해 export 에 포함한다. `docs/` 같은 순수 문서 폴더도 예외 없음 — png 를 두면 임포트돼 pck 에 들어간다.
+  **방지:** 게임이 로드하지 않는 폴더(문서·핸드오프·원본 소스)에는 **빈 `.gdignore` 파일**을 둔다 — Godot 이 그 폴더+하위 전체를 임포트 대상에서 뺀다. 이 프로젝트는 `assets_src/`·`docs/handoffs/` 에 배치됨. (참고: `.gdignore` 는 Godot 임포트만 막고 git 추적과 무관 — 리포에서 빼려면 `.gitignore` 는 별도.)
+
 ## 렌더링 / 텍스트
 
 - **증상:** 한글 글씨가 뜨긴 하나 가장자리가 약간 깨져/계단져 보임(특히 폰·고해상도). (2026-07-01 1차 조치)
