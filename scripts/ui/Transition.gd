@@ -84,6 +84,24 @@ func go(scene_path: String) -> void:
 	tw.tween_property(_veil, "modulate:a", 0.0, VEIL_OUT).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func() -> void: _busy = false)
 
+## 씬 등장 한 요소(IN 역재생, 스펙 inScatter) — 지연 후 0.9s 페이드+수축(1.16→1). blur(18px→0)는
+## 웹 금지라 이 근사로. 배경은 건드리지 않는다(원칙: 배경/UI 분리 — 배경 걷힘은 베일이 담당).
+## 레이아웃 확정(한 프레임) 뒤 pivot 을 중심으로. 각 씬이 진입 시 요소별 지연(스펙 0.02~0.30s)으로 부른다.
+func appear(node: Control, delay: float) -> void:
+	if node == null:
+		return
+	node.modulate.a = 0.0
+	await get_tree().process_frame
+	if not is_instance_valid(node):
+		return
+	node.pivot_offset = node.size * 0.5
+	node.scale = Vector2(1.16, 1.16)
+	var t: Tween = node.create_tween()  # 노드에 묶는다 — 씬이 먼저 해제되면 트윈도 함께 죽는다
+	t.tween_interval(delay)
+	t.set_parallel(true)
+	t.tween_property(node, "modulate:a", 1.0, 0.9).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	t.tween_property(node, "scale", Vector2.ONE, 0.9).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
 ## 떠나는 화면의 UI 만 흩어짐(OUT) — 배경은 그대로(원칙). 흩어짐은 씬 교체 전에 끝난다(0.45 < 0.665).
 func _scatter_out() -> void:
 	for n in get_tree().get_nodes_in_group(UI_GROUP):

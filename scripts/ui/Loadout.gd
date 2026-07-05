@@ -94,6 +94,15 @@ func _ready() -> void:
 	_bag = PRESET.duplicate()  # 처음엔 표준 구성(빠른 출발)
 	resized.connect(_layout_photo_labels)  # 창 크기 변화 → 사진 라벨 재배치(단계 2 아닐 땐 no-op)
 	_show_step(1)
+	# 씬 등장 stagger(스펙 inScatter) — 컬럼 요소가 위에서부터 차례로 "모래가 모여 형체를 이루듯".
+	# 진입 시 1회(단계 전환엔 없음 — 같은 화면의 재구성). 배경 사진·스크림 띠는 베일 페이드가 담당.
+	var di: int = 0
+	for c in _col.get_children():
+		var ctrl := c as Control
+		if ctrl == null:
+			continue
+		Transition.appear(ctrl, minf(0.02 + 0.04 * float(di), 0.30))
+		di += 1
 
 	# 첫 원정이면 시장이 규칙을 쭉 설명하고 기록지를 건넨다(책갈피가 켜진다).
 	if GameState.expedition_count == 0 and not GameState.record_seen:

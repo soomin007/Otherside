@@ -33,6 +33,9 @@ var _result_popup: ResultPopup     ## 조사·선택 결과 팝업(공유) — �
 var _ending_panel: Control         ## end 도달 결말 화면(순환/재회)
 var _ending_box: VBoxContainer
 
+var _hud_box: Control              ## 상단 HUD 바 — 진입 stagger 대상
+var _bottom_bar: Control           ## 하단 버튼 묶음 — 진입 stagger 대상
+
 func _ready() -> void:
 	_run = GameState.current_run
 	if _run == null:
@@ -55,6 +58,10 @@ func _ready() -> void:
 			AudioManager.play_bed()
 		_refresh()
 		queue_redraw()
+		# 씬 등장 stagger(스펙 inScatter) — HUD → 하단 버튼 순. 단면 그림(배경)은 베일 페이드가 담당.
+		# 죽음·결말 진입에선 생략(패널이 주인공이라 등장 연출이 어색하다).
+		Transition.appear(_hud_box, 0.08)
+		Transition.appear(_bottom_bar, 0.20)
 
 func _build_hud() -> void:
 	# 상단 HUD 바 — 가독성을 위해 반투명 어두운 배경 위에 텍스트. 전체 폭.
@@ -69,6 +76,7 @@ func _build_hud() -> void:
 	hud.add_theme_stylebox_override("panel", hud_sb)
 	hud.add_to_group("ui_scatter")  # 전환 OUT 때 UI 층만 흩어짐(단면 그림=배경은 남는다)
 	add_child(hud)
+	_hud_box = hud
 
 	var top := VBoxContainer.new()
 	top.add_theme_constant_override("separation", 6)
@@ -109,6 +117,7 @@ func _build_hud() -> void:
 	bar.offset_bottom = -UITheme.SAFE
 	bar.add_to_group("ui_scatter")
 	add_child(bar)
+	_bottom_bar = bar
 
 	var bcol := VBoxContainer.new()
 	bcol.add_theme_constant_override("separation", 12)

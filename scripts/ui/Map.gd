@@ -165,6 +165,13 @@ func _ready() -> void:
 	_build_chrome()
 	resized.connect(_layout_chrome)
 	call_deferred("_layout_chrome")
+	# 씬 등장 stagger(스펙 inScatter) — 각인 크롬만 순차 등장(제목→안내→가방→남기기).
+	# 양피지 지도·칼럼은 루트 _draw(배경 취급) — 걷힘은 베일 페이드가 담당한다.
+	Transition.appear(_title_eye, 0.06)
+	Transition.appear(_title_lbl, 0.10)
+	Transition.appear(_guide, 0.18)
+	Transition.appear(_bag_btn, 0.24)
+	Transition.appear(_leave_btn, 0.30)
 
 	_build_situation_panel()
 	_after_ready_setup()

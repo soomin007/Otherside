@@ -29,27 +29,13 @@ func _ready() -> void:
 	_build_menu()
 	_build_stat()
 	# 등장 stagger(스펙 inScatter) — 로고 → 메뉴 → 통계 순으로 "모래가 모여 형체를 이루듯".
-	# blur 는 웹 금지 → 페이드 + scale 1.16→1 근사. 배경(키아트)은 움직이지 않는다(원칙: 배경/UI 분리).
+	# 구현은 Transition.appear(공용) — 배경(키아트)은 움직이지 않는다(원칙: 배경/UI 분리).
 	for n in _logo_nodes:
-		_appear(n, 0.08)
+		Transition.appear(n, 0.08)
 	if _menu_node != null:
-		_appear(_menu_node, 0.16)
+		Transition.appear(_menu_node, 0.16)
 	if _stat_node != null:
-		_appear(_stat_node, 0.30)
-
-## 등장 한 요소 — 지연 후 0.9s 페이드+수축(1.16→1). 레이아웃 확정 뒤 pivot 을 중심으로.
-func _appear(node: Control, delay: float) -> void:
-	node.modulate.a = 0.0
-	await get_tree().process_frame
-	if not is_instance_valid(node):
-		return
-	node.pivot_offset = node.size * 0.5
-	node.scale = Vector2(1.16, 1.16)
-	var t := create_tween()
-	t.tween_interval(delay)
-	t.set_parallel(true)
-	t.tween_property(node, "modulate:a", 1.0, 0.9).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	t.tween_property(node, "scale", Vector2.ONE, 0.9).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		Transition.appear(_stat_node, 0.30)
 
 # --- 배경(키아트 + 스크림) ---
 
