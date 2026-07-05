@@ -12,13 +12,14 @@ const EDGE_SAMPLES: int = 18       ## 엣지 곡선을 그릴 때 나눌 샘플 
 const DRAG_THRESH: float = 10.0    ## 이만큼 넘게 끌면 팬(스크롤), 미만이면 탭(노드 선택)
 const REVEAL_DUR: float = 0.55     ## 방문 시 잉크 reveal 애니 길이(초)
 
-# --- STAGE 좌표계 (핸드오프 MAP_지도화면.md §0) ---
+# --- STAGE 좌표계 (핸드오프 MAP_지도화면.md §0 + 사용자 확대 지시) ---
 ## 화면 전체를 고정 캔버스 1280×720(STAGE)으로 보고 contain 스케일 — 모든 스펙 px 가 이 기준.
-## 지도 띠(BAND)는 STAGE (230,150)에 820×461. MAP 내부 좌표 = STAGE px 와 1:1(밴드 크기가 스펙 그대로라).
-## 데스크톱 1280×720 창 = 논리 캔버스 1280×720(base 600 expand) → 스펙 px 그대로 1:1.
+## 밴드는 스펙(230,150,820×461)에서 **우 칼럼 제거·안내문 상향으로 1.24배 확대**(2026-07-05 사용자
+## "지도를 좀 더 크게"). 노드 좌표(NODE_PX)는 스펙 MAP 공간(820×461) 그대로 두고 밴드에 비례 매핑.
 const STAGE_W: float = 1280.0
 const STAGE_H: float = 720.0
-const BAND: Rect2 = Rect2(230.0, 150.0, 820.0, 461.0)
+const BAND: Rect2 = Rect2(230.0, 112.0, 1016.0, 571.0)  # 1016/571 = 양피지 비율(1.779) 유지
+const MAP_W: float = 820.0   ## 스펙 MAP 좌표 공간(NODE_PX 기준) — 밴드 크기와 무관
 ## 노드 절대 배치(§1) — MAP 좌표 x·y = 중심, z = 정사각 표시 크기(px). 시각 데이터라 core(MapGraph)가 아닌 여기에.
 const NODE_PX: Dictionary = {
 	"n0": Vector3(52, 300, 100), "a1": Vector3(120, 362, 82),
@@ -33,7 +34,6 @@ const COL_L_W: float = 172.0
 const COL_R_X: float = 1072.0   ## 우 "범례" 칼럼(STAGE §6)
 const COL_R_W: float = 176.0
 const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")  ## 에이브로우·수치 전용(영문/숫자)
-const SettingsPanel := preload("res://scripts/ui/SettingsPanel.gd")
 
 ## 지도 배경 + 노드별 손그림 아이콘(투명 변환본). 노드 id → 아이콘 1:1(이름 일치).
 ## 로드 실패 시 절차적 심볼(_draw_landmark_symbol)로 fallback — 에셋 없어도 깨지지 않는다.
@@ -97,7 +97,6 @@ const LABEL_MK: Color = Color(0.541, 0.184, 0.106)     ## #8a2f1b 선택 가능�
 
 var _title_eye: Label         ## "EXPEDITION · MAP" 에이브로우(§7)
 var _title_lbl: Label         ## "지도 · 탐험"
-var _settings_btn: EngravedItem  ## 우상단 설정(§7 — 스펙은 좌상단이나 기록 책갈피(전역)가 좌상단이라 우로)
 var _guide: Label
 var _moving: bool = false
 var _move_timer: float = 0.0
@@ -165,38 +164,28 @@ func _build_chrome() -> void:
 	_title_lbl.add_theme_constant_override("shadow_offset_y", 2)
 	_title_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 	add_child(_title_lbl)
-	# 설정 — 스펙 §7 상단 크롬. 기록 책갈피(전역 autoload)가 좌상단을 쓰므로 설정은 우상단에.
-	_settings_btn = EngravedItem.new()
-	_settings_btn.init_item("설정", 15, false)
-	_settings_btn.pressed.connect(_on_settings_pressed)
-	add_child(_settings_btn)
-	# 하단(§7 btmwrap) — 안내문 + 남기기(각인 key). 이동 중에도 상시(고갈사 전에 남길 기회).
-	_guide = UITheme.make_label(_guide_text(), UITheme.FS_SMALL, Color(0.706, 0.643, 0.533))  # #b4a488
+	# 안내문 — 제목 오른쪽(지도를 키우려 하단에서 상향, 사용자 지시). 설정은 기록 일지 안으로 통합(별도 버튼 없음).
+	_guide = UITheme.make_label(_guide_text(), UITheme.FS_SMALL, Color(0.706, 0.643, 0.533), false)  # #b4a488
+	_guide.autowrap_mode = TextServer.AUTOWRAP_OFF
 	add_child(_guide)
+	# 남기기 — 좌 칼럼 하단(각인 key). 이동 중에도 상시(고갈사 전에 남길 기회).
 	var leave := EngravedItem.new()
 	leave.init_item("남기기", 20, true)
 	leave.pressed.connect(_on_leave_pressed)
 	add_child(leave)
 	_leave_btn = leave
 
-## 크롬 배치 — STAGE 좌표(§7: 제목 230,64~78 · 하단 620~) → 화면 px. 리사이즈마다.
+## 크롬 배치 — STAGE 좌표(제목 230,46 · 안내문 제목 오른쪽 · 남기기 좌 칼럼 하단) → 화면 px. 리사이즈마다.
 func _layout_chrome() -> void:
 	if _title_eye == null:
 		return
 	var st := _stage_rect()
 	var sc: float = st.size.x / STAGE_W
-	_title_eye.position = st.position + Vector2(230.0, 46.0) * sc
-	_title_lbl.position = st.position + Vector2(228.0, 66.0) * sc
-	_settings_btn.position = st.position + Vector2(1140.0, 18.0) * sc
-	_settings_btn.size = Vector2(120.0, 52.0)
-	# 하단 중앙(밴드 폭 기준) — 안내문 위, 남기기 아래.
-	_guide.size = Vector2(BAND.size.x * sc, 26.0)
-	_guide.position = st.position + Vector2(BAND.position.x, 622.0) * sc
-	_leave_btn.size = Vector2(220.0, 56.0)
-	_leave_btn.position = st.position + Vector2(STAGE_W * 0.5, 678.0) * sc - Vector2(110.0, 28.0)
-
-func _on_settings_pressed() -> void:
-	add_child(SettingsPanel.new())
+	_title_eye.position = st.position + Vector2(230.0, 24.0) * sc
+	_title_lbl.position = st.position + Vector2(228.0, 44.0) * sc
+	_guide.position = st.position + Vector2(474.0, 62.0) * sc
+	_leave_btn.size = Vector2((COL_L_W + 24.0) * sc, 54.0)
+	_leave_btn.position = st.position + Vector2(COL_L_X - 12.0, 638.0) * sc
 
 ## _ready 마무리 — 남기기·결과 팝업(공유 컴포넌트)·잉크 reveal·채점 원 초기화.
 func _after_ready_setup() -> void:
@@ -484,15 +473,19 @@ func tutorial_highlight_rect(idx: int) -> Rect2:
 		return _leave_btn.get_global_rect().grow(10.0)
 	return _map_area()  # idx 0(과 기타) = 지도(배경+노드) 영역
 
-## 노드 중심(화면 px) — 스펙 절대좌표(§1). MAP px = STAGE px(밴드가 스펙 크기 그대로).
+## MAP 좌표(820×461) → 화면 배율 — 밴드 확대분(1.24)까지 포함.
+func _mscale() -> float:
+	return _sscale() * BAND.size.x / MAP_W
+
+## 노드 중심(화면 px) — 스펙 절대좌표(§1)를 밴드에 비례 매핑.
 func _node_screen(id: String, area: Rect2) -> Vector2:
 	var v: Vector3 = NODE_PX.get(id, Vector3(410, 230, 80))
-	return area.position + Vector2(v.x, v.y) * (area.size.x / BAND.size.x)
+	return area.position + Vector2(v.x, v.y) * (area.size.x / MAP_W)
 
-## 노드 표시 크기(화면 px) — 스펙 per-node size(§1).
+## 노드 표시 크기(화면 px) — 스펙 per-node size(§1), 밴드 확대 비례.
 func _node_size(id: String) -> float:
 	var v: Vector3 = NODE_PX.get(id, Vector3(0, 0, 80))
-	return v.z * _sscale()
+	return v.z * _mscale()
 
 ## 엣지 A→B 곡선 위의 점(t∈[0,1]). 도착 노드 biome 으로 굴곡 결정 — 결정론적(id 해시, 매 프레임 동일).
 ## 경로 렌더·마커·점선이 모두 이 함수를 공유해야 마커가 그려진 곡선을 정확히 탄다.
@@ -574,13 +567,14 @@ func _edge_progress(run: ExpeditionRun) -> float:
 	var frac: float = clampf(_move_timer / STEP_INTERVAL, 0.0, 1.0)
 	return clampf((step_done + frac) / float(ExpeditionRun.EDGE_LEN), 0.0, 1.0)
 
-## 플레이어 마커 위치 — 이동 중이면 엣지 곡선 위를 따라가고, 아니면 현재 노드.
+## 플레이어 마커 위치 — 길 위(target 있음)면 엣지 곡선 위(멈춰 있어도 그 자리), 아니면 현재 노드.
+## _moving 이 아니라 target 유무로 판정 — 상황 카드로 멈춘 동안 마커가 출발지로 되돌아가던 버그 방지.
 func _marker_pos(area: Rect2) -> Vector2:
 	var run: ExpeditionRun = GameState.current_run
 	if run == null:
 		return _node_screen(MapGraph.START_ID, area)
 	var tgt: String = run.target_node_id()
-	if not _moving or tgt == "":
+	if tgt == "":
 		return _node_screen(run.current_node, area)
 	return _edge_point(run.current_node, tgt, _edge_progress(run), area)
 
@@ -606,11 +600,11 @@ func _draw() -> void:
 
 	var cur: String = _current_node_id()
 	var nexts: Array = MapGraph.node(cur).get("next", [])
-	var sc: float = _sscale()
+	var sc: float = _sscale()   # STAGE 스케일(칼럼·크롬)
+	var ms: float = _mscale()   # MAP 스케일(노드·라벨 — 밴드 확대 포함)
 
-	# 여백 칼럼(§6) — 좌 "지닌 것" · 우 "범례". 각인형(헤어라인+텍스트, 상자 없음).
+	# 좌 칼럼(§6) — "지닌 것" + 미니 범례 + 통계. 각인형(헤어라인+텍스트, 상자 없음). 우 칼럼은 지도 확대로 폐지.
 	_draw_col_left(font, sc)
-	_draw_col_right(font, sc)
 
 	# 길 — 가본 노드에서 나가는 트레일. 밟은 길은 진한 실선, 미지로 향하는 길은 점선.
 	for id in MapGraph.NODES:
@@ -652,18 +646,18 @@ func _draw() -> void:
 			if warn_tex != null and (knd == "blockage" or knd == "storm"):
 				_draw_sketch(warn_tex, p + Vector2(ns * 0.42, -ns * 0.42), ns * 0.42)
 			if font != null:
-				# 이름은 아이콘 아래(스펙 §2: 17px·???는 19px 상당). 크림 후광 + 상태색(현재/다음=붉은 잉크).
+				# 이름은 아이콘 아래(스펙 §2: 17px·???는 19px 상당, 밴드 확대 비례). 크림 후광 + 상태색.
 				var lcol: Color = LABEL_MK if (str(id) == cur or id in nexts) else LABEL_DIM
-				var lfs: int = maxi(9, int((19.0 if str(id) == "end" else 17.0) * sc))
-				_draw_map_label(font, p + Vector2(-75.0 * sc, ns * 0.5 + 10.0 * sc), str(MapGraph.NODES[id].get("name", "")), 150.0 * sc, lfs, lcol)
+				var lfs: int = maxi(9, int((19.0 if str(id) == "end" else 17.0) * ms))
+				_draw_map_label(font, p + Vector2(-75.0 * ms, ns * 0.5 + 10.0 * ms), str(MapGraph.NODES[id].get("name", "")), 150.0 * ms, lfs, lcol)
 				if str(id) == cur:
 					# 현재 위치 태그 "원정대" — 노드 위. 삼각형은 절차적으로(장식 유니코드 두부 방지, known_issues §38).
-					_draw_expedition_tag(font, p + Vector2(0.0, -ns * 0.5 - 8.0 * sc), sc)
+					_draw_expedition_tag(font, p + Vector2(0.0, -ns * 0.5 - 8.0 * ms), ms)
 		else:
 			# 갈 수 있는 미지 — 노드 크기에 비례한 옅은 원 + 큼직한 "?"(스펙 ??? 19px 상당).
 			draw_circle(p, ns * 0.26, Color(INK_FADE.r, INK_FADE.g, INK_FADE.b, 0.20))
 			if font != null:
-				var qfs: int = maxi(12, int(24.0 * sc))
+				var qfs: int = maxi(12, int(24.0 * ms))
 				draw_string(font, p + Vector2(-qfs * 0.28, qfs * 0.36), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, qfs, INK_FADE)
 
 	# 흔적 — 이전 원정대들이 노드에 남긴 것(누적된 길/죽음의 역사, self-async).
@@ -678,13 +672,21 @@ func _draw() -> void:
 	for sp in _splashes:
 		var st: float = clampf(float(sp["t"]) / SPLASH_DUR, 0.0, 1.0)
 		draw_circle(sp["pos"], lerpf(3.0, 13.0, st), Color(MARKER_INK.r, MARKER_INK.g, MARKER_INK.b, lerpf(0.32, 0.0, st)))
-	# 원정대 마커 — 이동 중엔 잉크 방울이 곡선 위를 미끄러지고, 정지 시엔 손그림 채점 원(그려짐→점멸, §4).
+	# 원정대 마커 — 길 위(이동 중·상황 카드로 멈춤·도착 직후)엔 잉크 방울, 노드에 서 있을 때만 채점 원.
+	# (예전엔 _moving 으로만 갈라 상황 카드/도착 시점에 출발지 채점 원이 되살아났다 — 버그 수정.)
 	var mp: Vector2 = _marker_pos(area)
-	if _moving:
+	var run_m: ExpeditionRun = GameState.current_run
+	var at_node: bool = run_m == null or run_m.target_node_id() == ""
+	if not at_node:
 		draw_circle(mp, 9.0, Color(MARKER_INK.r, MARKER_INK.g, MARKER_INK.b, 0.22))
 		draw_circle(mp, 5.5, MARKER_INK)
 		draw_arc(mp, 10.0, 0.0, TAU, 22, MARKER_INK, 1.5)
 	else:
+		if _circle_cur_id != cur:
+			# 서 있는 노드가 바뀌었다(도착 후 재진입 등) — 그 노드의 채점 원을 새로 긋는다.
+			_circle_cur_id = cur
+			_circle_cache[_circle_cur_id] = _gen_grading_circle()
+			_circle_cur_t = 0.0
 		var dp: float = clampf(_circle_cur_t / CIRC_DRAW_CUR, 0.0, 1.0)
 		dp = 1.0 - pow(1.0 - dp, 2.0)                       # ease-out 그려짐
 		var pulse: float = 1.0
@@ -721,7 +723,7 @@ func _draw_biomes(area: Rect2) -> void:
 		return
 	var cur: String = _current_node_id()
 	var nexts: Array = MapGraph.node(cur).get("next", [])
-	var sz: float = 68.0 * _sscale()  # 지형 낙서 크기 — 노드보다 살짝 작게(스펙 dd 폭들의 중간값 감각)
+	var sz: float = 68.0 * _mscale()  # 지형 낙서 크기 — 노드보다 살짝 작게(스펙 dd 폭들의 중간값 감각)
 	for id in MapGraph.NODES:
 		if not _is_revealed(id):
 			continue
@@ -762,7 +764,7 @@ func _draw_arrows(area: Rect2) -> void:
 	var arrow: Texture2D = _sketch_tex.get("arrow", null)
 	if arrow == null:
 		return
-	var sz: float = 42.0 * _sscale()  # 화살표 낙서(스펙 dd_arrow w60 언저리)
+	var sz: float = 42.0 * _mscale()  # 화살표 낙서(스펙 dd_arrow w60 언저리)
 	for id in MapGraph.NODES:
 		if not _is_revealed(id):
 			continue
@@ -933,65 +935,31 @@ func _draw_col_left(font: Font, sc: float) -> void:
 	y += 21.0 * sc
 	draw_string(font, Vector2(x, y), tl, HORIZONTAL_ALIGNMENT_LEFT, w, maxi(9, int(15.0 * sc)), Color(0.788, 0.718, 0.565))
 
-## 우 "범례" — 길·마커 설명 + 통계. STAGE (1072,150) w176(§6). 심볼은 절차적 미니 드로잉.
-func _draw_col_right(font: Font, sc: float) -> void:
-	var st := _stage_rect()
-	var x: float = st.position.x + COL_R_X * sc
-	var w: float = COL_R_W * sc
-	var y: float = st.position.y + 158.0 * sc
-	var fs: int = maxi(9, int(14.0 * sc))
-	var tcol := Color(0.910, 0.875, 0.804)
-	draw_string(EN_TITLE_FONT, Vector2(x, y), "LEGEND", HORIZONTAL_ALIGNMENT_LEFT, w, maxi(8, int(10.0 * sc)), Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.6))
-	y += 26.0 * sc
-	draw_string(font, Vector2(x, y), "범례", HORIZONTAL_ALIGNMENT_LEFT, w, maxi(12, int(22.0 * sc)), UITheme.FG)
-	y += 14.0 * sc
+	# 미니 범례 — 꼭 필요한 것만(우 칼럼 폐지, 사용자 지시): 갈 수 있는 곳·죽은 자리·위험.
+	y += 18.0 * sc
 	_draw_hairline(x, y, w)
-	var sym_w: float = 28.0 * sc
-	# 지나온 길(실선)
-	y += 26.0 * sc
-	draw_line(Vector2(x, y - 4.0 * sc), Vector2(x + 22.0 * sc, y - 4.0 * sc), Color(0.435, 0.306, 0.173), 2.0, true)
-	draw_string(font, Vector2(x + sym_w, y), "지나온 길", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
-	# 미지의 길(점선)
-	y += 22.0 * sc
-	for i in range(3):
-		var dx: float = x + float(i) * 8.0 * sc
-		draw_line(Vector2(dx, y - 4.0 * sc), Vector2(dx + 4.0 * sc, y - 4.0 * sc), Color(0.604, 0.486, 0.322), 2.0, true)
-	draw_string(font, Vector2(x + sym_w, y), "미지의 길", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
-	# 갈 수 있는 붉은 길
-	y += 22.0 * sc
-	draw_line(Vector2(x, y - 4.0 * sc), Vector2(x + 22.0 * sc, y - 4.0 * sc), RED_PATH, 2.4, true)
+	var fs: int = maxi(9, int(13.0 * sc))
+	var tcol := Color(0.75, 0.70, 0.62)
+	var sym_w: float = 26.0 * sc
+	y += 24.0 * sc
+	draw_line(Vector2(x, y - 4.0 * sc), Vector2(x + 20.0 * sc, y - 4.0 * sc), RED_PATH, 2.4, true)
 	draw_string(font, Vector2(x + sym_w, y), "갈 수 있는 곳", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
-	# 원정대(채점 원 미니 — 끝이 겹치는 원호)
-	y += 22.0 * sc
-	draw_arc(Vector2(x + 10.0 * sc, y - 5.0 * sc), 7.0 * sc, PI * 0.5, PI * 2.75, 20, CIRC_CURRENT, 2.0, true)
-	draw_string(font, Vector2(x + sym_w, y), "원정대", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
-	# 죽은 자리(해골 스케치 or X)
-	y += 22.0 * sc
+	y += 21.0 * sc
 	var skull: Texture2D = _sketch_tex.get("skull", null)
 	if skull != null:
-		_draw_sketch(skull, Vector2(x + 10.0 * sc, y - 5.0 * sc), 18.0 * sc)
+		_draw_sketch(skull, Vector2(x + 9.0 * sc, y - 5.0 * sc), 17.0 * sc)
 	else:
-		draw_line(Vector2(x + 4.0 * sc, y - 9.0 * sc), Vector2(x + 14.0 * sc, y), UITheme.DANGER, 2.0, true)
-		draw_line(Vector2(x + 4.0 * sc, y), Vector2(x + 14.0 * sc, y - 9.0 * sc), UITheme.DANGER, 2.0, true)
+		draw_line(Vector2(x + 3.0 * sc, y - 9.0 * sc), Vector2(x + 13.0 * sc, y), UITheme.DANGER, 2.0, true)
+		draw_line(Vector2(x + 3.0 * sc, y), Vector2(x + 13.0 * sc, y - 9.0 * sc), UITheme.DANGER, 2.0, true)
 	draw_string(font, Vector2(x + sym_w, y), "죽은 자리", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
-	# 위험(경고 스케치)
 	var warn: Texture2D = _sketch_tex.get("warn", null)
 	if warn != null:
-		y += 22.0 * sc
-		_draw_sketch(warn, Vector2(x + 10.0 * sc, y - 5.0 * sc), 18.0 * sc)
+		y += 21.0 * sc
+		_draw_sketch(warn, Vector2(x + 9.0 * sc, y - 5.0 * sc), 17.0 * sc)
 		draw_string(font, Vector2(x + sym_w, y), "위험", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
-	y += 16.0 * sc
-	_draw_hairline(x, y, w)
-	# 통계(§6) — 값은 Cinzel.
-	var stats: Array = [
-		[GameState.expedition_count, "원정"],
-		[GameState.traces.size(), "흔적"],
-		[GameState.deaths.size(), "죽은 자리"],
-	]
-	for s in stats:
-		y += 24.0 * sc
-		draw_string(EN_TITLE_FONT, Vector2(x, y), str(s[0]), HORIZONTAL_ALIGNMENT_LEFT, 30.0 * sc, maxi(10, int(17.0 * sc)), UITheme.SAND)
-		draw_string(font, Vector2(x + 34.0 * sc, y), str(s[1]), HORIZONTAL_ALIGNMENT_LEFT, w - 34.0 * sc, fs, Color(0.62, 0.56, 0.46))
+	# 통계 한 줄(컴팩트).
+	y += 24.0 * sc
+	draw_string(font, Vector2(x, y), "원정 %d · 흔적 %d · 죽음 %d" % [GameState.expedition_count, GameState.traces.size(), GameState.deaths.size()], HORIZONTAL_ALIGNMENT_LEFT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))
 
 # --- "살아있는 잉크" 헬퍼 (핸드오프 MAP_지도화면.md §2~4) ---
 
