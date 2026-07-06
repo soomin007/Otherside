@@ -31,6 +31,11 @@
 ### 효과음(SFX) 전부 완료
 
 - **29종 완료** (`assets/sfx/`, 상세는 §2. 발소리 3번은 결이 안 맞아 삭제 — 3변주로 운용).
+- ✅ **위치 반영 바람 환경음(2026-07-06)** — 새 에셋 없이 `sfx_storm_gust` 를 **간헐 돌풍 스케줄러**로 재사용
+  (`AudioManager.set_wind(level)`, level = `MapGraph.progress`). 후반일수록 잦고(간격 26→8s) 세게(-22→-8dB),
+  피치 0.82~1.12 랜덤 변주로 반복 티 방지. 마을·타이틀 = 무풍, 엔딩곡 진입 시 자동 무풍.
+  **승격 후보(원하면):** ElevenLabs Loop 옵션으로 전용 바람 루프(`one sustained desert wind bed, distant soft howl, loopable`)를
+  뽑으면 돌풍 사이를 연속 저음 바람으로 메울 수 있다 — 현재는 성근 정체성(§0)에 맞는 간헐형으로 충분.
 - ✅ **원 그리기** `sfx_draw_1~6`(지도 호버 손그림 원, 6변주 랜덤) — freesound "Marker Circle"(tubbsmedia, **CC0** — 표기 불요) 원본을 6분할·정규화. 원본 = `assets_src/sfx_original/`.
 - 단 3개는 원본이 너무 조용해 +27~32dB 증폭했다. **폰이나 스피커로 들어보고 노이즈가 거슬릴 때만** ElevenLabs 재생성(프롬프트는 §2 의 ⚠️ 항목 그대로):
   - `sfx_resource` 자원 감소 표시음 · `sfx_reveal` 노드 공개 · `sfx_cycle` 순환 저음 울림
