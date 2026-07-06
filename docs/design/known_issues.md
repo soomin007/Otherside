@@ -111,6 +111,10 @@
   **원인:** ① 배치 루프에서 `2>$null` 로 ffmpeg 에러를 숨겨 실패를 못 봄. ② 실패 신호(volumedetect `max_volume` 미매칭 → gain 0.0, 특정 파일만 값이 이상)를 무시. ③ **출력 개수를 검증하기 전에** `Remove-Item *.mp3` 로 원본 일괄 삭제. 원본 mp3 가 손상/절단(생성기 결함)이면 변환·분석 둘 다 조용히 실패한다.
   **방지:** 일괄 변환 후 **원본 삭제 전에 출력 개수를 반드시 대조**(입력 N개 → 출력 N개인지). 에러를 숨기지 말고(`2>&1` 로 확인) 실패 파일을 로그. 이상 신호(gain 0.0 처럼 값이 튀는 것)는 그 파일을 의심. **소스는 최종 산출물 커밋·확인 뒤에 삭제**(또는 스크래치로 옮겨 보관). 손실되면 사용자 재생성뿐.
 
+- **증상:** BGM ogg 안에 **theora 영상 스트림이 딸려 들어감** — 오디오 파일인데 ffprobe 상 video(theora 360×360)+audio(vorbis) 두 스트림. 폰+이어폰에서 배경음악에 규칙적 "타닥타닥" 잡음 원인 의심. (2026-07-06)
+  **원인:** mp3 원본에 박힌 **앨범 커버 이미지**를, `ffmpeg -i in.mp3 -c:a libvorbis ... out.ogg`(=`-vn` 없음)로 변환할 때 ffmpeg 가 그 커버를 theora 영상으로 트랜스코딩해 ogg 에 함께 mux 한다. 오디오 페이지 사이에 영상 페이지가 인터리브된다(용량은 대개 작지만 명백한 결함).
+  **방지:** mp3→ogg 변환은 **반드시 `-vn`**(영상 제외): `ffmpeg -i in.mp3 -vn -c:a libvorbis -q:a 2 out.ogg`. 변환 후 `ffprobe -show_entries stream=codec_type` 로 **audio 만** 있는지 확인. (godot-audio-pipeline 스킬 §2 에 반영함. 이미 섞인 파일은 원본에서 `-vn` 로 재인코딩해 교체.)
+
 ## 프로세스 / 도구
 
 - **증상:** `godot --headless --script check.gd` 로 게임 스크립트를 `load()` 검증하면 `Identifier not found: GameState/AudioManager` 컴파일 에러. (2026-07-05)
