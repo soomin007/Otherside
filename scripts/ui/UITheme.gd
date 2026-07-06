@@ -78,6 +78,8 @@ static func build_column(host: Control, gap: int = GAP) -> VBoxContainer:
 	return col
 
 ## 카드(둥근 패널 + 테두리 + 안쪽 여백). 모달 콘텐츠를 떠다니는 텍스트가 아니라 읽기 좋은 면 위에 둔다.
+## ⚠️ 게임 화면 사용 금지(2026-07-06 각인 전수 전환) — 모달은 make_engraved_modal, 버튼은 make_engraved_button.
+##    남겨둔 이유: 개발용 UI(DEV 오버레이류)나 임시 도구에서만.
 static func make_card(width: float = COLUMN_W) -> PanelContainer:
 	var p := PanelContainer.new()
 	var sb := StyleBoxFlat.new()
@@ -90,6 +92,7 @@ static func make_card(width: float = COLUMN_W) -> PanelContainer:
 	p.custom_minimum_size = Vector2(width, 0)
 	return p
 
+## ⚠️ 게임 화면 사용 금지(2026-07-06 각인 전수 전환) — make_engraved_button 사용. 개발용 UI 전용.
 ## 풀폭 버튼(터치 타깃 보장). primary=true 면 크고 본문 크기, false 면 낮고 라벨 크기.
 static func make_button(text: String, primary: bool = true) -> Button:
 	var b := Button.new()
@@ -156,6 +159,27 @@ static func fade_out(node: CanvasItem, on_done: Callable = Callable(), dur: floa
 		if on_done.is_valid():
 			on_done.call())
 	node.set_meta("_fade_tw", tw)
+
+## 각인 버튼(공용 축약) — 호버 시 모래 밑줄이 펴지는 텍스트 버튼. key=대표(밝은 글자·상시 밑줄).
+## 게임 화면의 버튼 표준: 가죽 상자 버튼(make_button)은 쓰지 않는다(2026-07-06 전수 전환).
+static func make_engraved_button(text: String, px: int = 18, key: bool = false) -> EngravedItem:
+	var b := EngravedItem.new()
+	b.init_item(text, px, key)
+	return b
+
+## 각인 모달 골격 — 가죽 카드(make_card) 대체: 방사 어둠 + 위아래 헤어라인. 스크림 위에 얹는다.
+## 반환 [0]=바깥 박스(CenterContainer 에 add), [1]=내용 박스(여기에 채움 — 갈아끼워도 헤어라인은 남는다).
+static func make_engraved_modal(width: float = COLUMN_W) -> Array:
+	var outer := VBoxContainer.new()
+	outer.custom_minimum_size = Vector2(width, 0)
+	outer.add_theme_constant_override("separation", GAP)
+	attach_dark_pool(outer)
+	outer.add_child(make_hairline(Color(SAND.r, SAND.g, SAND.b, 0.35), 2.0))
+	var inner := VBoxContainer.new()
+	inner.add_theme_constant_override("separation", GAP)
+	outer.add_child(inner)
+	outer.add_child(make_hairline(Color(SAND.r, SAND.g, SAND.b, 0.35), 2.0))
+	return [outer, inner]
 
 ## 각인형 모달의 방사 어둠 뒷배경 — 상자(카드) 없이 뒤를 가라앉혀 글을 세운다
 ## (EngravedItem 항목 어둠·타이틀 로고 어둠과 같은 결 — 가장자리가 부드러워 상자로 안 읽힘).

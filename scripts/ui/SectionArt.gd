@@ -17,6 +17,7 @@ const SECTION_PATHS: Dictionary = {
 
 ## kind → Texture2D 캐시(null 도 캐시 = 반복 로드 시도 방지). draw_section 이 매 프레임 불려도 1회만 로드.
 static var _tex_cache: Dictionary = {}
+static var _label_pool: GradientTexture2D  ## 지점 라벨 뒤 크림 빛 웅덩이 — 사진 위 가독(지도 라벨과 같은 결)
 
 ## 단면 배경 + 지면 + kind별 실루엣을 rect 안에 그린다. 이미지 있으면 배경 텍스처, 없으면 절차적.
 static func draw_section(ci: CanvasItem, kind: String, rect: Rect2, seed_id: String) -> void:
@@ -82,7 +83,25 @@ static func draw_spot(ci: CanvasItem, font: Font, center: Vector2, label: String
 		ci.draw_arc(center, r, 0.0, TAU, 32, faded, 1.5)
 		if state == 1:
 			ci.draw_polyline(PackedVector2Array([center + Vector2(-6, 0), center + Vector2(-1, 5), center + Vector2(7, -6)]), faded, 2.0)
-	if font != null:
+	if font != null and label != "":
+		# 크림 웅덩이 — 어떤 그림 위에서도 라벨이 읽히게(예전엔 잉크색 맨글자라 그림에 묻혔다, 2026-07-06).
+		if _label_pool == null:
+			var pg := Gradient.new()
+			pg.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
+			pg.colors = PackedColorArray([
+				Color(0.914, 0.839, 0.686, 0.66),
+				Color(0.914, 0.839, 0.686, 0.36),
+				Color(0.914, 0.839, 0.686, 0.0),
+			])
+			_label_pool = GradientTexture2D.new()
+			_label_pool.gradient = pg
+			_label_pool.fill = GradientTexture2D.FILL_RADIAL
+			_label_pool.fill_from = Vector2(0.5, 0.5)
+			_label_pool.fill_to = Vector2(0.98, 0.5)
+			_label_pool.width = 128
+			_label_pool.height = 64
+		var pool_a: float = 1.0 if state == 0 else 0.55
+		ci.draw_texture_rect(_label_pool, Rect2(center.x - 78.0, center.y + r - 6.0, 156.0, 40.0), false, Color(1.0, 1.0, 1.0, pool_a))
 		var lc: Color = UITheme.INK if state == 0 else faded
 		ci.draw_string(font, center + Vector2(-60.0, r + 20.0), label, HORIZONTAL_ALIGNMENT_CENTER, 120.0, UITheme.FS_SMALL, lc)
 

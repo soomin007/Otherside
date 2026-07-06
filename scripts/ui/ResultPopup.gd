@@ -24,12 +24,10 @@ func _init() -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
 
-	var card := UITheme.make_card()
-	center.add_child(card)
-
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", UITheme.GAP)
-	card.add_child(box)
+	# 각인 모달(가죽 카드 폐기) — 방사 어둠 + 헤어라인 + 각인 "계속".
+	var parts: Array = UITheme.make_engraved_modal()
+	center.add_child(parts[0])
+	var box: VBoxContainer = parts[1]
 
 	_body_label = UITheme.make_label("", UITheme.FS_BODY)
 	box.add_child(_body_label)
@@ -37,7 +35,7 @@ func _init() -> void:
 	_delta_label = UITheme.make_label("", UITheme.FS_H2, UITheme.SAND)
 	box.add_child(_delta_label)
 
-	var btn := UITheme.make_button("계속")
+	var btn := UITheme.make_engraved_button("계속", 18, true)
 	btn.pressed.connect(_on_close)
 	box.add_child(btn)
 

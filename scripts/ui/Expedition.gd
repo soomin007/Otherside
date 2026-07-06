@@ -11,8 +11,8 @@ var _status_label: Label
 var _water_label: Label
 var _food_label: Label
 var _aux_label: Label
-var _advance_btn: Button
-var _leave_btn: Button   ## "남기기" — 물건 하나 두고 계속 (런당 1회). 자발적 죽음은 없다(모든 죽음 비자발적).
+var _advance_btn: EngravedItem
+var _leave_btn: EngravedItem   ## "남기기" — 물건 하나 두고 계속 (런당 1회). 자발적 죽음은 없다(모든 죽음 비자발적).
 
 var _death_panel: Control
 var _death_label: Label
@@ -26,15 +26,13 @@ var _choice_box: VBoxContainer
 var _bequeath: BequeathPanel               ## "남김 한 번" 모달 (공유 컴포넌트 — 지도와 같은 것)
 
 var _section: SectionRun            ## 도착 노드의 단면 탐색 상태(예산·지점)
-var _section_rect: Rect2            ## 단면 그림 영역(지점 히트테스트 기준)
-var _probe_label: Label            ## "조사 N번 가능" — 남은 조사 횟수(예산)
+var _section_rect: Rect2            ## 단면 그림 영역(지점 히트테스트 기준) — 화면 전체(cover)
 var _result_popup: ResultPopup     ## 조사·선택 결과 팝업(공유) — 하단 배너 대신 모달로 통일
-
-var _ending_panel: Control         ## end 도달 결말 화면(순환/재회)
-var _ending_box: VBoxContainer
 
 var _hud_box: Control              ## 상단 HUD 바 — 진입 stagger 대상
 var _bottom_bar: Control           ## 하단 버튼 묶음 — 진입 stagger 대상
+var _scrim_top: GradientTexture2D  ## 위 가독 스크림(HUD 밑) — 풀스크린 그림 위 글씨 보호
+var _scrim_bot: GradientTexture2D  ## 아래 가독 스크림(장소 이름·버튼 밑)
 
 func _ready() -> void:
 	_run = GameState.current_run
@@ -72,7 +70,7 @@ func _build_hud() -> void:
 	var hud := PanelContainer.new()
 	hud.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	var hud_sb := StyleBoxFlat.new()
-	hud_sb.bg_color = Color(0.03, 0.03, 0.05, 0.5)
+	hud_sb.bg_color = Color(0.03, 0.03, 0.05, 0.62)  # 풀스크린 그림 위라 살짝 짙게(가독)
 	hud_sb.content_margin_left = UITheme.PAD
 	hud_sb.content_margin_right = UITheme.PAD
 	hud_sb.content_margin_top = UITheme.SAFE + 6.0
@@ -106,36 +104,31 @@ func _build_hud() -> void:
 
 	_aux_label = Label.new()
 	_aux_label.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
-	_aux_label.add_theme_color_override("font_color", Color(0.56, 0.56, 0.62))
+	_aux_label.add_theme_color_override("font_color", Color(0.62, 0.62, 0.68))
 	top.add_child(_aux_label)
 
-	_probe_label = Label.new()  # "조사 N번 가능" — 남은 조사 횟수(예산)
-	_probe_label.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
-	_probe_label.add_theme_color_override("font_color", UITheme.SAND)
-	top.add_child(_probe_label)
-
-	# 하단 — 큰 전진 버튼(주) + 보조 끝 버튼. 가운데 최대폭 컬럼(가로에선 카드처럼).
+	# 하단 — 각인 버튼 두 개(남기기 · 떠난다). 상자 없이 그림 위 스크림에 얹는다(가죽 박스 폐기, 2026-07-06).
 	var bar := CenterContainer.new()
 	bar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	bar.offset_top = -200.0
+	bar.offset_top = -128.0
 	bar.offset_bottom = -UITheme.SAFE
 	bar.add_to_group("ui_scatter")
 	add_child(bar)
 	_bottom_bar = bar
 
-	var bcol := VBoxContainer.new()
-	bcol.add_theme_constant_override("separation", 12)
-	bcol.custom_minimum_size = Vector2(UITheme.COLUMN_W, 0)
-	bar.add_child(bcol)
-
-	_advance_btn = UITheme.make_button("떠난다 · 지도로")
-	_advance_btn.pressed.connect(_on_advance)
-	bcol.add_child(_advance_btn)
+	var brow := HBoxContainer.new()
+	brow.alignment = BoxContainer.ALIGNMENT_CENTER
+	brow.add_theme_constant_override("separation", 56)
+	bar.add_child(brow)
 
 	# 보조: 남기기(물건 하나 두고 계속, 런당 1회). 자발적 죽음은 없다 — 모든 죽음은 비자발적(고갈/위협).
-	_leave_btn = UITheme.make_button("남기기", false)
+	_leave_btn = UITheme.make_engraved_button("남기기", 17, false)
 	_leave_btn.pressed.connect(_on_leave_pressed)
-	bcol.add_child(_leave_btn)
+	brow.add_child(_leave_btn)
+
+	_advance_btn = UITheme.make_engraved_button("떠난다 · 지도로", 21, true)
+	_advance_btn.pressed.connect(_on_advance)
+	brow.add_child(_advance_btn)
 
 	_build_situation_panel()
 	_build_death_panel()
@@ -146,7 +139,6 @@ func _build_hud() -> void:
 	add_child(_bequeath)
 	_result_popup = ResultPopup.new()
 	add_child(_result_popup)
-	_build_ending_panel()
 
 func _build_situation_panel() -> void:
 	_sit_panel = Control.new()
@@ -163,12 +155,10 @@ func _build_situation_panel() -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_sit_panel.add_child(center)
 
-	var card := UITheme.make_card()
-	center.add_child(card)
-
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", UITheme.GAP)
-	card.add_child(box)
+	# 각인 모달(가죽 카드 폐기) — 방사 어둠 + 헤어라인 사이 내용.
+	var parts: Array = UITheme.make_engraved_modal()
+	center.add_child(parts[0])
+	var box: VBoxContainer = parts[1]
 
 	_sit_name_label = UITheme.make_label("", UITheme.FS_H1)
 	box.add_child(_sit_name_label)
@@ -180,7 +170,7 @@ func _build_situation_panel() -> void:
 	box.add_child(_sit_text_label)
 
 	_choice_box = VBoxContainer.new()
-	_choice_box.add_theme_constant_override("separation", 12)
+	_choice_box.add_theme_constant_override("separation", 6)
 	box.add_child(_choice_box)
 
 func _build_death_panel() -> void:
@@ -198,17 +188,16 @@ func _build_death_panel() -> void:
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_death_panel.add_child(center)
 
-	var card := UITheme.make_card()
-	center.add_child(card)
-
-	var dbox := VBoxContainer.new()
+	# 각인 모달(가죽 카드 폐기) — 죽음도 담담하게, 헤어라인과 글만.
+	var parts: Array = UITheme.make_engraved_modal()
+	center.add_child(parts[0])
+	var dbox: VBoxContainer = parts[1]
 	dbox.add_theme_constant_override("separation", UITheme.GAP + 6)
-	card.add_child(dbox)
 
 	_death_label = UITheme.make_label("", UITheme.FS_BODY)
 	dbox.add_child(_death_label)
 
-	var to_next := UITheme.make_button("다음 원정대를 꾸린다")
+	var to_next := UITheme.make_engraved_button("다음 원정대를 꾸린다", 19, true)
 	to_next.pressed.connect(_on_next_party)
 	dbox.add_child(to_next)
 
@@ -222,12 +211,6 @@ func _refresh() -> void:
 	_water_label.add_theme_color_override("font_color", _res_color(water, 3, Color(0.55, 0.78, 0.97)))
 	_food_label.add_theme_color_override("font_color", _res_color(food, 2, Color(0.88, 0.72, 0.42)))
 	_aux_label.text = "지닌 것: %s" % Items.tools_summary(_run.resources)
-	_advance_btn.text = "떠난다 · 지도로"
-	if _probe_label != null:
-		if _section != null and _section.spot_count() > 0 and _section.budget_left() > 0:
-			_probe_label.text = "조사 %d번 가능" % _section.budget_left()
-		else:
-			_probe_label.text = ""
 	_update_leave_btn()
 	queue_redraw()
 
@@ -237,10 +220,10 @@ func _update_leave_btn() -> void:
 		return
 	if _run.bequeathed:
 		_leave_btn.disabled = true
-		_leave_btn.text = "남겼다"
+		_leave_btn.set_label("남겼다")
 	else:
 		_leave_btn.disabled = not _any_leavable()
-		_leave_btn.text = "남기기"
+		_leave_btn.set_label("남기기")
 
 func _any_leavable() -> bool:
 	for key in ["water", "food", "rope", "shelter"]:
@@ -293,8 +276,7 @@ func _show_situation() -> void:
 		var effect: Dictionary = choice.get("effect", {})
 		var enabled: bool = Situations.can_choose(choice, _run.resources)
 		var seen: bool = GameState.has_seen_choice(event_id, i)  # 겪어본 선택지만 결과 노출
-		var btn := UITheme.make_button("", false)
-		btn.text = UITheme.choice_text(choice, enabled, seen)
+		var btn := UITheme.make_engraved_button(UITheme.choice_text(choice, enabled, seen), 17, false)
 		if enabled:
 			var sets: Array = choice.get("sets", [])
 			var sets_p: Array = choice.get("sets_persist", [])
@@ -480,6 +462,22 @@ func _after_delta() -> void:
 func _spot_screen(at: Vector2) -> Vector2:
 	return _section_rect.position + Vector2(at.x * _section_rect.size.x, at.y * _section_rect.size.y)
 
+## 위/아래 가독 스크림 텍스처 — 풀스크린 그림 위 글씨 보호(1회 생성).
+func _make_scrims() -> void:
+	var mk := func(top_a: float, bot_a: float) -> GradientTexture2D:
+		var g := Gradient.new()
+		g.offsets = PackedFloat32Array([0.0, 1.0])
+		g.colors = PackedColorArray([Color(0.02, 0.02, 0.04, top_a), Color(0.02, 0.02, 0.04, bot_a)])
+		var t := GradientTexture2D.new()
+		t.gradient = g
+		t.fill_from = Vector2(0.5, 0.0)
+		t.fill_to = Vector2(0.5, 1.0)
+		t.width = 16
+		t.height = 128
+		return t
+	_scrim_top = mk.call(0.72, 0.0)
+	_scrim_bot = mk.call(0.0, 0.85)
+
 func _draw() -> void:
 	var rect: Vector2 = size
 	if rect.x <= 0.0 or rect.y <= 0.0 or _run == null:
@@ -487,17 +485,25 @@ func _draw() -> void:
 	var font: Font = get_theme_default_font()
 	if font == null:
 		font = ThemeDB.fallback_font
-	var top_y: float = 150.0
-	var bot_y: float = 240.0
-	_section_rect = Rect2(UITheme.PAD, top_y, rect.x - UITheme.PAD * 2.0, rect.y - top_y - bot_y)
-	if _section_rect.size.y < 40.0 or _section_rect.size.x < 40.0:
-		return
+	# 단면 = 화면 전체(cover). 예전 가운데 띠는 위아래가 죽은 여백이었다(2026-07-06 사용자 지적).
+	_section_rect = Rect2(Vector2.ZERO, rect)
 	var node_id: String = _run.target_node_id()
 	var kind: String = _section.kind if _section != null else ""
 	SectionArt.draw_section(self, kind, _section_rect, node_id)
+	# 가독 스크림 — 위(HUD 밑)·아래(장소 이름·버튼 밑). 그림 중앙이 주인공, 글씨는 어둠 위에.
+	if _scrim_top == null:
+		_make_scrims()
+	draw_texture_rect(_scrim_top, Rect2(0.0, 0.0, rect.x, 200.0), false)
+	draw_texture_rect(_scrim_bot, Rect2(0.0, rect.y - 240.0, rect.x, 240.0), false)
+	# 장소 이름(붓글씨, 지도 지명과 같은 결) + 남은 조사 횟수 — 왼쪽 아래 스크림 위.
 	if node_id != "":
 		var nm: String = str(MapGraph.node(node_id).get("name", ""))
-		draw_string(font, Vector2(_section_rect.position.x + 12.0, _section_rect.position.y + 30.0), nm, HORIZONTAL_ALIGNMENT_LEFT, _section_rect.size.x - 24.0, UITheme.FS_H2, UITheme.INK)
+		var bf: Font = UITheme.BRUSH_FONT if UITheme.BRUSH_FONT != null else font
+		var base := Vector2(44.0, rect.y - 66.0)
+		draw_string(bf, base + Vector2(0.0, 2.5), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 44, Color(0.0, 0.0, 0.0, 0.75))
+		draw_string(bf, base, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 44, UITheme.FG)
+		if _section != null and _section.spot_count() > 0 and _section.budget_left() > 0:
+			draw_string(font, Vector2(46.0, rect.y - 34.0), "조사 %d번 가능" % _section.budget_left(), HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_LABEL, UITheme.SAND)
 	if _section == null:
 		return
 	for i in range(_section.spot_count()):
@@ -510,30 +516,14 @@ func _draw() -> void:
 			st = 2
 		SectionArt.draw_spot(self, font, _spot_screen(at), str(spot.get("label", "")), st)
 	if _section.spot_count() == 0:
-		draw_string(font, Vector2(_section_rect.position.x, _section_rect.position.y + _section_rect.size.y * 0.5), "둘러볼 것이 없다. 떠난다.", HORIZONTAL_ALIGNMENT_CENTER, _section_rect.size.x, UITheme.FS_BODY, UITheme.MUTED)
+		draw_string(font, Vector2(0.0, rect.y * 0.5), "둘러볼 것이 없다. 떠난다.", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_BODY, UITheme.FG)
 	elif _section.budget_left() > 0 and _section.probed_count() == 0:
 		# 첫 도착 안내 — 지점을 눌러 조사한다는 걸 짚어준다. 한 번이라도 조사하면 숨긴다(학습).
-		draw_string(font, Vector2(_section_rect.position.x, _section_rect.end.y - 14.0), "표시된 곳을 눌러 조사한다  (자원은 들지 않는다)", HORIZONTAL_ALIGNMENT_CENTER, _section_rect.size.x, UITheme.FS_SMALL, UITheme.INK)
+		# 하단 버튼 위 스크림 자리(그림에 안 묻히게 — 예전엔 그림 위 잉크색이라 안 읽혔다).
+		draw_string(font, Vector2(0.0, rect.y - 140.0), "표시된 곳을 눌러 조사한다  (자원은 들지 않는다)", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, Color(0.88, 0.84, 0.76))
 
 # --- 결말 (목적지 도달: 순환과 재회) ---
-
-func _build_ending_panel() -> void:
-	_ending_panel = Control.new()
-	_ending_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_ending_panel.visible = false
-	add_child(_ending_panel)
-	var dim := ColorRect.new()
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0.03, 0.03, 0.06, 0.95)
-	_ending_panel.add_child(dim)
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_ending_panel.add_child(center)
-	var card := UITheme.make_card()
-	center.add_child(card)
-	_ending_box = VBoxContainer.new()
-	_ending_box.add_theme_constant_override("separation", UITheme.GAP + 6)
-	card.add_child(_ending_box)
+# (옛 결말 카드 패널은 폐기 — 엔딩 슬라이드쇼 오버레이(Ending.gd)가 전부 맡는다. 2026-07-06 죽은 코드 정리.)
 
 ## 목적지(end) 도달 — 순환(기본) 또는 재회(흔적 충분 축적 + 무사 도달). 기획서 §3 결말.
 func _show_ending() -> void:

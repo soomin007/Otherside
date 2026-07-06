@@ -194,7 +194,7 @@ func _build_step1() -> void:
 	_name_edit.text_changed.connect(_on_name_edited)
 	_style_field(_name_edit)
 	name_row.add_child(_name_edit)
-	var reroll := UITheme.make_button("다시 뽑기", false)
+	var reroll := UITheme.make_engraved_button("다시 뽑기", 14, false)
 	reroll.custom_minimum_size = Vector2(160, UITheme.BTN_H_SM)
 	reroll.pressed.connect(_reroll_name)
 	name_row.add_child(reroll)
@@ -217,7 +217,7 @@ func _build_step1() -> void:
 	_voc_desc = UITheme.make_label(str(Vocations.by_id(_pending_vocation).get("desc", "")), UITheme.FS_SMALL, UITheme.SAND)
 	_col.add_child(_voc_desc)
 
-	var nxt := UITheme.make_button("배낭 챙기기 →")
+	var nxt := UITheme.make_engraved_button("배낭 챙기기 →", 20, true)
 	nxt.pressed.connect(_show_step.bind(2))
 	_col.add_child(nxt)
 	# 웹 브라우저 주소창이 하단을 가려도 마지막 버튼까지 스크롤로 도달하도록 여유(전체화면 실패 대비).

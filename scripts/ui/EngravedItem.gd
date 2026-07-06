@@ -120,6 +120,8 @@ func _ready() -> void:
 ## 자간(glyph spacing)은 정수 px 단위라 트윈하면 2~3단 점프로 뚝뚝 끊긴다(딱딱함의 원인).
 ## → 자간은 rest(.18em) 고정, 벌어짐은 scale.x(연속값)로 — 끊김 없이 사라락 넓어진다.
 func _animate(on: bool) -> void:
+	if disabled:
+		return  # 잠긴 항목 — 호버 반응 없음(흐림은 _draw 가 동기화)
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
 	pivot_offset = size * 0.5  # 중앙 기준으로 벌어짐(레이아웃 확정 후라 size 유효)
@@ -140,6 +142,9 @@ func _apply_spacing() -> void:
 		_fv.set_spacing(TextServer.SPACING_GLYPH, int(round(_spacing_cur)))
 
 func _draw() -> void:
+	# 비활성 흐림 동기화 — disabled 토글은 버튼을 다시 그리므로 여기서 맞추면 시점이 정확하다.
+	if _lbl != null:
+		_lbl.modulate.a = 0.4 if disabled else 1.0
 	# 항목 뒤 은은한 어둠(상시) — 로고처럼 항목 전체를 넓게 감싼다. 진하기·퍼짐 = tune_bg_*(DEV 슬라이더).
 	if _bg_tex != null and tune_bg_a > 0.01:
 		var bw: float = size.x * tune_bg_scale

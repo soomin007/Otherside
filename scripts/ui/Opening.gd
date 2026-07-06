@@ -84,12 +84,12 @@ func _ready() -> void:
 	_hint.autowrap_mode = TextServer.AUTOWRAP_OFF
 	bottom.add_child(_hint)
 
-	var skip := UITheme.make_button("건너뛰기", false)
+	var skip := UITheme.make_engraved_button("건너뛰기", 15, false)
 	skip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	skip.custom_minimum_size = Vector2(150, UITheme.BTN_H_SM)
-	skip.offset_left = -160.0
+	skip.offset_left = -200.0
 	skip.offset_top = UITheme.SAFE
 	skip.offset_right = -UITheme.PAD
+	skip.offset_bottom = UITheme.SAFE + 54.0
 	skip.pressed.connect(_finish)
 	add_child(skip)
 

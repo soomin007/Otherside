@@ -21,6 +21,7 @@ var _highlight: Panel
 var _bubble_holder: CenterContainer
 var _bubble_label: Label
 var _next_btn: EngravedItem
+var _skip_btn: EngravedItem
 var _step_idx: int = 0
 var _rendered_idx: int = -1
 
@@ -113,10 +114,10 @@ func _build() -> void:
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 26)
-	var skip := EngravedItem.new()
-	skip.init_item("건너뛰기", 15, false)
-	skip.pressed.connect(_skip)
-	row.add_child(skip)
+	_skip_btn = EngravedItem.new()
+	_skip_btn.init_item("건너뛰기", 15, false)
+	_skip_btn.pressed.connect(_skip)
+	row.add_child(_skip_btn)
 	_next_btn = EngravedItem.new()
 	_next_btn.init_item("다음", 18, true)
 	_next_btn.pressed.connect(_next)
@@ -137,7 +138,11 @@ func _render_step() -> void:
 	_highlight.position = hl.position
 	_highlight.size = hl.size
 	_bubble_label.text = str(step.get("text", ""))
-	_next_btn.set_label("다음" if _step_idx < STEPS.size() - 1 else "시작")
+	# 마지막 단계(또는 그 씬의 단계가 하나뿐일 때) — "건너뛰기"는 무의미하니 숨기고 "시작"만.
+	var last: bool = _step_idx >= STEPS.size() - 1
+	_next_btn.set_label("다음" if not last else "시작")
+	if _skip_btn != null:
+		_skip_btn.visible = not last
 	# 강조가 화면 위쪽이면 말풍선을 아래로, 아래쪽이면 위로 — 서로 안 겹치게(픽셀→화면비 환산).
 	var center_y: float = (hl.position.y + hl.size.y * 0.5) / maxf(1.0, vp.y)
 	_place_bubble(center_y >= 0.5)
@@ -151,9 +156,9 @@ func _place_bubble(top: bool) -> void:
 	if top:  # 강조가 아래쪽 → 말풍선 위
 		_bubble_holder.anchor_top = 0.05
 		_bubble_holder.anchor_bottom = 0.42
-	else:  # 강조가 위쪽 → 말풍선 아래
-		_bubble_holder.anchor_top = 0.58
-		_bubble_holder.anchor_bottom = 0.95
+	else:  # 강조가 위쪽 → 말풍선 아래(하단 각인 버튼 줄과 안 겹치게 0.88 까지만 — 2026-07-06 겹침 지적)
+		_bubble_holder.anchor_top = 0.52
+		_bubble_holder.anchor_bottom = 0.88
 	_bubble_holder.offset_top = 0.0
 	_bubble_holder.offset_bottom = 0.0
 

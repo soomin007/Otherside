@@ -105,12 +105,12 @@ func _build() -> void:
 	_prompt.modulate.a = 0.0
 	add_child(_prompt)
 
-	var skip := UITheme.make_button("건너뛰기", false)
-	skip.custom_minimum_size = Vector2(140, UITheme.BTN_H_SM)
+	var skip := UITheme.make_engraved_button("건너뛰기", 15, false)
 	skip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	skip.offset_left = -140.0 - UITheme.PAD
+	skip.offset_left = -200.0
 	skip.offset_top = UITheme.SAFE
 	skip.offset_right = -UITheme.PAD
+	skip.offset_bottom = UITheme.SAFE + 54.0
 	skip.pressed.connect(_exit)   # 건너뛰기 = 바로 타이틀
 	add_child(skip)
 

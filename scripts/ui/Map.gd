@@ -456,11 +456,10 @@ func _build_situation_panel() -> void:
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_sit_panel.add_child(center)
-	var card := UITheme.make_card()
-	center.add_child(card)
-	_sit_box = VBoxContainer.new()
-	_sit_box.add_theme_constant_override("separation", UITheme.GAP)
-	card.add_child(_sit_box)
+	# 각인 모달(가죽 카드 폐기) — 방사 어둠 + 헤어라인. 내용(_sit_box)만 상황마다 갈아끼운다.
+	var parts: Array = UITheme.make_engraved_modal()
+	center.add_child(parts[0])
+	_sit_box = parts[1]
 
 ## 이동 중 마주친 상황 카드 — 읽고 한 가지를 고른다(관리·대비). 결정하면 이동을 잇는다(죽으면 그 자리 노드 화면).
 func _show_situation_card() -> void:
@@ -485,8 +484,7 @@ func _show_situation_card() -> void:
 		var effect: Dictionary = choice.get("effect", {})
 		var enabled: bool = Situations.can_choose(choice, run.resources)
 		var seen: bool = GameState.has_seen_choice(event_id, i)  # 겪어본 선택지만 결과 노출
-		var btn := UITheme.make_button("", false)
-		btn.text = UITheme.choice_text(choice, enabled, seen)
+		var btn := UITheme.make_engraved_button(UITheme.choice_text(choice, enabled, seen), 17, false)
 		if enabled:
 			btn.pressed.connect(_on_situation_choice.bind(event_id, i, str(choice.get("label", "")), effect, choice.get("sets", []), choice.get("sets_persist", [])))
 		else:
