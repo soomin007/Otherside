@@ -19,16 +19,10 @@ const REVEAL_DUR: float = 0.55     ## 방문 시 잉크 reveal 애니 길이(초
 const STAGE_W: float = 1280.0
 const STAGE_H: float = 720.0
 const BAND: Rect2 = Rect2(230.0, 112.0, 1016.0, 571.0)  # 1016/571 = 양피지 비율(1.779) 유지
-const MAP_W: float = 820.0   ## 스펙 MAP 좌표 공간(NODE_PX 기준) — 밴드 크기와 무관
+const MAP_W: float = 820.0   ## 스펙 MAP 좌표 공간(= MapGraph.MAP_W, LAYOUT 기준) — 밴드 크기와 무관
 ## 노드 절대 배치(§1) — MAP 좌표 x·y = 중심, z = 정사각 표시 크기(px). 시각 데이터라 core(MapGraph)가 아닌 여기에.
-const NODE_PX: Dictionary = {
-	"n0": Vector3(52, 300, 100), "a1": Vector3(120, 362, 82),
-	"b1": Vector3(255, 128, 86), "b2": Vector3(200, 360, 84),
-	"c1": Vector3(415, 92, 86), "c2": Vector3(350, 298, 82),
-	"d1": Vector3(525, 172, 84), "d2": Vector3(465, 360, 82),
-	"e1": Vector3(642, 322, 84), "f1": Vector3(650, 205, 88),
-	"end": Vector3(778, 272, 60),
-}
+## 노드 좌표·크기는 MapGraph.LAYOUT/NODE_SIZE 로 이전(core 단일 진실 — 경로 길이 계산과 렌더가 같은 값 공유).
+## Map 은 MapGraph.pos/node_size/edge_point 로 읽어 화면에 비례 매핑만 한다.
 const COL_L_X: float = 36.0     ## 좌 "지닌 것" 칼럼(STAGE §6)
 const COL_L_W: float = 172.0
 const COL_R_X: float = 1072.0   ## 우 "범례" 칼럼(STAGE §6)
@@ -563,41 +557,16 @@ func _mscale() -> float:
 
 ## 노드 중심(화면 px) — 스펙 절대좌표(§1)를 밴드에 비례 매핑.
 func _node_screen(id: String, area: Rect2) -> Vector2:
-	var v: Vector3 = NODE_PX.get(id, Vector3(410, 230, 80))
-	return area.position + Vector2(v.x, v.y) * (area.size.x / MAP_W)
+	return area.position + MapGraph.pos(id) * (area.size.x / MAP_W)
 
-## 노드 표시 크기(화면 px) — 스펙 per-node size(§1), 밴드 확대 비례.
+## 노드 표시 크기(화면 px) — MapGraph.NODE_SIZE(스펙 px), 밴드 확대 비례.
 func _node_size(id: String) -> float:
-	var v: Vector3 = NODE_PX.get(id, Vector3(0, 0, 80))
-	return v.z * _mscale()
+	return MapGraph.node_size(id) * _mscale()
 
-## 엣지 A→B 곡선 위의 점(t∈[0,1]). 도착 노드 biome 으로 굴곡 결정 — 결정론적(id 해시, 매 프레임 동일).
-## 경로 렌더·마커·점선이 모두 이 함수를 공유해야 마커가 그려진 곡선을 정확히 탄다.
+## 엣지 A→B 곡선 위의 점(t∈[0,1], 화면 px). MapGraph.edge_point(스펙 좌표, core 단일 진실)를 화면에 스케일.
+## 경로 렌더·마커·점선·경로 길이(걸음 수)가 모두 core 곡선 공식 하나를 공유한다.
 func _edge_point(from_id: String, to_id: String, t: float, area: Rect2) -> Vector2:
-	var p0: Vector2 = _node_screen(from_id, area)
-	var p1: Vector2 = _node_screen(to_id, area)
-	var base: Vector2 = p0.lerp(p1, t)
-	var dist: float = p0.distance_to(p1)
-	if dist < 1.0:
-		return base
-	var perp: Vector2 = Vector2(-(p1.y - p0.y), p1.x - p0.x) / dist  # 엣지에 수직(방향 무관 → 가로/세로 자동 대응)
-	var sgn: float = 1.0 if (_id_hash(to_id) % 2 == 0) else -1.0     # 굴곡 방향 고정(노드별 결정론)
-	var amp: float = 0.0
-	var shape: float = 0.0
-	match MapGraph.biome_of(to_id):
-		"river":   # 강줄기를 따라 한 번 사행(S 굽이) — 시작·끝은 노드에 정확히 붙는다(sin τt: t=0,0.5,1 → 0)
-			amp = dist * 0.13
-			shape = sin(t * TAU)
-		"rock":    # 바위·산을 돌아간다(한쪽 볼록)
-			amp = dist * 0.20
-			shape = sin(t * PI)
-		"storm":   # 폭풍·사구에 흔들리는 지그재그
-			amp = dist * 0.15
-			shape = sin(t * PI * 3.0)
-		_:         # flats — 완만한 미세 굴곡
-			amp = dist * 0.08
-			shape = sin(t * PI)
-	return base + perp * (amp * shape * sgn)
+	return area.position + MapGraph.edge_point(from_id, to_id, t) * (area.size.x / MAP_W)
 
 ## 엣지 곡선을 EDGE_SAMPLES 로 나눈 폴리라인(경로 실선/점선 렌더용).
 func _edge_polyline(from_id: String, to_id: String, area: Rect2) -> PackedVector2Array:
@@ -606,12 +575,7 @@ func _edge_polyline(from_id: String, to_id: String, area: Rect2) -> PackedVector
 		pts.append(_edge_point(from_id, to_id, float(i) / float(EDGE_SAMPLES), area))
 	return pts
 
-## 노드 id 의 결정론적 해시(문자 코드 합) — 곡선 굴곡 방향 고정용(Math.random 금지: 매 프레임 동일해야).
-func _id_hash(s: String) -> int:
-	var h: int = 0
-	for i in range(s.length()):
-		h += s.unicode_at(i)
-	return h
+## 노드 id 해시(곡선 굴곡 방향)는 MapGraph.id_hash 로 이전 — 곡선 공식과 함께 core 에 산다.
 
 ## 발자국 — 밟은 길 곡선을 따라 좌우 번갈아 찍힌 자취. upto(0~1)까지만 그린다(이동 중엔 마커까지 실시간).
 func _draw_footprints(pts: PackedVector2Array, upto: float = 1.0) -> void:
@@ -647,9 +611,10 @@ func _draw_footprints(pts: PackedVector2Array, upto: float = 1.0) -> void:
 
 ## 이번 엣지 진행률(0~1) — 밟은 걸음 + 걸음 사이 프레임 보간(마커·실시간 발자국이 공유).
 func _edge_progress(run: ExpeditionRun) -> float:
-	var step_done: float = float(ExpeditionRun.EDGE_LEN - run.edge_remaining())
+	var elen: int = maxi(1, run.edge_len())
+	var step_done: float = float(elen - run.edge_remaining())
 	var frac: float = clampf(_move_timer / STEP_INTERVAL, 0.0, 1.0)
-	return clampf((step_done + frac) / float(ExpeditionRun.EDGE_LEN), 0.0, 1.0)
+	return clampf((step_done + frac) / float(elen), 0.0, 1.0)
 
 ## 플레이어 마커 위치 — 길 위(target 있음)면 엣지 곡선 위(멈춰 있어도 그 자리), 아니면 현재 노드.
 ## _moving 이 아니라 target 유무로 판정 — 상황 카드로 멈춘 동안 마커가 출발지로 되돌아가던 버그 방지.

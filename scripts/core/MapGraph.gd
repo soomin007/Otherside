@@ -357,3 +357,81 @@ static func progress(node_id: String) -> float:
 	if not NODES.has(node_id):
 		return 0.0
 	return float(int(NODES[node_id].get("row", 0))) / float(maxi(1, max_row()))
+
+# --- 지도 배치 좌표 + 곡선 반영 엣지 길이 (Map 렌더와 공유하는 단일 진실) ---
+## 노드의 지도상 절대 좌표(스펙 MAP 공간 MAP_W 폭). Map._node_screen 이 화면 크기에 비례 매핑한다.
+## row/col 은 논리 층/가로위치(거리 곡선·안개)용 — 실제 배치·경로 길이의 진실은 이 LAYOUT 이다.
+const MAP_W: float = 820.0
+const LAYOUT: Dictionary = {
+	"n0": Vector2(52, 300), "a1": Vector2(120, 362),
+	"b1": Vector2(255, 128), "b2": Vector2(200, 360),
+	"c1": Vector2(415, 92), "c2": Vector2(350, 298),
+	"d1": Vector2(525, 172), "d2": Vector2(465, 360),
+	"e1": Vector2(642, 322), "f1": Vector2(650, 205),
+	"end": Vector2(778, 272),
+}
+## 노드 표시 크기(Map 렌더용, 스펙 px). 배치 좌표와 함께 사는 게 자연스러워 여기 둔다.
+const NODE_SIZE: Dictionary = {
+	"n0": 100.0, "a1": 82.0, "b1": 86.0, "b2": 84.0, "c1": 86.0, "c2": 82.0,
+	"d1": 84.0, "d2": 82.0, "e1": 84.0, "f1": 88.0, "end": 60.0,
+}
+
+static func pos(id: String) -> Vector2:
+	return LAYOUT.get(id, Vector2(410, 230))
+
+static func node_size(id: String) -> float:
+	return float(NODE_SIZE.get(id, 80.0))
+
+## 노드 id 의 결정론적 해시(문자 코드 합) — 곡선 굴곡 방향 고정(매 프레임·시뮬 동일, 렌더와 공유).
+static func id_hash(s: String) -> int:
+	var h: int = 0
+	for i in range(s.length()):
+		h += s.unicode_at(i)
+	return h
+
+## 엣지 A→B 곡선 위의 점(t∈[0,1], 스펙 좌표). 도착 노드 biome 으로 굴곡 결정 — 지형을 따라 굽이친다.
+## Map._edge_point 가 이걸 화면에 스케일해 렌더 → 곡선·마커·경로 길이가 모두 한 공식을 공유(단일 진실).
+static func edge_point(from_id: String, to_id: String, t: float) -> Vector2:
+	var p0: Vector2 = pos(from_id)
+	var p1: Vector2 = pos(to_id)
+	var base: Vector2 = p0.lerp(p1, t)
+	var dist: float = p0.distance_to(p1)
+	if dist < 1.0:
+		return base
+	var perp: Vector2 = Vector2(-(p1.y - p0.y), p1.x - p0.x) / dist  # 엣지에 수직(방향 무관)
+	var sgn: float = 1.0 if (id_hash(to_id) % 2 == 0) else -1.0      # 굴곡 방향 고정(노드별 결정론)
+	var amp: float = 0.0
+	var shape: float = 0.0
+	match biome_of(to_id):
+		"river":   # 강줄기를 따라 사행(S 굽이) — 직선보다 길다
+			amp = dist * 0.13
+			shape = sin(t * TAU)
+		"rock":    # 바위를 돌아간다(한쪽 볼록)
+			amp = dist * 0.20
+			shape = sin(t * PI)
+		"storm":   # 폭풍·사구에 흔들리는 지그재그 — 잔파동이 많아 가장 길다
+			amp = dist * 0.15
+			shape = sin(t * PI * 3.0)
+		_:         # flats — 완만한 미세 굴곡(거의 직선)
+			amp = dist * 0.08
+			shape = sin(t * PI)
+	return base + perp * (amp * shape * sgn)
+
+const EDGE_SAMPLES: int = 18
+## 곡선 호 길이(스펙 px) — 직선거리가 아니라 실제 굽이친 경로 길이. edge_steps 의 근거.
+static func edge_length(from_id: String, to_id: String) -> float:
+	var total: float = 0.0
+	var prev: Vector2 = edge_point(from_id, to_id, 0.0)
+	for i in range(1, EDGE_SAMPLES + 1):
+		var p: Vector2 = edge_point(from_id, to_id, float(i) / float(EDGE_SAMPLES))
+		total += prev.distance_to(p)
+		prev = p
+	return total
+
+## 걸음 수 환산 — 곡선 경로 길이(px) × 배율. 가까운 노드는 적게, 먼 노드는 많이.
+## STEPS_PER_UNIT/EDGE_MIN/MAX = 튜닝 손잡이(static var, balance_sim 스윕 후 원복). 수치 바꾸면 balance_notes·기획서 §4.3 갱신.
+static var STEPS_PER_UNIT: float = 0.027   ## px당 걸음 — balance_sim: DESO30서 GREEDY ~11%(기존 EDGE_LEN=5 완주율 보존). 곡선이 직선보다 길어 0.031→0%였다.
+static var EDGE_MIN: int = 2                ## 가장 가까운 엣지도 최소 이만큼(도착이 순간이동처럼 안 되게)
+static var EDGE_MAX: int = 11               ## 가장 먼 엣지 상한(후반 한 엣지 즉사 방지)
+static func edge_steps(from_id: String, to_id: String) -> int:
+	return clampi(int(round(edge_length(from_id, to_id) * STEPS_PER_UNIT)), EDGE_MIN, EDGE_MAX)

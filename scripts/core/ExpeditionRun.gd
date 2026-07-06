@@ -17,7 +17,7 @@ static var DESOLATION_EVERY: int = 30  ## 이 걸음마다 물 소모 +1 (멀수
 static var FOOD_EVERY: int = 2         ## 식량은 이 걸음 수마다 1 소모 (느린 배고픔)
 static var GAP_MIN: int = 2            ## 엣지 안 일반 상황 최소 간격 (걸음)
 static var GAP_MAX: int = 4            ## 엣지 안 일반 상황 최대 간격 (걸음)
-static var EDGE_LEN: int = 5           ## 노드 사이 한 엣지의 걸음 수 (임시 고정 — 다음에 노드 간 거리로)
+## 엣지 걸음 수는 이제 고정이 아니라 곡선 반영 경로 길이 비례(MapGraph.edge_steps). 손잡이는 MapGraph.STEPS_PER_UNIT.
 static var EARLY_SAFE_LEG: int = 6     ## 이 걸음 전(마을 근처 첫 엣지)엔 도구 위기(큰 대가) 억제 — 거리 곡선(가까울수록 평화, 기획 §1)
 static var WEIGHT_FREE: int = 12       ## 이 무게까지는 무료(물 소모 안 늘어남)
 static var WEIGHT_STEP: int = 4        ## 초과 무게 이만큼마다 걸음당 물 +1 (무거운 짐 = 목마름)
@@ -115,11 +115,16 @@ func do_leave(key: String) -> void:
 # --- 노드 진행 (지도 ↔ 횡스크롤) ---
 
 ## 지도에서 고른 다음 노드로 향하는 엣지를 시작한다(횡스크롤 진입 시).
+## 걸음 수 = 지금 서 있는 노드(current_node)에서 목표까지의 곡선 반영 경로 길이 비례(가까우면 짧고, 멀면 길다).
 func begin_edge(target_id: String) -> void:
 	_target_node = target_id
-	_edge_len = EDGE_LEN
+	_edge_len = MapGraph.edge_steps(current_node, target_id)
 	_edge_step = 0
 	_schedule_next()
+
+## 이번 엣지의 총 걸음 수(마커 보간·진행률 렌더가 공유). 엣지 진행 중이 아니면 0.
+func edge_len() -> int:
+	return _edge_len
 
 ## 이번 엣지의 목표 노드에 도착했나(이벤트/복귀 대기).
 func arrived() -> bool:

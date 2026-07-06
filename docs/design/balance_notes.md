@@ -8,7 +8,7 @@
 
 1. 손잡이 하나(또는 조합)를 바꾼다. 손잡이는 `ExpeditionRun` 의 **static var**(게임 기본값 고정, 시뮬만 오버라이드).
 2. `godot --headless --path . -s tests/balance_sim.gd` 실행 → 리포트 비교.
-   - `[1]` 정책 비교(생존탐욕/무작위/무모) · `[2]` 시작 물 스윕 · `[3]` **2D 스윕(DESO × EDGE_LEN, static var 오버라이드→원복)** · `[4]` 콘텐츠 커버리지.
+   - `[1]` 정책 비교(생존탐욕/무작위/무모) · `[2]` 시작 물 스윕 · `[3]` **2D 스윕(DESO × STEPS_PER_UNIT, static var 오버라이드→원복)** · `[4]` 콘텐츠 커버리지.
    - 볼 것: **end 도달률**, 정책별 **중앙 leg**, **평균 최종 노드 row**, **사인 분해**(갈증/배고픔), **콘텐츠 커버리지**(0=못 봄).
 3. `godot --headless --path . -s tests/core_smoke.gd` 로 회귀 없는지(ALL PASS) 확인.
 4. 부팅 스모크 `godot --headless --path . --quit-after 5` (에러/경고 0).
@@ -16,7 +16,7 @@
 6. 실기기 체감은 DebugOverlay(자원 가득/노드 점프/God)로 원하는 지점만 띄워 확인.
 
 ⚠️ **시뮬 baseline 동기화:** `balance_sim.gd`의 `BASE_START` 는 `GameState.START_RESOURCES`(=Loadout 표준 구성)와 맞춰야 한다. 시작 자원을 바꾸면 둘 다.
-⚠️ **손잡이 = static var:** `ExpeditionRun` 의 `WATER_PER_STEP`/`DESOLATION_EVERY`/`FOOD_EVERY`/`EDGE_LEN`/`GAP_*` 는 `const` 가 아니라 `static var`. 시뮬 `[3]` 이 값을 오버라이드하고 끝에 원복한다 — 게임 중엔 항상 기본값. (그래서 `[3]` 이 한 번의 실행으로 격자 스윕을 낸다.)
+⚠️ **손잡이 = static var:** `ExpeditionRun` 의 `WATER_PER_STEP`/`DESOLATION_EVERY`/`FOOD_EVERY`/`GAP_*` 와 `MapGraph.STEPS_PER_UNIT`(엣지 걸음) 는 `const` 가 아니라 `static var`. 시뮬 `[3]` 이 값을 오버라이드하고 끝에 원복한다 — 게임 중엔 항상 기본값. (그래서 `[3]` 이 한 번의 실행으로 격자 스윕을 낸다.)
 
 ## 달성 (2026-07-02, 정책당 500판) — end 0% → ~10%
 
@@ -47,7 +47,7 @@
 | 가방 물품량 | 물통+7·식+6·로프+1·은+1 (6칸) | `Loadout.gd` (책상 물품·표준 구성) | 실제 시작 자원의 진짜 소스(START_RESOURCES는 baseline) |
 | 물 거리 가속 | `DESOLATION_EVERY=30` (static var) | `ExpeditionRun.gd` 손잡이 블록 | 클수록 후반 덜 가혹(도달 거리↑). **후반 도달의 핵심 손잡이** |
 | 걸음당 기본 물 | `WATER_PER_STEP=1` (static var) | `ExpeditionRun.gd` | 전체 물 압박 |
-| 엣지 길이 | `EDGE_LEN=5` (static var) | `ExpeditionRun.gd` | 줄이면 총 걸음↓(도달 쉬움)·이동 중 상황↓·"거리감"↓. **지배적 손잡이지만 거리감 위해 5 유지 결정** |
+| 엣지 걸음 | `MapGraph.STEPS_PER_UNIT=0.027` (static var) | `MapGraph.gd` | **곡선 경로 길이(px)×이 배율 = 엣지 걸음**(2026-07-06 거리 비례로 전환, 옛 `EDGE_LEN=5` 폐기). 가까운 엣지 2~3·먼 엣지 7~9. 지배적 손잡이 — 키우면 총 걸음↑(도달 어려움). `EDGE_MIN/MAX`(2/11)로 극단 클램프 |
 | 식량 소모 주기 | `FOOD_EVERY=2` (static var) | `ExpeditionRun.gd` | 식량 압박(현재 배고픔사 33% — 이전 2%에서 상승) |
 | 이동 중 상황 간격 | `GAP_MIN/MAX=2/4` (static var) | `ExpeditionRun.gd` | 결정 밀도(페이싱) |
 | 초반 안전 구간 | `EARLY_SAFE_LEG=6` (static var) | `ExpeditionRun.gd` | 이 걸음 전(첫 엣지)엔 도구 위기(열병 -5 등) 억제. 초반 즉사 방지·거리 곡선(§1). 키우면 도구 가치↓ |
@@ -62,7 +62,7 @@
 1. **폰 실플레이로 정성 확인(긴장·페이싱·재미).** 시뮬 10%는 완벽 greedy 근사 — 실기기(사람)에선 더 낮을 수 있다. 체감 보고 미세조정(목표 대역 10~20% 안에서).
 2. **배고픔 33% 재검토.** 갈증 독점은 풀렸으나 배고픔이 다소 높다. 취향이면 START 식량 or `FOOD_EVERY` 로 갈증/배고픔 비율 조정(예: 갈증 65/배고픔 25 목표).
 3. **재회 임계 `REUNION_TRACES`(8) 튜닝.** end 도달이 열렸으니 이제 의미 있음. 재회는 end + 흔적 8 + 무사도달 셋 다 → 정확한 근거는 다중 원정 시뮬 필요.
-4. **`EDGE_LEN` 다양화(엣지별 거리).** 현재 전 엣지 고정 5. 노드 간 실제 거리로 다양화하면 페이싱·거리감 개선 여지.
+4. ~~`EDGE_LEN` 다양화(엣지별 거리)~~ ✅ **2026-07-06 완료** — 엣지 걸음 = 곡선 반영 경로 길이 비례(`MapGraph.edge_steps`). 아래 §2026-07-06 참고.
 
 ### 설계 의도 (놓치지 말 것)
 - end/재회는 **어렵되 가능**해야 한다. 목표는 "높은 완주율"이 아니라 **여러 원정 축적 + 좋은 런이면 닿는** 정도(단일 런 end ~10%면 충분).
@@ -78,3 +78,9 @@
 - 길잡이 deso+12 + 시작물-3 · 물지기 water_gain+1 + deso-6 · 강골 food_every+2 + deso-3 · 유품지기 leave-1 + 시작물-2 · (짐꾼은 이미 트레이드오프).
 **시뮬 [5] 결과:** 평범 1.0 · 길잡이 2.0 · 짐꾼 1.2 · 물지기 2.0 · 강골 0.2 · 유품지기 0.0%. 밴드 좁아짐, 순수 지배 없음.
 **주의:** 갈증사 지배(80~100%)라 **end 도달률은 물 축만 반영** — 강골(배고픔 생존)·유품지기(남기기)의 가치는 이 지표 밖. 그래서 둘의 end 낮음은 정상. 최종은 폰 실플레이.
+
+## 2026-07-06 — 엣지 걸음 = 곡선 반영 경로 길이 비례 (EDGE_LEN 폐기)
+**변경:** 전 엣지 고정 5걸음 → 지도상 두 노드의 **곡선 경로 길이(px) × `STEPS_PER_UNIT`**. 가까운 노드는 적은 걸음, 먼 노드는 많은 걸음. 직선거리가 아니라 biome 곡선(river 사행·rock 볼록·storm 지그재그) 호 길이 반영.
+**아키텍처:** 노드 좌표(옛 `Map.NODE_PX`)·곡선 공식을 `MapGraph`(core)로 승격 → 렌더(Map)·마커·경로 길이·시뮬이 **한 공식 공유(단일 진실)**. balance_sim(순수 core)이 실제 거리로 완주율을 검증할 수 있게 됨.
+**튜닝:** 곡선이 직선보다 길어 SPU 0.031 → 완주 0%. **SPU 0.027 · DESO 30 = 생존탐욕 ~12% · 무모 0.8%**(기존 EDGE_LEN=5 완주율·스킬격차 보존). 걸음 분포: n0→a1 3 · a1→b2 2 · a1→b1 7 · … 전부 [2,11].
+**손잡이 이동:** `ExpeditionRun.EDGE_LEN` 제거 → `MapGraph.STEPS_PER_UNIT`/`EDGE_MIN`/`EDGE_MAX`. core_smoke 에 `_test_edge_distance` 불변식 추가(거리 비례·범위·곡선≥직선).

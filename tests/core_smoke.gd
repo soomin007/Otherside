@@ -15,6 +15,7 @@ func _init() -> void:
 	_test_mapgraph_integrity()
 	_test_water_cost_curve()
 	_test_edge_progression()
+	_test_edge_distance()
 	_test_death_by_thirst()
 	_test_arrival_event_priority()
 	_test_flag_chain_variants()
@@ -98,20 +99,43 @@ func _test_water_cost_curve() -> void:
 func _test_edge_progression() -> void:
 	var run: ExpeditionRun = _fresh()
 	run.begin_edge("a1")
-	_ok(run.edge_remaining() == ExpeditionRun.EDGE_LEN, "엣지 전진: 시작 시 남은 걸음 = EDGE_LEN")
+	var expect: int = MapGraph.edge_steps("n0", "a1")
+	_ok(run.edge_remaining() == expect, "엣지 전진: 시작 시 남은 걸음 = edge_steps(n0,a1)=%d" % expect)
+	_ok(run.edge_len() == expect, "엣지 전진: edge_len() = edge_steps")
 	_ok(run.target_node_id() == "a1", "엣지 전진: target_node_id = a1")
 	_advance(run)
-	_ok(run.arrived(), "엣지 전진: EDGE_LEN 걸음 후 도착")
+	_ok(run.arrived(), "엣지 전진: 경로 걸음 후 도착")
 	_ok(run.edge_remaining() == 0, "엣지 전진: 도착 시 남은 걸음 0")
 	run.arrive()
 	_ok(run.current_node == "a1", "엣지 전진: arrive() 후 현재 노드 = a1")
 
+## 엣지 걸음 수 = 곡선 반영 경로 길이 비례(직선거리 아님). 가까우면 짧고, 멀면 길다.
+func _test_edge_distance() -> void:
+	# 곡선 경로 길이 >= 직선거리(사행·지그재그는 더 길다)
+	var straight: float = MapGraph.pos("n0").distance_to(MapGraph.pos("a1"))
+	var curved: float = MapGraph.edge_length("n0", "a1")
+	_ok(curved >= straight - 0.5, "엣지 거리: 곡선 경로 길이(%.0f) >= 직선거리(%.0f)" % [curved, straight])
+	# 가까운 엣지(a1→b2, 짧음)가 먼 엣지(a1→b1, 김)보다 걸음 적다 — 거리 비례의 핵심
+	var near: int = MapGraph.edge_steps("a1", "b2")
+	var far: int = MapGraph.edge_steps("a1", "b1")
+	_ok(near < far, "엣지 거리: 가까운 a1→b2(%d걸음) < 먼 a1→b1(%d걸음)" % [near, far])
+	# 모든 엣지 걸음이 [EDGE_MIN, EDGE_MAX] 안(즉사·순간이동 방지)
+	var all_in: bool = true
+	for id in MapGraph.NODES:
+		for nx in MapGraph.node(id).get("next", []):
+			var s: int = MapGraph.edge_steps(id, str(nx))
+			if s < MapGraph.EDGE_MIN or s > MapGraph.EDGE_MAX:
+				all_in = false
+				print("  · 범위 밖 엣지 ", id, "→", nx, " = ", s)
+	_ok(all_in, "엣지 거리: 모든 엣지 걸음이 [%d, %d] 안" % [MapGraph.EDGE_MIN, MapGraph.EDGE_MAX])
+
 func _test_death_by_thirst() -> void:
-	# 물 3, 소모 1/걸음(출발지) → 3걸음째 고갈. 도착(5걸음) 전에 죽는다.
-	var run: ExpeditionRun = _fresh({"water": 3, "food": 99, "rope": 0, "shelter": 0})
+	# 물 = (n0→a1 걸음 수 − 1), 소모 1/걸음(출발지) → 마지막 걸음 전에 고갈. 도착 전 이동 중 사(엣지 길이 무관하게 견고).
+	var elen: int = MapGraph.edge_steps("n0", "a1")
+	var run: ExpeditionRun = _fresh({"water": elen - 1, "food": 99, "rope": 0, "shelter": 0})
 	run.begin_edge("a1")
 	_advance(run)
-	_ok(not run.alive, "고갈사: 물 3으로 도착 전 사망")
+	_ok(not run.alive, "고갈사: 물 %d(도착 %d걸음 전)로 도착 전 사망" % [elen - 1, elen])
 	_ok(run.death_cause == "thirst", "고갈사: 사인 = thirst")
 	_ok(run.death_node_id() == MapGraph.START_ID, "고갈사: 이동 중 사 → 떠나온 노드(n0)에 시체")
 
@@ -233,8 +257,10 @@ func _test_vocations() -> void:
 	ww.apply_choice({"water": -2})
 	_ok(ww.get_res("water") == 11, "직능 물지기: 물 잃을 땐 보너스 없음")
 	# 강골 — 식량 소모 주기 늘어남(기본 2 → 4). 이동 중 상황은 억제하고 순수 소모만 본다(결정론).
+	# 4걸음을 확실히 전진하도록 긴 엣지(a1→b1, 8걸음)에서 돌린다(짧은 엣지는 4걸음 전에 도착).
 	var hardy: ExpeditionRun = ExpeditionRun.new({"water": 99, "food": 20}, [], [], {}, "hardy")
-	hardy.begin_edge("a1")
+	hardy.current_node = "a1"
+	hardy.begin_edge("b1")
 	hardy._next_situation_leg = 9999
 	for i in range(4):
 		hardy.step()
