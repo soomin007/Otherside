@@ -21,7 +21,7 @@ var _mid: CPUParticles2D
 var _fore: CPUParticles2D
 
 func _init() -> void:
-	var dot: ImageTexture = _make_dot_texture(12)
+	var dot: ImageTexture = make_dot_texture(12)
 	# 중경: 크고(scale↑) 느리고(velocity↓) 아주 옅게(alpha↓), 길게 떠 있음.
 	_mid = _make_layer(MID_AMOUNT, dot, 1.2, 2.2, 70.0, 150.0,
 		Color(SAND.r, SAND.g, SAND.b, 0.16), 2.0)
@@ -69,7 +69,8 @@ func set_band(band: Rect2) -> void:
 	_fore.emitting = true
 
 ## 절차적 소프트 점 텍스처 (중심 불투명 → 가장자리 투명). 셰이더 없이 모래 알갱이 느낌.
-static func _make_dot_texture(sz: int) -> ImageTexture:
+## 공개 static — 지도 드리프트 등 다른 모래 연출도 같은 알갱이를 쓴다.
+static func make_dot_texture(sz: int) -> ImageTexture:
 	var img := Image.create(sz, sz, false, Image.FORMAT_RGBA8)
 	var c: float = sz * 0.5
 	for y in sz:

@@ -61,6 +61,13 @@ var _loop_path: String = ""   ## 루프 대상 트랙(베드·폭풍). "" = 원�
 var _xfading: bool = false    ## 루프 크로스페이드 진행 중
 var _thirst_low: bool = false ## 갈증 경고를 이미 울렸나(물이 임계 위로 회복하면 리셋)
 
+# --- 환경음 (위치 반영 바람 — 후반일수록 잦고 세게) ---
+## 연속 바람 루프 에셋이 없어 돌풍(sfx_storm_gust) 을 간헐 스케줄로 재사용한다 — 성근 사운드
+## 정체성(§0)에도 맞고 베드 BGM 과 안 싸운다. 변주는 피치·볼륨 랜덤(파일 하나로 반복 티 방지).
+var _wind: AudioStreamPlayer  ## 전용 플레이어 — SFX 보이스 풀을 안 뺏는다
+var _wind_level: float = 0.0  ## 0(마을·타이틀) = 무풍 ~ 1(목적지 부근). MapGraph.progress 값
+var _wind_wait: float = 0.0   ## 다음 돌풍까지(초)
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_rng.randomize()
@@ -93,8 +100,12 @@ func _make_player(bus_name: String) -> AudioStreamPlayer:
 	add_child(p)
 	return p
 
-## 루프 트랙이 끝에 다다르면 미리 다음 회차를 겹쳐 재생(끊김 없는 이음매).
-func _process(_dt: float) -> void:
+## 루프 트랙이 끝에 다다르면 미리 다음 회차를 겹쳐 재생(끊김 없는 이음매) + 바람 스케줄.
+func _process(dt: float) -> void:
+	if _wind_level > 0.0:
+		_wind_wait -= dt
+		if _wind_wait <= 0.0:
+			_gust()
 	if _loop_path == "" or _xfading or _cur == null or not _cur.playing or _cur.stream == null:
 		return
 	var length: float = _cur.stream.get_length()
@@ -157,12 +168,14 @@ func play_bed() -> void:
 func play_storm() -> void:
 	play_track(STORM)
 
-## 재회 엔딩 크레딧곡 — 한 번만(루프 안 함).
+## 재회 엔딩 크레딧곡 — 한 번만(루프 안 함). 엔딩은 곡이 주인공 — 바람을 끈다.
 func play_reunion() -> void:
+	set_wind(0.0)
 	play_track(REUNION, FADE, false)
 
 ## 순환 엔딩곡 — 슬라이드부터 암전·안내까지 계속(루프). 나갈 때 타이틀이 베드로 크로스페이드.
 func play_cycle() -> void:
+	set_wind(0.0)
 	play_track(CYCLE)
 
 ## 전부 서서히 끄기(암전·순환 엔딩 여운 등).
@@ -225,6 +238,30 @@ func play_situation_card(threat_kind: int) -> void:
 		_:
 			play_sfx(CARD_OPEN)
 
+# --- 환경음 (위치 반영 바람) ---
+
+## 바람 세기(0~1) — 씬 진입 때 현 위치의 `MapGraph.progress` 를 넣는다. 0 = 무풍(마을·타이틀).
+## 후반일수록 돌풍이 잦고(간격 26→8s) 세게(-22→-8dB) 분다. 무풍→바람 전환 첫 돌풍은 이르게(도착의 공기).
+func set_wind(level: float) -> void:
+	var was: float = _wind_level
+	_wind_level = clampf(level, 0.0, 1.0)
+	if _wind_level > 0.0 and was <= 0.0:
+		_wind_wait = _rng.randf_range(2.0, 6.0)
+
+## 돌풍 한 번 — 피치·볼륨 랜덤 변주(파일 하나라 반복 티 방지). 이미 부는 중이면 다음 차례로 미룬다.
+func _gust() -> void:
+	_wind_wait = lerpf(26.0, 8.0, _wind_level) * _rng.randf_range(0.7, 1.35)
+	if not ResourceLoader.exists(STORM_GUST):
+		return
+	if _wind == null:
+		_wind = _make_player(BUS_SFX)
+	if _wind.playing:
+		return
+	_wind.stream = load(STORM_GUST)
+	_wind.pitch_scale = _rng.randf_range(0.82, 1.12)
+	_wind.volume_db = lerpf(-22.0, -8.0, _wind_level) + _rng.randf_range(-1.5, 1.5)
+	_wind.play()
+
 ## 갈증 경고 — 물이 임계(3) 이하로 "떨어지는 순간" 한 번만. 회복하면 리셋(지도·단면 공용).
 func warn_thirst(water: int) -> void:
 	if water <= 3:
@@ -240,7 +277,7 @@ func warn_thirst(water: int) -> void:
 
 ## 종료 시 정리 — 재생 중 스트림 참조를 놓아 "리소스 사용 중" 누수 경고를 줄인다.
 func _exit_tree() -> void:
-	for p in ([_a, _b] + _sfx):
+	for p in ([_a, _b, _wind] + _sfx):
 		if p != null:
 			p.stop()
 			p.stream = null

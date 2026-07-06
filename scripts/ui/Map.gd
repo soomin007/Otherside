@@ -125,6 +125,7 @@ var _drag_start_y: float = 0.0    ## 드래그 시작 지점 y(스크린)
 var _drag_moved: float = 0.0      ## 드래그 누적 이동(임계 넘으면 탭 아님)
 ## 손그림 채점 원 캐시·타이머 — 랜덤 생성은 _draw 밖에서 한 번(프레임마다 흔들리면 안 됨), _draw 는 캐시만 렌더.
 var _label_pool_tex: GradientTexture2D  ## 라벨 뒤 크림 빛 웅덩이(방사) — 낙서·배경 위 가독성(상자 없이)
+var _drift: CPUParticles2D              ## 지도 띠 위 모래 드리프트 — 현 위치 진행도(환경 강도) 반영
 var _circle_cache: Dictionary = {}   ## key(노드 id 또는 "__hover") -> PackedVector2Array(중심 기준 오프셋, 잉크 거칠기 baked)
 var _circle_cur_id: String = ""      ## 현재 채점 원이 걸린 노드
 var _circle_cur_t: float = 0.0       ## current 원 경과(그려짐→점멸)
@@ -134,6 +135,9 @@ func _ready() -> void:
 	if GameState.current_run == null or not GameState.current_run.alive:
 		GameState.begin_run_in_place()
 	AudioManager.play_bed()  # 폭풍 노드에서 돌아왔으면 베드로 복귀(이미 베드면 무시 — 연속 유지)
+	# 위치 반영 환경 강도 — 현 위치가 깊을수록(진행 row) 돌풍이 잦고 모래가 세게 흐른다(분위기 시스템 (b)).
+	var env_prog: float = MapGraph.progress(_current_node_id())
+	AudioManager.set_wind(env_prog)
 
 	if ResourceLoader.exists(BG_PATH):
 		_bg_tex = load(BG_PATH)
@@ -169,6 +173,7 @@ func _ready() -> void:
 	_label_pool_tex.width = 128
 	_label_pool_tex.height = 64
 
+	_build_drift(env_prog)  # 크롬보다 먼저 — 모래는 글씨·버튼 아래로 흐른다
 	_build_chrome()
 	resized.connect(_layout_chrome)
 	call_deferred("_layout_chrome")
@@ -220,12 +225,37 @@ func _on_bag_pressed() -> void:
 		return
 	_inventory.open(run)
 
+## 지도 띠 위 모래 드리프트 — 남기기 화면과 같은 원리(진행도 → 양·속도·짙기). 웹 안전: CPUParticles2D 소량.
+## 배치·크기는 _layout_chrome 이 지도 띠에 맞춘다(리사이즈 추종).
+func _build_drift(prog: float) -> void:
+	_drift = CPUParticles2D.new()
+	_drift.texture = StormFX.make_dot_texture(10)
+	_drift.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	_drift.direction = Vector2(-1.0, 0.14)   # 전진(오른쪽)을 거스르는 바람 — StormFX 와 같은 결
+	_drift.spread = 14.0
+	_drift.gravity = Vector2(0.0, 5.0)
+	_drift.lifetime = 3.6
+	_drift.preprocess = 3.6                  # 들어오면 이미 불고 있던 바람
+	_drift.scale_amount_min = 0.5
+	_drift.scale_amount_max = 1.1
+	_drift.amount = int(lerpf(12.0, 50.0, prog))
+	_drift.initial_velocity_min = lerpf(26.0, 70.0, prog)
+	_drift.initial_velocity_max = lerpf(60.0, 170.0, prog)
+	# 밝은 모래색은 양피지와 같은 계열이라 안 보인다(대비 0) — 어두운 세피아 알갱이로,
+	# 종이 위를 스치는 모래 그늘처럼. 남기기 화면(어두운 배경)은 밝은 모래색이 맞고 여긴 반대.
+	_drift.color = Color(0.42, 0.31, 0.18, lerpf(0.25, 0.45, prog))
+	add_child(_drift)
+
 ## 크롬 배치 — STAGE 좌표(제목 230,46 · 안내문 제목 오른쪽 · 남기기 좌 칼럼 하단) → 화면 px. 리사이즈마다.
 func _layout_chrome() -> void:
 	if _title_eye == null:
 		return
 	var st := _stage_rect()
 	var sc: float = st.size.x / STAGE_W
+	if _drift != null:
+		var band := _map_area()
+		_drift.position = band.position + band.size * 0.5
+		_drift.emission_rect_extents = band.size * 0.5
 	_title_eye.position = st.position + Vector2(230.0, 24.0) * sc
 	_title_lbl.position = st.position + Vector2(228.0, 44.0) * sc
 	_guide.position = st.position + Vector2(474.0, 62.0) * sc

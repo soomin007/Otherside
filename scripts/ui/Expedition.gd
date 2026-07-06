@@ -42,6 +42,10 @@ func _ready() -> void:
 		# 안전장치: 지도를 거치지 않고 직접 이 씬으로 들어온 경우 (씬 전환 없이) 새 원정만 만든다.
 		GameState.begin_run_in_place()
 		_run = GameState.current_run
+	# 위치 반영 바람 — 이 노드가 깊을수록 돌풍이 잦고 세다. 죽음 화면에도 분다(사막의 공기).
+	# 엔딩 진입 시엔 엔딩곡이 스스로 바람을 끈다(AudioManager.play_reunion/play_cycle).
+	var wind_nid: String = _run.target_node_id() if _run.target_node_id() != "" else _run.current_node
+	AudioManager.set_wind(MapGraph.progress(wind_nid))
 	_build_hud()
 	_refresh()
 	# 도착해서 들어온 노드 화면 — 죽음 / 목적지(결말) / 단면 탐색.

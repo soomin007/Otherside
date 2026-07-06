@@ -94,9 +94,7 @@ func open(run: ExpeditionRun, node_id: String) -> void:
 		_ambient.position = size * 0.5
 		_ambient.emission_rect_extents = size * 0.46
 		# 원정대의 현 위치가 험할수록(진행 row 가 깊을수록) 모래가 더 많이, 더 세게 휘날린다.
-		var prog: float = 0.0
-		if MapGraph.NODES.has(_node_id):
-			prog = float(int(MapGraph.node(_node_id).get("row", 0))) / float(maxi(1, MapGraph.max_row()))
+		var prog: float = MapGraph.progress(_node_id)  # 지도 드리프트·바람 환경음과 같은 척도
 		_ambient.amount = int(lerpf(104.0, 240.0, prog))  # 사용자: "두 배씩 올려도 될 것 같다"(2026-07-05)
 		_ambient.initial_velocity_min = lerpf(12.0, 44.0, prog)
 		_ambient.initial_velocity_max = lerpf(38.0, 140.0, prog)

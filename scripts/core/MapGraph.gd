@@ -307,3 +307,10 @@ static func max_row() -> int:
 	for id in NODES:
 		m = maxi(m, int(NODES[id].get("row", 0)))
 	return m
+
+## 노드의 여정 진행도(0=마을 ~ 1=목적지 층) — "험지에 가까울수록 세게"의 공용 척도.
+## 환경 강도(남기기 모래 드리프트·지도 드리프트·바람 환경음)가 전부 이 값을 공유한다.
+static func progress(node_id: String) -> float:
+	if not NODES.has(node_id):
+		return 0.0
+	return float(int(NODES[node_id].get("row", 0))) / float(maxi(1, max_row()))

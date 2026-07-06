@@ -71,6 +71,7 @@ var _market_ready: bool = false    ## 페이드 인 완료 전엔 입력 무시(
 
 func _ready() -> void:
 	_rng.randomize()
+	AudioManager.set_wind(0.0)  # 마을 안(창고) = 무풍. 바람은 성문을 나서면(지도부터) 분다
 	# 배경 — 마을 창고(램프 밝힌 준비 테이블, 가로 16:9 사진). 물건이 찍혀 있는 디에게틱 무대(핸드오프 §19, 사용자 확정).
 	# 없으면 옛 가방 그림 → 절차적 마을 배경 순 fallback(웹 안전).
 	var bg_path: String = ""

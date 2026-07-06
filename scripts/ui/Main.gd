@@ -24,6 +24,7 @@ func _ready() -> void:
 	AppSettings.apply_saved()  # 저장된 음량 복원(앱 시작 = 항상 타이틀 경유)
 	Bookmark.data_reset.connect(_on_data_reset)  # 일지 설정 챕터에서 세계를 지우면 통계 갱신
 	AudioManager.play_bed()    # 엔딩곡에서 돌아왔으면 베드로 크로스페이드(이미 베드면 무시)
+	AudioManager.set_wind(0.0) # 타이틀 = 무풍(바람은 여정에서만)
 	_build_background()
 	_build_logo()
 	_build_menu()
