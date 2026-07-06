@@ -41,7 +41,9 @@
 ## 오디오 (배선까지 완료 — 미세 조정만, 상세 `docs/external/audio_list.md`)
 
 - [ ] **오디오 미세 조정.** BGM 4곡(ogg 96k, 원본 `assets_src/bgm_original/`)·SFX 29종 전부 제작·배선 완료(공통 탭·걸음 3변주·위협별 카드·호버 원 그리기 6변주·엔딩·장부 등). Music/SFX 버스·설정 볼륨 2 완료.
-      남은 것: (1) 실플레이 소리 밸런스(개별 vol_db, 탭 과하면 meta `no_tap`), (2) 보강 3종(`sfx_resource`·`reveal`·`cycle`) 노이즈 확인 → 거슬리면 재생성, (3) `sfx_settings` 보류 — 어울리는 자리 생기면 배선, (4) **웹 오디오 확인**(브라우저 자동재생 정책·ogg 재생·볼륨 저장).
+      남은 것: (1) 실플레이 소리 밸런스(개별 vol_db, 탭 과하면 meta `no_tap`), (2) 보강 3종(`sfx_resource`·`reveal`·`cycle`) 노이즈 확인 → 거슬리면 재생성, (3) `sfx_settings` 보류 — 어울리는 자리 생기면 배선.
+
+- [ ] **웹 BGM 폰 타닥 — 앱 출시 때 근본 해결(사용자 확정 2026-07-06).** 원인 = Godot 웹 Threads OFF 메인스레드 믹서 글리치(폰 CPU 성능 의존, PC 웹·네이티브는 깨끗). 상세 `known_issues`. **현 상태:** 웹은 베드곡 SAMPLE 우회로 완화(연속→가끔), 개발 편의상 Pages 자동배포 유지. **네이티브 앱은 이미 `OS.has_feature("web")` 게이트로 원래 스트림 재생 = 타닥 없음.** 앱 빌드 시 할 일: 그대로도 원본 품질(스트림), 원하면 96k ogg → 원본 mp3(`assets_src/bgm_original/` 182k) 탑재. (웹의 "가끔"까지 없애려면 COOP/COEP 보내는 호스트로 이전해 threads ON — 출시 임박 카드.)
 
 ## 외부 / 배포 대기
 
