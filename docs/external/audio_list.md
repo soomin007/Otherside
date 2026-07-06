@@ -1,260 +1,194 @@
-# 오디오 목록 (BGM = Suno · SFX = ElevenLabs) — See you on the other side
+# 오디오 — 최종 상태 + 프롬프트 보관 (See you on the other side)
 
-> **배경음악은 Suno, 효과음은 ElevenLabs(Sound Effects)로** 뽑는 단일 목록. 게임의 실제 화면·순간·톤(00_START_HERE §4 루프, 기획서 §3 결말)에 맞춰 정리.
-> 뽑은 파일은 Claude 가 리네임·배선한다(이미지 에셋과 같은 방식). 통합 메모는 맨 아래 §3.
-
----
-
-## ★ 지금 남은 것 (2026-07-05 정리 · 여기서 하나씩 복붙)
-
-> **BGM 현황: 4곡 전부 완료(2026-07-05).** ✅ 코어 베드(8분) · ✅ 재회 크레딧곡 `Other Side` · ✅ 폭풍 긴장 `The Wall of Sand`(6:24) · ✅ 순환 엔딩 `The Unresolved`(2:57)
-> **포맷: 전 곡 ogg 약 96kbps**(웹 용량 28.5→13MB, 사용자 A/B 로 음질 차이 없음 확인 2026-07-05). 원본 mp3 = `assets_src/bgm_original/`(.gdignore — 임포트·export 제외, 앱 배포 시 원본 탑재 후보).
-> **새로 뽑을 곡 없음.** 아래 프롬프트는 재생성용 보관. 배선도 완료: 폭풍 biome 노드 진입 시 폭풍곡 크로스페이드,
-> 순환 엔딩은 슬라이드부터 암전·안내까지 곡이 계속 흐르고 타이틀 복귀 때 베드로 크로스페이드(곡을 게임이 안 자름).
-
-### ✅ 1번째 · 폭풍 긴장 (폭풍 구간에서 코어 베드와 교체) — 제작됨: `The Wall of Sand.mp3`
-
-```
-[Instrumental] dark cinematic sandstorm tension, a wall of roaring desert wind rising, low dissonant drone with detuned bowed strings, rattling sand grains and faint metallic groans, a distant slow heartbeat pulse, oppressive and suffocating, no clear melody, no vocals, slowly building dread, loopable
-```
-
-- 더 애절한 결을 원하면 §1 의 변주 프롬프트(멀리서 우는 ney) 사용. 둘 중 하나면 충분.
-
-### ✅ 2번째 · 순환 엔딩 (슬라이드 배경+암전 여운, 한 곡으로 통합 · 2026-07-05 결정) — 제작됨: `The Unresolved.mp3`
-
-```
-[Instrumental] cold solemn cinematic ambient, a lone piano motif circling and unresolved over a deep drone, distant frame drum like a slow heartbeat, a single faint warm note hidden underneath hinting at another way, austere and lingering, very slow, no vocals, loopable
-```
-
-- 원래 "슬라이드 배경곡"+"엔딩곡" 2곡 계획이었으나 **한 곡으로 통일**(짧은 화면에 두 곡은 과함). 슬라이드에서 루프, 암전에서 페이드아웃은 코드가 처리.
-
-### 효과음(SFX) 전부 완료
-
-- **29종 완료** (`assets/sfx/`, 상세는 §2. 발소리 3번은 결이 안 맞아 삭제 — 3변주로 운용).
-- ✅ **위치 반영 바람 환경음(2026-07-06)** — 새 에셋 없이 `sfx_storm_gust` 를 **간헐 돌풍 스케줄러**로 재사용
-  (`AudioManager.set_wind(level)`, level = `MapGraph.progress`). 후반일수록 잦고(간격 26→8s) 세게(-22→-8dB),
-  피치 0.82~1.12 랜덤 변주로 반복 티 방지. 마을·타이틀 = 무풍, 엔딩곡 진입 시 자동 무풍.
-  **승격 후보(원하면):** ElevenLabs Loop 옵션으로 전용 바람 루프(`one sustained desert wind bed, distant soft howl, loopable`)를
-  뽑으면 돌풍 사이를 연속 저음 바람으로 메울 수 있다 — 현재는 성근 정체성(§0)에 맞는 간헐형으로 충분.
-- ✅ **원 그리기** `sfx_draw_1~6`(지도 호버 손그림 원, 6변주 랜덤) — freesound "Marker Circle"(tubbsmedia, **CC0** — 표기 불요) 원본을 6분할·정규화. 원본 = `assets_src/sfx_original/`.
-- 단 3개는 원본이 너무 조용해 +27~32dB 증폭했다. **폰이나 스피커로 들어보고 노이즈가 거슬릴 때만** ElevenLabs 재생성(프롬프트는 §2 의 ⚠️ 항목 그대로):
-  - `sfx_resource` 자원 감소 표시음 · `sfx_reveal` 노드 공개 · `sfx_cycle` 순환 저음 울림
+> BGM = Suno, SFX = ElevenLabs(Sound Effects)로 제작. 이 문서 하나가 오디오 전체의 **최종 상태**와
+> **재생성용 프롬프트 보관소**다. 파일은 Claude 가 리네임·정규화·배선한다(이미지 에셋과 같은 방식).
+>
+> **읽는 법:** 지금 상태만 알고 싶으면 §0 만 보면 된다. §1 은 실제 게임에 들어간 구조, §2 는 파일 목록.
+> §3~5 는 곡·소리를 다시 뽑거나 확장하고 싶을 때만 여는 프롬프트/톤 보관이다.
 
 ---
 
-## 0. 사운드 정체성 (전체 톤 — 먼저 읽기)
+## 0. 한눈에 — 오디오 종결됨 (2026-07-06)
+
+**제작·구현 모두 완료. 새로 뽑을 것도, 남은 필수 작업도 없다.**
+
+| 항목 | 상태 |
+|------|------|
+| BGM 4곡 | ✅ 제작·배선·포맷(ogg ~96k) 완료 |
+| SFX 30개 | ✅ 제작·정규화(-4dB)·배선 완료 |
+| 오디오 버스(Music/SFX) + 설정 슬라이더 + 전체 음소거 | ✅ 완료 |
+| 위치 반영 바람 환경음(진행도 비례) | ✅ 완료 (`sfx_storm_gust` 재사용) |
+| 웹 배포본 "타닥" 잡음 | ✅ **원인 규명 종결 — 아래 참고. 더 파지 말 것.** |
+
+### 웹 "타닥" 결론 (세션 9~16, 종결)
+- **증상:** 웹 배포본 BGM 에 규칙적 클릭음. **폰에서만**, 데스크톱 웹·네이티브는 깨끗.
+- **원인 확정:** GitHub Pages 는 Threads 를 못 켜서(SharedArrayBuffer 미지원) 웹 오디오를 메인 스레드가 처리 →
+  **폰 CPU 가 약해 생기는 언더런.** 파일·버퍼·threads 전부 아님(다 시도해 소거).
+- **현재 대응:** 웹만 베드곡을 `PLAYBACK_TYPE_SAMPLE`(브라우저 Web Audio 직접 재생)로 우회 →
+  타닥 "연속 → 가끔"으로 대폭 감소. 네이티브 데스크톱은 원래대로 스트림 재생(`OS.has_feature("web")` 게이트).
+- **근본 해결:** 앱(네이티브) 출시 때 원본/네이티브 경로로 자연 해소 — 이미 게이트로 보장됨.
+- 상세 전말·시도 로그: `docs/design/known_issues.md` "웹 오디오 타닥" 항목.
+
+### 선택적 보강 (원하면 · 급하지 않음)
+- 잔여 "가끔" 더 줄이기 = 스트림인 SFX·발소리·바람도 SAMPLE 처리(코드).
+- SAMPLE+Master 트레이드오프: Music 슬라이더가 베드에 실시간 반영 안 됨(씬 전환 때만). 8분 루프 이음매 심리스화.
+- 전용 바람 루프 에셋 승격(현재는 간헐 돌풍 재사용 — §0 성근 정체성엔 이대로도 충분).
+
+---
+
+## 1. 채택된 구조 (실제 게임에 들어간 것)
+
+### BGM = 3트랙 방식 (화면별 곡은 폐기)
+게임 무드가 하나(서늘·사막)라 화면마다 곡을 바꾸면 몰입이 깨진다 → 화면별 10곡 계획을 버리고 3트랙으로:
+
+1. **코어 베드** — 타이틀·마을·지도·전진·단면·죽음 내내 *끊기지 않고* 재생. 화면 전환에 restart 안 함.
+   `AudioManager` 가 크로스페이드 무한 루프. → `Sand Erases the Words.ogg` (8분, 길이 무관 — 안 자름).
+2. **폭풍 긴장** — 폭풍 biome 노드 진입 시 베드를 크로스페이드로 잠깐 교체, 지나면 복귀. → `The Wall of Sand.ogg`.
+3. **엔딩 2곡** (둘 다 슬라이드쇼):
+   - **재회**(따뜻한 슬라이드 + 크레딧) → `Other Side.ogg`. 이 게임 유일한 온기.
+   - **순환**(차가운 슬라이드 + 암전 여운, 한 곡으로 통합) → `The Unresolved.ogg`.
+     곡을 게임이 안 자른다 — 슬라이드부터 암전·"아무 키나" 안내까지 흐르고 타이틀 복귀 때 베드로 크로스페이드.
+
+### SFX 배선 (2026-07-05 완료)
+- **공통 탭:** 모든 버튼이 트리 추가 시 자동 연결(`AudioManager._on_node_added`, meta `no_tap` 으로 제외).
+- **걸음:** 지도 step 마다 발소리 3변주 랜덤(`play_step`, -7dB).
+- **위협/상황 카드:** 폭풍 돌풍 / 차단 crack / 그 외 card_open (`play_situation_card`).
+- **결과 팝업:** 물 획득 = water, 그 외 자원 변화 = resource.
+- **이벤트:** 조사 reveal · 줍기 pickup · 로프 rope · 남기기 leave · 가방 담기 bag_add.
+- **장부·일지:** 열닫 card_open/close · 챕터 넘김 page(3변주).
+- **결말:** 죽음 death · 재회 마지막 슬라이드 chime · 순환 암전 cycle.
+- **경고:** 물 ≤ 3 진입 시 갈증 경고 1회(`warn_thirst`).
+- **바람 환경음:** 새 에셋 없이 `sfx_storm_gust` 를 간헐 돌풍 스케줄러로 재사용
+  (`set_wind(level)`, level = `MapGraph.progress`). 후반일수록 잦고(26→8s) 세게(-22→-8dB), 피치 0.82~1.12 랜덤.
+  마을·타이틀 = 무풍, 엔딩곡 진입 시 자동 무풍.
+
+### 버스·볼륨
+- Music / SFX 버스 분리, `AppSettings` 가 버스별 음량 저장·복원, 설정창에 슬라이더 2개 + 전체 음소거.
+- 배경음악 기본 70%(효과음 묻힘 방지).
+
+---
+
+## 2. 제작된 파일 목록
+
+### BGM — `assets/bgm/` (ogg ~96kbps · 원본 mp3 = `assets_src/bgm_original/`, .gdignore)
+- `Sand Erases the Words.ogg` — 코어 베드
+- `The Wall of Sand.ogg` — 폭풍 긴장
+- `Other Side.ogg` — 재회 엔딩·크레딧
+- `The Unresolved.ogg` — 순환 엔딩(슬라이드+암전 겸용)
+
+### SFX — `assets/sfx/` (wav, 모노 44.1k, 피크 -4dB · 원본 = `assets_src/sfx_original/`)
+- **UI:** `sfx_tap` · `sfx_card_open` · `sfx_card_close` · `sfx_bag_add` · `sfx_page_1~3` · `sfx_settings`(⏸ 보류)
+- **원 그리기:** `sfx_draw_1~6` (지도 호버 손그림 원 6변주 · freesound "Marker Circle" CC0 분할)
+- **걸음·자원:** `sfx_step_1·2·4` (3변주) · `sfx_water` · `sfx_resource`
+- **이벤트:** `sfx_pickup` · `sfx_rope` · `sfx_reveal` · `sfx_leave`
+- **위협:** `sfx_storm_gust` · `sfx_crack` · `sfx_thirst`
+- **결말:** `sfx_death` · `sfx_reunion_chime` · `sfx_cycle`
+
+> **⚠️ 재생성 후보(당장은 이대로):** `sfx_resource`·`sfx_reveal`·`sfx_cycle` 은 원본이 매우 조용해 +27~32dB 보강했다.
+> 폰·스피커로 들어 노이즈가 거슬릴 때만 §5 프롬프트로 재생성. (파일 노이즈는 재생성만이 답 — 볼륨 조절로 안 됨.)
+> **⏸ 보류:** `sfx_settings` 는 설정이 장부(양피지 소리)로 바뀌며 자리를 잃음. 특별한 확인음 등으로 재활용 후보.
+
+---
+
+## 3. 사운드 정체성 (톤 — 재생성 시 먼저 읽기)
 
 **서늘·건조·고독·사막.** 모래폭풍이 글씨를 지우는 세계, 거의 다 죽는 원정대의 릴레이, 죽기 전 단 한 번의 남김.
-정서 반전은 결말의 **재회**(작별인 줄 알았던 것이 재회가 된다) — **따뜻함은 오직 재회에만** 들어온다. 나머지는 담담하고 척박하게.
+정서 반전은 결말의 **재회**(작별인 줄 알았던 것이 재회가 된다) — **따뜻함은 오직 재회에만**. 나머지는 담담하고 척박하게.
 
 - **팔레트:** 성근 다크 앰비언트 드론, 사막 바람, 중동 리드(ney·duduk), 보잉 스트링, 펠트 피아노, 멀리서 울리는 프레임 드럼, 모래 알갱이 그래뉼러 텍스처.
 - **금지:** 뚜렷한 보컬(무언의 숨·패드만 허용), 빠른 비트, 밝은 멜로디(재회 제외), 팝적 훅.
 - **템포:** 대부분 50~65 bpm, 멜로디 최소.
 - **레퍼런스 결:** 서울 2033(황량·텍스트 밀도), Reigns(짧은 런), Expedition 33(릴레이).
 
-**Suno 공통 팁**
-- 스타일 프롬프트 맨 앞에 `[Instrumental]`. 가사 칸은 비우거나 `no vocals`.
-- **길이 (신경 안 써도 됨):** Suno v4.5 는 구조 태그(`[End]`/`[Outro]`)를 넣어도 **4~8분이 흔하다** — 길이 제어는 사실상 안 먹힌다. 하지만 **게임 BGM 은 루프라 길이는 문제가 안 된다.** 두 갈래(둘 다 사용자 음악 편집 불필요):
-  - **통짜 그대로(제일 쉬움):** 4~5분 앰비언트를 그대로 넣고 게임이 반복 재생. 드론/앰비언트라 이음매도 거의 안 티난다. **매끈한 크로스페이드 루프는 `AudioManager` 가 코드로 처리.**
-  - **특정 구간만:** 마음에 드는 구간 타임코드(예: `1:20~2:30`)만 알려주면 **Claude 가 ffmpeg 로 잘라 크로스페이드·`.ogg` 변환**한다.
-  → 요약: 좋은 곡 하나 뽑는 데만 집중. 자르기·루프는 Claude 에게 넘긴다.
-- 스타일 칸은 짧을수록 안정적(장르 + 무드 + 악기 + 템포 순). 아래 프롬프트는 그대로 붙여넣기용.
-
 ---
 
-## 1. 배경음악 (BGM)
+## 4. 재생성용 프롬프트 — 채택된 BGM 4곡
 
-> **★ 최종 결정(2026-07-04): 화면별 곡 폐기 → 3트랙 방식.** 게임 무드가 하나(서늘·사막)라 화면마다 곡을 바꾸면 몰입만 깨진다. 대신:
-> 1. **잔잔한 코어 베드** — 코어 루프(타이틀·마을·지도·전진·단면·죽음) 내내 *끊기지 않고 계속* 재생(화면 전환에 restart 안 함). `AudioManager` 가 크로스페이드 무한 루프. **✅ 제작됨(8분, 길이 무관 — 안 자름).**
-> 2. **폭풍 긴장** — 폭풍 구간에서 베드를 크로스페이드로 잠깐 교체, 지나면 복귀. **✅ 제작·배선됨(`The Wall of Sand.mp3`, 폭풍 biome 노드).**
-> 3. **엔딩 (둘 다 슬라이드쇼 — 2026-07-04):** 재회 = 따뜻한 슬라이드(47~52 중 50~52) + 크레딧곡 `Other Side`(✅). 순환 = 차가운 슬라이드(47~49, 언더테일식 암시) + **전용곡 1곡(슬라이드+암전 겸용, ✅ `The Unresolved.mp3` · 2026-07-05 통합·배선)** → 암전 → "아무 키나 눌러 계속" → 타이틀.
->
-> 아래 B1~B10 per-screen 프롬프트는 **참고용(여유 시 마을·죽음 등 확장)** — 필수는 위 3개뿐이다.
+> 다시 뽑거나 다듬고 싶을 때만. 스타일 프롬프트 맨 앞 `[Instrumental]`, 가사 칸은 비우거나 `no vocals`.
+> 길이는 신경 쓸 것 없음 — 게임 BGM 은 루프라 Claude 가 ffmpeg 로 구간 잘라 크로스페이드·ogg 변환한다.
 
-### 폭풍 긴장 (crisis / storm) — Suno 프롬프트 (✅ 제작됨 — `The Wall of Sand.mp3`)
-
-- **어디서:** 폭풍 구간·폭풍 노드(모래의 벽·폭풍의 문). 베드를 크로스페이드로 교체. 길이 무관(루프).
-- **역할:** 살을 베는 모래바람, 압박·불안. 액션 영화식 과장 말고 **서늘한 위협·질식감**(게임 팔레트 안에서).
-
-```
-[Instrumental] dark cinematic sandstorm tension, a wall of roaring desert wind rising, low dissonant drone with detuned bowed strings, rattling sand grains and faint metallic groans, a distant slow heartbeat pulse, oppressive and suffocating, no clear melody, no vocals, slowly building dread, loopable
-```
-
-변주(더 애절한 결 — 폭풍 속 리드):
-```
-[Instrumental] tense desert dread, a distant wailing ney over a low rumbling drone, howling wind and shifting sand, sparse trembling strings, cold and threatening, restrained, no drums or a faint pulse, no vocals, loopable
-```
-> 여느 때처럼 인스트루멘탈, 길이 신경 X(내가 루프·크로스페이드 처리). Suno 는 한 번에 2 take 주니 골라서.
-
-### 엔딩 음악 (2026-07-04 · 2026-07-05 순환 1곡으로 통합)
-
-- **재회:** `Other Side`(✅ 제작됨). 따뜻한 슬라이드(50~52) + 크레딧.
-- **순환** (✅ 제작됨 — `The Unresolved.mp3`): 슬라이드 배경과 암전 여운을 **한 곡**으로 덮는다(사용자 확정 2026-07-05). 곡은 게임이 안 자른다 — 암전·안내까지 계속 흐르고 타이틀 복귀 때 베드로 크로스페이드. 차갑고 미해결, 밑에 옅은 희망 한 줄기:
-```
-[Instrumental] cold solemn cinematic ambient, a lone piano motif circling and unresolved over a deep drone, distant frame drum like a slow heartbeat, a single faint warm note hidden underneath hinting at another way, austere and lingering, very slow, no vocals, loopable
-```
-> 맨 위 ★섹션의 2번째 블록과 같은 프롬프트다(원래 2곡 프롬프트를 하나로 합침: 순환 모티프·심장박동 프레임드럼 + 외로운 피아노·옅은 온기 힌트).
-
-### B1 · 타이틀 테마  · P0
-- **어디서:** 타이틀 화면(Main). 첫인상. 루프 60~90s.
-- **역할:** 서늘·고독하되 밑바닥에 아주 옅은 온기(재회 복선).
+### 코어 베드 (`Sand Erases the Words`)
 ```
 [Instrumental] sparse cinematic dark ambient, lone duduk over a low drone,
 distant desert wind, mournful with a faint warmth beneath, no percussion, no vocals, 55 bpm, loopable
 ```
-- 제목 예: *Sand Erases the Words*
+> ⚠️ 이 곡에 광대역 프레임드럼/모래 타격이 작곡돼 있어 폰 타닥과 겹쳐 들릴 수 있다(웹 타닥 자체는 CPU 문제로 별개).
+> 재생성 시 `no percussion, no hits` 를 더 강하게, 또는 무타악기 순수 드론으로.
 
-### B2 · 오프닝 서사  · P1
-- **어디서:** 첫 플레이 오프닝 슬라이드쇼(Opening, 5장). 원샷 2~3분(스킵 가능하니 루프 불필요).
-- **역할:** 조용한 불안 → 서늘한 소개 → 옅은 애틋함. 말없이 세계를 깐다.
+### 폭풍 긴장 (`The Wall of Sand`)
 ```
-[Instrumental] minimal cinematic ambient, felt piano single notes, swelling bowed strings,
-granular sand textures, breathy wordless pad, solemn and tender, very slow, building, no drums, no vocals
+[Instrumental] dark cinematic sandstorm tension, a wall of roaring desert wind rising, low dissonant drone with detuned bowed strings, rattling sand grains and faint metallic groans, a distant slow heartbeat pulse, oppressive and suffocating, no clear melody, no vocals, slowly building dread, loopable
 ```
-- 제목 예: *The One Who Sends Them*
+변주(더 애절한 결 — 폭풍 속 우는 ney):
+```
+[Instrumental] tense desert dread, a distant wailing ney over a low rumbling drone, howling wind and shifting sand, sparse trembling strings, cold and threatening, restrained, no drums or a faint pulse, no vocals, loopable
+```
 
-### B3 · 마을 · 가방 꾸리기  · P1
-- **어디서:** 마을/가방 화면(Loadout). 늙은 시장 상인, 출발 전 준비. 루프 60~90s.
-- **역할:** 먼지 낀 정적, 떠나기 전 잠깐의 온기. 담담한 채비.
+### 순환 엔딩 (`The Unresolved`) — 슬라이드+암전 한 곡
 ```
-[Instrumental] quiet Middle-Eastern folk ambient, soft oud plucks, low ney flute,
-faint room tone, warm dusty calm, slow, intimate, very soft hand drum or none, no vocals, loopable
+[Instrumental] cold solemn cinematic ambient, a lone piano motif circling and unresolved over a deep drone, distant frame drum like a slow heartbeat, a single faint warm note hidden underneath hinting at another way, austere and lingering, very slow, no vocals, loopable
 ```
-- 제목 예: *The Old Trader's Stall*
 
-### B4 · 지도 · 계획  · P0
-- **어디서:** 탑뷰 지도(Map). 안개, 마커 이동, 갈 곳 고르기. 루프 90s.
-- **역할:** 사색적 계획. 멀어질수록 옅은 긴장(거리 곡선). 레이어드 하기 좋게 성글게.
-```
-[Instrumental] contemplative dark ambient, slow evolving drone, sparse bowed-string swells,
-tiny prepared-piano motes, cold and patient, subtle underlying tension, no beat, no vocals, loopable
-```
-- 제목 예: *Reading the Map*
-
-### B5 · 전진 · 단면 탐색  · P0
-- **어디서:** 이동 중(맵 마커 전진) + 도착 노드 단면 조사(Section). 루프 90s.
-- **역할:** 한 걸음씩 밀어붙이는 베드. 걸음·자원 불안의 낮은 맥박. 멜로디 없음.
-```
-[Instrumental] tense minimal ambient, slow low pulse like distant footsteps in sand,
-dry percussive taps, hollow drone, thirst and fatigue mood, no melody, no vocals, 50 bpm, loopable
-```
-- 제목 예: *One Step, Then Another*
-- 참고: 여유 되면 **후반(척박) 변주** 한 판 더 — 위 프롬프트에 `harsher, more dissonant, sparser` 추가.
-
-### B6 · 폭풍  · P0
-- **어디서:** 폭풍 구간·폭풍 노드(모래의 벽·폭풍의 문). 짧은 루프 30~45s 또는 스팅어.
-- **역할:** 위험·압박. 살을 베는 바람, 불협, 차오르는 긴장.
-```
-[Instrumental] harsh cinematic tension, roaring sandstorm wind wall, dissonant low strings,
-rattling grains, rising dread, no clear melody, no vocals, unsettling, loopable
-```
-- 제목 예: *The Wall of Sand*
-
-### B7 · 죽음  · P0
-- **어디서:** 원정대 사망(고갈·위협). 원샷 15~30s (짧게, 여운 남기고 침묵).
-- **역할:** 애도. 스러진 원정대 하나. 정보 0, 정서 100.
-```
-[Instrumental] short mournful sting, a single lamenting duduk phrase over a fading drone,
-hollow and final, then silence, no percussion, no vocals
-```
-- 제목 예: *A Body in the Sand*
-
-### B8 · 남기기  · P0 (정서 핵심)
-- **어디서:** 남기기(BequeathPanel) — 물건 하나를 다음 원정대에게 두는 순간. 원샷/루프 40~60s.
-- **역할:** 애틋함. 내 수명을 깎아 미래에 건네는 희생과 옅은 희망. 이 게임의 심장.
-```
-[Instrumental] tender bittersweet ambient, gentle felt-piano motif, warm low strings,
-a fragile hopeful turn, intimate and sacrificial, very slow, no drums, no vocals
-```
-- 제목 예: *One Thing, Left Behind*
-
-### B9 · 결말 · 순환  · P1
-- **어디서:** 순환 엔딩(끝에 닿았으나 릴레이가 이어짐, 이번 원정대가 재앙의 자리에). 원샷 40~60s.
-- **역할:** 차갑고 불가피함. 해소되지 않는 순환. 다음 원정대가 이곳으로 온다.
-```
-[Instrumental] cold solemn cinematic, circular unresolved motif, deep drone,
-distant frame drum like a slow heartbeat, no release, austere, no vocals
-```
-- 제목 예: *The Relay Does Not Stop*
-
-### B10 · 결말 · 재회  · P0 (정서 정점 — 유일한 온기)
-- **어디서:** 재회 엔딩(흔적 충분 + 무사 도달 → 먼저 간 모든 원정대와 건너편에서 재회). 원샷 60~120s. 이 게임의 페이오프.
-- **역할:** 카타르시스·온기·해소. 오래 참았던 긴장이 마침내 풀린다. 작별이 재회가 되는 순간.
+### 재회 엔딩 (`Other Side`) — 정서 정점, 유일한 온기
 ```
 [Instrumental] warm cathartic cinematic, ney and duduk in gentle harmony, blooming warm strings,
 resolving warm chords, long-held tension finally released, tearful relief, slow build to warmth,
 soft wordless choir or no vocals, no harsh percussion
 ```
-- 제목 예: *See You on the Other Side*
 
 ---
 
-## 2. 효과음 (SFX) — ElevenLabs Sound Effects · ✅ 24종 전부 완료
+## 5. 재생성용 프롬프트 — SFX (ElevenLabs)
 
-> **ElevenLabs 의 Sound Effects(text-to-SFX)로 만든다.** 짧은 자연어 설명을 넣으면 짧은 효과음이 나온다. 게임 SFX에 잘 맞는다(Suno는 BGM 전용).
-> **팁:** ① 설명은 짧고 구체적으로(재료·질감·동작 단어: dry, soft, paper, sand, leather). ② Duration 0.3~3s 로 짧게. ③ Prompt influence 높이면 설명에 충실(사실적)·낮추면 창의적. ④ 바람·공허 같은 앰비언트는 Loop 옵션. ⑤ 출력은 `.mp3`(Godot 가 그대로 임포트, 필요 시 `.wav` 변환). **⑥ 일회성 소리는 `a single one-shot ..., one hit only, not repeating` 을 꼭 넣기(아래 ★요령 — tick/tap 만 쓰면 반복 기계음이 됨).**
-> **톤(§0 유지):** 건조·성글게. 종이·모래·가죽·나무 질감. 날카롭거나 만화 같지 않게. 과장 금지.
+> **핵심 요령:** ElevenLabs 는 `tick`·`tap` 만 쓰면 여러 번 반복되는 기계음(타다다닥)으로 만든다.
+> 일회성 소리는 반드시 **`a single one-shot ...` + `one hit only` + `not repeating` + `no rhythm, no sequence` + `very short`**.
+> Duration 0.3~3s, 톤은 §3(건조·성글게, 종이·모래·가죽·나무). 다 뽑아 오면 Claude 가 -4dB 정규화·wav 변환·배선.
 
-각 항목: 용도 + ElevenLabs 프롬프트(영어, 그대로 붙여넣기). **전부 제작 완료 상태라 아래 프롬프트는 재생성용 보관.** ⚠️ 표시 3개만 노이즈 확인 후 재생성 후보.
+**UI**
+- 탭/버튼(`sfx_tap`): `a single one-shot soft muted tap on paper, one hit only, not repeating, no rhythm, very short, dry`
+- 카드 열기(`sfx_card_open`): `a single one-shot soft parchment card sliding open once, one motion only, not repeating, dry paper rustle, short`
+- 카드 닫기(`sfx_card_close`): `a single one-shot soft parchment card closing once, one motion only, not repeating, brief dry paper, short`
+- 가방 담기(`sfx_bag_add`): `a single one-shot light cloth swipe then a soft leather thud, one item placed once, not repeating, short`
+- 페이지 넘김(`sfx_page`): `a single one-shot old paper page turning once, one page only, not repeating, dry and quiet, short`
 
-> **★ 제작 현황(2026-07-05): 효과음 24종 전부 처리 완료 → `assets/sfx/` (wav 24개, 모노 44.1k, 피크 -4dB).**
-> - **UI:** `sfx_tap`·`sfx_card_open`·`sfx_card_close`(open/close 구분 불가라 close 로 통일)·`sfx_bag_add`·`sfx_page_1~3`(5초 3연속을 분할, 랜덤 회전)·`sfx_settings`
-> - **걸음·자원:** `sfx_step_1·2·4`(발소리 3변주 — `play_step()` 랜덤, -7dB. **3번은 결이 안 맞아 삭제**, 2026-07-05)·`sfx_water`(물 한 모금)·`sfx_resource`(자원 표시음)
-> - **이벤트:** `sfx_pickup`(줍기)·`sfx_rope`(로프)·`sfx_reveal`(노드 공개)·`sfx_leave`(남기기)
-> - **위협:** `sfx_storm_gust`(폭풍 돌풍)·`sfx_crack`(갈라진 틈)·`sfx_thirst`(갈증 경고) — crack/thirst 는 첫 원본이 손상돼 한 번 유실됐다가 **재생성해 복구**(정상 레벨).
-> - **결말:** `sfx_death`(스러짐)·`sfx_reunion_chime`(재회 차임)·`sfx_cycle`(순환 울림)
-> - ⚠️ `sfx_resource`·`sfx_reveal`·`sfx_cycle` 은 원본이 매우 조용해 **+27~32dB 보강** → 노이즈 있으면 재생성 후보(당장은 이대로). 인게임 볼륨은 `play_sfx(path, vol_db)` 로 조절 가능(파일 노이즈는 재생성만이 답).
-> - `reveal`/`cycle` 은 접두사(`de`)가 겹쳐 고역 분석으로 구분(#3=reveal 밝음·#2=cycle 저역, 신뢰 보통 — 바뀌었으면 스왑).
-> - **✅ 배선 완료(2026-07-05):** 모든 버튼 공통 탭(트리 추가 시 자동 연결, `AudioManager._on_node_added` · meta `no_tap` 으로 제외 가능) · 걸음(지도 step마다 4변주) · 갈증 경고(물≤3 진입 시 1회, `warn_thirst`) · 상황 카드 = 위협별(폭풍 돌풍/차단 crack/그 외 card_open, `play_situation_card`) · 결과 팝업 자원 변화(물 획득 water/그 외 resource) · 조사 reveal · 줍기 pickup · 로프 rope · 죽음 death · 재회 마지막 슬라이드 chime · 순환 암전 cycle · 남기기 leave · 가방 담기 bag_add · 장부 열닫 card_open/close · 확인 전환·일지 챕터 page.
-> - ⏸ `sfx_settings`(따뜻한 저음 톤)는 설정이 장부(양피지 소리)로 바뀌며 자리를 잃음 — **보류.** 후보: 특별한 확인음(첫 기록지 수령 등).
+**걸음·자원**
+- 모래 걸음(`sfx_step`): `a single one-shot footstep pressing into dry desert sand once, one step only, not repeating, soft close crunch`
+- 물 한 모금(`sfx_water`): `a single one-shot short quiet gulp of water from a metal flask, one sip only, not repeating`
+- ⚠️ 자원 감소(`sfx_resource`): `a single one-shot tiny dry soft blip, one hit only, not repeating, no ticking, no rhythm, minimal and short`
 
-> **★ 요령 — "단 한 번"을 강하게 (중요):** ElevenLabs 는 `tick`·`tap` 만 쓰면 **시계·톱니처럼 여러 번 반복되는 기계음(타다다닥)**으로 만든다. 일회성 소리는 반드시 **`a single one-shot ...` + `one hit only` + `not repeating` + `no rhythm, no sequence` + `very short`** 를 넣어 못 박는다. (지속·앰비언트 소리만 길게/반복 허용.)
+**이벤트**
+- 줍기(`sfx_pickup`): `a single one-shot soft warm confirmation, picking up one small item, one hit only, not repeating, gentle and brief`
+- 로프(`sfx_rope`): `a single one-shot taut rope pulling tight and creaking once, secured across a gap, one motion, not repeating`
+- ⚠️ 노드 공개(`sfx_reveal`): `a single one-shot delicate ink bloom on parchment with a soft airy shimmer, one reveal only, not repeating, short`
+- 남기기(`sfx_leave`): `a single one-shot small object set down onto sand once, one soft placement with low resonance, not repeating`
 
-**UI (전부 일회성) · ✅ 완료**
-- ✅ **원 그리기**(지도 호버 손그림 원, `sfx_draw_1~6` 랜덤 · -6dB): freesound "Marker Circle"(tubbsmedia, CC0) 6분할. AI 프롬프트 불필요해짐.
-- 탭 / 버튼: `a single one-shot soft muted tap on paper, one hit only, not repeating, no rhythm, very short, dry`
-- 카드 열기: `a single one-shot soft parchment card sliding open once, one motion only, not repeating, dry paper rustle, short`
-- 카드 닫기: `a single one-shot soft parchment card closing once, one motion only, not repeating, brief dry paper, short`
-- 가방에 담기: `a single one-shot light cloth swipe then a soft leather thud, one item placed once, not repeating, short`
-- 페이지 넘김: `a single one-shot old paper page turning once, one page only, not repeating, dry and quiet, short`
-- 설정 열기: `a single one-shot soft muted low ui tone, one gentle tone only, not repeating, warm, short`
+**위협 (지속 ~2s, 앰비언트)**
+- 폭풍 돌풍(`sfx_storm_gust`): `one sustained gust of harsh sandstorm wind rising and holding for about 2 seconds, grains rattling, single continuous swell, not looping`
+- 갈라진 틈(`sfx_crack`): `a single hollow low echo rising once from a deep crack in the ground, empty and cold, one sustained tail, not repeating`
+- 갈증 경고(`sfx_thirst`): `a single low subtle warning drone, one sustained tone about 1.5 seconds, dry and tense but not alarming, not repeating`
 
-**걸음 · 자원 (전부 일회성) · ✅ 완료**
-- 모래 걸음: `a single one-shot footstep pressing into dry desert sand once, one step only, not repeating, soft close crunch`
-- 물 한 모금: `a single one-shot short quiet gulp of water from a metal flask, one sip only, not repeating`
-- ⚠️ 자원 감소 표시음(`sfx_resource`, 노이즈 시 재생성 후보): `a single one-shot tiny dry soft blip, one hit only, not repeating, no ticking, no rhythm, minimal and short`
-
-**이벤트 결과 (전부 일회성) · ✅ 완료**
-- 줍기(획득): `a single one-shot soft warm confirmation, picking up one small item, one hit only, not repeating, gentle and brief`
-- 로프 걸기: `a single one-shot taut rope pulling tight and creaking once, secured across a gap, one motion, not repeating`
-- ⚠️ 노드 공개(잉크 리빌, `sfx_reveal`, 노이즈 시 재생성 후보): `a single one-shot delicate ink bloom on parchment with a soft airy shimmer, one reveal only, not repeating, short`
-- 남기기(내려놓음): `a single one-shot small object set down onto sand once, one soft placement with low resonance, not repeating`
-
-**위협 (지속 ~2s, 반복 아님 — 앰비언트) · ✅ 완료**
-- 폭풍 돌풍(경고): `one sustained gust of harsh sandstorm wind rising and holding for about 2 seconds, grains rattling, single continuous swell, not looping` (또는 Loop 로 배경)
-- 갈라진 틈(공허): `a single hollow low echo rising once from a deep crack in the ground, empty and cold, one sustained tail, not repeating`
-- 갈증 경고: `a single low subtle warning drone, one sustained tone about 1.5 seconds, dry and tense but not alarming, not repeating`
-
-**결말 · 죽음 (전부 일회성) · ✅ 완료**
-- 죽음(스러짐): `a single one-shot low mournful impact with a long fading resonance, a body settling into sand once, not repeating`
-- 재회 차임: `a single one-shot warm resolving bell shimmer, one gentle bloom, tender and hopeful, not repeating`
-- ⚠️ 순환 저음 울림(`sfx_cycle`, 노이즈 시 재생성 후보): `a single one-shot deep low resonant drone hit, one strike, cold and unresolved, slowly fading, not repeating`
-
-> 톤은 전부 §0. ElevenLabs 가 또 반복하면 `one hit only, not repeating` 를 맨 앞에 더 세게. 다 뽑아 오면 Claude 가 -4dB 정규화·wav 변환·배선.
+**결말**
+- 죽음(`sfx_death`): `a single one-shot low mournful impact with a long fading resonance, a body settling into sand once, not repeating`
+- 재회 차임(`sfx_reunion_chime`): `a single one-shot warm resolving bell shimmer, one gentle bloom, tender and hopeful, not repeating`
+- ⚠️ 순환 울림(`sfx_cycle`): `a single one-shot deep low resonant drone hit, one strike, cold and unresolved, slowly fading, not repeating`
 
 ---
 
-## 3. Godot / 웹 통합 메모 (넣기 전 참고)
+## 6. 폐기된 아이디어 (참고 보관 — 되살릴 일 없으면 무시)
 
-- **포맷:** ✅ 음악은 전 곡 `.ogg` 약 96kbps 로 변환 완료(2026-07-05. 루프는 파일 loop 대신 `AudioManager` 수동 크로스페이드라 임포트 Loop 불필요). SFX 는 `.wav`(AudioStreamWAV) — 지연 없이 재생.
-- **경량(웹 첫 로딩):** 음악은 모노 또는 저비트레이트(96~128kbps), **루프 구간만**. 과대 파일 금지(GL Compatibility 로딩 부담). SFX 는 짧고 작게.
-- **루프 만들기:** Suno 생성물(길이 무관, 8분이 나와도)에서 이음매 없는 8~90s 구간만 잘라 쓰고, 시작·끝을 짧게 크로스페이드해 반복 티를 없앤다.
-- **볼륨:** ✅ **Music / SFX 버스 분리 완료(2026-07-05)** — `AudioManager` 가 버스 생성, `AppSettings` 가 버스별 음량 저장·적용, 설정창에 배경음악·효과음 슬라이더 2개(+ 전체 음소거). 배경음악 기본 70%(효과음 묻힘 방지).
-- **배치 제안:** `assets/audio/bgm/`, `assets/audio/sfx/`. 파일명 규칙 유지(예: `bgm_04_map.ogg`, `sfx_pickup.wav`).
+- **화면별 BGM 10곡(구 B1~B10):** 타이틀·오프닝·마을·지도·전진·폭풍·죽음·남기기·순환·재회 per-screen 곡.
+  → **§1 의 3트랙 방식으로 대체**(2026-07-04). 무드가 하나라 화면마다 곡을 바꾸면 몰입만 깨져서 폐기.
+  나중에 특정 화면(예: 마을·남기기)만 전용 곡으로 확장하고 싶으면 이 방향을 되살릴 수 있으나, 프롬프트 전문은
+  git 이력(이 파일의 2026-07-06 이전 버전)에 있다. 굳이 여기 남기지 않는다.
+- **발소리 3번(`sfx_step_3`):** 결이 안 맞아 삭제, 3변주(1·2·4)로 운용.
 
-### 넣기 전에 Claude 가 미리 해둘 수 있는 것 (원하면 말만)
-- `AudioManager` autoload: **씬별 BGM 자동 재생 + 크로스페이드**(타이틀→마을→지도→단면→엔딩), 이벤트 SFX 훅.
-- **Music / SFX 오디오 버스** 분리 + `AppSettings` 연동(음량 저장/복원).
-- 빈 파일 자리(placeholder) 배선 → **파일만 위 이름으로 넣으면 즉시 소리**가 나게.
+---
 
-> 요약: 위 B4·B5·B6·B8·B10 다섯 개만 있어도 게임의 정서가 확 산다. 거기서부터 늘려가면 된다.
+## 7. Godot / 웹 통합 메모
+
+- **포맷:** BGM = `.ogg` ~96kbps(웹 용량 28.5→13MB, A/B 로 음질 차이 없음 확인). 루프는 파일 loop 대신
+  `AudioManager` 수동 크로스페이드라 임포트 Loop 불필요. SFX = `.wav`(AudioStreamWAV, 지연 없이 재생).
+- **경량(웹 첫 로딩):** GL Compatibility 로딩 부담 때문에 과대 파일 금지. 음악은 저비트레이트 루프 구간만, SFX 는 짧고 작게.
+- **웹 재생 함정:** no-threads(Pages) 환경에선 스트림 믹서에 폰 타닥 위험 → 베드는 웹 전용 SAMPLE 재생.
+  오디오 구조를 바꾸면 **반드시 웹 실기기에서 소리 확인**(데스크톱은 멀쩡해도 폰에서 깨질 수 있음).
+- **배치:** `assets/bgm/`, `assets/sfx/`. 파일명 규칙 유지.
