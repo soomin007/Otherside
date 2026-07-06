@@ -115,10 +115,19 @@ const NODES: Dictionary = {
 					{"label": "바람 잦아들 때 맨몸으로 건넌다", "effect": {"water": -2, "food": -2}},
 				],
 			},
+			{
+				"id": "cracked_floor_bones", "threat": Threats.Kind.BLOCKAGE,
+				"text": "틈 가장자리에 오래된 뼈 몇이 걸려 있다. 누군가 여기서 미끄러졌다. 로프를 걸면 다음에도 건널 수 있다.",
+				"choices": [
+					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge", "sets": ["rope_spent_now"]},
+					{"label": "조심조심 맨몸으로 건넌다", "effect": {"water": -3, "food": -2}},
+				],
+			},
 		],
 		"spots": [
 			{"id": "crack_flask", "label": "틈 아래", "at": Vector2(0.3, 0.66), "source": "cache", "effect": {"water": 2}, "text": "균열 턱에 걸린 물통. 조심히 집어 올린다."},
 			{"id": "crack_dark", "label": "틈 속 어둠", "at": Vector2(0.68, 0.62), "source": "empty", "text": "바닥이 보이지 않는다. 손을 넣을 엄두가 안 난다."},
+			{"id": "crack_scrap", "label": "틈에 걸린 것", "at": Vector2(0.5, 0.36), "source": "event", "event": {"id": "crack_rope_scrap", "threat": Threats.Kind.BLOCKAGE, "text": "틈 벽에 낡은 밧줄 토막이 걸려 있다. 몸을 기울이면 닿을 듯도 하다.", "choices": [{"label": "기울여 잡아 뺀다", "effect": {"rope": 1, "water": -1}}, {"label": "위험하다, 둔다", "effect": {}}]}},
 		],
 	},
 	"c1": {
@@ -161,6 +170,7 @@ const NODES: Dictionary = {
 		"spots": [
 			{"id": "oasis_shade", "label": "야자 그늘", "at": Vector2(0.72, 0.55), "source": "cache", "effect": {"food": 1}, "text": "그늘에서 숨을 고른다. 마른 대추야자 몇 알."},
 			{"id": "oasis_edge", "label": "물가", "at": Vector2(0.24, 0.68), "source": "cache", "effect": {"water": 3}, "text": "가장자리에 고인 맑은 물. 물통을 넉넉히 채운다."},
+			{"id": "oasis_pooled", "label": "넓혀둔 웅덩이", "at": Vector2(0.5, 0.4), "source": "cache", "requires": "oasis_widened", "effect": {"water": 3}, "text": "이전 원정대가 파 넓힌 자리에 물이 그득 고였다. 재방문의 보답."},
 		],
 	},
 	"c2": {
@@ -258,10 +268,19 @@ const NODES: Dictionary = {
 					{"label": "미련 없이 지나친다", "effect": {}},
 				],
 			},
+			{
+				"id": "poison_pool_bird", "threat": Threats.Kind.CONSUMPTION,
+				"text": "웅덩이에 새 한 마리가 죽어 떠 있다. 물을 마신 대가일까. 그래도 목은 탄다.",
+				"choices": [
+					{"label": "정화천에 걸러 마신다", "effect": {"water": 4, "filter": -1}, "needs": {"filter": 1}},
+					{"label": "위험하다, 지나친다", "effect": {}},
+				],
+			},
 		],
 		"spots": [
 			{"id": "pool_reeds", "label": "마른 갈대", "at": Vector2(0.26, 0.66), "source": "cache", "effect": {"food": 1}, "text": "웅덩이 가장자리 마른 갈대. 뿌리를 씹으면 요기는 된다."},
 			{"id": "pool_sweet", "label": "단내 나는 물", "at": Vector2(0.72, 0.6), "source": "empty", "text": "가까이서 보니 물빛이 탁하다. 손대지 않는 게 낫겠다."},
+			{"id": "pool_tracks", "label": "물가 발자국", "at": Vector2(0.5, 0.38), "source": "event", "event": {"id": "pool_prints", "threat": Threats.Kind.CONSUMPTION, "text": "웅덩이 가장자리에 발자국이 어지럽다. 여럿이 여기서 물을 마셨고, 그중 몇은 되돌아가지 않았다.", "choices": [{"label": "발자국을 따라 잠깐 살핀다", "effect": {"food": 1}}, {"label": "지체 없이 간다", "effect": {}}]}},
 		],
 	},
 	"e1": {
