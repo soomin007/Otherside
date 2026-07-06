@@ -395,6 +395,13 @@ func _on_tab_input(event: InputEvent, idx: int) -> void:
 
 ## 일지를 특정 챕터로 연다(0=일대기·1=조작·2=설정). 타이틀 메뉴 등 외부 진입점.
 func open_journal(chapter: int = 0) -> void:
+	if Transition.busy():
+		return  # 전환 중엔 열지 않는다 — 일지 밑에서 씬이 바뀌는 것 방지
+	# ★ 일지가 열리면 세계가 멈춘다(트리 pause). 지도 이동·씬 전환이 일지 밑에서 계속 진행돼
+	#   설정 위로 다음 씬 튜토리얼이 겹치던 버그(2026-07-06 사용자 제보)의 근본 차단 —
+	#   "오버레이 밑에서 세계가 흐르는" 계열 전체를 막는다. Bookmark/AudioManager/Transition/Tutorial 은
+	#   PROCESS_MODE_ALWAYS 라 일지 조작·음악·(닫은 뒤) 전환은 그대로 동작한다.
+	get_tree().paused = true
 	_layout_book()
 	_panel.visible = true
 	UITheme.fade_in(_panel)
@@ -409,7 +416,12 @@ func open_journal(chapter: int = 0) -> void:
 func _open() -> void:
 	open_journal(0)
 
+## 일지가 열려 있나 — 다른 오버레이(Tutorial 등)가 겹침을 피할 때 본다.
+func is_open() -> bool:
+	return _panel != null and _panel.visible
+
 func _close() -> void:
+	get_tree().paused = false  # 일지를 덮으면 세계가 다시 흐른다(이동·연출 재개)
 	AudioManager.play_sfx(AudioManager.CARD_CLOSE)  # 일지를 덮는 소리
 	_panel.visible = false
 

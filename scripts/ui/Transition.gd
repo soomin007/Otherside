@@ -64,6 +64,10 @@ func _ready() -> void:
 	_sand.color_ramp = ramp
 	add_child(_sand)
 
+## 전환 진행 중인가 — 전환 중엔 모달(일지 등)을 열지 않는 가드용(씬이 모달 밑에서 바뀌는 것 방지).
+func busy() -> bool:
+	return _busy
+
 ## 씬 전환 — UI 흩어짐 → 배경 페이드 → 교체 → 걷힘. 전환 중 재호출은 무시(busy).
 func go(scene_path: String) -> void:
 	if _busy:

@@ -44,6 +44,11 @@ func _process(_delta: float) -> void:
 	if GameState.current_run != null and not GameState.current_run.alive:
 		_hide()
 		return
+	# 일지(Bookmark, 레이어 100)가 열려 있으면 안 뜬다 — 튜토리얼(110)이 일지 위로 겹치던 버그(2026-07-06).
+	# 일지를 덮으면 그 씬의 단계가 다시 뜬다.
+	if Bookmark.is_open():
+		_hide()
+		return
 	if _step_idx >= STEPS.size():
 		GameState.mark_controls_tutorial_seen()
 		_hide()
