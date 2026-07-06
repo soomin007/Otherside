@@ -33,7 +33,10 @@
 - **증상:** 웹 배포본 BGM 에 규칙적 "타닥/틱" 클릭이 계속 깔린다(폰+이어폰서 뚜렷, **타이틀 정적 화면에서도**). 원본(Suno·파일)은 깨끗. (2026-07-06 사용자 제보)
   **원인:** export 프리셋 **Threads Support OFF**(Pages COOP/COEP 제약) → 웹에서 스트리밍 ogg(BGM)를 **메인 스레드가 실시간 디코드·믹싱**. 기본 출력 버퍼(`audio/driver/output_latency` 15ms)가 짧아 브라우저 오디오 콜백과 어긋나며 언더런 = 클릭. **오디오 파일 문제 아님**(파일을 2번 교체해도 무변화 → 재생 경로 문제로 확정).
   **진단 팁:** ① 원본 clean·배포본만 = 재생 단계. ② 파일 교체 무효과 = 내용 무관. ③ 정적 화면에서도 = 씬 부하 아님. → 남는 건 재생 경로(Threads/버퍼). ffmpeg `showwavespic`/`showspectrumpic` 로 파일을 "눈으로 들어" 원본과 대조하면 파일 vs 재생을 가른다.
-  **방지:** ① 1차 완화 = `project.godot [audio] driver/output_latency.web` 확대(60→약 4096샘플 버퍼, 웹 전용·데스크톱 무영향, 탭 SFX 지연이 트레이드오프). ② 근본책 = export 프리셋 `thread_support` ON(웹 오디오 별도 스레드 AudioWorklet). 단 SharedArrayBuffer/COOP-COEP 가 Pages 에서 까다로워(그래서 껐던 것) 첫 로딩 깨질 위험 → 배포 즉시 검증. **교훈: 웹 배포본에서만 나는 오디오 잡음은 파일이 아니라 재생 경로(Threads/버퍼)부터 의심.**
+  **시도·결과(2026-07-06, 전부 실기기 확인):**
+  - ① 버퍼 확대 `driver/output_latency.web=60` → **무효**(타닥 그대로). 단순 언더런이 아니란 뜻.
+  - ② `thread_support` ON → **Pages 에서 사이트가 안 뜸.** 실기기 에러: "The following features required to run Godot projects on the Web are missing: **Cross-Origin Isolation / SharedArrayBuffer**." `ensure_cross_origin_isolation_headers=true`(coi-serviceworker 우회)를 켜 놨는데도 이 환경(폰 크롬 시크릿)에선 미작동 → 즉시 revert. **GitHub Pages 는 커스텀 헤더(COOP/COEP)를 못 보내고 SW 우회도 불안정 → Pages+threads 는 사실상 불가.** `thread_support` 는 계속 OFF 로 둔다.
+  **남은 대안(미확정):** (a) **COOP/COEP 를 실제로 보내는 호스트로 이전** — itch.io(SharedArrayBuffer 옵션 체크), Cloudflare Pages·Netlify(`_headers` 파일). 그러면 threads ON 가능 → 웹 오디오 깨끗. (b) **BGM 을 브라우저 네이티브 SAMPLE 재생**(`PLAYBACK_TYPE_SAMPLE`)으로 — Godot 메인스레드 믹서를 우회해 글리치 회피. 단 커스텀 버스(Music) 볼륨·심리스 크로스페이드 루프를 잃어 파일 자체를 심리스 루프로 재편집해야. **교훈: 웹 배포본에서만 나는 오디오 잡음은 재생 경로(Threads/버퍼)부터 의심. 그리고 GitHub Pages 에선 threads 를 켜지 말 것(사이트가 죽는다).**
 
 ## 렌더링 / 텍스트
 
