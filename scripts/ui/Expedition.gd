@@ -3,7 +3,7 @@ extends Control
 ## 도착한 노드 화면 — 이동은 맵에서 끝났다(맵이 곧 탐험 인터페이스). 여긴 도착 카드(이벤트/줍기/로프 통과)·죽음·남기기 결정.
 ## 핵심 동사: 관리·판독·대비·남기기 (턴제 사색형). 로직은 core(ExpeditionRun·Situations), 여기선 렌더링·입력만.
 ## 그림은 _draw 로 그려 웹 안전(셰이더/GPUParticles 없음). 모바일 우선: 상단 HUD 바, 하단 큰 전진 버튼, 모달은 카드.
-## (지형 비주얼·랜드마크 단면 탐색(TWoM)·폭풍 파티클 연출은 다음 단계 — StormFX.gd 는 그때 쓰려고 보존.)
+## 폭풍 biome 단면은 시각 폭풍 3층(1층 모래 헤이즈=_draw, 2·3층 파티클=StormFX)을 얹는다(_spawn_storm_fx).
 
 var _run: ExpeditionRun
 
@@ -33,6 +33,8 @@ var _hud_box: Control              ## 상단 HUD 바 — 진입 stagger 대상
 var _bottom_bar: Control           ## 하단 버튼 묶음 — 진입 stagger 대상
 var _scrim_top: GradientTexture2D  ## 위 가독 스크림(HUD 밑) — 풀스크린 그림 위 글씨 보호
 var _scrim_bot: GradientTexture2D  ## 아래 가독 스크림(장소 이름·버튼 밑)
+var _storm_fx: StormFX              ## 폭풍 biome 단면의 모래 파티클(2·3층) — 폭풍 아니면 null
+var _storm_haze: GradientTexture2D ## 폭풍 1층(옅은 모래 헤이즈) — 1회 생성
 
 func _ready() -> void:
 	_run = GameState.current_run
@@ -56,6 +58,7 @@ func _ready() -> void:
 		# 폭풍 biome 노드는 위기곡으로 교체, 그 외엔 베드(이미 재생 중이면 무시 — 연속 유지).
 		if str(MapGraph.node(_run.target_node_id()).get("biome", "")) == "storm":
 			AudioManager.play_storm()
+			_spawn_storm_fx()   # 시각 폭풍 2·3층(파티클) — 1층 헤이즈는 _draw 가 그린다
 		else:
 			AudioManager.play_bed()
 		_refresh()
@@ -139,6 +142,13 @@ func _build_hud() -> void:
 	add_child(_bequeath)
 	_result_popup = ResultPopup.new()
 	add_child(_result_popup)
+
+## 폭풍 단면의 모래 파티클(중경 2층 + 전경 3층)을 얹는다. 단면 그림 위·HUD·모달 아래(첫 자식).
+## 밴드(폭풍 영역)와 1층 헤이즈는 _draw 가 화면 전체로 갱신한다(리사이즈 추종). CPUParticles2D 만(웹 안전).
+func _spawn_storm_fx() -> void:
+	_storm_fx = StormFX.new()
+	add_child(_storm_fx)
+	move_child(_storm_fx, 0)  # 첫 자식 = 단면 그림 위, UI(HUD·버튼·모달) 아래
 
 func _build_situation_panel() -> void:
 	_sit_panel = Control.new()
@@ -478,6 +488,19 @@ func _make_scrims() -> void:
 	_scrim_top = mk.call(0.72, 0.0)
 	_scrim_bot = mk.call(0.0, 0.85)
 
+## 폭풍 1층 헤이즈 텍스처 — 위가 짙고 아래로 옅어지는 따뜻한 모래 베일(1회 생성).
+func _make_storm_haze() -> void:
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 1.0])
+	g.colors = PackedColorArray([Color(0.72, 0.63, 0.47, 0.16), Color(0.72, 0.63, 0.47, 0.05)])
+	var t := GradientTexture2D.new()
+	t.gradient = g
+	t.fill_from = Vector2(0.5, 0.0)
+	t.fill_to = Vector2(0.5, 1.0)
+	t.width = 16
+	t.height = 128
+	_storm_haze = t
+
 func _draw() -> void:
 	var rect: Vector2 = size
 	if rect.x <= 0.0 or rect.y <= 0.0 or _run == null:
@@ -490,6 +513,12 @@ func _draw() -> void:
 	var node_id: String = _run.target_node_id()
 	var kind: String = _section.kind if _section != null else ""
 	SectionArt.draw_section(self, kind, _section_rect, node_id)
+	# 폭풍 1층 — 옅은 모래 헤이즈(분위기). 파티클(2·3층)이 있을 때만. 스크림 아래(글씨는 그 위에서 보호).
+	if _storm_fx != null:
+		if _storm_haze == null:
+			_make_storm_haze()
+		draw_texture_rect(_storm_haze, _section_rect, false)
+		_storm_fx.set_band(_section_rect)   # 화면 전체 = 폭풍 영역(리사이즈 추종)
 	# 가독 스크림 — 위(HUD 밑)·아래(장소 이름·버튼 밑). 그림 중앙이 주인공, 글씨는 어둠 위에.
 	if _scrim_top == null:
 		_make_scrims()

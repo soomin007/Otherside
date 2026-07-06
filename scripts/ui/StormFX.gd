@@ -13,9 +13,11 @@ extends Node2D
 ## 파티클은 엔진이 매 프레임 날린다(정적 화면에서도 바람이 분다).
 
 const MID_AMOUNT: int = 10    ## 중경 입자 수 (적게)
-const FORE_AMOUNT: int = 30   ## 전경 입자 수 (모바일에도 가볍게)
-const SAND := Color(0.82, 0.78, 0.64)
+const FORE_AMOUNT: int = 38   ## 전경 입자 수 (모바일에도 가볍게)
 const WIND_DIR := Vector2(-1.0, 0.18)  ## 왼쪽으로(전진을 거스르듯) 살짝 아래로 부는 바람
+## 빛 받은 모래 톤(배경보다 밝게) — 밝은 폭풍 아트 위에서도 대비가 남게(세션 7 교훈: 배경색과 같으면 대비 0).
+const HAZE := Color(0.90, 0.84, 0.70)  ## 중경 = 은은한 발광 먼지 베일
+const LIT := Color(0.96, 0.92, 0.80)   ## 전경 = 빛나는 모래 알갱이
 
 var _mid: CPUParticles2D
 var _fore: CPUParticles2D
@@ -24,10 +26,10 @@ func _init() -> void:
 	var dot: ImageTexture = make_dot_texture(12)
 	# 중경: 크고(scale↑) 느리고(velocity↓) 아주 옅게(alpha↓), 길게 떠 있음.
 	_mid = _make_layer(MID_AMOUNT, dot, 1.2, 2.2, 70.0, 150.0,
-		Color(SAND.r, SAND.g, SAND.b, 0.16), 2.0)
-	# 전경: 작고 빠르고 또렷한 알갱이, 짧게.
+		Color(HAZE.r, HAZE.g, HAZE.b, 0.15), 2.0)
+	# 전경: 작고 빠르고 또렷한 알갱이, 짧게. 움직임(스쳐 지나감)이 폭풍을 살린다.
 	_fore = _make_layer(FORE_AMOUNT, dot, 0.28, 0.5, 200.0, 330.0,
-		Color(SAND.r, SAND.g, SAND.b, 0.42), 1.1)
+		Color(LIT.r, LIT.g, LIT.b, 0.55), 1.1)
 	add_child(_mid)
 	add_child(_fore)
 	visible = false
