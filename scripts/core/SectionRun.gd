@@ -14,6 +14,7 @@ const SECTION_PROBES: int = 2   ## 기본 예산(노드가 probes 로 오버라�
 var node_id: String = ""
 var kind: String = ""
 var budget: int = 0
+var budget_start: int = 0   ## 초기 예산(램프 UI 가 "몇 중 몇 남음"을 그리는 데 씀)
 var spots: Array = []   ## 각: {label:String, at:Vector2, done:bool, _result:Dictionary}
 
 func _init(run: ExpeditionRun, node: Dictionary) -> void:
@@ -42,6 +43,7 @@ func _init(run: ExpeditionRun, node: Dictionary) -> void:
 			"_result": _spot_result(spot),
 		})
 	budget = mini(int(node.get("probes", SECTION_PROBES)), spots.size())
+	budget_start = budget
 
 func spot_count() -> int:
 	return spots.size()

@@ -72,13 +72,17 @@ static func _draw_cover(ci: CanvasItem, tex: Texture2D, rect: Rect2) -> void:
 	ci.draw_texture_rect_region(tex, rect, src)
 
 ## 지점 마커. state: 0=조사가능(붉은 링) 1=완료(체크·흐림) 2=잠김(예산0·흐림)
-static func draw_spot(ci: CanvasItem, font: Font, center: Vector2, label: String, state: int) -> void:
-	var r: float = 22.0
+## is_main = 노드의 본 사건(도착 이벤트) — 채집 지점보다 크고 이중 링으로 눈에 띈다.
+static func draw_spot(ci: CanvasItem, font: Font, center: Vector2, label: String, state: int, is_main: bool = false) -> void:
+	var r: float = 27.0 if is_main else 20.0
 	var faded: Color = UITheme.INK_FADE
 	if state == 0:
+		if is_main:
+			# 바깥 헤일로 링 — "여기가 이 자리의 본 사건"을 은은히 알린다.
+			ci.draw_arc(center, r + 7.0, 0.0, TAU, 40, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.22), 1.5)
 		ci.draw_circle(center, r + 3.0, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.18))
-		ci.draw_arc(center, r, 0.0, TAU, 32, UITheme.MARKER_INK, 2.5)
-		ci.draw_circle(center, 4.0, UITheme.MARKER_INK)
+		ci.draw_arc(center, r, 0.0, TAU, 32, UITheme.MARKER_INK, 3.0 if is_main else 2.5)
+		ci.draw_circle(center, 5.0 if is_main else 4.0, UITheme.MARKER_INK)
 	else:
 		ci.draw_arc(center, r, 0.0, TAU, 32, faded, 1.5)
 		if state == 1:

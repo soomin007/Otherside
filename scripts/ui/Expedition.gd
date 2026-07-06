@@ -35,6 +35,7 @@ var _scrim_top: GradientTexture2D  ## 위 가독 스크림(HUD 밑) — 풀스�
 var _scrim_bot: GradientTexture2D  ## 아래 가독 스크림(장소 이름·버튼 밑)
 var _storm_fx: StormFX              ## 폭풍 biome 단면의 모래 파티클(2·3층) — 폭풍 아니면 null
 var _storm_haze: GradientTexture2D ## 폭풍 1층(옅은 모래 헤이즈) — 1회 생성
+var _vignette: GradientTexture2D   ## 가장자리 은은한 암전(시네마틱 깊이 + 가독) — 1회 생성
 
 func _ready() -> void:
 	_run = GameState.current_run
@@ -501,6 +502,20 @@ func _make_storm_haze() -> void:
 	t.height = 128
 	_storm_haze = t
 
+## 비네트 텍스처 — 가운데 투명 → 가장자리 어둠(방사). 그림 중앙에 시선을 모은다(1회 생성).
+func _make_vignette() -> void:
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 0.58, 1.0])
+	g.colors = PackedColorArray([Color(0.02, 0.02, 0.04, 0.0), Color(0.02, 0.02, 0.04, 0.0), Color(0.02, 0.02, 0.04, 0.4)])
+	var t := GradientTexture2D.new()
+	t.gradient = g
+	t.fill = GradientTexture2D.FILL_RADIAL
+	t.fill_from = Vector2(0.5, 0.5)
+	t.fill_to = Vector2(1.02, 1.02)
+	t.width = 160
+	t.height = 90
+	_vignette = t
+
 func _draw() -> void:
 	var rect: Vector2 = size
 	if rect.x <= 0.0 or rect.y <= 0.0 or _run == null:
@@ -519,6 +534,10 @@ func _draw() -> void:
 			_make_storm_haze()
 		draw_texture_rect(_storm_haze, _section_rect, false)
 		_storm_fx.set_band(_section_rect)   # 화면 전체 = 폭풍 영역(리사이즈 추종)
+	# 비네트 — 가장자리를 은은히 눌러 그림 중앙으로 시선을 모으고, 모서리 라벨 가독을 돕는다.
+	if _vignette == null:
+		_make_vignette()
+	draw_texture_rect(_vignette, _section_rect, false)
 	# 가독 스크림 — 위(HUD 밑)·아래(장소 이름·버튼 밑). 그림 중앙이 주인공, 글씨는 어둠 위에.
 	if _scrim_top == null:
 		_make_scrims()
@@ -532,7 +551,18 @@ func _draw() -> void:
 		draw_string(bf, base + Vector2(0.0, 2.5), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 44, Color(0.0, 0.0, 0.0, 0.75))
 		draw_string(bf, base, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 44, UITheme.FG)
 		if _section != null and _section.spot_count() > 0 and _section.budget_left() > 0:
-			draw_string(font, Vector2(46.0, rect.y - 34.0), "조사 %d번 가능" % _section.budget_left(), HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_LABEL, UITheme.SAND)
+			# "조사" + 램프 점 — 남은 조사 횟수(채워진 점) / 쓴 것(빈 점). 숫자보다 한눈에.
+			var by: float = rect.y - 30.0
+			draw_string(font, Vector2(46.0, by), "조사", HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_LABEL, UITheme.SAND)
+			var tw: float = font.get_string_size("조사", HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_LABEL).x
+			var px: float = 46.0 + tw + 14.0
+			var py: float = by - float(UITheme.FS_LABEL) * 0.32
+			for k in range(_section.budget_start):
+				var lc: Vector2 = Vector2(px + float(k) * 17.0, py)
+				if k < _section.budget_left():
+					draw_circle(lc, 5.0, UITheme.SAND)
+				else:
+					draw_arc(lc, 5.0, 0.0, TAU, 20, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.4), 1.5)
 	if _section == null:
 		return
 	for i in range(_section.spot_count()):
@@ -543,7 +573,8 @@ func _draw() -> void:
 			st = 1
 		elif _section.budget_left() <= 0:
 			st = 2
-		SectionArt.draw_spot(self, font, _spot_screen(at), str(spot.get("label", "")), st)
+		var is_main: bool = bool(spot.get("_result", {}).get("main", false))
+		SectionArt.draw_spot(self, font, _spot_screen(at), str(spot.get("label", "")), st, is_main)
 	if _section.spot_count() == 0:
 		draw_string(font, Vector2(0.0, rect.y * 0.5), "둘러볼 것이 없다. 떠난다.", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_BODY, UITheme.FG)
 	elif _section.budget_left() > 0 and _section.probed_count() == 0:
