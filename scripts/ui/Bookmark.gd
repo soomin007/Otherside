@@ -662,6 +662,12 @@ func _do_reset() -> void:
 	GameState.reset_save()
 	data_reset.emit()
 	_close()
+	# 게임 도중(지도·단면)에 세계를 지우면 그 씬은 더 유효하지 않다 — run 도 기록도 없고
+	# 일지 리본(record_seen)마저 꺼져, 모든 조작이 null 가드 no-op 이 되는 소프트락(2026-07-06 사용자 제보).
+	# DEV 오버레이의 "세이브 초기화 → 타이틀"처럼 타이틀로 내보낸다. 타이틀에서 지웠으면 그대로 둔다.
+	var cs: Node = get_tree().current_scene
+	if cs == null or cs.scene_file_path != "res://scenes/main.tscn":
+		GameState.go_to_title()
 
 # --- 여정 (타이틀로 · 게임 끝내기 · 화면 · 오프닝) ---
 
