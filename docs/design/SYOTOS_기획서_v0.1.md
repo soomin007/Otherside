@@ -145,7 +145,7 @@
 - **같은 런 연쇄.** `sets` 플래그가 같은 원정의 뒤 이벤트를 바꾼다. (데모: 야영지서 여분 은신막 챙김 → 뒤 폭풍이 한결 든든.)
 - **다음 원정 반영.** `sets_persist` 플래그가 세이브돼 다음 원정의 변형을 깬다(self-async). (데모: 마른 강 판 자리 → 다음엔 더 깊이.)
 - **core 순수성.** `ExpeditionRun` 은 영속 플래그를 생성자 주입, run 플래그는 `set_flag` 로 누적(GameState 미참조).
-- **Phase 0 데모.** 노드 events 에 산다 — 재방문 변형(a1 `river_dug_again`·b1 `camp_revisit_shelter`·d1 `bones_revisit_mourn`) + 같은 런 연쇄(b1 `camp_shelter_now`→폭풍 변형, b2 `rope_spent_now`→후반 차단 e1 `collapsed_wall_noropeleft`). 콘텐츠 확충은 노드 `events`/`sets`/`requires` 만 추가하면 된다.
+- **Phase 0 데모.** 노드 events 에 산다 — 재방문 변형(a1 `river_dug_again`·b1 `camp_revisit_shelter`·d1 `bones_revisit_mourn`·c1 `oasis_deeper`·c2 `wall_revisit`) + 같은 런 연쇄(b1 `camp_shelter_now`→폭풍 변형, b2 `rope_spent_now`→후반 차단 e1 `collapsed_wall_noropeleft`, c1 `water_stocked`→f1 폭풍의 문 완화 `storm_gate_stocked`). 콘텐츠 확충은 노드 `events`/`sets`/`requires` 만 추가하면 된다.
 
 **선택지 결과 숨김 (blind choice, 사용자 확정).** "가보기 전엔 모른다"(§1 강한 미지)를 결정 단위에 적용한다. 결과를 *알고* 누르면 미지·긴장이 깨지므로:
 - **누르기 전엔 결과(자원 델타)를 숨긴다.** 힌트 자리에 "?"만 보인다. **누른 뒤 결과 팝업**이 무엇이 달라졌는지(자원 변화) 공개한다 — 눌러봐야 안다.

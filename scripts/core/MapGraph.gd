@@ -140,6 +140,23 @@ const NODES: Dictionary = {
 					{"label": "충분히 쉬었다 간다", "effect": {"water": 2, "food": 2}},
 				],
 			},
+			{
+				# self-async: 샘을 파 넓히면 영속(oasis_widened) → 다음 원정 재방문 변형(oasis_deeper). 같은 런엔 물 비축(water_stocked) → f1 폭풍의 문 완화.
+				"id": "oasis_widen", "threat": Threats.Kind.CONSUMPTION,
+				"text": "샘이 얕다. 둘레를 파 물길을 넓히면 더 고이겠지만, 파는 데 기운이 든다.",
+				"choices": [
+					{"label": "둘레를 파 물길을 넓힌다", "effect": {"water": 4, "food": -1}, "sets": ["water_stocked"], "sets_persist": ["oasis_widened"]},
+					{"label": "고인 만큼만 뜨고 간다", "effect": {"water": 2}},
+				],
+			},
+			{
+				"id": "oasis_deeper", "requires": "oasis_widened", "threat": Threats.Kind.CONSUMPTION,
+				"text": "이전 원정대가 파 넓혀둔 샘. 물이 더 깊이 고였다.",
+				"choices": [
+					{"label": "물통을 넉넉히 채운다", "effect": {"water": 5}, "sets": ["water_stocked"]},
+					{"label": "몸을 적시고 쉰다", "effect": {"water": 3, "food": 1}},
+				],
+			},
 		],
 		"spots": [
 			{"id": "oasis_shade", "label": "야자 그늘", "at": Vector2(0.72, 0.55), "source": "cache", "effect": {"food": 1}, "text": "그늘에서 숨을 고른다. 마른 대추야자 몇 알."},
@@ -163,6 +180,23 @@ const NODES: Dictionary = {
 				"choices": [
 					{"label": "여분 은신막을 친다", "effect": {}},
 					{"label": "그래도 강행한다", "effect": {"water": -3}},
+				],
+			},
+			{
+				# self-async: 묻힌 천막을 파내 은신막을 얻으면 영속(wall_tent_taken) → 다음 원정 재방문 변형(wall_revisit).
+				"id": "wall_dig_tent", "threat": Threats.Kind.STORM,
+				"text": "모래 둔덕에 천막 한 귀퉁이가 삐져나와 있다. 파내면 은신막이 될지도. 파는 동안 바람에 시달린다.",
+				"choices": [
+					{"label": "천막을 파낸다", "effect": {"shelter": 1, "water": -1}, "sets_persist": ["wall_tent_taken"]},
+					{"label": "몸을 낮추고 버틴다", "effect": {"water": -3}},
+				],
+			},
+			{
+				"id": "wall_revisit", "requires": "wall_tent_taken", "threat": Threats.Kind.STORM,
+				"text": "이전 원정대가 천막을 떼어간 자리. 기둥 자국과 마른 열매 몇 알만 남았다.",
+				"choices": [
+					{"label": "남은 것을 챙긴다", "effect": {"food": 1}},
+					{"label": "지나친다", "effect": {}},
 				],
 			},
 		],
@@ -281,6 +315,15 @@ const NODES: Dictionary = {
 				"choices": [
 					{"label": "은신처 치고 최대한 버틴다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
 					{"label": "이 악물고 뚫는다", "effect": {"water": -6, "food": -3}},
+				],
+			},
+			{
+				# 같은 런 연쇄: 오아시스(c1)에서 물을 비축했으면(water_stocked) 폭풍의 문 강행이 덜 가혹하다.
+				"id": "storm_gate_stocked", "requires": "water_stocked", "threat": Threats.Kind.STORM,
+				"text": "앞서 채운 물이 아직 넉넉하다. 폭풍 앞에서도 조금은 든든하다.",
+				"choices": [
+					{"label": "은신처 치고 안전하게 간다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
+					{"label": "물을 아끼지 않고 강행한다", "effect": {"water": -3, "food": -1}},
 				],
 			},
 		],

@@ -172,6 +172,53 @@ const CATALOG: Array = [
 			{"label": "미끄러운 벽을 조심조심 내려간다", "effect": {"water": -2}},
 		],
 	},
+	# --- 바위 지형(rock) 이동 상황 — b2 갈라진 바닥·e1 무너진 담으로 향할 때(rock 편중 보강) ---
+	{
+		"id": "rockfall", "biome": ["rock"],
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "좁은 바위 협곡. 위쪽 돌들이 아슬아슬하게 얹혀 있다. 잘못 건드리면 쏟아진다.",
+		"choices": [
+			{"label": "숨죽여 빠르게 지난다", "effect": {"water": -2}},
+			{"label": "먼 바깥쪽으로 돌아간다", "effect": {"food": -2}},
+		],
+	},
+	{
+		"id": "narrow_ledge", "biome": ["rock"],
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "바위 턱이 실낱처럼 좁아진다. 한쪽은 벽, 한쪽은 낭떠러지.",
+		"choices": [
+			{"label": "벽에 붙어 조심조심 건넌다", "effect": {"water": -1, "food": -1}},
+			{"label": "짐을 안고 몸을 가볍게 해 지난다", "effect": {"food": -2}},
+		],
+	},
+	{
+		"id": "cut_rock", "weight": 1, "biome": ["rock"],
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "날 선 바위에 손과 정강이가 쓸렸다. 상처가 벌겋게 부어오른다.",
+		"choices": [
+			{"label": "약초로 상처를 싸맨다", "effect": {"medicine": -1}, "needs": {"medicine": 1}},
+			{"label": "천으로 대충 묶고 간다", "effect": {"water": -4}},
+		],
+	},
+	# --- 정서 카드(정보 0, 정서 100) — 이전 원정대의 흔적을 스친다. 자원보다 결이 목적. 태그는 wordpool 안에서만 ---
+	{
+		"id": "sand_marker",
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "모래 위에 돌을 세워 만든 표식. 곁에 긁어 새긴 자국: [ 앞 · 없다 ]",
+		"choices": [
+			{"label": "새겨진 대로 마음에 새기고 간다", "effect": {}},
+			{"label": "돌 하나를 더 얹고 간다", "effect": {}},
+		],
+	},
+	{
+		"id": "buried_flask",
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "모래에 반쯤 묻힌 빈 물통. 바닥에 서툰 글씨가 긁혀 있다: [ 여기 · 끝 ]",
+		"choices": [
+			{"label": "잠시 손을 얹었다 간다", "effect": {}},
+			{"label": "빈 물통을 챙겨 둔다", "effect": {}},
+		],
+	},
 ]
 
 ## 아이코닉한 고정 지형. 키 = leg(int). 각 랜드마크는 events 풀을 가진다(같은 장소, 다른 사건).

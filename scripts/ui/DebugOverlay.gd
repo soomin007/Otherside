@@ -13,7 +13,7 @@ extends CanvasLayer
 const ENABLED: bool = true
 
 ## 원터치로 켤 런 플래그(선택 반영 체인 테스트용). 같은 런(sets)+영속(sets_persist) 둘 다 켠다.
-const TEST_FLAGS: Array = ["pool_drank", "rope_spent_now", "camp_shelter_now", "river_dug", "camp_shelter", "bones_mourned"]
+const TEST_FLAGS: Array = ["pool_drank", "rope_spent_now", "camp_shelter_now", "river_dug", "camp_shelter", "bones_mourned", "oasis_widened", "wall_tent_taken", "water_stocked"]
 
 var _panel: Control
 var _state: Label
