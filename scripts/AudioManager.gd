@@ -64,6 +64,8 @@ var _thirst_low: bool = false ## 갈증 경고를 이미 울렸나(물이 임계
 ## 웹(Threads OFF) 메인스레드 믹서 글리치('타닥') 회피 — 베드곡은 브라우저 네이티브 SAMPLE 재생(Master 버스).
 ## 스트림(폭풍·엔딩)과 배타적: 한쪽 켜면 다른 쪽 끈다. (2026-07-06)
 var _bed: AudioStreamPlayer
+## 웹에서만 SAMPLE 우회. 네이티브(데스크톱·모바일 앱)는 스레드 오디오가 정상이라 원래 스트림 재생(크로스페이드·버스 볼륨·심리스 루프) 유지.
+var _use_sample_bed: bool = false
 
 # --- 환경음 (위치 반영 바람 — 후반일수록 잦고 세게) ---
 ## 연속 바람 루프 에셋이 없어 돌풍(sfx_storm_gust) 을 간헐 스케줄로 재사용한다 — 성근 사운드
@@ -83,7 +85,8 @@ func _ready() -> void:
 	for i in SFX_VOICES:
 		_sfx.append(_make_player(BUS_SFX))
 	get_tree().node_added.connect(_on_node_added)  # 모든 버튼 공통 탭 소리(자동 배선)
-	play_bed()   # 베드 = 브라우저 네이티브 SAMPLE 재생(웹 타닥 회피)
+	_use_sample_bed = OS.has_feature("web")  # 웹만 SAMPLE 우회. 네이티브는 원래 스트림 재생.
+	play_bed()
 
 ## Music / SFX 버스 확보 — 기본은 default_bus_layout.tres 가 시동 때 등록한다(웹 샘플 경로도 인식).
 ## 레이아웃이 없거나 깨졌을 때만 코드로 보강(멱등 — 있으면 건너뜀).
@@ -167,6 +170,9 @@ func _after_loop_xfade(old: AudioStreamPlayer) -> void:
 ## 코어 루프 베드로 (돌아)간다. 웹 타닥 회피를 위해 스트림 믹서가 아니라 **브라우저 네이티브 SAMPLE 재생**.
 ## 이미 베드가 울리는 중이면 재시작 안 함(연속 유지). 폭풍·엔딩 스트림은 끈다.
 func play_bed() -> void:
+	if not _use_sample_bed:
+		play_track(BED)   # 네이티브(데스크톱): 원래 스트림 크로스페이드 — 글리치 없고 버스 볼륨·연속 유지 그대로
+		return
 	_stop_stream_tracks()   # 폭풍·엔딩 스트림 끄기
 	if _bed == null:
 		_bed = AudioStreamPlayer.new()
