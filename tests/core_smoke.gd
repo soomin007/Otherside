@@ -235,12 +235,21 @@ func _test_progress_gating() -> void:
 	_ok(late_seen, "진행도 게이트: 후반(0.7)엔 후반 전용(scorched_waste) 등장")
 
 func _test_section_budget() -> void:
-	# b1(야영지): 주요 지점(도착 이벤트) 1 + 정적 spots 2 = 3, 예산 min(2,3)=2
+	# b1(야영지): 주요 지점(도착 이벤트, 있으면 1) + requires 안 걸린 정적 spots.
+	# 콘텐츠(spots)가 늘어도 안 깨지게 노드에서 기대값을 계산한다.
 	var run: ExpeditionRun = _fresh()
 	run.begin_edge("b1")
-	var section := SectionRun.new(run, MapGraph.node("b1"))
-	_ok(section.spot_count() == 3, "단면: b1 지점 수 = 3(주요1+보조2)")
-	_ok(section.budget_left() == 2, "단면: 예산 = min(probes 2, 지점 3) = 2")
+	var node: Dictionary = MapGraph.node("b1")
+	var expected: int = 0
+	if not run.arrival_event().is_empty():
+		expected += 1
+	for sp in node.get("spots", []):
+		var req: String = str(sp.get("requires", ""))
+		if req == "" or run.has_flag(req):
+			expected += 1
+	var section := SectionRun.new(run, node)
+	_ok(section.spot_count() == expected, "단면: b1 지점 수 = %d(주요+requires통과 보조)" % expected)
+	_ok(section.budget_left() == mini(2, expected), "단면: 예산 = min(probes 2, 지점 %d)" % expected)
 	var d0: Dictionary = section.probe(0)
 	_ok(not d0.is_empty() and d0.has("type"), "단면: probe(0) 결과 디스크립터 반환")
 	section.probe(1)

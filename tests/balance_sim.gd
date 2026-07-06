@@ -204,7 +204,16 @@ func _pick_spot(section: SectionRun, policy: int, brng: RandomNumberGenerator) -
 func _spot_value(spot: Dictionary) -> float:
 	var res: Dictionary = spot.get("_result", {})
 	match str(res.get("type", "")):
-		"event": return 5.0   # 주요 결정은 먼저 본다
+		"event":
+			# 주요 도착 이벤트(그 노드의 본 사건 — 폭풍·차단·줍기)는 반드시 본다(기존 튜닝 전제).
+			if bool(res.get("main", false)):
+				return 5.0
+			# 보조 이벤트 지점은 최선 선택지의 순자원 값으로 매긴다 — 그리디가 손해·정서 지점을 물 캐시보다
+			# 먼저 파는 왜곡을 막는다(실제 플레이어는 라벨 보고 물부터 집는다). 동점 시 살짝 우선(+0.1, 플래그·정보 값).
+			var best: float = -1000.0
+			for c in res.get("event", {}).get("choices", []):
+				best = maxf(best, _score(c.get("effect", {})))
+			return best + 0.1
 		"delta": return _score(res.get("effect", {}))
 		_: return -1.0        # empty 는 나중
 

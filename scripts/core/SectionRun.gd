@@ -27,7 +27,7 @@ func _init(run: ExpeditionRun, node: Dictionary) -> void:
 			"label": _main_label(main_ev),
 			"at": main_at,
 			"done": false,
-			"_result": {"type": "event", "event": main_ev},
+			"_result": {"type": "event", "event": main_ev, "main": true},  # 노드의 본 사건(밸런스 시뮬이 우선순위에 씀)
 		})
 	# 보조 지점 — node.spots 중 requires 통과분.
 	for sp in node.get("spots", []):

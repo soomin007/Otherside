@@ -18,7 +18,7 @@
       남은 것: (1) 폰 실플레이 정성 확인(긴장·페이싱 — 시뮬 end 도달 ~12%는 실기기서 더 낮을 수 있음), (2) 배고픔 33% 재검토(갈증/배고픔 비율), (3) 재회 임계 `REUNION_TRACES`(8) 튜닝(다중 원정 시뮬), (4) 위기·무게·직능 트레이드오프 통합 완주율. (엣지 길이 거리 비례화는 2026-07-06 완료 — `MapGraph.STEPS_PER_UNIT`.)
       도구: `tests/balance_sim.gd`(손잡이 static var 스윕)·`Debug` 오버레이. 워크플로: 손잡이 → `-s balance_sim` → `core_smoke` 회귀 → 코드·기획서 동시 갱신.
 
-- [ ] **콘텐츠 확충 (시스템 완비 — 값만 추가).** 이벤트 풀·변형·플래그 체인(`sets`/`sets_persist`/`requires`) 확충(2026-07-06 배치1: 이동 상황 `CATALOG` +5 = rock 3·정서 2, self-async 체인 +3 = c1 오아시스·c2 모래벽·오아시스→폭풍의 문 물 비축), 노드별 단면 지점(`spots`, 현재 9노드×2 — 아직 단조로움, 다음 후보) 다양화·event/threat source 다양화, 분기 다양화(엣지 길이는 2026-07-06 거리 비례로 완료). 홈 = `scripts/core/MapGraph.gd`·`Situations.gd`·`wordpool_v0.1.md`.
+- [ ] **콘텐츠 확충 (시스템 완비 — 값만 추가).** 이벤트 풀·변형·플래그 체인(`sets`/`sets_persist`/`requires`) 확충(2026-07-06 배치1: 이동 상황 `CATALOG` +5 = rock 3·정서 2, self-async 체인 +3 = c1 오아시스·c2 모래벽·오아시스→폭풍의 문 물 비축), 노드별 단면 지점(`spots`) 다양화(2026-07-07: 9노드 전부 2~3 → 4~6개, 트레이드오프 event·물↔식량 교환·자기비동기 투자·정서 empty 혼합, 순자원 ≤0 유지로 밸런스 중립), 분기 다양화(엣지 길이는 2026-07-06 거리 비례로 완료). 남은 것: 노드 arrival `events` 풀 더, threat source 다양화. 홈 = `scripts/core/MapGraph.gd`·`Situations.gd`·`wordpool_v0.1.md`.
 
 - [ ] **남김 밸런스 튜닝.** 본구현 완료(런당 1회 남기기·죽음과 분리·비용=줍기 값 대칭 물4·식3·은1·로프1). 남은 것: 비용·줍기 값·uses 수치 감각(폰 테스트), **도구 유품 연동**(`TraceData` 확장 — 도구 남기기/줍기).
 
