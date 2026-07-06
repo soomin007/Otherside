@@ -71,6 +71,10 @@
 - `GameState.gd`(autoload) = 전역 상태 + 씬 라우팅 + 세이브. 상태는 JSON 직렬화 가능하게.
 - **웹 export 제약:** 셰이더·GPUParticles **금지**(CPUParticles2D만). 렌더러 GL Compatibility. 세이브 `user://`.
 - **모바일 터치 우선:** 버튼 ~56px+, 탭 위주. `UITheme` 로 사이즈·색 일원화.
+- **UI 표준 = 각인(2026-07-06 전수 전환):** 게임 화면의 버튼·모달은 `UITheme.make_engraved_button`/`make_engraved_modal`(+`EngravedItem`).
+  가죽 상자형 `make_button`/`make_card` 는 **게임 화면 사용 금지**(개발용 UI 만). 새 화면을 만들 때 둥근 사각형 버튼을 되살리지 말 것.
+- **전체 화면 모달은 "밑의 세계가 흐르는가"를 반드시 결정:** 일지(Bookmark)는 열리면 **트리 pause**(덮으면 해제).
+  새 모달·오버레이도 pause 또는 진행 게이트를 명시적으로 정한다(known_issues "이동 중 설정" 항목).
 
 ## 7. 핵심 메커닉 (한 줄씩)
 
