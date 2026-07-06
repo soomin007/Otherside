@@ -40,6 +40,7 @@
 | 39 | 가방 창고 배경 **가로판** — `39_배경_창고_가로.png` | §13 | ✅ 삽입 (8아이템 테이블 배치·랜턴. 배선=가방 창고 개편 시) |
 | 47~49 | 순환 엔딩 슬라이드 3종 — `47~49_엔딩순환_(도착/밀어냄/이어짐).png` | §13 | ✅ 삽입 (49=언더테일식 암시 확인. 배선=엔딩 슬라이드쇼 시) |
 | 50~52 | 재회 엔딩 슬라이드 3종 — `50~52_엔딩재회_(닿음/지나쳐/모두).png` | §13 | ✅ 삽입 (50=닿음·맞이, 배선=엔딩 슬라이드쇼 시) |
+| 53 | **웹 로딩 화면 배경 낮판** — 최종 홈 `web/loading_day.webp`(pck 밖, Claude 가 변환·배치) | §14 | ⬜ 생성 대기 (낮/밤 자동 선택 배선 완료 2026-07-06 — 밤은 23가로 재활용, 낮 없으면 밤 폴백) |
 
 **기존 아트(01~46 + 38 + 오프닝 가로판) 전부 완료(2026-07-04).** **신규(§13):** 가방 창고 `39` ✅ · 엔딩 슬라이드 `47~52`(순환 3·재회 3) ✅ **전부 삽입**. **배선 대기(구현): 엔딩 슬라이드쇼 2종 + 가방 창고 개편.** (세로형 단면 art 13~18 여부는 오리엔테이션 결정 후 — 아래 논의.)
 
@@ -559,6 +560,22 @@ background only.
 ```
 
 ---
+
+## 14. 웹 로딩 화면 배경 낮판 (불투명 · 가로 1920×1080 이상) — `53_로딩_공통_낮_가로.png`
+
+> 웹 로딩 화면이 **접속 시각**에 맞춰 낮/밤 배경을 고른다(6~18시 = 낮). 밤은 `23_배경_공통_가로`(별하늘 사막)를
+> 재활용하므로 **같은 장면의 대낮 버전**을 뽑는다 — 같은 지평선, 같은 오른쪽 도시 실루엣, 시간대만 다르게.
+> 뽑아 넣으면 Claude 가 1280×720 webp 로 변환해 `web/loading_day.webp` 로 배치한다(게임 pck 에는 안 들어감).
+> 위에 어두운 그라데이션 스크림이 깔리므로 밝아도 진행 바·문구 가독은 확보된다.
+
+```
+A wide 16:9 landscape desert daytime background, vast pale hot sky with thin sun haze, endless sand
+flats under harsh daylight, a distant silhouette of a small desert city with domes and minarets sitting
+to the right along the horizon shimmering in heat haze, the left and center kept calm and empty as
+negative space, dusty atmosphere, a full background scene filling the frame. Muted sepia and sand
+palette, painterly, cinematic, low saturation, melancholic mood, same scene as a starry night version
+but at midday. Absolutely no text, no words, no letters, no labels, no watermark, no people.
+```
 
 ## 폰트 (이미지 아님 — 텍스트 미감)
 

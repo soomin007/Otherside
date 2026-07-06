@@ -99,6 +99,9 @@ jobs:
           godot --headless --export-release "${EXPORT_PRESET}" "${BUILD_DIR}/index.html"
           # GitHub Pages는 .nojekyll이 있으면 _ 시작 파일도 서빙
           touch "${BUILD_DIR}/.nojekyll"
+          # 로딩 화면 배경(web/loading_*.webp) — pck 밖 정적 파일. head_include JS 가
+          # 현지 시각으로 낮/밤을 고른다(.gdignore 폴더라 게임 임포트와 무관).
+          cp web/loading_*.webp "${BUILD_DIR}/" 2>/dev/null || true
           ls -la "${BUILD_DIR}"
 
       - name: Setup Pages
