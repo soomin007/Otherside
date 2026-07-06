@@ -61,6 +61,10 @@ var _loop_path: String = ""   ## 루프 대상 트랙(베드·폭풍). "" = 원�
 var _xfading: bool = false    ## 루프 크로스페이드 진행 중
 var _thirst_low: bool = false ## 갈증 경고를 이미 울렸나(물이 임계 위로 회복하면 리셋)
 
+## 웹(Threads OFF) 메인스레드 믹서 글리치('타닥') 회피 — 베드곡은 브라우저 네이티브 SAMPLE 재생(Master 버스).
+## 스트림(폭풍·엔딩)과 배타적: 한쪽 켜면 다른 쪽 끈다. (2026-07-06)
+var _bed: AudioStreamPlayer
+
 # --- 환경음 (위치 반영 바람 — 후반일수록 잦고 세게) ---
 ## 연속 바람 루프 에셋이 없어 돌풍(sfx_storm_gust) 을 간헐 스케줄로 재사용한다 — 성근 사운드
 ## 정체성(§0)에도 맞고 베드 BGM 과 안 싸운다. 변주는 피치·볼륨 랜덤(파일 하나로 반복 티 방지).
@@ -79,7 +83,7 @@ func _ready() -> void:
 	for i in SFX_VOICES:
 		_sfx.append(_make_player(BUS_SFX))
 	get_tree().node_added.connect(_on_node_added)  # 모든 버튼 공통 탭 소리(자동 배선)
-	play_track(BED)   # 시작부터 베드(페이드 인)
+	play_bed()   # 베드 = 브라우저 네이티브 SAMPLE 재생(웹 타닥 회피)
 
 ## Music / SFX 버스 확보 — 기본은 default_bus_layout.tres 가 시동 때 등록한다(웹 샘플 경로도 인식).
 ## 레이아웃이 없거나 깨졌을 때만 코드로 보강(멱등 — 있으면 건너뜀).
@@ -160,21 +164,61 @@ func _after_loop_xfade(old: AudioStreamPlayer) -> void:
 	old.stop()
 	_xfading = false
 
-## 코어 루프 베드로 (돌아)간다. 이미 베드면 아무 것도 안 함(연속 유지).
+## 코어 루프 베드로 (돌아)간다. 웹 타닥 회피를 위해 스트림 믹서가 아니라 **브라우저 네이티브 SAMPLE 재생**.
+## 이미 베드가 울리는 중이면 재시작 안 함(연속 유지). 폭풍·엔딩 스트림은 끈다.
 func play_bed() -> void:
-	play_track(BED)
+	_stop_stream_tracks()   # 폭풍·엔딩 스트림 끄기
+	if _bed == null:
+		_bed = AudioStreamPlayer.new()
+		_bed.bus = "Master"   # ⚠️ 커스텀 버스(Music)면 웹 샘플 재생이 무음 → Master 로 보낸다
+		_bed.playback_type = AudioServer.PLAYBACK_TYPE_SAMPLE
+		add_child(_bed)
+	_apply_bed_volume()
+	if _bed.playing:
+		return   # 이미 베드 — 연속 유지(멱등)
+	if not ResourceLoader.exists(BED):
+		return
+	var s: Resource = load(BED)
+	if s is AudioStreamOggVorbis or s is AudioStreamMP3:
+		s.loop = true   # 네이티브 루프(심리스는 아님 — 8분 뒤 이음매, 후속 과제)
+	_bed.stream = s
+	_bed.play()
+
+## Music 설정 음량을 베드 플레이어에 직접 적용(Master 버스라 Music 버스 볼륨이 안 먹는다).
+## (한계: 재생 중 슬라이더 실시간 반영은 다음 play_bed 때 — 씬 전환마다 재적용됨.)
+func _apply_bed_volume() -> void:
+	if _bed == null:
+		return
+	var lin: float = clampf(AppSettings.load_music_volume(), 0.0, 1.0)
+	_bed.volume_db = -80.0 if lin <= 0.0001 else linear_to_db(lin)
+
+## 스트림 BGM(폭풍·엔딩) 정리 — 루프 상태도 해제.
+func _stop_stream_tracks() -> void:
+	_loop_path = ""
+	_xfading = false
+	for p in [_a, _b]:
+		if p != null and p.playing:
+			p.stop()
+
+## 폭풍·엔딩 스트림으로 갈아탈 때 베드 샘플을 멈춘다(배타적).
+func _stop_bed() -> void:
+	if _bed != null and _bed.playing:
+		_bed.stop()
 
 ## 폭풍 구간 진입 — 위기곡으로 교체(에셋 없으면 무음, 베드 유지).
 func play_storm() -> void:
+	_stop_bed()
 	play_track(STORM)
 
 ## 재회 엔딩 크레딧곡 — 한 번만(루프 안 함). 엔딩은 곡이 주인공 — 바람을 끈다.
 func play_reunion() -> void:
+	_stop_bed()
 	set_wind(0.0)
 	play_track(REUNION, FADE, false)
 
 ## 순환 엔딩곡 — 슬라이드부터 암전·안내까지 계속(루프). 나갈 때 타이틀이 베드로 크로스페이드.
 func play_cycle() -> void:
+	_stop_bed()
 	set_wind(0.0)
 	play_track(CYCLE)
 
@@ -277,7 +321,7 @@ func warn_thirst(water: int) -> void:
 
 ## 종료 시 정리 — 재생 중 스트림 참조를 놓아 "리소스 사용 중" 누수 경고를 줄인다.
 func _exit_tree() -> void:
-	for p in ([_a, _b, _wind] + _sfx):
+	for p in ([_a, _b, _wind, _bed] + _sfx):
 		if p != null:
 			p.stop()
 			p.stream = null

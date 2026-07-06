@@ -18,13 +18,6 @@ boot_splash/bg_color=Color(0.031, 0.027, 0.039, 1)
 boot_splash/image="res://assets/arts/29_타이틀_키아트_가로.png"
 config/icon="res://icon.svg"
 
-[audio]
-
-; 웹(Threads OFF) 메인스레드 오디오 버퍼 확대 — 기본 15ms 는 짧아 폰 브라우저에서 BGM 언더런('타닥' 클릭).
-; 60ms → 약 4096샘플 버퍼(≈85ms). 웹 전용 override(데스크톱 무영향). 탭 SFX 지연이 거슬리면 낮추고,
-; 그래도 타닥이 남으면 근본책은 thread_support ON(export_presets). (2026-07-06)
-driver/output_latency.web=60
-
 [autoload]
 
 GameState="*res://scripts/GameState.gd"
