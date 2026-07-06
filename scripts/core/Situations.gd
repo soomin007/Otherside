@@ -219,6 +219,34 @@ const CATALOG: Array = [
 			{"label": "빈 물통을 챙겨 둔다", "effect": {}},
 		],
 	},
+	# --- 후반 전용(min_prog) 가혹 이동 상황 — 진행도 높을수록만 등장(멀수록 척박, 거리 곡선). 대가가 초반보다 크다 ---
+	{
+		"id": "scorched_waste", "min_prog": 0.55, "biome": ["flats"],
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "지평선까지 타버린 땅. 열기가 아지랑이로 일렁이고 그늘 한 점 없다. 여기서부턴 무인지대다.",
+		"choices": [
+			{"label": "쉬지 않고 가로지른다", "effect": {"water": -4}},
+			{"label": "천을 적셔 두르고 천천히 간다", "effect": {"water": -2, "food": -2}},
+		],
+	},
+	{
+		"id": "dry_riverbed", "min_prog": 0.55, "biome": ["river"],
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "물길인 줄 알았던 자리가 바싹 말라 갈라졌다. 여기까지 와서 헛물을 켰다.",
+		"choices": [
+			{"label": "바닥을 파 물기를 찾는다", "effect": {"water": -1, "food": -1}},
+			{"label": "미련 없이 지나친다", "effect": {"water": -3}},
+		],
+	},
+	{
+		"id": "collapsing_gorge", "min_prog": 0.6, "biome": ["rock"],
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "협곡 벽이 삭아 내린다. 발밑에서 돌이 쏟아지고, 길이 무너지는 소리가 뒤를 쫓는다.",
+		"choices": [
+			{"label": "무너지기 전에 내달린다", "effect": {"water": -3, "food": -1}},
+			{"label": "단단한 바위만 골라 신중히 간다", "effect": {"food": -3}},
+		],
+	},
 ]
 
 ## 아이코닉한 고정 지형. 키 = leg(int). 각 랜드마크는 events 풀을 가진다(같은 장소, 다른 사건).
@@ -227,13 +255,18 @@ const CATALOG: Array = [
 ## early=true(마을 근처 초반 구간)면 도구 위기(weight 1, 큰 대가)를 후보에서 뺀다 — 거리 곡선(가까울수록 평화,
 ## 기획 §1). 시작 물이 얕은 첫 엣지에 열병(-5) 등이 떠 즉사하는 걸 막는다. 일반 상황(weight 기본 3)은 그대로.
 ## biome(향하는 엣지의 지형, "" = 무시)면 그 지형에 맞는 이벤트를 자주(BIOME_MATCH_MULT 가중), 다른 지형 전용은 제외.
-static func pick(rng: RandomNumberGenerator, last_id: String = "", flags: Dictionary = {}, early: bool = false, biome: String = "") -> Dictionary:
+## progress(0=마을~1=목적지, 향하는 노드의 MapGraph.progress) — 후반 전용(min_prog) 상황을 게이트한다.
+##  초반엔 온화한 상황만, 후반(척박)엔 가혹한 상황도 뜬다(거리 곡선 §1·§4.3 — 등장 시기에 맞는 난이도).
+static func pick(rng: RandomNumberGenerator, last_id: String = "", flags: Dictionary = {}, early: bool = false, biome: String = "", progress: float = 0.0) -> Dictionary:
 	var pool: Array = []
 	for s in CATALOG:
 		if str(s.get("id", "")) == last_id:
 			continue
 		var req: String = str(s.get("requires", ""))
 		if req != "" and not flags.has(req):
+			continue
+		# 후반 전용(min_prog) — 진행도가 낮으면(마을 근처) 제외. 초반 온화·후반 가혹(거리 곡선 §1).
+		if progress < float(s.get("min_prog", 0.0)):
 			continue
 		# weight 만큼 후보에 복제 — 도구 위기(weight 1)는 일반 상황(기본 3)보다 드물게 뜬다(빈도 가중).
 		var w: int = maxi(1, int(s.get("weight", 3)))

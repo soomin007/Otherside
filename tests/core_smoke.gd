@@ -21,6 +21,7 @@ func _init() -> void:
 	_test_flag_chain_variants()
 	_test_catalog_requires_filter()
 	_test_biome_weighting()
+	_test_progress_gating()
 	_test_section_budget()
 	_test_bequeath_gate()
 	_test_vocations()
@@ -213,6 +214,25 @@ func _test_biome_weighting() -> void:
 			saw_river = true
 			break
 	_ok(saw_river, "biome 가중: biome 무시면 전 지형 후보(기존 동작 회귀)")
+
+## 진행도 게이트 — 후반 전용(min_prog) 이동 상황은 초반(마을 근처)엔 안 뜨고 후반(척박)에만 뜬다.
+func _test_progress_gating() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 21
+	# 초반(progress 0.0)엔 후반 전용(scorched_waste, min_prog 0.55) 안 뜬다
+	var early_leaked: bool = false
+	for i in range(500):
+		if str(Situations.pick(rng, "", {}, false, "flats", 0.0).get("id", "")) == "scorched_waste":
+			early_leaked = true
+			break
+	_ok(not early_leaked, "진행도 게이트: 초반(0.0)엔 후반 전용(scorched_waste) 안 뜸(500회)")
+	# 후반(progress 0.7, flats)엔 뜬다
+	var late_seen: bool = false
+	for i in range(500):
+		if str(Situations.pick(rng, "", {}, false, "flats", 0.7).get("id", "")) == "scorched_waste":
+			late_seen = true
+			break
+	_ok(late_seen, "진행도 게이트: 후반(0.7)엔 후반 전용(scorched_waste) 등장")
 
 func _test_section_budget() -> void:
 	# b1(야영지): 주요 지점(도착 이벤트) 1 + 정적 spots 2 = 3, 예산 min(2,3)=2

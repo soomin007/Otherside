@@ -173,7 +173,7 @@ func step() -> void:
 		return
 	if _edge_step < _edge_len and leg >= _next_situation_leg:
 		# 엣지 중(도착 전) 일반 상황 — 이동 중 자잘한 결정(맵 카드로 뜬다). 직전과 같은 id 는 피한다.
-		var sit: Dictionary = Situations.pick(rng, _last_situation_id, _flags, leg < EARLY_SAFE_LEG, MapGraph.biome_of(_target_node))
+		var sit: Dictionary = Situations.pick(rng, _last_situation_id, _flags, leg < EARLY_SAFE_LEG, MapGraph.biome_of(_target_node), MapGraph.progress(_target_node))
 		if not sit.is_empty():
 			_set_pending(sit)
 	# 도착(_edge_step >= _edge_len)이면 카드를 자동으로 안 띄운다 — 그 노드 단면(SectionRun)이 지점으로 낸다.
