@@ -36,7 +36,9 @@
   **시도·결과(2026-07-06, 전부 실기기 확인):**
   - ① 버퍼 확대 `driver/output_latency.web=60` → **무효**(타닥 그대로). 단순 언더런이 아니란 뜻.
   - ② `thread_support` ON → **Pages 에서 사이트가 안 뜸.** 실기기 에러: "The following features required to run Godot projects on the Web are missing: **Cross-Origin Isolation / SharedArrayBuffer**." `ensure_cross_origin_isolation_headers=true`(coi-serviceworker 우회)를 켜 놨는데도 이 환경(폰 크롬 시크릿)에선 미작동 → 즉시 revert. **GitHub Pages 는 커스텀 헤더(COOP/COEP)를 못 보내고 SW 우회도 불안정 → Pages+threads 는 사실상 불가.** `thread_support` 는 계속 OFF 로 둔다.
-  **남은 대안(미확정):** (a) **COOP/COEP 를 실제로 보내는 호스트로 이전** — itch.io(SharedArrayBuffer 옵션 체크), Cloudflare Pages·Netlify(`_headers` 파일). 그러면 threads ON 가능 → 웹 오디오 깨끗. (b) **BGM 을 브라우저 네이티브 SAMPLE 재생**(`PLAYBACK_TYPE_SAMPLE`)으로 — Godot 메인스레드 믹서를 우회해 글리치 회피. 단 커스텀 버스(Music) 볼륨·심리스 크로스페이드 루프를 잃어 파일 자체를 심리스 루프로 재편집해야. **교훈: 웹 배포본에서만 나는 오디오 잡음은 재생 경로(Threads/버퍼)부터 의심. 그리고 GitHub Pages 에선 threads 를 켜지 말 것(사이트가 죽는다).**
+  **현재 채택(2026-07-06):** (b) **베드 BGM 을 브라우저 네이티브 SAMPLE 재생**(`PLAYBACK_TYPE_SAMPLE` + Master 버스)으로 바꿈(`AudioManager._bed`) → Godot 메인스레드 믹서를 우회. **실기기 결과: 타닥이 연속 → "가끔씩"으로 대폭 감소**(잔여는 아직 스트림인 SFX·발소리·바람·폭풍·엔딩곡에서 추정). Pages 자동배포 유지가 개발 중엔 최우선이라 **개발 내내 이 방식으로 가고, 완전 제거(threads)는 출시 임박에 호스트 이전으로 처리**하기로 확정.
+  - ⚠️ SAMPLE+Master 트레이드오프(미보강): Music 볼륨 슬라이더가 베드에 **실시간** 반영 안 됨(씬 전환 때 `_apply_bed_volume` 재적용은 됨), 8분 뒤 루프 이음매(심리스 아님). 필요해지면 보강.
+  **불가 확인:** (a) 호스트 이전(itch.io SAB·Cloudflare/Netlify `_headers`) = threads 가능 → 완전 깨끗하지만 매 배포 수동/별도 파이프라인이라 개발 단계엔 부적합. **교훈: 웹 배포본에서만 나는 오디오 잡음은 재생 경로(Threads/버퍼)부터 의심. GitHub Pages 에선 threads 를 켜지 말 것(SharedArrayBuffer 미지원 → 사이트가 죽는다). no-threads 에선 스트림 믹서 대신 SAMPLE 재생이 우회로.**
 
 ## 렌더링 / 텍스트
 
