@@ -32,6 +32,12 @@ func init_item(txt: String, px: int, key: bool) -> void:
 	_px = px
 	is_key = key
 
+## 문구 교체(런타임) — 실제 글자는 내부 Label 이 그리므로(text 만 바꾸면 화면 미반영) 함께 동기화.
+func set_label(txt: String) -> void:
+	text = txt
+	if _lbl != null:
+		_lbl.text = txt
+
 func _ready() -> void:
 	flat = true
 	focus_mode = Control.FOCUS_NONE

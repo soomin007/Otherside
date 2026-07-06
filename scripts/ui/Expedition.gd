@@ -307,6 +307,7 @@ func _show_situation() -> void:
 	_leave_btn.disabled = true
 	_sit_panel.move_to_front()  # 직전 결과 팝업이 페이드 중이어도 카드가 그 아래 깔리지 않게
 	_sit_panel.visible = true
+	UITheme.recenter_modal.call_deferred(_sit_panel)  # 웹 하단 치우침 방어(레이아웃 레이스)
 
 func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, action: String = "", sets: Array = [], sets_persist: Array = [], trace_kind: int = -1) -> void:
 	GameState.mark_choice_seen(event_id, idx)  # 이 선택지를 겪었다 — 다음 대면 때 결과가 보인다(런 한정)

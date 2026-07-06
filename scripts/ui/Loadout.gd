@@ -860,6 +860,10 @@ func _field_stylebox(line_alpha: float) -> StyleBoxFlat:
 
 func _show_market_intro() -> void:
 	_market_idx = 0
+	# 인트로 동안 꾸리기 폼은 숨긴다 — 카드 상자를 없앤 각인 대사가 폼 글씨와 겹치지 않게.
+	# (서사로도 맞다: 시장이 먼저 말을 걸고, 대화가 끝나면 채비가 시작된다.)
+	if _step_root != null:
+		_step_root.visible = false
 	_market_panel = Control.new()
 	_market_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_market_panel)
@@ -871,25 +875,31 @@ func _show_market_intro() -> void:
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_market_panel.add_child(center)
-	var card := UITheme.make_card()
-	center.add_child(card)
+	# 각인형 대사 상자 — 가죽 카드 폐기(양산형 웹 카드 금지), 스크림 위 초상+헤어라인+대사+각인 버튼.
 	var box := VBoxContainer.new()
+	box.custom_minimum_size = Vector2(UITheme.COLUMN_W, 0)
 	box.add_theme_constant_override("separation", UITheme.GAP)
-	card.add_child(box)
+	UITheme.attach_dark_pool(box)  # 상자 대신 방사 어둠 — 밑의 꾸리기 폼 글씨와 안 섞이게
+	center.add_child(box)
 	# 시장 초상 — 말하는 이가 시장임을 알게 한다.
 	var fig := Figures.new()
 	fig.kind = "market"
 	fig.custom_minimum_size = Vector2(0, 160.0)
 	fig.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_child(fig)
+	box.add_child(UITheme.make_hairline(Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.35), 2.0))
 	_market_label = UITheme.make_label(str(MARKET_PAGES[0]), UITheme.FS_BODY)
 	box.add_child(_market_label)
+	box.add_child(UITheme.make_hairline(Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.35), 2.0))
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	var skip := UITheme.make_button("건너뛰기", false)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 26)
+	var skip := EngravedItem.new()
+	skip.init_item("건너뛰기", 15, false)
 	skip.pressed.connect(_finish_market)
 	row.add_child(skip)
-	var nxt := UITheme.make_button("다음", false)
+	var nxt := EngravedItem.new()
+	nxt.init_item("다음", 18, true)
 	nxt.pressed.connect(_market_advance)
 	row.add_child(nxt)
 	box.add_child(row)
@@ -925,3 +935,5 @@ func _finish_market() -> void:
 	if _market_panel != null:
 		_market_panel.queue_free()
 		_market_panel = null
+	if _step_root != null:
+		UITheme.fade_in(_step_root)  # 대화가 끝나면 채비 폼이 스르륵 나타난다

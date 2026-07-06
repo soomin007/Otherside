@@ -20,7 +20,7 @@ var _root: Control
 var _highlight: Panel
 var _bubble_holder: CenterContainer
 var _bubble_label: Label
-var _next_btn: Button
+var _next_btn: EngravedItem
 var _step_idx: int = 0
 var _rendered_idx: int = -1
 
@@ -99,20 +99,26 @@ func _build() -> void:
 	_bubble_holder = CenterContainer.new()
 	_bubble_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_bubble_holder)
-	var card := UITheme.make_card(UITheme.COLUMN_W)
-	card.mouse_filter = Control.MOUSE_FILTER_IGNORE  # 카드 빈 곳 탭도 스크림(다음)으로 통과, 버튼만 자기 입력
-	_bubble_holder.add_child(card)
+	# 각인형 말풍선 — 가죽 카드 상자 폐기(양산형 웹 카드 금지), 스크림 위에 헤어라인+글+각인 버튼만.
 	var box := VBoxContainer.new()
+	box.custom_minimum_size = Vector2(UITheme.COLUMN_W, 0)
 	box.add_theme_constant_override("separation", UITheme.GAP)
-	card.add_child(box)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE  # 빈 곳 탭은 스크림(다음)으로 통과, 버튼만 자기 입력
+	UITheme.attach_dark_pool(box)  # 상자 대신 방사 어둠 — 밑의 지도 글씨와 안 섞이게
+	_bubble_holder.add_child(box)
+	box.add_child(UITheme.make_hairline(Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.35), 2.0))
 	_bubble_label = UITheme.make_label("", UITheme.FS_BODY)
 	box.add_child(_bubble_label)
+	box.add_child(UITheme.make_hairline(Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.35), 2.0))
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	var skip := UITheme.make_button("건너뛰기", false)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 26)
+	var skip := EngravedItem.new()
+	skip.init_item("건너뛰기", 15, false)
 	skip.pressed.connect(_skip)
 	row.add_child(skip)
-	_next_btn = UITheme.make_button("다음", false)
+	_next_btn = EngravedItem.new()
+	_next_btn.init_item("다음", 18, true)
 	_next_btn.pressed.connect(_next)
 	row.add_child(_next_btn)
 	box.add_child(row)
@@ -131,7 +137,7 @@ func _render_step() -> void:
 	_highlight.position = hl.position
 	_highlight.size = hl.size
 	_bubble_label.text = str(step.get("text", ""))
-	_next_btn.text = "다음" if _step_idx < STEPS.size() - 1 else "시작"
+	_next_btn.set_label("다음" if _step_idx < STEPS.size() - 1 else "시작")
 	# 강조가 화면 위쪽이면 말풍선을 아래로, 아래쪽이면 위로 — 서로 안 겹치게(픽셀→화면비 환산).
 	var center_y: float = (hl.position.y + hl.size.y * 0.5) / maxf(1.0, vp.y)
 	_place_bubble(center_y >= 0.5)

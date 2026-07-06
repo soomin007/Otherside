@@ -157,6 +157,47 @@ static func fade_out(node: CanvasItem, on_done: Callable = Callable(), dur: floa
 			on_done.call())
 	node.set_meta("_fade_tw", tw)
 
+## 각인형 모달의 방사 어둠 뒷배경 — 상자(카드) 없이 뒤를 가라앉혀 글을 세운다
+## (EngravedItem 항목 어둠·타이틀 로고 어둠과 같은 결 — 가장자리가 부드러워 상자로 안 읽힘).
+## box 의 draw 에 연결해 자기 rect 보다 넓게 그린다(컨테이너 draw 는 자식보다 먼저 = 뒤에 깔림).
+static func attach_dark_pool(box: Control, expand: float = 1.55, alpha: float = 0.85) -> void:
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 0.6, 1.0])
+	g.colors = PackedColorArray([
+		Color(0.0, 0.0, 0.0, 1.0),
+		Color(0.0, 0.0, 0.0, 0.55),
+		Color(0.0, 0.0, 0.0, 0.0),
+	])
+	var tex := GradientTexture2D.new()
+	tex.gradient = g
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(0.98, 0.5)
+	tex.width = 256
+	tex.height = 128
+	box.draw.connect(func() -> void:
+		var w: float = box.size.x * expand
+		var h: float = box.size.y * expand * 1.15
+		box.draw_texture_rect(tex, Rect2((box.size.x - w) * 0.5, (box.size.y - h) * 0.5, w, h), false,
+			Color(1.0, 1.0, 1.0, alpha)))
+	box.queue_redraw()
+
+## 모달 카드 재중앙 정렬 — 웹에서 간헐적으로 CenterContainer 가 낡은 레이아웃으로 카드를
+## 하단에 앉히는 문제(2026-07-06 웹 데스크톱 제보 — 오토랩 라벨의 늦은 최소 높이 반영 레이스로 추정) 방어.
+## 표시 직후 call_deferred 로 불러 카드 크기를 최소로 리셋하고 컨테이너를 다시 정렬시킨다(정상일 땐 무해).
+static func recenter_modal(panel: Control) -> void:
+	if panel == null or not panel.visible:
+		return
+	for c in panel.get_children():
+		var cc := c as CenterContainer
+		if cc == null:
+			continue
+		for ch in cc.get_children():
+			var card := ch as Control
+			if card != null:
+				card.reset_size()
+		cc.queue_sort()
+
 ## 같은 노드의 진행 중 페이드를 죽인다 — 겹쳐 뜨는 팝업에서 늦게 끝난 옛 fade_out 이
 ## 새로 연 팝업을 몰래 숨기는(visible=false) 경합 방지.
 static func _kill_fade(node: CanvasItem) -> void:

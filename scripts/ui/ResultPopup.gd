@@ -67,6 +67,7 @@ func show_result(body: String, effect: Dictionary, cb: Callable = Callable()) ->
 		_delta_label.visible = false
 	UITheme.fade_in(self)
 	UITheme.sand_puff(self)
+	UITheme.recenter_modal.call_deferred(self)  # 웹 하단 치우침 방어(레이아웃 레이스)
 
 func is_open() -> bool:
 	return visible

@@ -499,6 +499,7 @@ func _show_situation_card() -> void:
 			btn.disabled = true
 		_sit_box.add_child(btn)
 	_sit_panel.visible = true
+	UITheme.recenter_modal.call_deferred(_sit_panel)  # 웹 하단 치우침 방어(레이아웃 레이스)
 
 func _on_situation_choice(event_id: String, idx: int, label: String, effect: Dictionary, sets: Array, sets_persist: Array) -> void:
 	var run: ExpeditionRun = GameState.current_run
