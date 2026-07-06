@@ -68,6 +68,7 @@ var _market_panel: Control         ## 첫 원정 시장 인트로 모달(있을 
 var _market_label: Label
 var _market_idx: int = 0
 var _market_ready: bool = false    ## 페이드 인 완료 전엔 입력 무시(실수로 넘김 방지)
+var _market_tw: Tween              ## 대사 사이 페이드(연타 시 킬)
 
 func _ready() -> void:
 	_rng.randomize()
@@ -925,8 +926,15 @@ func _market_advance() -> void:
 	if _market_idx >= MARKET_PAGES.size():
 		_finish_market()
 		return
-	if _market_label != null:
-		_market_label.text = str(MARKET_PAGES[_market_idx])
+	if _market_label == null:
+		return
+	# 대사 사이 부드러운 전환 — 탁 바뀌지 않고 잦아들었다 배어난다(오프닝 슬라이드와 같은 결).
+	if _market_tw != null and _market_tw.is_valid():
+		_market_tw.kill()  # 연타 — 진행 중 페이드는 끊고 바로 다음 대사로
+	_market_tw = _market_label.create_tween()
+	_market_tw.tween_property(_market_label, "modulate:a", 0.0, 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	_market_tw.tween_callback(func() -> void: _market_label.text = str(MARKET_PAGES[_market_idx]))
+	_market_tw.tween_property(_market_label, "modulate:a", 1.0, 0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 func _finish_market() -> void:
 	if not _market_ready:
