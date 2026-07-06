@@ -117,7 +117,7 @@ func _build() -> void:
 	_add_title(col, "지도 / 이동")
 	_add_btn(col, "모든 노드 공개", _reveal_all)
 	var jump := OptionButton.new()
-	jump.add_item("노드로 점프…")
+	jump.add_item("노드 단면으로 점프…")
 	for id in MapGraph.NODES:
 		var n: Dictionary = MapGraph.NODES[id]
 		jump.add_item("%s  (%s)" % [id, str(n.get("name", ""))])
@@ -256,17 +256,21 @@ func _reveal_all() -> void:
 	GameState.go_to_map()
 	_panel.visible = false
 
+## 고른 노드의 단면(Expedition) 화면으로 바로 점프한다. 그 노드에 막 도착한 상태로 런을 맞춘다
+## (엣지를 걸고 즉시 도착 처리 — 이동 소모는 건너뛴다). end 노드면 Expedition 이 엔딩을 띄운다.
 func _on_jump_selected(index: int) -> void:
 	if index <= 0:
-		return  # 0 = "노드로 점프…" 안내
+		return  # 0 = "노드 단면으로 점프…" 안내
 	var ids: Array = MapGraph.NODES.keys()
 	var target: String = str(ids[index - 1])
 	_ensure_run()
-	GameState.current_run.current_node = target
+	var run: ExpeditionRun = GameState.current_run
+	run.begin_edge(target)          # 이 노드로 향하는 엣지를 건다(_target_node = target)
+	run._edge_step = run._edge_len  # 즉시 도착 상태로 — target_node_id()=target, 단면이 뜬다
 	_reveal(target)
 	for nx in MapGraph.node(target).get("next", []):
 		_reveal(str(nx))
-	GameState.go_to_map()
+	GameState.go_to_expedition()    # 해당 노드 단면 화면으로
 	_panel.visible = false
 
 func _reveal(id: String) -> void:

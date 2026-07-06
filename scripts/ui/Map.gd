@@ -120,6 +120,8 @@ var _drag_moved: float = 0.0      ## 드래그 누적 이동(임계 넘으면 �
 ## 손그림 채점 원 캐시·타이머 — 랜덤 생성은 _draw 밖에서 한 번(프레임마다 흔들리면 안 됨), _draw 는 캐시만 렌더.
 var _label_pool_tex: GradientTexture2D  ## 라벨 뒤 크림 빛 웅덩이(방사) — 낙서·배경 위 가독성(상자 없이)
 var _drift: CPUParticles2D              ## 지도 띠 위 모래 드리프트 — 현 위치 진행도(환경 강도) 반영
+var _card_storm: StormFX                ## 이동 중 폭풍 상황 카드 배경의 모래 파티클(2·3층) — 폭풍 카드일 때만
+var _card_haze: TextureRect             ## 폭풍 카드 1층(옅은 모래 헤이즈) — 지연 생성
 var _circle_cache: Dictionary = {}   ## key(노드 id 또는 "__hover") -> PackedVector2Array(중심 기준 오프셋, 잉크 거칠기 baked)
 var _circle_cur_id: String = ""      ## 현재 채점 원이 걸린 노드
 var _circle_cur_t: float = 0.0       ## current 원 경과(그려짐→점멸)
@@ -250,6 +252,8 @@ func _layout_chrome() -> void:
 		var band := _map_area()
 		_drift.position = band.position + band.size * 0.5
 		_drift.emission_rect_extents = band.size * 0.5
+	if _card_storm != null and _card_haze != null and _card_haze.visible:
+		_card_storm.set_band(Rect2(Vector2.ZERO, size))  # 폭풍 카드 중 리사이즈 추종
 	_title_eye.position = st.position + Vector2(230.0, 24.0) * sc
 	_title_lbl.position = st.position + Vector2(228.0, 44.0) * sc
 	_guide.position = st.position + Vector2(474.0, 62.0) * sc
@@ -461,6 +465,39 @@ func _build_situation_panel() -> void:
 	center.add_child(parts[0])
 	_sit_box = parts[1]
 
+## 폭풍 상황 카드 배경에 시각 폭풍 3층(1층 헤이즈 + 2·3층 파티클)을 켜고 끈다.
+## 카드 모달의 어둠(dim) 위·내용(center) 아래에 끼워, 폭풍이 카드 뒤에서 몰아치게 한다.
+## 어두운 scrim 위라 밝은 모래 입자 대비가 잘 산다. Expedition 단면과 같은 StormFX·헤이즈를 공유.
+func _set_card_storm(on: bool) -> void:
+	if on and _card_storm == null:
+		# 1층 헤이즈 — 위 짙고 아래 옅은 따뜻한 모래 베일(Expedition._make_storm_haze 와 같은 결).
+		var g := Gradient.new()
+		g.offsets = PackedFloat32Array([0.0, 1.0])
+		g.colors = PackedColorArray([Color(0.72, 0.63, 0.47, 0.16), Color(0.72, 0.63, 0.47, 0.05)])
+		var tex := GradientTexture2D.new()
+		tex.gradient = g
+		tex.fill_from = Vector2(0.5, 0.0)
+		tex.fill_to = Vector2(0.5, 1.0)
+		tex.width = 16
+		tex.height = 128
+		_card_haze = TextureRect.new()
+		_card_haze.texture = tex
+		_card_haze.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_card_haze.stretch_mode = TextureRect.STRETCH_SCALE
+		_card_haze.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_sit_panel.add_child(_card_haze)
+		_sit_panel.move_child(_card_haze, 1)   # dim(0) 위, center 아래
+		_card_storm = StormFX.new()
+		_sit_panel.add_child(_card_storm)
+		_sit_panel.move_child(_card_storm, 2)  # 헤이즈 위, center 아래
+	if _card_storm == null:
+		return
+	_card_haze.visible = on
+	if on:
+		_card_storm.set_band(Rect2(Vector2.ZERO, size))  # 화면 전체 = 폭풍 영역
+	else:
+		_card_storm.set_band(Rect2())                    # 숨김 + 분출 정지
+
 ## 이동 중 마주친 상황 카드 — 읽고 한 가지를 고른다(관리·대비). 결정하면 이동을 잇는다(죽으면 그 자리 노드 화면).
 func _show_situation_card() -> void:
 	var run: ExpeditionRun = GameState.current_run
@@ -474,6 +511,7 @@ func _show_situation_card() -> void:
 		_guide.text = "멈춰 선다."
 	var threat_kind: int = int(sit.get("threat", Threats.Kind.CONSUMPTION))
 	AudioManager.play_situation_card(threat_kind)  # 카드 열림 — 위협 종류별 소리(폭풍 돌풍·갈라진 울림·양피지)
+	_set_card_storm(threat_kind == Threats.Kind.STORM)  # 폭풍 위협이면 카드 뒤로 시각 폭풍 3층
 	var threat_info: Dictionary = Threats.info(threat_kind)
 	_sit_box.add_child(UITheme.make_label("[ %s ]" % str(threat_info.get("label", "상황")), UITheme.FS_SMALL, UITheme.SAND))
 	_sit_box.add_child(UITheme.make_label(str(sit.get("text", "")), UITheme.FS_BODY))
@@ -506,6 +544,7 @@ func _on_situation_choice(event_id: String, idx: int, label: String, effect: Dic
 	if not sets_persist.is_empty():
 		GameState.add_persist_flags(sets_persist)
 	_sit_panel.visible = false
+	_set_card_storm(false)  # 카드 닫힘 — 폭풍 파티클 분출 정지
 	_refresh_hud()
 	# blind choice 뒷면 — 결과(자원 변화)를 팝업으로 공개하고, 닫으면 이동을 잇는다.
 	_result_popup.show_result(label, effect, _after_situation)
