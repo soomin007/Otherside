@@ -220,7 +220,7 @@ const NODES: Dictionary = {
 		"spots": [
 			{"id": "wall_tarp", "label": "바람에 걸린 천", "at": Vector2(0.24, 0.62), "source": "cache", "effect": {"water": 2, "food": 1}, "text": "모래 둔덕에 걸린 천 자락. 앞선 원정대가 두고 간 물통과 마른 열매가 싸여 있었다."},
 			{"id": "wall_roar", "label": "모래바람 속", "at": Vector2(0.74, 0.58), "source": "empty", "text": "바람이 앞을 삼킨다. 발을 들일 엄두가 안 난다."},
-			{"id": "wall_burrow", "label": "바람 그늘", "at": Vector2(0.5, 0.42), "source": "event", "event": {"id": "wall_burrow", "threat": Threats.Kind.STORM, "text": "바람 그늘에 몸을 묻을 모래 굴을 팔 수 있다. 물을 쓰지만 폭풍을 덜 맞고 지난다.", "choices": [{"label": "굴을 파 몸을 숨겨 지난다", "effect": {"water": -1}}, {"label": "맞바람에 강행한다", "effect": {"water": -3, "food": -1}}]}},
+			{"id": "wall_burrow", "label": "바람 그늘", "at": Vector2(0.44, 0.7), "source": "event", "event": {"id": "wall_burrow", "threat": Threats.Kind.STORM, "text": "바람 그늘에 몸을 묻을 모래 굴을 팔 수 있다. 물을 쓰지만 폭풍을 덜 맞고 지난다.", "choices": [{"label": "굴을 파 몸을 숨겨 지난다", "effect": {"water": -1}}, {"label": "맞바람에 강행한다", "effect": {"water": -3, "food": -1}}]}},
 			{"id": "wall_bundle", "label": "굴러온 덤불", "at": Vector2(0.72, 0.72), "source": "event", "event": {"id": "wall_bundle_dig", "threat": Threats.Kind.STORM, "text": "바람에 굴러온 마른 덤불 뭉치. 모래를 헤집으면 누군가 싼 마른 열매가 나올 듯도 하다.", "choices": [{"label": "바람 맞으며 헤집는다", "effect": {"food": 2, "water": -2}}, {"label": "지나친다", "effect": {}}]}},
 		],
 	},
@@ -363,7 +363,7 @@ const NODES: Dictionary = {
 		"spots": [
 			{"id": "gate_relic", "label": "앞선 이의 유품", "at": Vector2(0.24, 0.62), "source": "cache", "effect": {"water": 4}, "text": "협곡 입구에 여럿의 물통이 반쯤 묻혀 있다. 여기까지 온 원정대가 있었다."},
 			{"id": "gate_mouth", "label": "협곡 입구", "at": Vector2(0.74, 0.58), "source": "empty", "text": "폭풍이 입구를 삼켰다. 그 너머는 아무도 모른다."},
-			{"id": "gate_cairn", "label": "돌무더기", "at": Vector2(0.5, 0.42), "source": "empty", "text": "문 앞에 돌무더기. 여기까지 온 원정대들이 하나씩 쌓았다. 곁에 긁힌 표식: [ 마지막 · 또 ]"},
+			{"id": "gate_cairn", "label": "돌무더기", "at": Vector2(0.44, 0.7), "source": "empty", "text": "문 앞에 돌무더기. 여기까지 온 원정대들이 하나씩 쌓았다. 곁에 긁힌 표식: [ 마지막 · 또 ]"},
 			{"id": "gate_stock", "label": "마지막 물", "at": Vector2(0.72, 0.72), "source": "event", "event": {"id": "gate_last_water", "threat": Threats.Kind.STORM, "text": "폭풍에 들기 전 마지막 물. 지금 힘내 마셔둘지, 한 모금 아껴 담아 둘지.", "choices": [{"label": "지금 마셔 힘을 낸다", "effect": {}}, {"label": "한 모금 아껴 담아 둔다", "effect": {}, "sets": ["water_stocked"], "sets_persist": ["water_stocked"]}]}},
 		],
 	},
