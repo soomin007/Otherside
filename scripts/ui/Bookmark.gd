@@ -2,7 +2,7 @@ extends CanvasLayer
 
 ## 원정 일지 — 이 게임의 **유일한 장부**(autoload CanvasLayer). 일대기·조작·설정이 전부 이 책의 챕터다.
 ## (예전의 별도 SettingsPanel 은 이 책의 "설정" 챕터로 흡수 통합 — 2026-07-05 사용자 확정.)
-## 왼쪽 가장자리에 빨간 책갈피 리본이 삐져나와 있다 — 호버하면 더 나오고, 누르면 일지가 펼쳐진다.
+## 오른쪽 위 가장자리에 빨간 책갈피 리본이 삐져나와 있다 — 호버하면 더 나오고, 누르면 일지가 펼쳐진다.
 ## 챕터는 책 오른쪽의 빨간 책갈피로. 전환 = **낱장이 넘어가는 연출**(오른쪽 잎이 스파인으로 접혔다
 ## 왼쪽으로 펼쳐짐) + 종이 SFX. 시장이 기록지를 건넨 뒤(GameState.record_seen)에만 리본이 보인다.
 
@@ -58,9 +58,22 @@ class Ribbon extends Control:
 	var text: String = ""
 	var ribbon_h: float = 30.0
 	var col: Color = UITheme.MARKER_INK
+	var flip: bool = false   ## true 면 오른쪽 가장자리에 걸려 왼쪽으로 삐져나온다(V 홈이 왼쪽 끝). 기본=왼쪽.
 	func _draw() -> void:
 		var h: float = ribbon_h
 		var notch: float = minf(10.0, length * 0.3)
+		if flip:
+			var w: float = size.x   # 기준 = 컨트롤 오른변. x 를 좌우 대칭(w - x)으로 그린다.
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(w, 0), Vector2(w - length, 0), Vector2(w - length + notch, h * 0.5), Vector2(w, h * 0.5)]), col)
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(w, h * 0.5), Vector2(w - length + notch, h * 0.5), Vector2(w - length, h), Vector2(w, h)]), col)
+			draw_line(Vector2(w, h), Vector2(w - length + 2.0, h), Color(0.0, 0.0, 0.0, 0.35), 1.5, true)
+			if text != "":
+				var ff: Font = get_theme_default_font()
+				if ff != null:
+					draw_string(ff, Vector2(w - length + 7.0, h * 0.5 + 5.0), text, HORIZONTAL_ALIGNMENT_RIGHT, length - 16.0, 13, Color(0.96, 0.92, 0.86, 0.95))
+			return
 		draw_colored_polygon(PackedVector2Array([
 			Vector2(0, 0), Vector2(length, 0), Vector2(length - notch, h * 0.5), Vector2(0, h * 0.5)]), col)
 		draw_colored_polygon(PackedVector2Array([
@@ -357,10 +370,16 @@ func _build() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 
-	# 왼쪽 가장자리 리본 — 일지에 끼워둔 빨간 책갈피가 화면 밖으로 삐져나온 모양.
+	# 오른쪽 가장자리 리본 — 일지에 끼워둔 빨간 책갈피. 좌상단은 HUD(원정·자원) 자리라 우상단에 건다.
+	# DEV 버튼(y6~44)보다 아래(y50~)로 내려 개발 빌드에서도 안 겹친다.
 	_ribbon = Ribbon.new()
-	_ribbon.position = Vector2(0.0, 38.0)
-	_ribbon.size = Vector2(96.0, 30.0)  # 히트 영역(그리기는 length 만큼)
+	_ribbon.flip = true
+	_ribbon.anchor_left = 1.0
+	_ribbon.anchor_right = 1.0
+	_ribbon.offset_left = -96.0   # 히트 영역 96px(그리기는 length 만큼)
+	_ribbon.offset_right = 0.0
+	_ribbon.offset_top = 50.0
+	_ribbon.offset_bottom = 80.0
 	_ribbon.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_ribbon.mouse_entered.connect(_ribbon_hover.bind(true))
 	_ribbon.mouse_exited.connect(_ribbon_hover.bind(false))
