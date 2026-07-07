@@ -117,6 +117,8 @@ var _splashes: Array = []        ## 이동 중 걸음마다 번지는 잉크 얼
 var _hovered_node: String = ""   ## 마우스가 올라간 도달 가능 노드(호버 시 클릭 원 확대). 터치엔 없음
 var _active_trace: String = ""    ## 표식 단어가 펼쳐진 노드(흔적 아이콘 호버/탭). 평소엔 아이콘만
 var _trace_hitboxes: Array = []   ## [{pos, nid}] — 흔적 아이콘 호버·탭 히트박스(_draw_traces 가 갱신)
+var _edge_pickup: Dictionary = {} ## 지금 뜬 이동 중 엣지 줍기 카드의 흔적({from,to,kind,tags}) — 비면 일반 상황
+var _edge_offered: Dictionary = {} ## 이번 이동에서 이미 제안한 엣지 흔적 키(재제안 방지) — 이동 시작 시 비움
 var _dragging: bool = false       ## 누름~뗌 사이 드래그 추적(임계 넘으면 탭 취소 — 오터치 방지)
 var _drag_start_y: float = 0.0    ## 드래그 시작 지점 y(스크린)
 var _drag_moved: float = 0.0      ## 드래그 누적 이동(임계 넘으면 탭 아님)
@@ -400,9 +402,15 @@ func _process(delta: float) -> void:
 	if not run.alive or run.arrived():
 		_moving = false
 		GameState.go_to_expedition()  # 도착(또는 도중 고갈사) → 그 노드 화면
-	elif not run.pending_situation.is_empty():
-		_moving = false
-		_show_situation_card()  # 이동 중 마주친 상황 — 결정하면 이동을 잇는다
+	else:
+		# 이동 중 엣지 위 자원 흔적을 지나면 줍기 카드(자연 상황이 없을 때만 — 상황을 덮지 않게).
+		if run.pending_situation.is_empty():
+			var ep: Dictionary = _edge_pickup_here(run)
+			if not ep.is_empty():
+				_raise_edge_pickup(run, ep)
+		if not run.pending_situation.is_empty():
+			_moving = false
+			_show_situation_card()  # 이동 중 마주친 상황/줍기 — 결정하면 이동을 잇는다
 
 func _gui_input(event: InputEvent) -> void:
 	if _moving or (_sit_panel != null and _sit_panel.visible) or (_bequeath != null and _bequeath.is_open()) or (_result_popup != null and _result_popup.is_open()) or (_inventory != null and _inventory.is_open()):
@@ -435,6 +443,7 @@ func _gui_input(event: InputEvent) -> void:
 				_move_timer = 0.0
 				_hovered_node = ""
 				_active_trace = ""
+				_edge_offered.clear()   # 새 엣지 — 지나며 줍기 제안 이력 초기화
 				if _guide != null:
 					_guide.text = "나아가는 중..."
 		return
@@ -564,11 +573,45 @@ func _on_situation_choice(event_id: String, idx: int, label: String, effect: Dic
 		run.set_flag(str(f))
 	if not sets_persist.is_empty():
 		GameState.add_persist_flags(sets_persist)
+	# 이동 중 엣지 줍기였으면 — 집었으면(효과=+자원) 그 흔적 uses 소진, 남겨뒀으면 그대로(이번 이동엔 재제안 안 함).
+	if not _edge_pickup.is_empty():
+		if not effect.is_empty():
+			GameState.use_trace_edge(str(_edge_pickup["from"]), str(_edge_pickup["to"]), int(_edge_pickup["kind"]))
+			AudioManager.play_sfx(AudioManager.PICKUP)  # 지나며 이전 원정대의 흔적을 줍는다
+		_edge_pickup = {}
 	_sit_panel.visible = false
 	_set_card_storm(false)  # 카드 닫힘 — 폭풍 파티클 분출 정지
 	_refresh_hud()
 	# blind choice 뒷면 — 결과(자원 변화)를 팝업으로 공개하고, 닫으면 이동을 잇는다.
 	_result_popup.show_result(label, effect, _after_situation)
+
+## 지금 걷는 엣지 위에서 지나친 자원 흔적을 찾는다(진행률 넘어섰고 아직 이번 이동에 제안 안 한 것). 없으면 {}.
+func _edge_pickup_here(run: ExpeditionRun) -> Dictionary:
+	var from_id: String = run.current_node
+	var to_id: String = run.target_node_id()
+	if to_id == "":
+		return {}
+	var frac: float = run.edge_fraction()
+	for ep in GameState.edge_pickup_traces():
+		if str(ep["from"]) != from_id or str(ep["to"]) != to_id:
+			continue
+		if float(ep["position"]) > frac:
+			continue  # 아직 안 지났다
+		var key: String = _edge_key(from_id, to_id, int(ep["kind"]))
+		if _edge_offered.has(key):
+			continue
+		return ep
+	return {}
+
+## 엣지 줍기 카드를 띄운다(상황 카드 흐름 재사용) — 흔적을 기록하고 이번 이동에 다시 제안 안 하게 표시.
+func _raise_edge_pickup(run: ExpeditionRun, ep: Dictionary) -> void:
+	var ev: Dictionary = Situations.pickup_trace({"kind": int(ep["kind"]), "tags": ep["tags"]})
+	run.raise_situation(ev)
+	_edge_pickup = ep
+	_edge_offered[_edge_key(str(ep["from"]), str(ep["to"]), int(ep["kind"]))] = true
+
+func _edge_key(from_id: String, to_id: String, kind: int) -> String:
+	return "%s>%s:%d" % [from_id, to_id, kind]
 
 ## 이동 중 상황의 결과 팝업을 닫은 뒤 — 죽었으면 그 자리 노드 화면, 아니면 이동 재개.
 func _after_situation() -> void:

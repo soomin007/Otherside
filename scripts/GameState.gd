@@ -233,11 +233,31 @@ func pickup_traces_by_node() -> Dictionary:
 			continue
 		if int(raw.get("uses", 0)) <= 0:
 			continue
+		if str(raw.get("to_node", "")) != "":   # 엣지 위 흔적은 지나며 줍는다(노드 도착 픽업에서 제외)
+			continue
 		var nid: String = str(raw.get("node_id", ""))
 		if nid == "" or out.has(nid):
 			continue
 		var tg: Array = raw.get("tags", [])
 		out[nid] = {"kind": kind, "tags": tg.duplicate()}
+	return out
+
+## 엣지 위 자원 흔적(node_id→to_node, uses>0)을 (from,to)→{kind,tags} 로. 이동 중 그 지점을 지나면 줍기 카드.
+func edge_pickup_traces() -> Array:
+	var out: Array = []
+	for raw in traces:
+		if not (raw is Dictionary):
+			continue
+		var kind: int = int(raw.get("object_kind", -1))
+		if kind != TraceData.ObjectKind.WATER and kind != TraceData.ObjectKind.FOOD and kind != TraceData.ObjectKind.SHELTER:
+			continue
+		if int(raw.get("uses", 0)) <= 0 or str(raw.get("to_node", "")) == "":
+			continue
+		var tg: Array = raw.get("tags", [])
+		out.append({
+			"from": str(raw.get("node_id", "")), "to": str(raw.get("to_node", "")),
+			"position": float(raw.get("position", 0.0)), "kind": kind, "tags": tg.duplicate(),
+		})
 	return out
 
 ## 흔적을 한 번 쓴다 — uses 를 1 깎고, 0 이 되면 제거한다(node_id+kind 첫 매칭). 줍기 보충 직후 호출.
@@ -247,6 +267,22 @@ func use_trace(node_id: String, kind: int) -> void:
 		if not (t is Dictionary):
 			continue
 		if str(t.get("node_id", "")) == node_id and int(t.get("object_kind", -1)) == kind:
+			var u: int = int(t.get("uses", 0)) - 1
+			if u <= 0:
+				traces.remove_at(i)
+			else:
+				t["uses"] = u
+				traces[i] = t
+			save_game()
+			return
+
+## 엣지 위 흔적을 한 번 쓴다 — node_id+to_node+kind 매칭(엣지 픽업 전용, 같은 노드의 노드 흔적과 안 헷갈리게).
+func use_trace_edge(node_id: String, to_node: String, kind: int) -> void:
+	for i in range(traces.size()):
+		var t: Variant = traces[i]
+		if not (t is Dictionary):
+			continue
+		if str(t.get("node_id", "")) == node_id and str(t.get("to_node", "")) == to_node and int(t.get("object_kind", -1)) == kind:
 			var u: int = int(t.get("uses", 0)) - 1
 			if u <= 0:
 				traces.remove_at(i)
