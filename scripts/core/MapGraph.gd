@@ -49,6 +49,14 @@ const NODES: Dictionary = {
 				],
 			},
 			{
+				"id": "river_weir", "threat": Threats.Kind.CONSUMPTION,
+				"text": "강을 막던 낡은 물막이 담이 반쯤 무너져 있다. 돌 틈 아래 고인 물이 어른거린다.",
+				"choices": [
+					{"label": "돌을 들어내고 긷는다", "effect": {"water": 3, "food": -1}},
+					{"label": "겉에 고인 것만 뜬다", "effect": {"water": 1}},
+				],
+			},
+			{
 				"id": "river_dug_again", "requires": "river_dug", "threat": Threats.Kind.CONSUMPTION,
 				"text": "이전 원정대가 파둔 구덩이가 그대로 있다. 더 깊이 파볼까.",
 				"choices": [
@@ -82,6 +90,14 @@ const NODES: Dictionary = {
 				"choices": [
 					{"label": "재를 헤집어 쓸 것을 찾는다", "effect": {"food": 2}},
 					{"label": "묵념하고 지나친다", "effect": {}},
+				],
+			},
+			{
+				"id": "camp_kettle", "threat": Threats.Kind.CONSUMPTION,
+				"text": "모래에 반쯤 묻힌 솥이 엎어져 있다. 안에 마른 곡물이 눌어붙었다.",
+				"choices": [
+					{"label": "바닥까지 긁어 담는다", "effect": {"food": 2}},
+					{"label": "솥째 두고 간다", "effect": {}},
 				],
 			},
 			{
@@ -244,6 +260,23 @@ const NODES: Dictionary = {
 				],
 			},
 			{
+				"id": "bones_banner", "threat": Threats.Kind.CONSUMPTION,
+				"text": "부러진 깃대에 원정대 깃발이 걸려 나부낀다. 깃대 밑에 가죽 물통 몇이 묶여 있다.",
+				"choices": [
+					{"label": "물통을 풀어 챙긴다", "effect": {"water": 4}},
+					{"label": "깃발을 바로 세워 두고 간다", "effect": {}},
+				],
+			},
+			{
+				# threat source 다양화: cache 노드에도 폭풍이 스친다 — 은신막의 쓸 곳이 폭풍 노드 밖에도 생긴다(대비 자원 경쟁).
+				"id": "bones_gust", "threat": Threats.Kind.STORM,
+				"text": "들판을 훑는 돌풍이 모래를 걷어 올린다. 묻혀 있던 것들이 드러났다 다시 묻히기 시작한다.",
+				"choices": [
+					{"label": "은신막을 펴고 드러난 것을 줍는다", "effect": {"shelter": -1, "water": 3}, "needs": {"shelter": 1}},
+					{"label": "웅크려 바람을 보낸다", "effect": {"water": -1}},
+				],
+			},
+			{
 				"id": "bones_revisit_mourn", "requires": "bones_mourned", "threat": Threats.Kind.CONSUMPTION,
 				"text": "지난번 그냥 보낸 들판. 뼈들은 더 깊이 묻혔고, 물통 몇은 아직 빛난다.",
 				"choices": [
@@ -304,6 +337,14 @@ const NODES: Dictionary = {
 				"choices": [
 					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge"},
 					{"label": "맨몸으로 무리해서 넘는다", "effect": {"water": -3, "food": -2}},
+				],
+			},
+			{
+				"id": "collapsed_wall_dust", "threat": Threats.Kind.BLOCKAGE,
+				"text": "담 위로 모래가 흘러내려 틈이 반쯤 메워졌다. 그래도 지나기엔 좁고 가파르다. 로프를 걸면 다음에도 건널 수 있다.",
+				"choices": [
+					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge"},
+					{"label": "모래 더미를 밟고 무리해서 넘는다", "effect": {"water": -3, "food": -2}},
 				],
 			},
 			{

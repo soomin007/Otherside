@@ -172,6 +172,16 @@ const CATALOG: Array = [
 			{"label": "미끄러운 벽을 조심조심 내려간다", "effect": {"water": -2}},
 		],
 	},
+	{
+		# self-async 메아리: a1 에서 강바닥을 팠으면(river_dug 영속) 다음 원정의 강 지형 이동 중에 그 자국을 만난다.
+		"id": "dig_marks", "requires": "river_dug", "biome": ["river"],
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "강바닥을 따라 파헤친 자국이 점점이 이어진다. 이전 원정대가 물길을 더듬던 손자국이다.",
+		"choices": [
+			{"label": "자국이 끝난 자리를 마저 판다", "effect": {"water": 2, "food": -1}},
+			{"label": "자국만 눈에 담고 간다", "effect": {}},
+		],
+	},
 	# --- 바위 지형(rock) 이동 상황 — b2 갈라진 바닥·e1 무너진 담으로 향할 때(rock 편중 보강) ---
 	{
 		"id": "rockfall", "biome": ["rock"],
@@ -198,6 +208,27 @@ const CATALOG: Array = [
 		"choices": [
 			{"label": "약초로 상처를 싸맨다", "effect": {"medicine": -1}, "needs": {"medicine": 1}},
 			{"label": "천으로 대충 묶고 간다", "effect": {"water": -4}},
+		],
+	},
+	# --- 위협 다양화 — 이동 중에도 차단·폭풍이 스친다(소모 일색 보강). 대비 자원(로프·은신막)의 쓸 곳을 넓힌다 ---
+	{
+		# 이동 중 차단(첫 종). 로프는 소모하지 않고 "가진 것"의 값을 만든다 — 다리 걸기(영구)와 경쟁하지 않게.
+		"id": "rope_gully", "biome": ["rock"],
+		"threat": Threats.Kind.BLOCKAGE,
+		"text": "길이 얕은 골로 뚝 끊긴다. 내려갔다 오를 수는 있어 보인다. 로프가 있으면 한결 수월하다.",
+		"choices": [
+			{"label": "로프를 걸어 내려갔다 회수한다", "effect": {}, "needs": {"rope": 1}},
+			{"label": "맨손으로 기어 내려갔다 오른다", "effect": {"water": -2}},
+		],
+	},
+	{
+		# 폭풍 지형의 일반 이동 상황(기존 폭풍은 도구 위기 weight 1 뿐) — 폭풍 엣지가 폭풍답게.
+		"id": "grit_wind", "biome": ["storm"],
+		"threat": Threats.Kind.STORM,
+		"text": "바람에 모래가 섞이기 시작한다. 숨을 쉴 때마다 이 사이에 모래가 씹힌다.",
+		"choices": [
+			{"label": "천으로 코와 입을 감싸고 천천히 간다", "effect": {"water": -1}},
+			{"label": "눈을 가늘게 뜨고 빠르게 벗어난다", "effect": {"water": -2}},
 		],
 	},
 	# --- 정서 카드(정보 0, 정서 100) — 이전 원정대의 흔적을 스친다. 자원보다 결이 목적. 태그는 wordpool 안에서만 ---
