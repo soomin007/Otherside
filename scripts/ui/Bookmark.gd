@@ -481,7 +481,7 @@ func _layout_book() -> void:
 	# 페이지 내용 배치.
 	_scroll_l.position = _book.rect_l.position + Vector2(PAGE_PAD, PAGE_PAD)
 	_scroll_l.size = _book.rect_l.size - Vector2(PAGE_PAD * 2.0, PAGE_PAD * 2.0)
-	_box_l.custom_minimum_size.x = _scroll_l.size.x - 12.0
+	_box_l.custom_minimum_size.x = _scroll_l.size.x - 20.0  # 우측 여백(스크롤바+값 라벨 잘림 방지, 큰 배율 대비)
 	_box_r.position = _book.rect_r.position + Vector2(PAGE_PAD, PAGE_PAD)
 	_box_r.size = _book.rect_r.size - Vector2(PAGE_PAD * 2.0, PAGE_PAD * 2.0)
 	for i in range(_tabs.size()):
@@ -710,20 +710,15 @@ func _set_next() -> void:
 		_set_idx = mini(SETTINGS_PAGES - 1, _set_idx + 1)
 		_show_settings())
 
-## 페이지 0 — 소리(음소거·배경음악·효과음).
+## 페이지 0 — 소리(음소거·배경음악·효과음). 음소거는 자기 줄로(헤딩 옆 두면 큰 글자 크기에서 페이지를 넘침).
 func _settings_sound() -> void:
-	var head := HBoxContainer.new()
-	head.add_theme_constant_override("separation", 10)
-	var htext := _brush_heading("소리", 40, INK)
-	htext.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(htext)
+	_box_l.add_child(_brush_heading("소리", 40, INK))
+	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	var master: float = AppSettings.load_master_volume()
 	var mute := UITheme.make_pill("소리 켜기" if master <= 0.0 else "전체 음소거", INK, Color(0, 0, 0, 0),
 		Color(INK.r, INK.g, INK.b, 0.4))
 	mute.pressed.connect(_toggle_mute)
-	head.add_child(mute)
-	_box_l.add_child(head)
-	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	_box_l.add_child(mute)
 	_music_value = _add_volume_row(_box_l, "배경음악", AppSettings.load_music_volume(), _on_music_changed, Callable())
 	_sfx_value = _add_volume_row(_box_l, "효과음", AppSettings.load_sfx_volume(), _on_sfx_changed, _on_sfx_drag_ended)
 
@@ -756,16 +751,16 @@ func _settings_story() -> void:
 		tut.pressed.connect(_replay_tutorial)
 		_box_l.add_child(tut)
 
-## 페이지 3 — 만든 것들(제목·내용·만든 이·출처). 기술 출처는 영어로.
+## 페이지 3 — Credit(제목·내용·만든 이·출처). 기술 출처는 영어로.
 func _settings_credits() -> void:
-	_box_l.add_child(_brush_heading("만든 것들", 40, INK))
+	_box_l.add_child(_brush_heading("Credit", 40, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	_box_l.add_child(_ink_label("See you on the other side", UITheme.FS_BODY, INK))
 	_box_l.add_child(_ink_label("매년 원정대가 떠나고, 거의 다 죽는다.\n죽기 전 단 한 번, 다음 원정대에게 물건을 남긴다.",
 		UITheme.FS_SMALL, INK_FADE))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.2), 1.0))
 	_box_l.add_child(_ink_label("만든 이   soomin007", UITheme.FS_LABEL, INK))
-	_box_l.add_child(_ink_label("Fonts   MaruBuri · Nanum Brush · Cinzel (OFL)\nMusic   Suno\nSound   freesound.org · ElevenLabs\nEngine   Godot 4.6",
+	_box_l.add_child(_ink_label("Fonts   MaruBuri · Nanum Brush · Cinzel (OFL)\nMusic   Suno\nSFX   ElevenLabs · freesound.org\nEngine   Godot 4.6",
 		UITheme.FS_SMALL, INK_FADE))
 
 ## 페이지 4 — 여정(타이틀로·게임 끝내기) + 위험 구역(세계 지우기).
@@ -811,12 +806,20 @@ func _add_scale_row(box: VBoxContainer, cur: float) -> void:
 	UITheme.style_slider(slider, INK)
 	slider.value_changed.connect(func(v: float) -> void:
 		value.text = _pct(v))
-	slider.drag_ended.connect(func(_changed: bool) -> void:
-		AppSettings.set_text_scale(slider.value)
-		get_tree().root.content_scale_factor = slider.value
-		_layout_book()          # 새 배율에 맞춰 책 크기 다시 계산
-		_show_settings())       # 현재 페이지 다시 그림
+	slider.drag_ended.connect(_on_text_scale_drag.bind(slider))
 	box.add_child(slider)
+
+## 글자 크기 확정 — 배율 적용 후 뷰포트 논리 크기가 갱신될 때까지(한두 프레임) 기다렸다 책을 재배치한다.
+## 같은 프레임에 _layout_book 하면 get_visible_rect 가 아직 옛 크기라 책이 배율만큼 커져 페이지를 넘친다.
+func _on_text_scale_drag(_changed: bool, slider: HSlider) -> void:
+	AppSettings.set_text_scale(slider.value)
+	get_tree().root.content_scale_factor = slider.value
+	# content_scale_factor 가 get_visible_rect 에 반영되는 데 몇 프레임 걸린다 — 넉넉히 기다렸다 재배치.
+	for i in range(8):
+		await get_tree().process_frame
+	if _panel != null and _panel.visible:
+		_layout_book()
+		_show_settings()
 
 ## 확인 페이지(공용) — 왼쪽: 경고·제목·설명, 오른쪽: 머문다/실행. 지우기·타이틀로·끝내기가 공유.
 func _show_confirm_page(warn: String, title: String, desc: String, yes_txt: String, yes_cb: Callable) -> void:

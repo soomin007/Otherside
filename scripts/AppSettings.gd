@@ -22,7 +22,7 @@ const DEFAULT_MOTION: float = 1.0
 const KEY_TEXT_SCALE: String = "text_scale"
 const DEFAULT_TEXT_SCALE: float = 1.0
 const MIN_TEXT_SCALE: float = 0.85
-const MAX_TEXT_SCALE: float = 1.2   ## 이 이상은 일지 소리 페이지가 페이지 폭을 넘어 걸친다(1.2 가 안전 경계)
+const MAX_TEXT_SCALE: float = 1.15  ## 책이 1080px 캡이라 배율↑ = 논리 페이지가 좁아짐. 1.15 가 콘텐츠 안 걸치는 상한
 
 ## 배경음악 기본값을 낮게 — Suno 마스터링이 커서 효과음(-4dB 피크)이 묻힌다.
 const DEFAULT_MUSIC: float = 0.7
