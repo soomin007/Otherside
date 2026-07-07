@@ -767,7 +767,6 @@ func _sec_screen(box: VBoxContainer) -> void:
 		fs.pressed.connect(_toggle_fullscreen)
 		box.add_child(fs)
 	_add_motion_row(box, AppSettings.load_motion())
-	_add_scale_row(box, AppSettings.load_text_scale())
 
 ## 이야기(오프닝 다시보기·조작 안내 다시보기).
 func _sec_story(box: VBoxContainer) -> void:
@@ -825,42 +824,6 @@ func _sec_danger(box: VBoxContainer) -> void:
 	var wipe := UITheme.make_pill("저장 데이터 지우기", RED, Color(0, 0, 0, 0), Color(RED.r, RED.g, RED.b, 0.55))
 	wipe.pressed.connect(_confirm_wipe)
 	box.add_child(wipe)
-
-## 글자 크기(UI 전체 배율) 슬라이더 — 손 떼면 content_scale_factor 적용·저장하고 책을 다시 맞춘다.
-func _add_scale_row(box: VBoxContainer, cur: float) -> void:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	var lbl := _ink_label("글자 크기", UITheme.FS_LABEL, INK)
-	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(lbl)
-	var value := _ink_label(_pct(cur), UITheme.FS_SMALL, INK_FADE)
-	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	value.autowrap_mode = TextServer.AUTOWRAP_OFF
-	row.add_child(value)
-	box.add_child(row)
-	var slider := HSlider.new()
-	slider.min_value = AppSettings.MIN_TEXT_SCALE
-	slider.max_value = AppSettings.MAX_TEXT_SCALE
-	slider.step = 0.05
-	slider.value = cur
-	slider.custom_minimum_size = Vector2(0, UITheme.SLIDER_H)
-	UITheme.style_slider(slider, INK)
-	slider.value_changed.connect(func(v: float) -> void:
-		value.text = _pct(v))
-	slider.drag_ended.connect(_on_text_scale_drag.bind(slider))
-	box.add_child(slider)
-
-## 글자 크기 확정 — 배율 적용 후 뷰포트 논리 크기가 갱신될 때까지(한두 프레임) 기다렸다 책을 재배치한다.
-## 같은 프레임에 _layout_book 하면 get_visible_rect 가 아직 옛 크기라 책이 배율만큼 커져 페이지를 넘친다.
-func _on_text_scale_drag(_changed: bool, slider: HSlider) -> void:
-	AppSettings.set_text_scale(slider.value)
-	get_tree().root.content_scale_factor = slider.value
-	# content_scale_factor 가 get_visible_rect 에 반영되는 데 몇 프레임 걸린다 — 넉넉히 기다렸다 재배치.
-	for i in range(8):
-		await get_tree().process_frame
-	if _panel != null and _panel.visible:
-		_layout_book()
-		_show_settings()
 
 ## 확인 페이지(공용) — 왼쪽: 경고·제목·설명, 오른쪽: 머문다/실행. 지우기·타이틀로·끝내기가 공유.
 func _show_confirm_page(warn: String, title: String, desc: String, yes_txt: String, yes_cb: Callable) -> void:

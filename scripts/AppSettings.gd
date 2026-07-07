@@ -18,12 +18,6 @@ const SECTION_DISPLAY: String = "display"
 const KEY_MOTION: String = "motion"
 const DEFAULT_MOTION: float = 1.0
 
-## 글자 크기 — UI 전체 배율(Window.content_scale_factor). 0.85~1.25. GameState 가 시작 시 적용한다.
-const KEY_TEXT_SCALE: String = "text_scale"
-const DEFAULT_TEXT_SCALE: float = 1.0
-const MIN_TEXT_SCALE: float = 0.85
-const MAX_TEXT_SCALE: float = 1.15  ## 책이 1080px 캡이라 배율↑ = 논리 페이지가 좁아짐. 1.15 가 콘텐츠 안 걸치는 상한
-
 ## 배경음악 기본값을 낮게 — Suno 마스터링이 커서 효과음(-4dB 피크)이 묻힌다.
 const DEFAULT_MUSIC: float = 0.7
 const DEFAULT_SFX: float = 1.0
@@ -58,26 +52,6 @@ static func set_motion(v: float) -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(PATH)  # 실패해도 빈 cfg 로 진행
 	cfg.set_value(SECTION_DISPLAY, KEY_MOTION, _motion_cache)
-	cfg.save(PATH)
-
-## 글자 크기(UI 배율) 0.85..1.25 (기본 1). GameState._ready 가 시작 시 root 에 적용한다.
-static var _text_scale_cache: float = -1.0
-
-static func load_text_scale() -> float:
-	if _text_scale_cache >= 0.0:
-		return _text_scale_cache
-	var cfg := ConfigFile.new()
-	if cfg.load(PATH) != OK:
-		_text_scale_cache = DEFAULT_TEXT_SCALE
-	else:
-		_text_scale_cache = clampf(float(cfg.get_value(SECTION_DISPLAY, KEY_TEXT_SCALE, DEFAULT_TEXT_SCALE)), MIN_TEXT_SCALE, MAX_TEXT_SCALE)
-	return _text_scale_cache
-
-static func set_text_scale(v: float) -> void:
-	_text_scale_cache = clampf(v, MIN_TEXT_SCALE, MAX_TEXT_SCALE)
-	var cfg := ConfigFile.new()
-	cfg.load(PATH)
-	cfg.set_value(SECTION_DISPLAY, KEY_TEXT_SCALE, _text_scale_cache)
 	cfg.save(PATH)
 
 static func _load_key(key: String, def: float) -> float:

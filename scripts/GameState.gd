@@ -44,8 +44,6 @@ var seen_choices: Dictionary = {}
 func _ready() -> void:
 	load_game()
 	ensure_seeded()
-	# 글자 크기(설정) — UI 전체 배율을 시작 시 적용(저장값). 이후 설정 슬라이더가 갱신.
-	get_tree().root.content_scale_factor = AppSettings.load_text_scale()
 
 ## 유령 흔적을 아직 안 심었으면 심는다(세계당 1회). 새 세계·기존 세이브 모두 첫 로드 때 한 번.
 func ensure_seeded() -> void:
