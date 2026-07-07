@@ -46,6 +46,18 @@ const FS_TINY: int = 12      ## 지도 눈금 등 캔버스 미세 텍스트
 
 # --- 붓 폰트 (나눔손글씨 붓) — 지도 내용(지명 등) 전용. UI 제목엔 안 쓴다(본문·제목은 명조). ---
 const BRUSH_FONT: FontFile = preload("res://assets/fonts/NanumBrushScript-Regular.ttf")
+## 붓 폰트에 없는 글리프(가운뎃점 ·, 화살표 ← →, 말줄임 …, 대시 —)를 기본 명조로 폴백한다.
+## 웹 export 는 시스템 폰트 폴백이 없어 누락 글리프가 두부(□)로 깨진다(known_issues 참고). MaruBuri 로 메운다.
+const _BRUSH_FALLBACK: FontFile = preload("res://assets/fonts/MaruBuri-Regular.ttf")
+
+## 붓 폰트 폴백을 클래스 로드 시 1회 지정한다(공유 리소스 — 모든 붓 렌더 지점에 자동 반영).
+## const 는 프로퍼티 대입이 막히므로 로컬 var 로 같은 리소스를 가리켜 fallbacks 를 채운다(참조형).
+static func _static_init() -> void:
+	var brush: FontFile = BRUSH_FONT
+	if brush != null and brush.fallbacks.is_empty():
+		var fb: Array[Font] = []
+		fb.append(_BRUSH_FALLBACK)
+		brush.fallbacks = fb
 
 # --- 터치 / 레이아웃 ---
 const BTN_H: float = 76.0      ## 주요 버튼 높이
