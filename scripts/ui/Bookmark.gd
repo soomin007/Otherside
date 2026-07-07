@@ -275,8 +275,44 @@ var _box_l: VBoxContainer      ## 왼쪽 페이지 내용
 var _box_r: VBoxContainer      ## 오른쪽 페이지 내용
 var _scroll_l: ScrollContainer ## 왼쪽 페이지 스크롤(일대기가 길다)
 var _tabs: Array = []          ## 챕터 책갈피(Ribbon) — 책 오른쪽에 얹힘
+## 범례 표식 그림 — 조작 챕터 "표식 읽기"가 지도·단면 실제 표식의 축소판을 작은 칸에 그린다.
+class LegendMark extends Control:
+	var kind: String = ""
+	func _draw() -> void:
+		var c: Vector2 = size * 0.5
+		var mk: Color = UITheme.MARKER_INK
+		var sand: Color = UITheme.SAND
+		match kind:
+			"main":  # 주요 지점 — 이중 링 + 헤일로(SectionArt.draw_spot is_main)
+				draw_arc(c, 20.0, 0.0, TAU, 32, Color(sand.r, sand.g, sand.b, 0.22), 1.5)
+				draw_circle(c, 16.0, Color(sand.r, sand.g, sand.b, 0.18))
+				draw_arc(c, 13.0, 0.0, TAU, 32, mk, 3.0)
+				draw_circle(c, 4.0, mk)
+			"collect":  # 채집 지점 — 단일 링
+				draw_circle(c, 13.0, Color(sand.r, sand.g, sand.b, 0.18))
+				draw_arc(c, 11.0, 0.0, TAU, 32, mk, 2.5)
+				draw_circle(c, 3.0, mk)
+			"done":  # 다 살핀 곳 — 흐린 링
+				draw_arc(c, 11.0, 0.0, TAU, 32, Color(UITheme.INK_FADE.r, UITheme.INK_FADE.g, UITheme.INK_FADE.b, 0.7), 1.5)
+			"ramp":  # 조사 예산 — 찬 점 둘 + 빈 점
+				draw_circle(c + Vector2(-14.0, 0.0), 4.0, mk)
+				draw_circle(c, 4.0, mk)
+				draw_arc(c + Vector2(14.0, 0.0), 4.0, 0.0, TAU, 16, Color(mk.r, mk.g, mk.b, 0.5), 1.5)
+			"route":  # 밟은 길 — 트레일 선 + 발자국
+				draw_line(c + Vector2(-18.0, 5.0), c + Vector2(18.0, -5.0), UITheme.ROUTE, 2.5)
+				for i in range(-2, 3):
+					draw_circle(c + Vector2(i * 8.0, 5.0 - i * 2.8), 1.7, UITheme.ROUTE)
+			"marker":  # 원정대 마커
+				draw_arc(c, 11.0, 0.0, TAU, 20, Color(mk.r, mk.g, mk.b, 0.4), 1.5)
+				draw_circle(c, 6.0, mk)
+			"trace":  # 남긴 흔적 — 안료 점(Map.TRACE_MARK_INK 톤)
+				var pig: Color = Color(0.40, 0.24, 0.15)
+				draw_arc(c, 9.0, 0.0, TAU, 20, Color(pig.r, pig.g, pig.b, 0.4), 1.5)
+				draw_circle(c, 5.0, pig)
+
 var _chapter: int = 0
 var _tut_idx: int = 0
+var _tut_legend: bool = false  ## 조작 챕터가 "표식 읽기" 범례 서브뷰를 보여주는 중인가
 var _flipping: bool = false
 var _rib_tw: Tween
 var _opened_ms: int = 0        ## 일지를 연 시각 — 여는 클릭이 스크림 닫기로 새는 것 방지 가드
@@ -408,6 +444,7 @@ func open_journal(chapter: int = 0) -> void:
 	_opened_ms = Time.get_ticks_msec()
 	AudioManager.play_sfx("res://assets/sfx/sfx_page_1.wav")
 	_chapter = clampi(chapter, 0, CHAPTERS.size() - 1)
+	_tut_legend = false  # 조작 챕터는 글 안내부터(범례는 눌러서 진입)
 	_book.thickness_cf = float(_chapter)  # 페이지 두께 스택(§5) 초기 위치
 	_apply_tab_state()
 	_render_chapter()
@@ -471,6 +508,12 @@ func _flip_page(dir: int, swap: Callable) -> void:
 ## 캡처는 이 프레임 렌더 직후의 화면(아직 이전 내용)에서 — 같은 프레임에 덮개가 올라가 팝이 없다.
 func _run_flip(dir: int, sheets_n: int, spread: float, flip_win: float, riffle: bool,
 		cf_from: float, cf_to: float, swap: Callable) -> void:
+	# 연출 세기 0(모션 줄이기) — 넘김 연출 없이 즉시 교체. 소리는 넘김 피드백으로 유지.
+	if AppSettings.load_motion() <= 0.02:
+		AudioManager.play_sfx_random(PAGE_SFX)
+		_book.thickness_cf = cf_to
+		swap.call()
+		return
 	_flipping = true
 	AudioManager.play_sfx_random(PAGE_SFX)  # 장 집힐 때 1회
 	await RenderingServer.frame_post_draw
@@ -551,6 +594,9 @@ func _show_chronicle() -> void:
 func _show_tutorial() -> void:
 	_clear(_box_l)
 	_clear(_box_r)
+	if _tut_legend:  # 표식 읽기 범례 서브뷰
+		_show_legend()
+		return
 	_box_l.add_child(_brush_heading("조작 안내", 40, INK))
 	_box_l.add_child(_ink_label(str(TUTORIAL_PAGES[_tut_idx]), UITheme.FS_BODY, INK))
 	_box_r.add_child(_brush_heading("%d / %d 장" % [_tut_idx + 1, TUTORIAL_PAGES.size()], 34, Color(RED.r, RED.g, RED.b, 0.9)))
@@ -562,7 +608,46 @@ func _show_tutorial() -> void:
 	if _tut_idx < TUTORIAL_PAGES.size() - 1:
 		row.add_child(_ink_btn("다음 장 →", _tut_next))
 	_box_r.add_child(row)
+	_box_r.add_child(_ink_btn("표식 읽기", _open_legend))
 	_add_close(_box_r)
+
+## 표식 읽기 — 지도·단면에서 보는 표식들의 범례(조작 챕터 서브뷰).
+func _open_legend() -> void:
+	_tut_legend = true
+	_show_tutorial()
+
+func _close_legend() -> void:
+	_tut_legend = false
+	_show_tutorial()
+
+func _show_legend() -> void:
+	_box_l.add_child(_brush_heading("표식 읽기", 40, INK))
+	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	_box_l.add_child(_legend_row("main", "주요 지점", "이 자리의 본 사건. 큰 이중 고리로 눈에 띈다."))
+	_box_l.add_child(_legend_row("collect", "살필 곳", "자원이나 흔적, 작은 일이 있을 수 있다."))
+	_box_l.add_child(_legend_row("done", "다 살핀 곳", "이미 살펴 흐려진 지점."))
+	_box_l.add_child(_legend_row("ramp", "조사 남음", "이 자리에서 살필 수 있는 횟수. 찬 점이 남은 것."))
+	_box_l.add_child(_legend_row("route", "밟은 길", "지난 원정대가 밟아 이어진 길."))
+	_box_l.add_child(_legend_row("marker", "원정대", "지금 이 원정대가 선 자리."))
+	_box_l.add_child(_legend_row("trace", "남긴 흔적", "이전 원정대가 남긴 물건. 색으로 물과 식량, 은신막을 나눈다."))
+	_box_r.add_child(_ink_btn("← 글 안내로", _close_legend))
+	_add_close(_box_r)
+
+## 범례 한 줄 — 왼쪽 표식 그림 + 오른쪽 이름·뜻.
+func _legend_row(kind: String, title: String, meaning: String) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	var mark := LegendMark.new()
+	mark.kind = kind
+	mark.custom_minimum_size = Vector2(52, 48)
+	row.add_child(mark)
+	var col := VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_theme_constant_override("separation", 1)
+	col.add_child(_ink_label(title, UITheme.FS_LABEL, INK))
+	col.add_child(_ink_label(meaning, UITheme.FS_SMALL, INK_FADE))
+	row.add_child(col)
+	return row
 
 func _tut_back() -> void:
 	if _flipping or _tut_idx <= 0:
@@ -616,6 +701,20 @@ func _show_settings() -> void:
 	var replay := UITheme.make_pill("오프닝 다시보기", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
 	replay.pressed.connect(_replay_opening)
 	_box_l.add_child(replay)
+	# 연출 세기 — 전환·책넘김 애니를 조절/끈다(모션 줄이기).
+	_add_motion_row(_box_l, AppSettings.load_motion())
+	# 조작 안내 다시보기 — 튜토리얼이 실제로 뜨는 지도·단면 화면에서만.
+	var cs_path: String = ""
+	if get_tree().current_scene != null:
+		cs_path = get_tree().current_scene.scene_file_path
+	if cs_path == "res://scenes/map.tscn" or cs_path == "res://scenes/expedition.tscn":
+		var tut := UITheme.make_pill("조작 안내 다시보기", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
+		tut.pressed.connect(_replay_tutorial)
+		_box_l.add_child(tut)
+	# 만든 것들 — 폰트·음악·소리·엔진 출처(별지).
+	var credits := UITheme.make_pill("만든 것들", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
+	credits.pressed.connect(_show_credits)
+	_box_l.add_child(credits)
 
 	# ── 오른쪽: 여정 (타이틀 화면에선 의미 없어 숨김)
 	var on_title: bool = get_tree().current_scene != null \
@@ -714,6 +813,60 @@ func _replay_opening() -> void:
 	_close()
 	GameState.opening_replay = true
 	GameState.go_to_opening()
+
+## 연출 세기 슬라이더 — 0(즉시·모션 줄이기) .. 1(기본). AppSettings 저장, Transition·책넘김이 읽는다.
+func _add_motion_row(box: VBoxContainer, cur: float) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var lbl := _ink_label("연출", UITheme.FS_LABEL, INK)
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(lbl)
+	var value := _ink_label(_pct(cur), UITheme.FS_SMALL, INK_FADE)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value.autowrap_mode = TextServer.AUTOWRAP_OFF
+	row.add_child(value)
+	box.add_child(row)
+	var slider := HSlider.new()
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.05
+	slider.value = cur
+	slider.custom_minimum_size = Vector2(0, UITheme.SLIDER_H)
+	UITheme.style_slider(slider, INK)
+	slider.value_changed.connect(func(v: float) -> void:
+		AppSettings.set_motion(v)
+		value.text = _pct(v))
+	box.add_child(slider)
+
+## 조작 안내 다시보기 — 일지를 덮고 튜토리얼을 처음부터 재무장한다(지도·단면 화면에서 다시 뜬다).
+func _replay_tutorial() -> void:
+	_close()
+	Tutorial.replay()
+
+## 만든 것들(크레딧) 별지 — 폰트·음악·소리·엔진 출처. 오른쪽에서 설정으로 돌아간다.
+func _show_credits() -> void:
+	_in_confirm = false
+	_clear(_box_l)
+	_clear(_box_r)
+	_box_l.add_child(_brush_heading("만든 것들", 40, INK))
+	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	var text: String = \
+		"글씨\n" + \
+		"    마루 부리 · 나눔손글씨 붓 · 네이버\n" + \
+		"    Cinzel · Natanael Gama\n" + \
+		"    SIL 오픈 폰트 라이선스(OFL)\n\n" + \
+		"음악\n" + \
+		"    Suno 로 지은 네 곡\n\n" + \
+		"소리\n" + \
+		"    freesound.org · ElevenLabs\n\n" + \
+		"엔진\n" + \
+		"    Godot Engine 4.6"
+	_box_l.add_child(_ink_label(text, UITheme.FS_SMALL, INK))
+	var sp := Control.new()
+	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_box_r.add_child(sp)
+	_box_r.add_child(_ink_btn("설정으로 돌아간다", _show_settings))
+	_box_r.add_child(_ink_btn("일지를 덮는다", _close))
 
 # --- 소리 핸들러 (옛 장부 그대로) ---
 

@@ -64,6 +64,15 @@ func _process(_delta: float) -> void:
 	else:
 		_hide()  # 이 단계의 씬이 아니면 대기(그 씬에 도착하면 뜬다)
 
+## 조작 안내를 처음부터 다시 보여준다(설정 "조작 안내 다시보기"). seen 플래그를 재무장하면
+## _process 가 현재 지도·단면 씬에서 1단계부터 다시 띄운다. 완료·건너뛰면 다시 seen 처리된다.
+func replay() -> void:
+	if not ENABLED:
+		return
+	_step_idx = 0
+	_rendered_idx = -1
+	GameState.controls_tutorial_seen = false
+
 func _hide() -> void:
 	if _root != null and _root.visible:
 		_root.visible = false
