@@ -713,9 +713,10 @@ func _settings_nav() -> void:
 ## 오른쪽 페이지 아래 넘김 줄(설정·조작 공용) — 내용을 위로 붙이고, 헤어라인 아래에
 ## 이전/펼침 번호/다음 + 덮기. 헤어라인으로 넘김 영역을 뚜렷이 구분한다(놓치지 않게).
 func _spread_nav(idx: int, total: int, prev_cb: Callable, next_cb: Callable) -> void:
-	var sp := Control.new()
-	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_box_r.add_child(sp)
+	# 고정 간격(EXPAND 아님) — 내용이 어떤 이유로 페이지보다 커져도 넘김이 바닥(=페이지 밖)으로 밀리지 않게.
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 26)
+	_box_r.add_child(gap)
 	_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.3), 1.5))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 28)
