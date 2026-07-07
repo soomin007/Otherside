@@ -311,9 +311,8 @@ class LegendMark extends Control:
 				draw_circle(c, 5.0, pig)
 
 var _chapter: int = 0
-var _tut_idx: int = 0
-var _tut_legend: bool = false  ## 조작 챕터가 "표식 읽기" 범례 서브뷰를 보여주는 중인가
-var _set_idx: int = 0          ## 설정 챕터 페이지(소리·화면·이야기·만든 것들·여정) — 넘겨서 본다
+var _ctrl_idx: int = 0         ## 조작 챕터 펼침(0=안내 글·1=표식 읽기) — 양면에 둘씩, 넘겨서 본다
+var _set_idx: int = 0          ## 설정 챕터 펼침(소리|화면 · 이야기|Credit · 여정|위험)
 var _flipping: bool = false
 var _rib_tw: Tween
 var _opened_ms: int = 0        ## 일지를 연 시각 — 여는 클릭이 스크림 닫기로 새는 것 방지 가드
@@ -445,8 +444,8 @@ func open_journal(chapter: int = 0) -> void:
 	_opened_ms = Time.get_ticks_msec()
 	AudioManager.play_sfx("res://assets/sfx/sfx_page_1.wav")
 	_chapter = clampi(chapter, 0, CHAPTERS.size() - 1)
-	_tut_legend = false  # 조작 챕터는 글 안내부터(범례는 눌러서 진입)
-	_set_idx = 0         # 설정 챕터는 첫 장(소리)부터
+	_ctrl_idx = 0        # 조작 챕터는 안내 글부터(표식은 넘겨서)
+	_set_idx = 0         # 설정 챕터는 첫 펼침(소리|화면)부터
 	_book.thickness_cf = float(_chapter)  # 페이지 두께 스택(§5) 초기 위치
 	_apply_tab_state()
 	_render_chapter()
@@ -590,50 +589,55 @@ func _show_chronicle() -> void:
 	_box_r.add_child(_ledger_row("끝에 닿음", "%d번" % GameState.arrivals.size()))
 	_add_close(_box_r)
 
-# --- 챕터: 조작 안내 ---
+# --- 챕터: 조작 안내 (펼침 2장 — 안내 글 | 표식 읽기 범례, 양면 다 채움) ---
 
-## 왼쪽: 현재 장 내용, 오른쪽: 장 넘기기 + 덮기.
+const CTRL_SPREADS: int = 2  ## 0=안내(네 갈래 설명), 1=표식 읽기(범례 7종)
+
 func _show_tutorial() -> void:
 	_clear(_box_l)
 	_clear(_box_r)
-	if _tut_legend:  # 표식 읽기 범례 서브뷰
-		_show_legend()
+	if _ctrl_idx == 0:
+		_ctrl_guide()
+	else:
+		_ctrl_legend()
+	_spread_nav(_ctrl_idx, CTRL_SPREADS, _ctrl_prev, _ctrl_next)
+
+func _ctrl_prev() -> void:
+	if _flipping or _ctrl_idx <= 0:
 		return
+	_flip_page(-1, func() -> void:
+		_ctrl_idx = 0
+		_show_tutorial())
+
+func _ctrl_next() -> void:
+	if _flipping or _ctrl_idx >= CTRL_SPREADS - 1:
+		return
+	_flip_page(1, func() -> void:
+		_ctrl_idx = 1
+		_show_tutorial())
+
+## 안내 — 네 갈래 조작 설명을 양면에 둘씩(왼 2·오 2).
+func _ctrl_guide() -> void:
 	_box_l.add_child(_brush_heading("조작 안내", 40, INK))
-	_box_l.add_child(_ink_label(str(TUTORIAL_PAGES[_tut_idx]), UITheme.FS_BODY, INK))
-	_box_r.add_child(_brush_heading("%d / %d 장" % [_tut_idx + 1, TUTORIAL_PAGES.size()], 34, Color(RED.r, RED.g, RED.b, 0.9)))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 22)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	if _tut_idx > 0:
-		row.add_child(_ink_btn("← 앞장", _tut_back))
-	if _tut_idx < TUTORIAL_PAGES.size() - 1:
-		row.add_child(_ink_btn("다음 장 →", _tut_next))
-	_box_r.add_child(row)
-	_box_r.add_child(_ink_btn("표식 읽기", _open_legend))
-	_add_close(_box_r)
+	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	_box_l.add_child(_ink_label(str(TUTORIAL_PAGES[0]), UITheme.FS_BODY, INK))
+	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.15), 1.0))
+	_box_l.add_child(_ink_label(str(TUTORIAL_PAGES[1]), UITheme.FS_BODY, INK))
+	_box_r.add_child(_ink_label(str(TUTORIAL_PAGES[2]), UITheme.FS_BODY, INK))
+	_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.15), 1.0))
+	_box_r.add_child(_ink_label(str(TUTORIAL_PAGES[3]), UITheme.FS_BODY, INK))
 
-## 표식 읽기 — 지도·단면에서 보는 표식들의 범례(조작 챕터 서브뷰).
-func _open_legend() -> void:
-	_tut_legend = true
-	_show_tutorial()
-
-func _close_legend() -> void:
-	_tut_legend = false
-	_show_tutorial()
-
-func _show_legend() -> void:
+## 표식 읽기 — 범례 7종을 양면에 나눠(왼 4·오 3). 지도·단면 실제 표식의 축소판.
+func _ctrl_legend() -> void:
 	_box_l.add_child(_brush_heading("표식 읽기", 40, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	_box_l.add_child(_legend_row("main", "주요 지점", "이 자리의 본 사건. 큰 이중 고리로 눈에 띈다."))
 	_box_l.add_child(_legend_row("collect", "살필 곳", "자원이나 흔적, 작은 일이 있을 수 있다."))
 	_box_l.add_child(_legend_row("done", "다 살핀 곳", "이미 살펴 흐려진 지점."))
 	_box_l.add_child(_legend_row("ramp", "조사 남음", "이 자리에서 살필 수 있는 횟수. 찬 점이 남은 것."))
-	_box_l.add_child(_legend_row("route", "밟은 길", "지난 원정대가 밟아 이어진 길."))
-	_box_l.add_child(_legend_row("marker", "원정대", "지금 이 원정대가 선 자리."))
-	_box_l.add_child(_legend_row("trace", "남긴 흔적", "이전 원정대가 남긴 물건. 색으로 물과 식량, 은신막을 나눈다."))
-	_box_r.add_child(_ink_btn("← 글 안내로", _close_legend))
-	_add_close(_box_r)
+	_box_r.add_child(_legend_row("route", "밟은 길", "지난 원정대가 밟아 이어진 길."))
+	_box_r.add_child(_legend_row("marker", "원정대", "지금 이 원정대가 선 자리."))
+	_box_r.add_child(_legend_row("trace", "남긴 흔적", "이전 원정대가 남긴 물건. 색으로 물과 식량, 은신막을 나눈다."))
 
 ## 범례 한 줄 — 왼쪽 표식 그림 + 오른쪽 이름·뜻.
 func _legend_row(kind: String, title: String, meaning: String) -> HBoxContainer:
@@ -650,20 +654,6 @@ func _legend_row(kind: String, title: String, meaning: String) -> HBoxContainer:
 	col.add_child(_ink_label(meaning, UITheme.FS_SMALL, INK_FADE))
 	row.add_child(col)
 	return row
-
-func _tut_back() -> void:
-	if _flipping or _tut_idx <= 0:
-		return
-	_flip_page(-1, func() -> void:
-		_tut_idx = maxi(0, _tut_idx - 1)
-		_show_tutorial())
-
-func _tut_next() -> void:
-	if _flipping or _tut_idx >= TUTORIAL_PAGES.size() - 1:
-		return
-	_flip_page(1, func() -> void:
-		_tut_idx = mini(TUTORIAL_PAGES.size() - 1, _tut_idx + 1)
-		_show_tutorial())
 
 # --- 챕터: 설정 (펼침 넘김 — 한 펼침에 두 부분: 소리|화면 · 이야기|Credit · 여정|위험) ---
 
@@ -687,21 +677,26 @@ func _show_settings() -> void:
 			_sec_danger(_box_r)
 	_settings_nav()
 
-## 오른쪽 페이지 아래 — 이전/다음 넘김 + 펼침 번호 + 덮기(내용 아래로 밀어 붙인다).
 func _settings_nav() -> void:
+	_spread_nav(_set_idx, SETTINGS_SPREADS, _set_prev, _set_next)
+
+## 오른쪽 페이지 아래 넘김 줄(설정·조작 공용) — 내용을 위로 붙이고, 헤어라인 아래에
+## 이전/펼침 번호/다음 + 덮기. 헤어라인으로 넘김 영역을 뚜렷이 구분한다(놓치지 않게).
+func _spread_nav(idx: int, total: int, prev_cb: Callable, next_cb: Callable) -> void:
 	var sp := Control.new()
 	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_box_r.add_child(sp)
+	_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.3), 1.5))
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 20)
+	row.add_theme_constant_override("separation", 28)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	if _set_idx > 0:
-		row.add_child(_ink_btn("‹ 이전", _set_prev))
-	var ind := _ink_label("%d / %d" % [_set_idx + 1, SETTINGS_SPREADS], UITheme.FS_SMALL, INK_FADE)
+	if idx > 0:
+		row.add_child(_ink_btn("‹ 이전", prev_cb))
+	var ind := _ink_label("%d / %d" % [idx + 1, total], UITheme.FS_LABEL, INK_FADE)
 	ind.autowrap_mode = TextServer.AUTOWRAP_OFF  # "1 / 3" 이 좁은 폭에서 세로로 쪼개지지 않게
 	row.add_child(ind)
-	if _set_idx < SETTINGS_SPREADS - 1:
-		row.add_child(_ink_btn("다음 ›", _set_next))
+	if idx < total - 1:
+		row.add_child(_ink_btn("다음 ›", next_cb))
 	_box_r.add_child(row)
 	_box_r.add_child(_ink_btn("일지를 덮는다", _close))
 
