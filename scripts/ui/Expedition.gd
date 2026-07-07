@@ -213,7 +213,8 @@ func _build_death_panel() -> void:
 	dbox.add_child(to_next)
 
 func _refresh() -> void:
-	_status_label.text = "원정 %d째 · %d걸음\n물 -%d/걸음 · 식량 -1/%d걸음" % [GameState.expedition_count, _run.leg, _run.water_cost(), ExpeditionRun.FOOD_EVERY]
+	var food_per_leg: String = String.num(1.0 / float(ExpeditionRun.FOOD_EVERY), 2)
+	_status_label.text = "원정 %d째 · %d걸음\n물 %d/걸음 · 식량 %s/걸음" % [GameState.expedition_count, _run.leg, _run.water_cost(), food_per_leg]
 	var water: int = maxi(0, _run.get_res("water"))
 	var food: int = maxi(0, _run.get_res("food"))
 	AudioManager.warn_thirst(water)  # 물이 임계로 떨어지는 순간 경고음 1회(지도와 공용 상태)
