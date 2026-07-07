@@ -285,7 +285,8 @@ var _ribbon: Ribbon
 var _panel: Control
 var _book: LedgerBook
 var _box_l: VBoxContainer      ## 왼쪽 페이지 내용
-var _box_r: VBoxContainer      ## 오른쪽 페이지 내용
+var _box_r: VBoxContainer      ## 오른쪽 페이지 내용(넘김/덮기 제외 — 위쪽만)
+var _footer_r: VBoxContainer   ## 오른쪽 페이지 바닥 고정 자리 — 넘김·덮기(펼침마다 같은 위치)
 var _scroll_l: ScrollContainer ## 왼쪽 페이지 스크롤(일대기가 길다)
 var _tabs: Array = []          ## 챕터 책갈피(Ribbon) — 책 오른쪽에 얹힘
 ## 범례 표식 그림 — 조작 챕터 "표식 읽기"가 지도·단면 실제 표식의 축소판을 작은 칸에 그린다.
@@ -423,6 +424,9 @@ func _build() -> void:
 	_box_r = VBoxContainer.new()
 	_box_r.add_theme_constant_override("separation", 12)
 	_book.add_child(_box_r)
+	_footer_r = VBoxContainer.new()  # 바닥 고정 — 넘김/덮기가 내용 높이와 무관하게 항상 같은 자리
+	_footer_r.add_theme_constant_override("separation", 6)
+	_book.add_child(_footer_r)
 
 	# 챕터 책갈피 — 책 오른쪽 가장자리에서 삐져나온 작은 리본들(현재 챕터가 가장 김).
 	for i in range(CHAPTERS.size()):
@@ -511,8 +515,12 @@ func _layout_book() -> void:
 	_scroll_l.position = _book.rect_l.position + Vector2(PAGE_PAD, PAGE_PAD)
 	_scroll_l.size = _book.rect_l.size - Vector2(PAGE_PAD * 2.0, PAGE_PAD * 2.0)
 	_box_l.custom_minimum_size.x = _scroll_l.size.x - 20.0  # 우측 여백(스크롤바+값 라벨 잘림 방지, 큰 배율 대비)
+	# 오른쪽 페이지: 내용(_box_r)은 위쪽, 넘김/덮기(_footer_r)는 바닥 고정 자리.
+	var footer_h: float = 118.0
 	_box_r.position = _book.rect_r.position + Vector2(PAGE_PAD, PAGE_PAD)
-	_box_r.size = _book.rect_r.size - Vector2(PAGE_PAD * 2.0, PAGE_PAD * 2.0)
+	_box_r.size = _book.rect_r.size - Vector2(PAGE_PAD * 2.0, PAGE_PAD * 2.0 + footer_h)
+	_footer_r.position = _book.rect_r.position + Vector2(PAGE_PAD, _book.rect_r.size.y - PAGE_PAD - footer_h)
+	_footer_r.size = Vector2(_book.rect_r.size.x - PAGE_PAD * 2.0, footer_h)
 	for i in range(_tabs.size()):
 		var tab: Ribbon = _tabs[i]
 		tab.position = Vector2(w - 4.0, 36.0 + float(i) * 44.0)
@@ -713,23 +721,20 @@ func _settings_nav() -> void:
 ## 오른쪽 페이지 아래 넘김 줄(설정·조작 공용) — 내용을 위로 붙이고, 헤어라인 아래에
 ## 이전/펼침 번호/다음 + 덮기. 헤어라인으로 넘김 영역을 뚜렷이 구분한다(놓치지 않게).
 func _spread_nav(idx: int, total: int, prev_cb: Callable, next_cb: Callable) -> void:
-	# 고정 간격(EXPAND 아님) — 내용이 어떤 이유로 페이지보다 커져도 넘김이 바닥(=페이지 밖)으로 밀리지 않게.
-	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 26)
-	_box_r.add_child(gap)
-	_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.3), 1.5))
+	_clear(_footer_r)  # 바닥 고정 자리 — 내용 높이와 무관하게 매 펼침 같은 위치
+	_footer_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.3), 1.5))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 28)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	if idx > 0:
-		row.add_child(_ink_btn("‹ 이전", prev_cb, UITheme.FS_H2))
+		row.add_child(_ink_btn("‹ 이전", prev_cb))
 	var ind := _ink_label("%d / %d" % [idx + 1, total], UITheme.FS_LABEL, INK_FADE)
 	ind.autowrap_mode = TextServer.AUTOWRAP_OFF  # "1 / 3" 이 좁은 폭에서 세로로 쪼개지지 않게
 	row.add_child(ind)
 	if idx < total - 1:
-		row.add_child(_ink_btn("다음 ›", next_cb, UITheme.FS_H2))
-	_box_r.add_child(row)
-	_box_r.add_child(_ink_btn("일지를 덮는다", _close))
+		row.add_child(_ink_btn("다음 ›", next_cb))
+	_footer_r.add_child(row)
+	_footer_r.add_child(_ink_btn("일지를 덮는다", _close))
 
 func _set_prev() -> void:
 	if _flipping or _set_idx <= 0:
@@ -832,6 +837,7 @@ func _show_confirm_page(warn: String, title: String, desc: String, yes_txt: Stri
 	AudioManager.play_sfx_random(PAGE_SFX)
 	_clear(_box_l)
 	_clear(_box_r)
+	_clear(_footer_r)  # 확인 페이지는 넘김/덮기 없음(머문다/실행만)
 	_box_l.add_child(_ink_label(warn, UITheme.FS_SMALL, RED))
 	_box_l.add_child(_brush_heading(title, 40, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(RED.r, RED.g, RED.b, 0.5), 2.0))
@@ -986,11 +992,10 @@ func _pct(v: float) -> String:
 
 # --- 잉크 위젯 헬퍼 ---
 
-func _add_close(box: VBoxContainer) -> void:
-	var sp := Control.new()
-	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	box.add_child(sp)
-	box.add_child(_ink_btn("일지를 덮는다", _close))
+## 덮기 버튼 — 오른쪽 페이지 바닥 고정 자리(_footer_r)에. box 인자는 호환용(무시).
+func _add_close(_box: VBoxContainer) -> void:
+	_clear(_footer_r)
+	_footer_r.add_child(_ink_btn("일지를 덮는다", _close))
 
 ## 붓글씨 제목(나눔손글씨 붓 — 지도 지명과 같은 결).
 func _brush_heading(txt: String, fs: int, col: Color) -> Label:
