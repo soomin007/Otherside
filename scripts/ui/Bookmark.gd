@@ -665,36 +665,45 @@ func _tut_next() -> void:
 		_tut_idx = mini(TUTORIAL_PAGES.size() - 1, _tut_idx + 1)
 		_show_tutorial())
 
-# --- 챕터: 설정 (페이지 넘김 — 소리 / 화면 / 이야기 / 만든 것들 / 여정) ---
+# --- 챕터: 설정 (펼침 넘김 — 한 펼침에 두 부분: 소리|화면 · 이야기|Credit · 여정|위험) ---
 
-const SETTINGS_PAGES: int = 5  ## 소리·화면·이야기·만든 것들·여정 — 책이라 한 페이지에 한 부분씩(스크롤 없음)
+const SETTINGS_SPREADS: int = 3  ## 펼침 3장. 왼쪽 한 부분·오른쪽 한 부분(양면 다 채운다).
 
-## 왼쪽 = 이 페이지의 부분 내용, 오른쪽 = 페이지 넘김(앞장/다음장) + 덮기. 넘기면 낱장이 넘어간다.
+## 왼쪽·오른쪽 페이지 각각 한 부분. 넘김(이전/다음)과 덮기는 오른쪽 아래 슬림 줄로.
 ## 웹에선 게임 끝내기·전체화면 토글을 숨긴다(브라우저가 관장 — Fullscreen autoload 가 자동 전체화면).
 func _show_settings() -> void:
 	_in_confirm = false
 	_clear(_box_l)
 	_clear(_box_r)
 	match _set_idx:
-		0: _settings_sound()
-		1: _settings_screen()
-		2: _settings_story()
-		3: _settings_credits()
-		_: _settings_journey()
+		0:
+			_sec_sound(_box_l)
+			_sec_screen(_box_r)
+		1:
+			_sec_story(_box_l)
+			_sec_credits(_box_r)
+		_:
+			_sec_journey(_box_l)
+			_sec_danger(_box_r)
 	_settings_nav()
 
-## 오른쪽 페이지 — 몇 장 중 몇 장 + 앞장/다음장 + 덮기.
+## 오른쪽 페이지 아래 — 이전/다음 넘김 + 펼침 번호 + 덮기(내용 아래로 밀어 붙인다).
 func _settings_nav() -> void:
-	_box_r.add_child(_brush_heading("%d / %d 장" % [_set_idx + 1, SETTINGS_PAGES], 34, Color(RED.r, RED.g, RED.b, 0.9)))
+	var sp := Control.new()
+	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_box_r.add_child(sp)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 22)
+	row.add_theme_constant_override("separation", 20)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	if _set_idx > 0:
-		row.add_child(_ink_btn("← 앞장", _set_prev))
-	if _set_idx < SETTINGS_PAGES - 1:
-		row.add_child(_ink_btn("다음 장 →", _set_next))
+		row.add_child(_ink_btn("‹ 이전", _set_prev))
+	var ind := _ink_label("%d / %d" % [_set_idx + 1, SETTINGS_SPREADS], UITheme.FS_SMALL, INK_FADE)
+	ind.autowrap_mode = TextServer.AUTOWRAP_OFF  # "1 / 3" 이 좁은 폭에서 세로로 쪼개지지 않게
+	row.add_child(ind)
+	if _set_idx < SETTINGS_SPREADS - 1:
+		row.add_child(_ink_btn("다음 ›", _set_next))
 	_box_r.add_child(row)
-	_add_close(_box_r)
+	_box_r.add_child(_ink_btn("일지를 덮는다", _close))
 
 func _set_prev() -> void:
 	if _flipping or _set_idx <= 0:
@@ -704,44 +713,44 @@ func _set_prev() -> void:
 		_show_settings())
 
 func _set_next() -> void:
-	if _flipping or _set_idx >= SETTINGS_PAGES - 1:
+	if _flipping or _set_idx >= SETTINGS_SPREADS - 1:
 		return
 	_flip_page(1, func() -> void:
-		_set_idx = mini(SETTINGS_PAGES - 1, _set_idx + 1)
+		_set_idx = mini(SETTINGS_SPREADS - 1, _set_idx + 1)
 		_show_settings())
 
-## 페이지 0 — 소리(음소거·배경음악·효과음). 음소거는 자기 줄로(헤딩 옆 두면 큰 글자 크기에서 페이지를 넘침).
-func _settings_sound() -> void:
-	_box_l.add_child(_brush_heading("소리", 40, INK))
-	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+## 소리(음소거·배경음악·효과음). 음소거는 자기 줄로(헤딩 옆 두면 큰 글자 크기에서 페이지를 넘침).
+func _sec_sound(box: VBoxContainer) -> void:
+	box.add_child(_brush_heading("소리", 40, INK))
+	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	var master: float = AppSettings.load_master_volume()
 	var mute := UITheme.make_pill("소리 켜기" if master <= 0.0 else "전체 음소거", INK, Color(0, 0, 0, 0),
 		Color(INK.r, INK.g, INK.b, 0.4))
 	mute.pressed.connect(_toggle_mute)
-	_box_l.add_child(mute)
-	_music_value = _add_volume_row(_box_l, "배경음악", AppSettings.load_music_volume(), _on_music_changed, Callable())
-	_sfx_value = _add_volume_row(_box_l, "효과음", AppSettings.load_sfx_volume(), _on_sfx_changed, _on_sfx_drag_ended)
+	box.add_child(mute)
+	_music_value = _add_volume_row(box, "배경음악", AppSettings.load_music_volume(), _on_music_changed, Callable())
+	_sfx_value = _add_volume_row(box, "효과음", AppSettings.load_sfx_volume(), _on_sfx_changed, _on_sfx_drag_ended)
 
-## 페이지 1 — 화면(전체화면·연출 세기·글자 크기).
-func _settings_screen() -> void:
-	_box_l.add_child(_brush_heading("화면", 40, INK))
-	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+## 화면(전체화면·연출 세기·글자 크기).
+func _sec_screen(box: VBoxContainer) -> void:
+	box.add_child(_brush_heading("화면", 40, INK))
+	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	if not OS.has_feature("web"):
 		var fs_on: bool = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
 		var fs := UITheme.make_pill("창 화면으로" if fs_on else "전체 화면으로", INK, Color(0, 0, 0, 0),
 			Color(INK.r, INK.g, INK.b, 0.4))
 		fs.pressed.connect(_toggle_fullscreen)
-		_box_l.add_child(fs)
-	_add_motion_row(_box_l, AppSettings.load_motion())
-	_add_scale_row(_box_l, AppSettings.load_text_scale())
+		box.add_child(fs)
+	_add_motion_row(box, AppSettings.load_motion())
+	_add_scale_row(box, AppSettings.load_text_scale())
 
-## 페이지 2 — 이야기(오프닝 다시보기·조작 안내 다시보기).
-func _settings_story() -> void:
-	_box_l.add_child(_brush_heading("이야기", 40, INK))
-	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+## 이야기(오프닝 다시보기·조작 안내 다시보기).
+func _sec_story(box: VBoxContainer) -> void:
+	box.add_child(_brush_heading("이야기", 40, INK))
+	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	var replay := UITheme.make_pill("오프닝 다시보기", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
 	replay.pressed.connect(_replay_opening)
-	_box_l.add_child(replay)
+	box.add_child(replay)
 	# 조작 안내 다시보기 — 튜토리얼이 실제로 뜨는 지도·단면 화면에서만.
 	var cs_path: String = ""
 	if get_tree().current_scene != null:
@@ -749,41 +758,48 @@ func _settings_story() -> void:
 	if cs_path == "res://scenes/map.tscn" or cs_path == "res://scenes/expedition.tscn":
 		var tut := UITheme.make_pill("조작 안내 다시보기", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
 		tut.pressed.connect(_replay_tutorial)
-		_box_l.add_child(tut)
+		box.add_child(tut)
 
-## 페이지 3 — Credit(제목·내용·만든 이·출처). 기술 출처는 영어로.
-func _settings_credits() -> void:
-	_box_l.add_child(_brush_heading("Credit", 40, INK))
-	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
-	_box_l.add_child(_ink_label("See you on the other side", UITheme.FS_BODY, INK))
-	_box_l.add_child(_ink_label("매년 원정대가 떠나고, 거의 다 죽는다.\n죽기 전 단 한 번, 다음 원정대에게 물건을 남긴다.",
+## Credit(제목·내용·만든 이·출처). 기술 출처는 영어로.
+func _sec_credits(box: VBoxContainer) -> void:
+	box.add_child(_brush_heading("Credit", 40, INK))
+	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	box.add_child(_ink_label("See you on the other side", UITheme.FS_BODY, INK))
+	box.add_child(_ink_label("매년 원정대가 떠나고, 거의 다 죽는다.\n죽기 전 단 한 번, 다음 원정대에게 물건을 남긴다.",
 		UITheme.FS_SMALL, INK_FADE))
-	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.2), 1.0))
-	_box_l.add_child(_ink_label("만든 이   soomin007", UITheme.FS_LABEL, INK))
-	_box_l.add_child(_ink_label("Fonts   MaruBuri · Nanum Brush · Cinzel (OFL)\nMusic   Suno\nSFX   ElevenLabs · freesound.org\nEngine   Godot 4.6",
+	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.2), 1.0))
+	box.add_child(_ink_label("만든 이   soomin007", UITheme.FS_LABEL, INK))
+	box.add_child(_ink_label("Fonts   MaruBuri · Nanum Brush · Cinzel (OFL)\nMusic   Suno\nSFX   ElevenLabs · freesound.org\nEngine   Godot 4.6",
 		UITheme.FS_SMALL, INK_FADE))
 
-## 페이지 4 — 여정(타이틀로·게임 끝내기) + 위험 구역(세계 지우기).
-func _settings_journey() -> void:
+## 여정(타이틀로·게임 끝내기). 타이틀+웹처럼 나갈 것이 없으면 비운다.
+func _sec_journey(box: VBoxContainer) -> void:
 	var on_title: bool = get_tree().current_scene != null \
 		and get_tree().current_scene.scene_file_path == "res://scenes/main.tscn"
-	if not on_title:
-		_box_l.add_child(_brush_heading("여정", 40, INK))
-		_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	var show_title: bool = not on_title
+	var show_quit: bool = not OS.has_feature("web")
+	if not show_title and not show_quit:
+		return
+	box.add_child(_brush_heading("여정", 40, INK))
+	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	if show_title:
 		var to_title := UITheme.make_pill("타이틀로 나간다", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
 		to_title.pressed.connect(_on_leave_to_title)
-		_box_l.add_child(to_title)
-	if not OS.has_feature("web"):
+		box.add_child(to_title)
+	if show_quit:
 		var quit := UITheme.make_pill("게임을 끝낸다", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
 		quit.pressed.connect(_on_quit_pressed)
-		_box_l.add_child(quit)
-	_box_l.add_child(_brush_heading("위험 구역", 34, RED))
-	_box_l.add_child(UITheme.make_hairline(Color(RED.r, RED.g, RED.b, 0.5), 2.0))
-	_box_l.add_child(_ink_label("저장된 이 세계를 지웁니다.\n원정·흔적·죽은 자리가 모두 사라지고, 처음부터 시작합니다.",
+		box.add_child(quit)
+
+## 위험 구역(세계 지우기).
+func _sec_danger(box: VBoxContainer) -> void:
+	box.add_child(_brush_heading("위험 구역", 40, RED))
+	box.add_child(UITheme.make_hairline(Color(RED.r, RED.g, RED.b, 0.5), 2.0))
+	box.add_child(_ink_label("저장된 이 세계를 지웁니다.\n원정·흔적·죽은 자리가 모두 사라지고, 처음부터 시작합니다.",
 		UITheme.FS_SMALL, INK_FADE))
 	var wipe := UITheme.make_pill("저장 데이터 지우기", RED, Color(0, 0, 0, 0), Color(RED.r, RED.g, RED.b, 0.55))
 	wipe.pressed.connect(_confirm_wipe)
-	_box_l.add_child(wipe)
+	box.add_child(wipe)
 
 ## 글자 크기(UI 전체 배율) 슬라이더 — 손 떼면 content_scale_factor 적용·저장하고 책을 다시 맞춘다.
 func _add_scale_row(box: VBoxContainer, cur: float) -> void:
