@@ -313,6 +313,7 @@ class LegendMark extends Control:
 var _chapter: int = 0
 var _tut_idx: int = 0
 var _tut_legend: bool = false  ## 조작 챕터가 "표식 읽기" 범례 서브뷰를 보여주는 중인가
+var _set_idx: int = 0          ## 설정 챕터 페이지(소리·화면·이야기·만든 것들·여정) — 넘겨서 본다
 var _flipping: bool = false
 var _rib_tw: Tween
 var _opened_ms: int = 0        ## 일지를 연 시각 — 여는 클릭이 스크림 닫기로 새는 것 방지 가드
@@ -445,6 +446,7 @@ func open_journal(chapter: int = 0) -> void:
 	AudioManager.play_sfx("res://assets/sfx/sfx_page_1.wav")
 	_chapter = clampi(chapter, 0, CHAPTERS.size() - 1)
 	_tut_legend = false  # 조작 챕터는 글 안내부터(범례는 눌러서 진입)
+	_set_idx = 0         # 설정 챕터는 첫 장(소리)부터
 	_book.thickness_cf = float(_chapter)  # 페이지 두께 스택(§5) 초기 위치
 	_apply_tab_state()
 	_render_chapter()
@@ -663,17 +665,53 @@ func _tut_next() -> void:
 		_tut_idx = mini(TUTORIAL_PAGES.size() - 1, _tut_idx + 1)
 		_show_tutorial())
 
-# --- 챕터: 설정 (소리·화면·이야기 / 여정·위험 구역) ---
+# --- 챕터: 설정 (페이지 넘김 — 소리 / 화면 / 이야기 / 만든 것들 / 여정) ---
 
-## 왼쪽: 소리 + 화면·이야기(전체화면·오프닝 다시보기). 오른쪽: 여정(타이틀로·끝내기) + 위험 구역 + 덮기.
+const SETTINGS_PAGES: int = 5  ## 소리·화면·이야기·만든 것들·여정 — 책이라 한 페이지에 한 부분씩(스크롤 없음)
+
+## 왼쪽 = 이 페이지의 부분 내용, 오른쪽 = 페이지 넘김(앞장/다음장) + 덮기. 넘기면 낱장이 넘어간다.
 ## 웹에선 게임 끝내기·전체화면 토글을 숨긴다(브라우저가 관장 — Fullscreen autoload 가 자동 전체화면).
 func _show_settings() -> void:
 	_in_confirm = false
 	_clear(_box_l)
 	_clear(_box_r)
-	var web: bool = OS.has_feature("web")
+	match _set_idx:
+		0: _settings_sound()
+		1: _settings_screen()
+		2: _settings_story()
+		3: _settings_credits()
+		_: _settings_journey()
+	_settings_nav()
 
-	# ── 왼쪽: 소리
+## 오른쪽 페이지 — 몇 장 중 몇 장 + 앞장/다음장 + 덮기.
+func _settings_nav() -> void:
+	_box_r.add_child(_brush_heading("%d / %d 장" % [_set_idx + 1, SETTINGS_PAGES], 34, Color(RED.r, RED.g, RED.b, 0.9)))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 22)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	if _set_idx > 0:
+		row.add_child(_ink_btn("← 앞장", _set_prev))
+	if _set_idx < SETTINGS_PAGES - 1:
+		row.add_child(_ink_btn("다음 장 →", _set_next))
+	_box_r.add_child(row)
+	_add_close(_box_r)
+
+func _set_prev() -> void:
+	if _flipping or _set_idx <= 0:
+		return
+	_flip_page(-1, func() -> void:
+		_set_idx = maxi(0, _set_idx - 1)
+		_show_settings())
+
+func _set_next() -> void:
+	if _flipping or _set_idx >= SETTINGS_PAGES - 1:
+		return
+	_flip_page(1, func() -> void:
+		_set_idx = mini(SETTINGS_PAGES - 1, _set_idx + 1)
+		_show_settings())
+
+## 페이지 0 — 소리(음소거·배경음악·효과음).
+func _settings_sound() -> void:
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 10)
 	var htext := _brush_heading("소리", 40, INK)
@@ -689,20 +727,26 @@ func _show_settings() -> void:
 	_music_value = _add_volume_row(_box_l, "배경음악", AppSettings.load_music_volume(), _on_music_changed, Callable())
 	_sfx_value = _add_volume_row(_box_l, "효과음", AppSettings.load_sfx_volume(), _on_sfx_changed, _on_sfx_drag_ended)
 
-	# ── 왼쪽: 화면과 이야기 (가운뎃점(·)은 붓 폰트에 글리프가 없어 웹에서 두부(□) — 순한글로)
-	_box_l.add_child(_brush_heading("화면과 이야기", 34, INK))
+## 페이지 1 — 화면(전체화면·연출 세기·글자 크기).
+func _settings_screen() -> void:
+	_box_l.add_child(_brush_heading("화면", 40, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
-	if not web:
+	if not OS.has_feature("web"):
 		var fs_on: bool = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
 		var fs := UITheme.make_pill("창 화면으로" if fs_on else "전체 화면으로", INK, Color(0, 0, 0, 0),
 			Color(INK.r, INK.g, INK.b, 0.4))
 		fs.pressed.connect(_toggle_fullscreen)
 		_box_l.add_child(fs)
+	_add_motion_row(_box_l, AppSettings.load_motion())
+	_add_scale_row(_box_l, AppSettings.load_text_scale())
+
+## 페이지 2 — 이야기(오프닝 다시보기·조작 안내 다시보기).
+func _settings_story() -> void:
+	_box_l.add_child(_brush_heading("이야기", 40, INK))
+	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	var replay := UITheme.make_pill("오프닝 다시보기", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
 	replay.pressed.connect(_replay_opening)
 	_box_l.add_child(replay)
-	# 연출 세기 — 전환·책넘김 애니를 조절/끈다(모션 줄이기).
-	_add_motion_row(_box_l, AppSettings.load_motion())
 	# 조작 안내 다시보기 — 튜토리얼이 실제로 뜨는 지도·단면 화면에서만.
 	var cs_path: String = ""
 	if get_tree().current_scene != null:
@@ -711,34 +755,68 @@ func _show_settings() -> void:
 		var tut := UITheme.make_pill("조작 안내 다시보기", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
 		tut.pressed.connect(_replay_tutorial)
 		_box_l.add_child(tut)
-	# 만든 것들 — 폰트·음악·소리·엔진 출처(별지).
-	var credits := UITheme.make_pill("만든 것들", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
-	credits.pressed.connect(_show_credits)
-	_box_l.add_child(credits)
 
-	# ── 오른쪽: 여정 (타이틀 화면에선 의미 없어 숨김)
+## 페이지 3 — 만든 것들(제목·내용·만든 이·출처). 기술 출처는 영어로.
+func _settings_credits() -> void:
+	_box_l.add_child(_brush_heading("만든 것들", 40, INK))
+	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	_box_l.add_child(_ink_label("See you on the other side", UITheme.FS_BODY, INK))
+	_box_l.add_child(_ink_label("매년 원정대가 떠나고, 거의 다 죽는다.\n죽기 전 단 한 번, 다음 원정대에게 물건을 남긴다.",
+		UITheme.FS_SMALL, INK_FADE))
+	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.2), 1.0))
+	_box_l.add_child(_ink_label("만든 이   soomin007", UITheme.FS_LABEL, INK))
+	_box_l.add_child(_ink_label("Fonts   MaruBuri · Nanum Brush · Cinzel (OFL)\nMusic   Suno\nSound   freesound.org · ElevenLabs\nEngine   Godot 4.6",
+		UITheme.FS_SMALL, INK_FADE))
+
+## 페이지 4 — 여정(타이틀로·게임 끝내기) + 위험 구역(세계 지우기).
+func _settings_journey() -> void:
 	var on_title: bool = get_tree().current_scene != null \
 		and get_tree().current_scene.scene_file_path == "res://scenes/main.tscn"
 	if not on_title:
-		_box_r.add_child(_brush_heading("여정", 40, INK))
-		_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+		_box_l.add_child(_brush_heading("여정", 40, INK))
+		_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 		var to_title := UITheme.make_pill("타이틀로 나간다", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
 		to_title.pressed.connect(_on_leave_to_title)
-		_box_r.add_child(to_title)
-	if not web:
+		_box_l.add_child(to_title)
+	if not OS.has_feature("web"):
 		var quit := UITheme.make_pill("게임을 끝낸다", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
 		quit.pressed.connect(_on_quit_pressed)
-		_box_r.add_child(quit)
-
-	# ── 오른쪽: 위험 구역
-	_box_r.add_child(_brush_heading("위험 구역", 34, RED))
-	_box_r.add_child(UITheme.make_hairline(Color(RED.r, RED.g, RED.b, 0.5), 2.0))
-	_box_r.add_child(_ink_label("저장된 이 세계를 지웁니다.\n원정·흔적·죽은 자리가 모두 사라지고, 처음부터 시작합니다.",
+		_box_l.add_child(quit)
+	_box_l.add_child(_brush_heading("위험 구역", 34, RED))
+	_box_l.add_child(UITheme.make_hairline(Color(RED.r, RED.g, RED.b, 0.5), 2.0))
+	_box_l.add_child(_ink_label("저장된 이 세계를 지웁니다.\n원정·흔적·죽은 자리가 모두 사라지고, 처음부터 시작합니다.",
 		UITheme.FS_SMALL, INK_FADE))
 	var wipe := UITheme.make_pill("저장 데이터 지우기", RED, Color(0, 0, 0, 0), Color(RED.r, RED.g, RED.b, 0.55))
 	wipe.pressed.connect(_confirm_wipe)
-	_box_r.add_child(wipe)
-	_add_close(_box_r)
+	_box_l.add_child(wipe)
+
+## 글자 크기(UI 전체 배율) 슬라이더 — 손 떼면 content_scale_factor 적용·저장하고 책을 다시 맞춘다.
+func _add_scale_row(box: VBoxContainer, cur: float) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var lbl := _ink_label("글자 크기", UITheme.FS_LABEL, INK)
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(lbl)
+	var value := _ink_label(_pct(cur), UITheme.FS_SMALL, INK_FADE)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value.autowrap_mode = TextServer.AUTOWRAP_OFF
+	row.add_child(value)
+	box.add_child(row)
+	var slider := HSlider.new()
+	slider.min_value = AppSettings.MIN_TEXT_SCALE
+	slider.max_value = AppSettings.MAX_TEXT_SCALE
+	slider.step = 0.05
+	slider.value = cur
+	slider.custom_minimum_size = Vector2(0, UITheme.SLIDER_H)
+	UITheme.style_slider(slider, INK)
+	slider.value_changed.connect(func(v: float) -> void:
+		value.text = _pct(v))
+	slider.drag_ended.connect(func(_changed: bool) -> void:
+		AppSettings.set_text_scale(slider.value)
+		get_tree().root.content_scale_factor = slider.value
+		_layout_book()          # 새 배율에 맞춰 책 크기 다시 계산
+		_show_settings())       # 현재 페이지 다시 그림
+	box.add_child(slider)
 
 ## 확인 페이지(공용) — 왼쪽: 경고·제목·설명, 오른쪽: 머문다/실행. 지우기·타이틀로·끝내기가 공유.
 func _show_confirm_page(warn: String, title: String, desc: String, yes_txt: String, yes_cb: Callable) -> void:
@@ -843,30 +921,6 @@ func _replay_tutorial() -> void:
 	_close()
 	Tutorial.replay()
 
-## 만든 것들(크레딧) 별지 — 폰트·음악·소리·엔진 출처. 오른쪽에서 설정으로 돌아간다.
-func _show_credits() -> void:
-	_in_confirm = false
-	_clear(_box_l)
-	_clear(_box_r)
-	_box_l.add_child(_brush_heading("만든 것들", 40, INK))
-	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
-	var text: String = \
-		"글씨\n" + \
-		"    마루 부리 · 나눔손글씨 붓 · 네이버\n" + \
-		"    Cinzel · Natanael Gama\n" + \
-		"    SIL 오픈 폰트 라이선스(OFL)\n\n" + \
-		"음악\n" + \
-		"    Suno 로 지은 네 곡\n\n" + \
-		"소리\n" + \
-		"    freesound.org · ElevenLabs\n\n" + \
-		"엔진\n" + \
-		"    Godot Engine 4.6"
-	_box_l.add_child(_ink_label(text, UITheme.FS_SMALL, INK))
-	var sp := Control.new()
-	sp.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_box_r.add_child(sp)
-	_box_r.add_child(_ink_btn("설정으로 돌아간다", _show_settings))
-	_box_r.add_child(_ink_btn("일지를 덮는다", _close))
 
 # --- 소리 핸들러 (옛 장부 그대로) ---
 
