@@ -41,6 +41,10 @@
   **불가 확인:** (a) 호스트 이전(itch.io SAB·Cloudflare/Netlify `_headers`) = threads 가능 → 완전 깨끗하지만 매 배포 수동/별도 파이프라인이라 개발 단계엔 부적합. **교훈: 웹 배포본에서만 나는 오디오 잡음은 재생 경로(Threads/버퍼)부터 의심. GitHub Pages 에선 threads 를 켜지 말 것(SharedArrayBuffer 미지원 → 사이트가 죽는다). no-threads 에선 스트림 믹서 대신 SAMPLE 재생이 우회로.**
   **최종 확정(2026-07-06):** PC 웹 = 완전 깨끗, 폰 웹 = 타이틀 정적 화면에서도 가끔·씬 전환 때 조금 더 → **순수 폰 CPU 성능 문제로 확정**(약한 CPU 가 렌더·로직에 밀려 메인스레드 오디오 버퍼를 못 채움). 잔여 "가끔"은 아직 스트림인 SFX·바람 등 + 베드 SAMPLE 도 폰에선 드물게. **사용자 결정 = 웹은 지금(SAMPLE 우회)대로 두고, 근본 해결은 앱 출시 때.** `AudioManager` 는 `OS.has_feature("web")` 게이트로 **네이티브(앱) = 원래 스트림 재생 = 타닥 없음** 이 이미 보장됨(backlog "웹 BGM 폰 타닥" 참고). **이 타닥은 더 파헤치지 말 것 — 원인·결론 다 났다.**
 
+- **증상:** 웹 로딩 화면(가로 안내 문구가 뜨는 그 화면)에 의도한 시간대별 로딩 이미지 대신 **타이틀 키아트만** 뜸. 로딩 이미지를 바꿔도 반영 안 됨(시크릿 탭에서도 동일). (2026-07-07)
+  **원인:** `head_include` JS 가 로딩 배경을 `document.body` 에 깔았으나, Godot 웹 템플릿의 **불투명 `#status` 오버레이**(`background-color:#08070a`, full-rect)가 body 를 완전히 덮고 그 위 `#status-splash`(=boot_splash 키아트, fullsize)가 화면을 채운다. body 배경(로딩 webp)은 한 번도 보이지 않음. "이미지가 안 바뀐다"가 아니라 **배경 적용 대상이 처음부터 틀렸다.**
+  **재발 방지:** 웹 로딩 배경은 `document.body` 가 아니라 **`#status` 자체**에 적용하고, 키아트를 감추려면 `#status-splash{display:none!important}`. `#status` 는 로딩 끝에 `remove()` 되므로 잔재 없음.
+
 ## 렌더링 / 텍스트
 
 - **증상:** 한글 글씨가 뜨긴 하나 가장자리가 약간 깨져/계단져 보임(특히 폰·고해상도). (2026-07-01 1차 조치)
@@ -61,6 +65,10 @@
 - **증상:** UI 미감(레이아웃·색·폰트 렌더)을 확인하려는데 헤드리스 스크린샷이 안 나온다(`get_viewport().get_texture().get_image()` 가 null). (2026-07-05)
   **원인:** `--headless` 는 dummy 렌더러라 실제 렌더 이미지가 없다.
   **방지:** **창 모드**로 잠깐 띄워 캡처 — 임시 `tools/shot.tscn`(Node: 대상 씬 instantiate → 몇 프레임 대기 → `get_image().save_png("user://..")` → quit)를 `godot --path . res://tools/shot.tscn`(--headless 없이) 로. 창이 1~2초 뜬다. 세이브 오염 방지(`begin_run_in_place` 는 save 안 함, 노드 클릭 금지). **외부 HTML 디자인 대조**는 `chrome --headless=new --screenshot=out.png --window-size=1280,720 --virtual-time-budget=6000 "file:///..."` 로 원본을 렌더해 픽셀 비교(짐작 금지).
+
+- **증상:** 스톰 노드 단면에서 중앙 "폭풍의 눈"(메인 이벤트 마커)과 지점 버튼(f1 돌무더기·c2 바람 그늘)이 **완전히 포개짐**. (2026-07-07)
+  **원인:** `SectionRun._default_main_at("storm")` = `Vector2(0.5, 0.42)` 인데 MapGraph 의 c2 `wall_burrow`·f1 `gate_cairn` spot `at` 이 정확히 같은 `(0.5, 0.42)` 로 저작됨. 메인 마커와 spot 이 같은 정규화 좌표계를 쓰는데 우연히 동일값이라 겹침.
+  **재발 방지:** 노드 spot 의 `at` 은 그 kind 의 `_default_main_at`(blockage `(0.5,0.5)`·storm `(0.5,0.42)`·기타 `(0.5,0.55)`)과, 그리고 같은 노드 다른 spot 과 **최소 0.1 이상** 떨어뜨린다. 지점 추가 시 좌표 충돌 스윕(메인 vs spot, spot vs spot)으로 확인.
 
 ## 씬 전환 / 노드 트리
 
