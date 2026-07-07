@@ -356,9 +356,16 @@ func _commit() -> void:
 		_cancel()
 		return
 	_run.do_leave(res_key)  # 자원 -비용 + 토큰 소진 (can_leave 가 생존 보장 → 안 죽음)
+	var mid_edge: bool = _run.is_mid_edge()
 	var uses: int = TraceData.PICKUP_USES if _is_pickup_kind(_picked_kind) else 0
+	# 이동 경로에 남긴 자원은 더 취약(열린 사막 = 모래·다음 원정대에 노출) → 줍기 횟수 1 줄인다(최소 1).
+	if mid_edge and uses > 0:
+		uses = maxi(1, uses - 1)
 	var trace := TraceData.new(_picked_kind, _run.leg, _picked_tags, uses)
-	trace.node_id = _node_id  # 도착 노드(Expedition) 또는 마지막 밟은 노드(Map 이동 중)
+	trace.node_id = _node_id  # 도착 노드(Expedition) 또는 떠나온 노드(Map 이동 중)
+	if mid_edge:              # 이동 중이면 엣지 위 실제 지점에 찍는다(node_id→향하던 노드)
+		trace.to_node = _run.target_node_id()
+		trace.position = _run.edge_fraction()
 	GameState.leave_trace(trace)
 	GameState.save_game()
 	if _ambient != null:

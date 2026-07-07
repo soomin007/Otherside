@@ -156,6 +156,16 @@ func death_node_id() -> String:
 func edge_remaining() -> int:
 	return maxi(0, _edge_len - _edge_step)
 
+## 지금 엣지 위(노드 사이 이동 중)인가 — 목표가 있고 아직 도착 전. 흔적을 엣지 위 실제 지점에 찍을지 판정.
+func is_mid_edge() -> bool:
+	return _target_node != "" and not arrived()
+
+## 이번 엣지의 진행률(0.0~1.0) — 엣지 위 흔적 위치. 엣지 진행 중이 아니면 0.
+func edge_fraction() -> float:
+	if _edge_len <= 0:
+		return 0.0
+	return clampf(float(_edge_step) / float(_edge_len), 0.0, 1.0)
+
 ## 한 걸음 전진 — 소모 자원을 차감하고 고갈을 판정한다. 엣지 중엔 이동 중 상황, 도착하면 arrived()만 true(카드는 단면이 낸다).
 func step() -> void:
 	if not alive or not pending_situation.is_empty():

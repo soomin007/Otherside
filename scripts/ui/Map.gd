@@ -341,7 +341,8 @@ func _on_leave_pressed() -> void:
 	_moving = false
 	if _guide != null:
 		_guide.text = "멈춰 선다."
-	_bequeath.open(run, run.current_node)  # 이동 중=마지막 밟은 노드에 남긴다(death_node_id 와 일관)
+	# node_id=떠나온 노드(줍기 키), 이동 중이면 BequeathPanel 이 엣지 위 실제 지점(to_node·position)도 찍는다.
+	_bequeath.open(run, run.current_node)
 
 ## 남기기 패널이 닫힌 뒤 (남겼든 취소든) — 이동 중이었으면 이어서 나아간다.
 func _on_bequeath_done() -> void:
@@ -966,34 +967,38 @@ func _draw_traces(area: Rect2) -> void:
 	var ms: float = _mscale()
 	var per_node: Dictionary = {}
 	_trace_hitboxes.clear()
-	var active_lines: Array = []          # 활성(호버/탭) 노드의 표식 태그 줄들
+	var active_marks: Array = []          # 활성(호버/탭) 흔적 표식: [{x, y, tags}]
 	for tr in GameState.loaded_traces():
 		var nid: String = tr.node_id
 		if nid == "" or not MapGraph.NODES.has(nid):
 			continue
-		# 방문한 노드 + 바로 갈 수 있는 다음 노드(미방문 "?"도)에 표식을 보인다 —
-		# "저 앞에 누가 뭘 남겼다"를 경로 정하기 전에 읽게(정체는 "?"로 감춘 채). 이 게임의 심장.
+		# 방문한 노드 + 바로 갈 수 있는 다음 노드(미방문 "?"도)에 표식을 보인다 — 경로 전에 읽게(정체는 감춘 채).
 		if not _is_revealed(nid) and not _is_next_choice(nid):
 			continue
-		var idx: int = int(per_node.get(nid, 0))
-		per_node[nid] = idx + 1
-		var base: Vector2 = _node_screen(nid, area)
-		var half: float = _node_size(nid) * 0.5
-		var icon_pos: Vector2 = base + Vector2(-half - 9.0 * ms, 2.0 * ms - float(idx) * 15.0 * ms)
-		_draw_trace_marker(icon_pos, tr.object_kind, ms)
-		_trace_hitboxes.append({"pos": icon_pos, "nid": nid})   # 호버·탭 히트박스
+		var render_pos: Vector2
+		var reveal_pos: Vector2
+		if tr.to_node != "" and MapGraph.NODES.has(tr.to_node):
+			# 이동 중 남긴 것 — 엣지 node_id→to_node 위 실제 지점(양 끝 노드에 안 겹치게 살짝 안쪽).
+			render_pos = _edge_point(nid, tr.to_node, clampf(tr.position, 0.06, 0.94), area)
+			reveal_pos = render_pos + Vector2(0.0, 22.0 * ms)
+		else:
+			# 노드에서 남긴 것 — 아이콘을 노드 왼쪽 옆구리에, 여러 개면 위로 쌓는다.
+			var idx: int = int(per_node.get(nid, 0))
+			per_node[nid] = idx + 1
+			var base: Vector2 = _node_screen(nid, area)
+			var half: float = _node_size(nid) * 0.5
+			render_pos = base + Vector2(-half - 9.0 * ms, 2.0 * ms - float(idx) * 15.0 * ms)
+			reveal_pos = Vector2(base.x, base.y + half + 31.0 * ms + float(idx) * 18.0 * ms)
+		_draw_trace_marker(render_pos, tr.object_kind, ms)
+		_trace_hitboxes.append({"pos": render_pos, "nid": nid})   # 호버·탭 히트박스
 		if nid == _active_trace and not tr.tags.is_empty():
-			active_lines.append(tr.tags)
-	# 활성 노드의 표식 단어를 아이콘 아래에 펼친다(호버/탭으로만 — 평소엔 아이콘만 보인다).
-	if _active_trace != "" and not active_lines.is_empty() and MapGraph.NODES.has(_active_trace):
+			active_marks.append({"x": reveal_pos.x, "y": reveal_pos.y, "tags": tr.tags})
+	# 활성 흔적의 표식 단어를 펼친다(호버/탭으로만 — 평소엔 아이콘만 보인다).
+	if not active_marks.is_empty():
 		var font: Font = get_theme_default_font()
 		if font != null:
-			var abase: Vector2 = _node_screen(_active_trace, area)
-			var ans: float = _node_size(_active_trace)
-			var wy: float = abase.y + ans * 0.5 + 31.0 * ms
-			for line in active_lines:
-				_draw_trace_words(font, Vector2(abase.x - 80.0 * ms, wy), line, 160.0 * ms, ms)
-				wy += 20.0 * ms
+			for m in active_marks:
+				_draw_trace_words(font, Vector2(float(m["x"]) - 80.0 * ms, float(m["y"])), m["tags"], 160.0 * ms, ms)
 
 ## 흔적 표식 단어(WordPool 태그)를 낡은 잉크로 그린다(크림 후광, 양피지 위 가독).
 ## 이 게임의 심장(기획서 §3): 태그 = 다음 원정대와의 소통. 평소엔 아이콘만, 호버/탭 때만 펼친다.

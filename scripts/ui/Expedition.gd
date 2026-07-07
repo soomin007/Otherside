@@ -377,6 +377,9 @@ func _die(cause: String) -> void:
 	var node_id: String = _run.death_node_id()  # 도착 죽음=그 노드, 이동 중 죽음=떠나온 노드
 	var trace := TraceData.new(TraceData.ObjectKind.BODY, _run.leg, tags)
 	trace.node_id = node_id
+	if _run.is_mid_edge():   # 이동 중 죽음 = 엣지 위 쓰러진 지점에 시체를 남긴다(노드로 흡수 안 함)
+		trace.to_node = _run.target_node_id()
+		trace.position = _run.edge_fraction()
 	GameState.leave_trace(trace)
 	GameState.record_death(_run.leg, node_id)
 	GameState.save_game()
