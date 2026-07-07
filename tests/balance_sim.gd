@@ -77,18 +77,29 @@ func _init() -> void:
 		print("  %-16s | end %5.1f%% | 중앙 leg %2d · row %.1f · 갈증 %2.0f%% · 배고픔 %2.0f%%" % [
 			str(lo["name"]), st["reach_pct"], st["median_leg"], st["avg_row"], st["thirst_pct"], st["hunger_pct"]])
 
+	print("\n[7] 유령 흔적 영향 (GREEDY) — 시작 세계에 심긴 예비 원정대 흔적. 자원 유령은 uses 로 몇 판 뒤 소멸(여긴 매 판 적용 = 최대치 과장).")
+	var g_bridged: Array = ["b2"]
+	var g_pickups: Dictionary = {
+		"a1": {"kind": TraceData.ObjectKind.WATER, "tags": []},
+		"c1": {"kind": TraceData.ObjectKind.WATER, "tags": []},
+		"c2": {"kind": TraceData.ObjectKind.SHELTER, "tags": []},
+	}
+	_report("무흔적", _batch(Policy.GREEDY, BASE_START, 93000))
+	_report("b2로프만", _batch(Policy.GREEDY, BASE_START, 93000, "", g_bridged, {}))       # 영구 효과(steady state)
+	_report("전체유령", _batch(Policy.GREEDY, BASE_START, 93000, "", g_bridged, g_pickups)) # 첫 세계 최대치(실제론 소멸)
+
 	print("\n=== 끝 (수치는 정책 근사 — 최종 밸런스는 폰 플레이로) ===")
 	quit()
 
 # --- 배치 시뮬 ---
 
-func _batch(policy: int, start: Dictionary, seed_base: int, voc_id: String = "") -> Dictionary:
+func _batch(policy: int, start: Dictionary, seed_base: int, voc_id: String = "", bridged: Array = [], pickups: Dictionary = {}) -> Dictionary:
 	var legs: Array = []
 	var reached: int = 0
 	var deaths: Dictionary = {"thirst": 0, "hunger": 0, "": 0}
 	var rows: Array = []
 	for i in range(RUNS):
-		var r: Dictionary = _run_once(policy, start, seed_base * 131 + i, voc_id)
+		var r: Dictionary = _run_once(policy, start, seed_base * 131 + i, voc_id, bridged, pickups)
 		legs.append(int(r["leg"]))
 		rows.append(int(r["row"]))
 		if bool(r["reached_end"]):
@@ -117,8 +128,8 @@ func _report(label: String, st: Dictionary) -> void:
 
 # --- 한 판 ---
 
-func _run_once(policy: int, start: Dictionary, seed_val: int, voc_id: String = "") -> Dictionary:
-	var run := ExpeditionRun.new(start.duplicate(), [], [], {}, voc_id)
+func _run_once(policy: int, start: Dictionary, seed_val: int, voc_id: String = "", bridged: Array = [], pickups: Dictionary = {}) -> Dictionary:
+	var run := ExpeditionRun.new(start.duplicate(), bridged, [], pickups, voc_id)
 	run.rng.seed = seed_val
 	var brng := RandomNumberGenerator.new()  ## 분기·정책 tie-break 용
 	brng.seed = seed_val * 7 + 3

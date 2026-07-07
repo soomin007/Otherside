@@ -27,6 +27,7 @@ var record_seen: bool = false  ## 시장이 원정 기록지를 건넸나 (영�
 var controls_tutorial_seen: bool = false ## 첫 원정 조작 오버레이 튜토리얼을 봤나 (영속). Tutorial autoload 자동재생 게이트.
 var expedition_names: Array = [] ## 원정별 이름 (인덱스 = 회차-1, 영속). 랜덤(ExpeditionNamer) 또는 직접 입력(Loadout).
 var arrivals: Array = [] ## end 에 닿은 원정 기록 — {expedition:int, ending:"cycle"|"reunion"} (영속). 일대기(Bookmark)가 죽음만이 아니라 도달/재회도 보이게 한다.
+var seeded: bool = false ## 유령 흔적(플레이어 이전 원정대들)을 심었나 (영속, 세계당 1회). 빈 세계 회피.
 
 # --- 현재 원정 한정 상태 (죽으면 리셋) ---
 ## 초기 자원 — 임시치. 자원 = 수명 (남기면 그만큼 잃는다). 밸런스는 폰 테스트로 검증 예정.
@@ -42,6 +43,41 @@ var seen_choices: Dictionary = {}
 
 func _ready() -> void:
 	load_game()
+	ensure_seeded()
+
+## 유령 흔적을 아직 안 심었으면 심는다(세계당 1회). 새 세계·기존 세이브 모두 첫 로드 때 한 번.
+func ensure_seeded() -> void:
+	if seeded:
+		return
+	_plant_seeds()
+	seeded = true
+	save_game()
+
+## 플레이어 이전 원정대들이 남긴 것 — 빈 세계 회피(기획서 §3, 사용자 확정 2026-07-07).
+## 정직한 표식만(오인·거짓 없음 — 신뢰는 우리 게임 주축 아님). 자원 흔적은 uses 로 몇 번 쓰면 사라진다("3번쯤").
+## 재회 카운트에선 제외(seed=true) — 재회는 플레이어가 잘 남긴 것으로만 연다.
+func _plant_seeds() -> void:
+	var seeds: Array = [
+		{"object_kind": TraceData.ObjectKind.WATER, "node_id": "a1", "tags": ["여기", "안전"], "uses": 3},
+		{"object_kind": TraceData.ObjectKind.ROPE, "node_id": "b2", "tags": ["건너", "조심"], "uses": 0},
+		{"object_kind": TraceData.ObjectKind.WATER, "node_id": "c1", "tags": ["앞", "갈증"], "uses": 3},
+		{"object_kind": TraceData.ObjectKind.SHELTER, "node_id": "c2", "tags": ["폭풍", "곧"], "uses": 3},
+		{"object_kind": TraceData.ObjectKind.BODY, "node_id": "d1", "tags": ["끝", "미안"], "uses": 0},
+	]
+	for s in seeds:
+		var t: Dictionary = s
+		t["seed"] = true
+		t["leg"] = 0
+		t["position"] = 0.0
+		traces.append(t)
+
+## 재회 카운트용 흔적 수 — 유령(seed) 제외, 플레이어가 남긴 것만.
+func player_trace_count() -> int:
+	var n: int = 0
+	for t in traces:
+		if t is Dictionary and not bool(t.get("seed", false)):
+			n += 1
+	return n
 
 # --- 코어 루프 전이 ---
 
@@ -127,7 +163,7 @@ func arrive_node() -> void:
 ## end 도달 시 엔딩 종류 — "reunion"(재회) = 흔적 충분 축적 + 무사 도달(alive), 아니면 "cycle"(순환).
 ## 밸런싱 북극성: 승리 = 한 번의 런이 아니라 여러 원정에 걸친 흔적 축적. REUNION_TRACES 가 돌파 난이도.
 func ending_kind() -> String:
-	if current_run != null and current_run.alive and traces.size() >= REUNION_TRACES:
+	if current_run != null and current_run.alive and player_trace_count() >= REUNION_TRACES:
 		return "reunion"
 	return "cycle"
 
@@ -254,6 +290,7 @@ func save_game() -> void:
 		"expedition_names": expedition_names,
 		"arrivals": arrivals,
 		"seen_choices": seen_choices,
+		"seeded": seeded,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
@@ -286,6 +323,7 @@ func load_game() -> void:
 	expedition_names = data.get("expedition_names", [])
 	arrivals = data.get("arrivals", [])
 	seen_choices = data.get("seen_choices", {})
+	seeded = bool(data.get("seeded", false))
 
 ## 세이브 초기화 (새 세계). 빈 상태로 덮어쓴다 — 웹/데스크톱 모두 안전.
 func reset_save() -> void:
@@ -301,4 +339,6 @@ func reset_save() -> void:
 	arrivals = []
 	current_run = null
 	seen_choices.clear()
+	_plant_seeds()      # 새 세계에도 유령 흔적을 다시 심는다(빈 세계 회피)
+	seeded = true
 	save_game()

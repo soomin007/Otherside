@@ -90,6 +90,7 @@ const RED_PATH: Color = Color(0.824, 0.235, 0.118)     ## #d23c1e 선택 가능�
 const TRACE_WATER: Color = Color(0.25, 0.44, 0.55)
 const TRACE_FOOD: Color = Color(0.63, 0.44, 0.19)
 const TRACE_SHELTER: Color = Color(0.45, 0.51, 0.30)
+const TRACE_MARK_INK: Color = Color(0.40, 0.24, 0.15)  ## 흔적 표식 단어 — 낡은 붉은 잉크(죽은 자가 긁어 쓴 결)
 const LABEL_HALO: Color = Color(0.914, 0.839, 0.686)   ## 라벨 크림 후광 rgb(233,214,175)(§2)
 const LABEL_DIM: Color = Color(0.290, 0.196, 0.071)    ## #4a3212 방문·미답 라벨
 const LABEL_MK: Color = Color(0.541, 0.184, 0.106)     ## #8a2f1b 선택 가능·현재 라벨
@@ -114,6 +115,8 @@ var _reveal_id: String = ""      ## 이번에 잉크로 그려지며 나타날 �
 var _reveal_t: float = 0.0       ## reveal 애니 경과 시간
 var _splashes: Array = []        ## 이동 중 걸음마다 번지는 잉크 얼룩 [{pos,t}] — _process 가 나이 먹이고 _draw 가 렌더
 var _hovered_node: String = ""   ## 마우스가 올라간 도달 가능 노드(호버 시 클릭 원 확대). 터치엔 없음
+var _active_trace: String = ""    ## 표식 단어가 펼쳐진 노드(흔적 아이콘 호버/탭). 평소엔 아이콘만
+var _trace_hitboxes: Array = []   ## [{pos, nid}] — 흔적 아이콘 호버·탭 히트박스(_draw_traces 가 갱신)
 var _dragging: bool = false       ## 누름~뗌 사이 드래그 추적(임계 넘으면 탭 취소 — 오터치 방지)
 var _drag_start_y: float = 0.0    ## 드래그 시작 지점 y(스크린)
 var _drag_moved: float = 0.0      ## 드래그 누적 이동(임계 넘으면 탭 아님)
@@ -299,6 +302,10 @@ func _current_node_id() -> String:
 func _is_revealed(id: String) -> bool:
 	return GameState.visited_nodes.has(id)
 
+## 지금 서 있는 노드에서 바로 갈 수 있는 다음 노드인가(미방문 "?" 포함) — 흔적 표식 forward 노출용.
+func _is_next_choice(id: String) -> bool:
+	return id in MapGraph.node(_current_node_id()).get("next", [])
+
 func _refresh_hud() -> void:
 	var run: ExpeditionRun = GameState.current_run
 	if run == null:
@@ -398,8 +405,9 @@ func _process(delta: float) -> void:
 
 func _gui_input(event: InputEvent) -> void:
 	if _moving or (_sit_panel != null and _sit_panel.visible) or (_bequeath != null and _bequeath.is_open()) or (_result_popup != null and _result_popup.is_open()) or (_inventory != null and _inventory.is_open()):
-		if _hovered_node != "":
+		if _hovered_node != "" or _active_trace != "":
 			_hovered_node = ""
+			_active_trace = ""
 			queue_redraw()
 		return
 	var area := _map_area()
@@ -413,12 +421,19 @@ func _gui_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed) or (event is InputEventScreenTouch and not event.pressed):
 		_dragging = false
 		if _drag_moved < DRAG_THRESH:
+			# 흔적 아이콘 탭 → 표식 단어 펼치기/접기(라우팅 아님, 터치 우선).
+			var trh: String = _trace_at(event.position)
+			if trh != "":
+				_active_trace = "" if _active_trace == trh else trh
+				queue_redraw()
+				return
 			var hit: String = _reachable_at(event.position, area)
 			if hit != "":
 				GameState.begin_travel(hit)
 				_moving = true
 				_move_timer = 0.0
 				_hovered_node = ""
+				_active_trace = ""
 				if _guide != null:
 					_guide.text = "나아가는 중..."
 		return
@@ -428,7 +443,12 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	# 호버 — 마우스가 올라간 도달 가능 노드(그 원이 커진다). 데스크톱 전용.
 	if event is InputEventMouseMotion:
-		var hov: String = _reachable_at((event as InputEventMouseMotion).position, area)
+		var mpos: Vector2 = (event as InputEventMouseMotion).position
+		var trh: String = _trace_at(mpos)   # 데스크톱: 흔적 아이콘 호버 시 표식 펼침
+		if trh != _active_trace:
+			_active_trace = trh
+			queue_redraw()
+		var hov: String = _reachable_at(mpos, area)
 		if hov != _hovered_node:
 			_hovered_node = hov
 			if hov != "":
@@ -945,15 +965,56 @@ func _draw_dashed_poly(pts: PackedVector2Array, col: Color, w: float) -> void:
 func _draw_traces(area: Rect2) -> void:
 	var ms: float = _mscale()
 	var per_node: Dictionary = {}
+	_trace_hitboxes.clear()
+	var active_lines: Array = []          # 활성(호버/탭) 노드의 표식 태그 줄들
 	for tr in GameState.loaded_traces():
 		var nid: String = tr.node_id
-		if nid == "" or not MapGraph.NODES.has(nid) or not _is_revealed(nid):
+		if nid == "" or not MapGraph.NODES.has(nid):
+			continue
+		# 방문한 노드 + 바로 갈 수 있는 다음 노드(미방문 "?"도)에 표식을 보인다 —
+		# "저 앞에 누가 뭘 남겼다"를 경로 정하기 전에 읽게(정체는 "?"로 감춘 채). 이 게임의 심장.
+		if not _is_revealed(nid) and not _is_next_choice(nid):
 			continue
 		var idx: int = int(per_node.get(nid, 0))
 		per_node[nid] = idx + 1
 		var base: Vector2 = _node_screen(nid, area)
 		var half: float = _node_size(nid) * 0.5
-		_draw_trace_marker(base + Vector2(-half - 9.0 * ms, 2.0 * ms - float(idx) * 15.0 * ms), tr.object_kind, ms)
+		var icon_pos: Vector2 = base + Vector2(-half - 9.0 * ms, 2.0 * ms - float(idx) * 15.0 * ms)
+		_draw_trace_marker(icon_pos, tr.object_kind, ms)
+		_trace_hitboxes.append({"pos": icon_pos, "nid": nid})   # 호버·탭 히트박스
+		if nid == _active_trace and not tr.tags.is_empty():
+			active_lines.append(tr.tags)
+	# 활성 노드의 표식 단어를 아이콘 아래에 펼친다(호버/탭으로만 — 평소엔 아이콘만 보인다).
+	if _active_trace != "" and not active_lines.is_empty() and MapGraph.NODES.has(_active_trace):
+		var font: Font = get_theme_default_font()
+		if font != null:
+			var abase: Vector2 = _node_screen(_active_trace, area)
+			var ans: float = _node_size(_active_trace)
+			var wy: float = abase.y + ans * 0.5 + 31.0 * ms
+			for line in active_lines:
+				_draw_trace_words(font, Vector2(abase.x - 80.0 * ms, wy), line, 160.0 * ms, ms)
+				wy += 20.0 * ms
+
+## 흔적 표식 단어(WordPool 태그)를 낡은 잉크로 그린다(크림 후광, 양피지 위 가독).
+## 이 게임의 심장(기획서 §3): 태그 = 다음 원정대와의 소통. 평소엔 아이콘만, 호버/탭 때만 펼친다.
+func _draw_trace_words(font: Font, pos: Vector2, tags: Array, width: float, ms: float) -> void:
+	var text: String = "[ %s ]" % " · ".join(PackedStringArray(tags))
+	var fs: int = maxi(9, int(13.0 * ms))
+	var halo: Color = Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.6)
+	for off in [Vector2(-1.5, 0), Vector2(1.5, 0), Vector2(0, -1.5), Vector2(0, 1.5)]:
+		draw_string(font, pos + off, text, HORIZONTAL_ALIGNMENT_CENTER, width, fs, halo)
+	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, width, fs, TRACE_MARK_INK)
+
+## 흔적 아이콘 히트테스트 — 위치에 흔적 아이콘이 있으면 그 노드 id(호버·탭 판정 공용).
+func _trace_at(pos: Vector2) -> String:
+	var best: String = ""
+	var best_d: float = 28.0 * _mscale()
+	for hb in _trace_hitboxes:
+		var d: float = pos.distance_to(hb["pos"])
+		if d <= best_d:
+			best_d = d
+			best = str(hb["nid"])
+	return best
 
 func _draw_trace_marker(p: Vector2, kind: int, ms: float = 1.0) -> void:
 	match kind:
