@@ -342,6 +342,17 @@ func _ready() -> void:
 	_build()
 	_panel.visible = false
 	_refresh_icon()
+	# 뷰포트 크기 변화 시 열려 있는 일지를 다시 배치 — 웹에서 책갈피 클릭이 전체화면 진입(Fullscreen)을
+	# 일으켜 뷰포트가 리사이즈되면 책이 옛 크기로 남아 비율이 깨지던 것 방지(트리 pause 중에도 신호는 온다).
+	get_viewport().size_changed.connect(_on_viewport_resized)
+
+## 뷰포트 리사이즈(전체화면 진입·창 크기 변경) — 일지가 열려 있으면 책과 현재 챕터를 다시 배치·렌더.
+func _on_viewport_resized() -> void:
+	if _panel == null or not _panel.visible or _flipping:
+		return
+	_layout_book()
+	if not _in_confirm:
+		_render_chapter()
 
 func _process(_delta: float) -> void:
 	if ENABLED:
@@ -710,12 +721,12 @@ func _spread_nav(idx: int, total: int, prev_cb: Callable, next_cb: Callable) -> 
 	row.add_theme_constant_override("separation", 28)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	if idx > 0:
-		row.add_child(_ink_btn("‹ 이전", prev_cb))
+		row.add_child(_ink_btn("‹ 이전", prev_cb, UITheme.FS_H2))
 	var ind := _ink_label("%d / %d" % [idx + 1, total], UITheme.FS_LABEL, INK_FADE)
 	ind.autowrap_mode = TextServer.AUTOWRAP_OFF  # "1 / 3" 이 좁은 폭에서 세로로 쪼개지지 않게
 	row.add_child(ind)
 	if idx < total - 1:
-		row.add_child(_ink_btn("다음 ›", next_cb))
+		row.add_child(_ink_btn("다음 ›", next_cb, UITheme.FS_H2))
 	_box_r.add_child(row)
 	_box_r.add_child(_ink_btn("일지를 덮는다", _close))
 
@@ -1041,13 +1052,13 @@ func _ink_label(txt: String, fs: int, col: Color, center: bool = false) -> Label
 	return UITheme.make_label(txt, fs, col, center)
 
 ## 잉크 각인 버튼 — 상자 없이 글자만, hover 시 붉은 잉크.
-func _ink_btn(txt: String, cb: Callable) -> Button:
+func _ink_btn(txt: String, cb: Callable, size: int = UITheme.FS_LABEL) -> Button:
 	var b := Button.new()
 	b.text = txt
 	b.flat = false
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = Vector2(0, 46)
-	b.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
+	b.add_theme_font_size_override("font_size", size)
 	b.add_theme_color_override("font_color", INK)
 	b.add_theme_color_override("font_hover_color", RED)
 	b.add_theme_color_override("font_pressed_color", RED)
