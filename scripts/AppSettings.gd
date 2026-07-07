@@ -13,6 +13,11 @@ const KEY_VOLUME: String = "master_volume"
 const KEY_MUSIC: String = "music_volume"
 const KEY_SFX: String = "sfx_volume"
 
+## 연출(모션) 세기 — 0 = 전환·책넘김을 즉시(모션 줄이기), 1 = 기본. Transition·Bookmark 가 지속시간에 곱한다.
+const SECTION_DISPLAY: String = "display"
+const KEY_MOTION: String = "motion"
+const DEFAULT_MOTION: float = 1.0
+
 ## 배경음악 기본값을 낮게 — Suno 마스터링이 커서 효과음(-4dB 피크)이 묻힌다.
 const DEFAULT_MUSIC: float = 0.7
 const DEFAULT_SFX: float = 1.0
@@ -27,6 +32,27 @@ static func load_music_volume() -> float:
 
 static func load_sfx_volume() -> float:
 	return _load_key(KEY_SFX, DEFAULT_SFX)
+
+## 연출 세기 0..1 (기본 1). 0 이면 전환을 즉시 처리한다.
+## 전환·등장마다(등장은 요소별로) 읽히므로 정적 캐시 — 파일 반복 읽기 회피. set_motion 이 캐시를 갱신한다.
+static var _motion_cache: float = -1.0
+
+static func load_motion() -> float:
+	if _motion_cache >= 0.0:
+		return _motion_cache
+	var cfg := ConfigFile.new()
+	if cfg.load(PATH) != OK:
+		_motion_cache = DEFAULT_MOTION
+	else:
+		_motion_cache = clampf(float(cfg.get_value(SECTION_DISPLAY, KEY_MOTION, DEFAULT_MOTION)), 0.0, 1.0)
+	return _motion_cache
+
+static func set_motion(v: float) -> void:
+	_motion_cache = clampf(v, 0.0, 1.0)
+	var cfg := ConfigFile.new()
+	cfg.load(PATH)  # 실패해도 빈 cfg 로 진행
+	cfg.set_value(SECTION_DISPLAY, KEY_MOTION, _motion_cache)
+	cfg.save(PATH)
 
 static func _load_key(key: String, def: float) -> float:
 	var cfg := ConfigFile.new()

@@ -73,19 +73,22 @@ func go(scene_path: String) -> void:
 	if _busy:
 		return
 	_busy = true
+	# 연출 세기(설정 "연출") — 0 이면 지속시간이 0 이 돼 즉시 전환(모션 줄이기). 모래 sweep 은 세기 낮으면 생략.
+	var m: float = AppSettings.load_motion()
 	var vp: Vector2 = get_viewport().get_visible_rect().size
-	_sand.amount = mini(440, int(vp.x * vp.y / 2600.0))  # 스펙: min(440, w*h/2600)
-	_sand.position = vp * 0.5
-	_sand.emission_rect_extents = vp * 0.5 * 0.7          # 중앙 0.7 수축(스펙)
-	_sand.restart()
-	_sand.emitting = true
-	_scatter_out()
+	if m > 0.25:
+		_sand.amount = mini(440, int(vp.x * vp.y / 2600.0))  # 스펙: min(440, w*h/2600)
+		_sand.position = vp * 0.5
+		_sand.emission_rect_extents = vp * 0.5 * 0.7          # 중앙 0.7 수축(스펙)
+		_sand.restart()
+		_sand.emitting = true
+	_scatter_out(m)
 	var tw: Tween = create_tween()
-	tw.tween_interval(OUT_DUR * 0.7)  # UI 가 대체로 사라진 뒤 배경이 무대로 잠긴다(겹침 — 총 ~0.8s)
-	tw.tween_property(_veil, "modulate:a", 1.0, VEIL_IN).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_interval(OUT_DUR * 0.7 * m)  # UI 가 대체로 사라진 뒤 배경이 무대로 잠긴다(겹침 — 총 ~0.8s)
+	tw.tween_property(_veil, "modulate:a", 1.0, VEIL_IN * m).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	tw.tween_callback(func() -> void: get_tree().change_scene_to_file(scene_path))
-	tw.tween_interval(0.05)
-	tw.tween_property(_veil, "modulate:a", 0.0, VEIL_OUT).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.05 * m)
+	tw.tween_property(_veil, "modulate:a", 0.0, VEIL_OUT * m).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.tween_callback(func() -> void: _busy = false)
 
 ## 씬 등장 한 요소(IN 역재생, 스펙 inScatter) — 지연 후 0.9s 페이드+수축(1.16→1). blur(18px→0)는
@@ -98,16 +101,22 @@ func appear(node: Control, delay: float) -> void:
 	await get_tree().process_frame
 	if not is_instance_valid(node):
 		return
+	# 연출 세기 0 이면 등장 애니 생략하고 즉시 표시(모션 줄이기 — 0 지속시간 트윈에 기대지 않는다).
+	var m: float = AppSettings.load_motion()
+	if m <= 0.02:
+		node.modulate.a = 1.0
+		node.scale = Vector2.ONE
+		return
 	node.pivot_offset = node.size * 0.5
 	node.scale = Vector2(1.16, 1.16)
 	var t: Tween = node.create_tween()  # 노드에 묶는다 — 씬이 먼저 해제되면 트윈도 함께 죽는다
-	t.tween_interval(delay)
+	t.tween_interval(delay * m)
 	t.set_parallel(true)
-	t.tween_property(node, "modulate:a", 1.0, 0.9).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	t.tween_property(node, "scale", Vector2.ONE, 0.9).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	t.tween_property(node, "modulate:a", 1.0, 0.9 * m).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	t.tween_property(node, "scale", Vector2.ONE, 0.9 * m).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 ## 떠나는 화면의 UI 만 흩어짐(OUT) — 배경은 그대로(원칙). 흩어짐은 씬 교체 전에 끝난다(0.45 < 0.665).
-func _scatter_out() -> void:
+func _scatter_out(m: float = 1.0) -> void:
 	for n in get_tree().get_nodes_in_group(UI_GROUP):
 		var c := n as Control
 		if c == null or not c.is_visible_in_tree():
@@ -117,5 +126,5 @@ func _scatter_out() -> void:
 		t.set_parallel(true)
 		t.set_trans(Tween.TRANS_SINE)   # 스펙 cubic-bezier(.3,0,.5,1) ≈ 완만한 in-out — 처음부터 고르게 흩어진다
 		t.set_ease(Tween.EASE_IN_OUT)
-		t.tween_property(c, "scale", c.scale * 1.14, OUT_DUR)
-		t.tween_property(c, "modulate:a", 0.0, OUT_DUR)
+		t.tween_property(c, "scale", c.scale * 1.14, OUT_DUR * m)
+		t.tween_property(c, "modulate:a", 0.0, OUT_DUR * m)
