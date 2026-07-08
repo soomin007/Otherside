@@ -451,7 +451,7 @@ func _refresh_meta() -> void:
 	if _preview == null:
 		return
 	var res: Dictionary = _bag_resources()
-	var wgt: int = Items.bag_weight(_bag) + (Items.weight_of(_pending_tool) if _pending_tool != "" else 0)
+	var wgt: int = Items.bag_weight(_bag)  # 주머니 도구는 무게에서 뺀다(가방 6칸과 별개 보험 슬롯 — 절벽 방지)
 	var pen: int = maxi(0, wgt - ExpeditionRun.WEIGHT_FREE) / maxi(1, ExpeditionRun.WEIGHT_STEP)
 	var pen_str: String = "  · 짐 초과, 걸음당 물 +%d" % pen if pen > 0 else ""
 	_preview.text = "물 %d · 식량 %d · %s · 무게 %d%s" % [
@@ -759,9 +759,7 @@ func _bag_resources() -> Dictionary:
 	return res
 
 func _depart() -> void:
-	var wgt: int = Items.bag_weight(_bag)
-	if _pending_tool != "":
-		wgt += Items.weight_of(_pending_tool)  # 주머니 도구도 무게에 더한다
+	var wgt: int = Items.bag_weight(_bag)  # 주머니 도구는 무게 미포함(보험 슬롯 — 표준 가방 15가 무료 상한에 붙어 도구 하나로 절벽 넘던 함정 방지)
 	GameState.begin_run_with(_bag_resources(), _pending_name.strip_edges(), _pending_vocation, wgt)
 	GameState.go_to_map()
 
