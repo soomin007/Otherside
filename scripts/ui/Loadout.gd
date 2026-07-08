@@ -94,7 +94,12 @@ func _ready() -> void:
 		bg.scene_kind = "village"
 		add_child(bg)
 
-	_pending_name = ExpeditionNamer.random(_rng)
+	# 폭풍 막간(Interlude)이 지명한 이름이 있으면 그걸 초기값으로(연속성) — 없으면(첫 원정·디버그) 랜덤. 소비 후 비운다.
+	if GameState.pending_expedition_name != "":
+		_pending_name = GameState.pending_expedition_name
+		GameState.pending_expedition_name = ""
+	else:
+		_pending_name = ExpeditionNamer.random(_rng)
 	_bag = PRESET.duplicate()  # 처음엔 표준 구성(빠른 출발)
 	resized.connect(_layout_photo_labels)  # 창 크기 변화 → 사진 라벨 재배치(단계 2 아닐 땐 no-op)
 	_show_step(1)

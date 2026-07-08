@@ -14,6 +14,7 @@ const SCENE_MAP: String = "res://scenes/map.tscn"
 const SCENE_EXPEDITION: String = "res://scenes/expedition.tscn"
 const SCENE_OPENING: String = "res://scenes/opening.tscn"
 const SCENE_LOADOUT: String = "res://scenes/loadout.tscn"
+const SCENE_INTERLUDE: String = "res://scenes/interlude.tscn"
 
 # --- 한 세계에 누적되는 영속 데이터 (원정을 가로질러 살아남음) ---
 var expedition_count: int = 0  ## 지금까지 보낸 원정 수
@@ -35,6 +36,7 @@ const START_RESOURCES: Dictionary = {"water": 20, "food": 13, "rope": 1, "shelte
 const REUNION_TRACES: int = 8  ## 재회 엔딩 흔적 축적 임계(임시 — 밸런싱 핵심 튜닝, 기획서 §3 결말)
 var current_run: ExpeditionRun = null  ## 진행 중인 원정의 순수 상태·로직 (core/ExpeditionRun)
 var ending_kind_pending: String = ""  ## 엔딩 슬라이드쇼(Ending 오버레이)가 읽을 결말("cycle"/"reunion"). Expedition._show_ending 이 세팅.
+var pending_expedition_name: String = ""  ## 폭풍 막간(Interlude)이 지명한 다음 원정대 이름 → Loadout 이 초기값으로 소비(비영속).
 ## blind choice — 겪어본 선택지 ("event_id#idx"→true). 그 선택지 결과를 이후 노출한다(학습).
 ## 영속(세이브 포함) — 한 번 본 결과는 다음 원정에도 보인다. requires 로 열린 새 변형 이벤트는 event_id 가 달라
 ## 자동으로 "안 본 것"(blind)이 된다 → "이전 선택으로 새로 나온 선택지만 처음처럼"이 선택지 단위 키로 공짜로 성립.
@@ -177,10 +179,20 @@ func mark_arrival(ending: String) -> void:
 	save_game()
 
 ## 순환 — 이 원정을 닫고 다음 원정을 처음부터 준비한다(흔적·방문 누적은 유지 → 다음이 더 멀리 간다).
-## 마을(Loadout)부터 다시: 새 대장 특기·가방을 고른다(매 원정 다른 사람이 간다).
+## 죽음·순환 모두 여기(go_to_interlude)로 모여, 폭풍 막간을 거쳐 마을로 간다.
 func next_expedition() -> void:
+	go_to_interlude()
+
+## 원정이 끝났다(죽음/순환). 다음 원정으로 넘어가기 전, 폭풍이 세계를 한 번 쓸고 지나가는 막간(Interlude)을 연다.
+## 시간이 흘렀음(불규칙·긴 간격)과 "매번 다른 이가 간다"를 연출로 보이고, 다음 원정대를 지명한 뒤 마을(Loadout)로.
+## 원정 주기의 시계 = 폭풍(기획서 §2·§3). "매년"이 아니라 폭풍이 지날 때마다 떠난다.
+## (막간은 순수 연출 — 흔적 uses·안개를 실제로 깎지 않는다. 시간 기반 흔적 소멸은 별도 결정 후 후속.)
+func go_to_interlude() -> void:
 	current_run = null
-	go_to_loadout()
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	pending_expedition_name = ExpeditionNamer.random(rng)
+	Transition.go(SCENE_INTERLUDE)
 
 ## 재회(진짜 엔딩) 후 — 타이틀로 돌아간다. 세이브(축적)는 유지된다.
 func go_to_title() -> void:

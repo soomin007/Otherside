@@ -273,10 +273,9 @@ func _on_leave_pressed() -> void:
 	_advance_btn.disabled = true
 	_leave_btn.disabled = true
 
-## 죽음 후 — 다음 원정대를 꾸리러 마을(Loadout)로. 새 대장 특기·가방을 고른다(매 원정 다른 사람).
+## 죽음 후 — 폭풍 막간(지도 쓸기·다음 원정대 지명)을 거쳐 마을(Loadout)로. 새 대장 특기·가방을 고른다(매 원정 다른 사람).
 func _on_next_party() -> void:
-	GameState.current_run = null
-	GameState.go_to_loadout()
+	GameState.go_to_interlude()
 
 # --- 상황 읽기 (결정 카드) ---
 

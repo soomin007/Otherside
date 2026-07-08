@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="See you on the other side"
-config/description="비동기 로그라이트. 매년 원정대가 떠나고 거의 다 죽는다. 후대는 곧 나 자신이며, 죽기 전 단 한 번 미래의 나에게 물건을 남긴다."
+config/description="비동기 로그라이트. 폭풍이 지날 때마다 원정대가 떠나고 거의 다 죽는다. 매번 다른 이가 가고, 죽기 전 단 한 번 다음 원정대에게 물건을 남긴다."
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 boot_splash/bg_color=Color(0.031, 0.027, 0.039, 1)
@@ -34,9 +34,9 @@ window/size/viewport_width=600
 window/size/viewport_height=720
 window/size/window_width_override=1280
 window/size/window_height_override=720
-window/handheld/orientation=4
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+window/handheld/orientation=4
 
 [gui]
 

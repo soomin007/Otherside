@@ -795,7 +795,7 @@ func _sec_credits(box: VBoxContainer) -> void:
 	box.add_child(_brush_heading("Credit", 40, INK))
 	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	box.add_child(_ink_label("See you on the other side", UITheme.FS_BODY, INK))
-	box.add_child(_ink_label("매년 원정대가 떠나고, 거의 다 죽는다.\n죽기 전 단 한 번, 다음 원정대에게 물건을 남긴다.",
+	box.add_child(_ink_label("폭풍이 지날 때마다 원정대가 떠나고, 거의 다 죽는다.\n죽기 전 단 한 번, 다음 원정대에게 물건을 남긴다.",
 		UITheme.FS_SMALL, INK_FADE))
 	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.2), 1.0))
 	box.add_child(_ink_label("만든 이   soomin007", UITheme.FS_LABEL, INK))

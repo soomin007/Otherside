@@ -289,7 +289,7 @@ no labels, no watermark, no white background, no bright center, no people.
 
 ## 7. 오프닝 삽화 (선택, 불투명 · 세로 1080×1920) — 5장, 하나씩 복사
 
-### 1장 — 해마다 원정대가 떠난다
+### 1장 — 폭풍이 지나면 원정대가 떠난다
 ```
 A storytelling illustration, vertical composition, a lone caravan setting out into vast desert dunes at
 dawn, tiny and small against the endless sand, a full background scene. Muted desert palette of sand and
