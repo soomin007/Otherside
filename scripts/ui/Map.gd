@@ -91,6 +91,7 @@ const TRACE_WATER: Color = Color(0.25, 0.44, 0.55)
 const TRACE_FOOD: Color = Color(0.63, 0.44, 0.19)
 const TRACE_SHELTER: Color = Color(0.45, 0.51, 0.30)
 const TRACE_TOOL: Color = Color(0.52, 0.42, 0.58)      ## 남긴 주머니 도구(약초·부싯돌·정화천) — 흙빛 삼색과 구분되는 자줏빛
+const MAX_TRACE_MARKERS: int = 4                       ## 노드당 보이는 흔적 마커 상한 — 넘치면 (상한-1)개 + "+K" 로 정리(무한 스택 방지)
 const TRACE_MARK_INK: Color = Color(0.40, 0.24, 0.15)  ## 흔적 표식 단어 — 낡은 붉은 잉크(죽은 자가 긁어 쓴 결)
 const LABEL_HALO: Color = Color(0.914, 0.839, 0.686)   ## 라벨 크림 후광 rgb(233,214,175)(§2)
 const LABEL_DIM: Color = Color(0.290, 0.196, 0.071)    ## #4a3212 방문·미답 라벨
@@ -1009,9 +1010,12 @@ func _draw_dashed_poly(pts: PackedVector2Array, col: Color, w: float) -> void:
 ## (예전 왼쪽 아래(half+6)는 라벨 글자 줄과 정확히 겹쳤다 — 2026-07-06 사용자 지적.) 여러 개면 위로 쌓는다.
 func _draw_traces(area: Rect2) -> void:
 	var ms: float = _mscale()
-	var per_node: Dictionary = {}
 	_trace_hitboxes.clear()
 	var active_marks: Array = []          # 활성(호버/탭) 흔적 표식: [{x, y, tags}]
+	# 노드에 쌓이는 흔적은 노드별로 모아 우선순위로 정리한다(오래 쌓이면 겹쳐 안 읽히던 것 방지).
+	# 엣지 위 흔적(이동 중 남김)은 경로를 따라 흩어져 있어 겹침이 없어 그대로 즉시 그린다.
+	var node_groups: Dictionary = {}      # nid -> Array[{tr, seq}]  (seq = 남긴 순서, 클수록 최근)
+	var seq: int = 0
 	for tr in GameState.loaded_traces():
 		var nid: String = tr.node_id
 		if nid == "" or not MapGraph.NODES.has(nid):
@@ -1019,30 +1023,72 @@ func _draw_traces(area: Rect2) -> void:
 		# 방문한 노드 + 바로 갈 수 있는 다음 노드(미방문 "?"도)에 표식을 보인다 — 경로 전에 읽게(정체는 감춘 채).
 		if not _is_revealed(nid) and not _is_next_choice(nid):
 			continue
-		var render_pos: Vector2
-		var reveal_pos: Vector2
 		if tr.to_node != "" and MapGraph.NODES.has(tr.to_node):
 			# 이동 중 남긴 것 — 엣지 node_id→to_node 위 실제 지점(양 끝 노드에 안 겹치게 살짝 안쪽).
-			render_pos = _edge_point(nid, tr.to_node, clampf(tr.position, 0.06, 0.94), area)
-			reveal_pos = render_pos + Vector2(0.0, 22.0 * ms)
+			var ep: Vector2 = _edge_point(nid, tr.to_node, clampf(tr.position, 0.06, 0.94), area)
+			_draw_trace_marker(ep, tr.object_kind, ms)
+			_trace_hitboxes.append({"pos": ep, "nid": nid})
+			if nid == _active_trace and not tr.tags.is_empty():
+				active_marks.append({"x": ep.x, "y": ep.y + 22.0 * ms, "tags": tr.tags})
 		else:
-			# 노드에서 남긴 것 — 아이콘을 노드 왼쪽 옆구리에, 여러 개면 위로 쌓는다.
-			var idx: int = int(per_node.get(nid, 0))
-			per_node[nid] = idx + 1
-			var base: Vector2 = _node_screen(nid, area)
-			var half: float = _node_size(nid) * 0.5
-			render_pos = base + Vector2(-half - 9.0 * ms, 2.0 * ms - float(idx) * 15.0 * ms)
-			reveal_pos = Vector2(base.x, base.y + half + 31.0 * ms + float(idx) * 18.0 * ms)
-		_draw_trace_marker(render_pos, tr.object_kind, ms)
-		_trace_hitboxes.append({"pos": render_pos, "nid": nid})   # 호버·탭 히트박스
-		if nid == _active_trace and not tr.tags.is_empty():
-			active_marks.append({"x": reveal_pos.x, "y": reveal_pos.y, "tags": tr.tags})
+			if not node_groups.has(nid):
+				node_groups[nid] = []
+			node_groups[nid].append({"tr": tr, "seq": seq})
+		seq += 1
+	# 노드별 스택 — 우선순위(다리 > 아직 줄 수 있는 자원/도구 > 시체·소진·표식), 같은 층은 최근 먼저.
+	# 최대 MAX 개만 보이고, 넘치면 (MAX-1)개 + "+K" 로 정리한다(노드당 마커가 무한히 높아지지 않게).
+	for nid in node_groups:
+		var group: Array = node_groups[nid]
+		group.sort_custom(_trace_sort)
+		var base: Vector2 = _node_screen(nid, area)
+		var half: float = _node_size(nid) * 0.5
+		var total: int = group.size()
+		var shown: int = total if total <= MAX_TRACE_MARKERS else MAX_TRACE_MARKERS - 1
+		for i in range(shown):
+			var entry: Dictionary = group[i]
+			var tr: TraceData = entry["tr"]
+			var rp: Vector2 = base + Vector2(-half - 9.0 * ms, 2.0 * ms - float(i) * 15.0 * ms)
+			_draw_trace_marker(rp, tr.object_kind, ms)
+			_trace_hitboxes.append({"pos": rp, "nid": nid})   # 호버·탭 히트박스
+			if nid == _active_trace and not tr.tags.is_empty():
+				var rv: Vector2 = Vector2(base.x, base.y + half + 31.0 * ms + float(i) * 18.0 * ms)
+				active_marks.append({"x": rv.x, "y": rv.y, "tags": tr.tags})
+		if total > shown:   # 넘친 것 — "+K" 로 요약(그 자리에 더 있다는 표시)
+			var op: Vector2 = base + Vector2(-half - 9.0 * ms, 2.0 * ms - float(shown) * 15.0 * ms)
+			_draw_trace_overflow(op, total - shown, ms)
 	# 활성 흔적의 표식 단어를 펼친다(호버/탭으로만 — 평소엔 아이콘만 보인다).
 	if not active_marks.is_empty():
 		var font: Font = get_theme_default_font()
 		if font != null:
 			for m in active_marks:
 				_draw_trace_words(font, Vector2(float(m["x"]) - 80.0 * ms, float(m["y"])), m["tags"], 160.0 * ms, ms)
+
+## 흔적 스택 정렬 — 우선순위 높은(행동 가능한·최근) 것을 노드 가까이(아래) 둔다. a 가 앞(더 중요)이면 true.
+func _trace_sort(a: Dictionary, b: Dictionary) -> bool:
+	var pa: int = _trace_priority(a["tr"])
+	var pb: int = _trace_priority(b["tr"])
+	if pa != pb:
+		return pa > pb
+	return int(a["seq"]) > int(b["seq"])   # 같은 우선순위면 최근(늦게 남긴) 것 먼저
+
+## 흔적 표시 우선순위 — 클수록 먼저 보인다. 다리(영구·행동) > 아직 줄 수 있는 자원/도구 > 시체·소진·표식(정보·정서).
+func _trace_priority(tr: TraceData) -> int:
+	if tr.object_kind == TraceData.ObjectKind.ROPE:
+		return 3
+	if TraceData.is_pickable(tr.object_kind) and tr.uses > 0:
+		return 2
+	return 1
+
+## 넘친 흔적 요약 — "+K" 작은 잉크 글씨(그 자리에 더 있다는 표시). 노드당 마커가 무한히 높아지지 않게.
+func _draw_trace_overflow(p: Vector2, count: int, ms: float) -> void:
+	var font: Font = get_theme_default_font()
+	if font == null:
+		return
+	draw_circle(p, 7.5 * ms, Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.42))
+	var txt: String = "+%d" % count
+	var fs: int = maxi(8, int(11.0 * ms))
+	var tw: float = font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	draw_string(font, p + Vector2(-tw * 0.5, float(fs) * 0.34), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, TRACE_MARK_INK)
 
 ## 흔적 표식 단어(WordPool 태그)를 낡은 잉크로 그린다(크림 후광, 양피지 위 가독).
 ## 이 게임의 심장(기획서 §3): 태그 = 다음 원정대와의 소통. 평소엔 아이콘만, 호버/탭 때만 펼친다.
