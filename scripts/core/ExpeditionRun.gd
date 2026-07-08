@@ -190,6 +190,9 @@ func step() -> void:
 
 ## 도착 노드의 "주요 지점" 카드를 계산해 반환한다 (부작용 없음 — 단면 SectionRun 이 쓴다).
 ## 우선순위: ① 로프 걸린 차단 무료 통과 ② 이전 원정대 흔적 줍기 ③ 노드 이벤트. 셋 다 없으면 빈 Dictionary.
+## ⚠ ②가 ③(폭풍/차단 필수 위협 포함)을 가리는 것은 **의도**다(사용자 확정 2026-07-08) — 폭풍 노드에
+## 물건을 남겨두면 다음 원정은 위협 대신 이전 원정대의 배려를 만난다. 남김(자기희생)이 대가를 치른
+## 방패가 되는 self-async 루프. "위협 필수화"의 버그로 오인해 순서를 바꾸지 말 것.
 func arrival_event() -> Dictionary:
 	var node: Dictionary = MapGraph.node(_target_node)
 	if str(node.get("kind", "")) == "blockage" and is_bridged(_target_node):
