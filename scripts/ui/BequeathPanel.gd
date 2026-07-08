@@ -132,6 +132,10 @@ func _step_what() -> void:
 		[TraceData.ObjectKind.ROPE, "로프", "rope"],
 		[TraceData.ObjectKind.SHELTER, "은신막", "shelter"],
 	]
+	# 주머니 도구 유품 — 지금 지닌 것만 후보에 얹는다(원정당 최대 하나라 줄이 넘치지 않는다).
+	for t in [[TraceData.ObjectKind.MEDICINE, "약초 꾸러미", "medicine"], [TraceData.ObjectKind.FLINT, "부싯돌", "flint"], [TraceData.ObjectKind.FILTER, "정화천", "filter"]]:
+		if _run.get_res(str(t[2])) > 0:
+			opts.append(t)
 	for o in opts:
 		var kind: int = o[0]
 		var label: String = o[1]
@@ -379,18 +383,13 @@ func _cancel() -> void:
 
 # --- helpers ---
 
-## 줍기형(자원) 흔적인가 — 물통/식량/은신막만 다음 원정대가 집어 쓸 수 있다(uses 부여).
+## 줍기형(자원/도구) 흔적인가 — 물통/식량/은신막 + 주머니 도구가 uses 를 받아 다음 원정대가 집어 쓴다(TraceData 단일 판정).
 func _is_pickup_kind(kind: int) -> bool:
-	return kind == TraceData.ObjectKind.WATER or kind == TraceData.ObjectKind.FOOD or kind == TraceData.ObjectKind.SHELTER
+	return TraceData.is_pickable(kind)
 
-## 남길 물건 종류 → 자원 키 ("" = 자원 아님/없음).
+## 남길 물건 종류 → 자원 키 ("" = 자원 아님/없음). TraceData 에 일원화(줍기 필터와 같은 표).
 func _kind_to_key(kind: int) -> String:
-	match kind:
-		TraceData.ObjectKind.WATER: return "water"
-		TraceData.ObjectKind.FOOD: return "food"
-		TraceData.ObjectKind.ROPE: return "rope"
-		TraceData.ObjectKind.SHELTER: return "shelter"
-		_: return ""
+	return TraceData.kind_to_key(kind)
 
 func _obj_name(kind: int) -> String:
 	match kind:
@@ -398,6 +397,9 @@ func _obj_name(kind: int) -> String:
 		TraceData.ObjectKind.FOOD: return "식량 자루"
 		TraceData.ObjectKind.ROPE: return "로프"
 		TraceData.ObjectKind.SHELTER: return "은신막"
+		TraceData.ObjectKind.MEDICINE: return "약초 꾸러미"
+		TraceData.ObjectKind.FLINT: return "부싯돌"
+		TraceData.ObjectKind.FILTER: return "정화천"
 		TraceData.ObjectKind.BODY: return "시체"
 		_: return "표식"
 

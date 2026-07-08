@@ -90,6 +90,7 @@ const RED_PATH: Color = Color(0.824, 0.235, 0.118)     ## #d23c1e 선택 가능�
 const TRACE_WATER: Color = Color(0.25, 0.44, 0.55)
 const TRACE_FOOD: Color = Color(0.63, 0.44, 0.19)
 const TRACE_SHELTER: Color = Color(0.45, 0.51, 0.30)
+const TRACE_TOOL: Color = Color(0.52, 0.42, 0.58)      ## 남긴 주머니 도구(약초·부싯돌·정화천) — 흙빛 삼색과 구분되는 자줏빛
 const TRACE_MARK_INK: Color = Color(0.40, 0.24, 0.15)  ## 흔적 표식 단어 — 낡은 붉은 잉크(죽은 자가 긁어 쓴 결)
 const LABEL_HALO: Color = Color(0.914, 0.839, 0.686)   ## 라벨 크림 후광 rgb(233,214,175)(§2)
 const LABEL_DIM: Color = Color(0.290, 0.196, 0.071)    ## #4a3212 방문·미답 라벨
@@ -1083,6 +1084,8 @@ func _draw_trace_marker(p: Vector2, kind: int, ms: float = 1.0) -> void:
 			_draw_resource_dot(p, TRACE_FOOD, ms)
 		TraceData.ObjectKind.SHELTER:
 			_draw_resource_dot(p, TRACE_SHELTER, ms)
+		TraceData.ObjectKind.MEDICINE, TraceData.ObjectKind.FLINT, TraceData.ObjectKind.FILTER:
+			_draw_resource_dot(p, TRACE_TOOL, ms)   # 남긴 주머니 도구 — 호버하면 표식·줍기 카드가 무엇인지 알려준다
 		_:
 			draw_circle(p, 2.5 * ms, UITheme.MUTED)
 

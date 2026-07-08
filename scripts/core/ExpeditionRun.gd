@@ -23,7 +23,7 @@ static var WEIGHT_FREE: int = 12       ## 이 무게까지는 무료(물 소모 
 static var WEIGHT_STEP: int = 4        ## 초과 무게 이만큼마다 걸음당 물 +1 (무거운 짐 = 목마름)
 
 ## 남길 때 잃는 양 = 다음 원정대가 줍기로 얻는 양(Situations.pickup_trace 와 대칭). 물건 하나 = 그만큼의 희생.
-const LEAVE_COST: Dictionary = {"water": 4, "food": 3, "shelter": 1, "rope": 1}
+const LEAVE_COST: Dictionary = {"water": 4, "food": 3, "shelter": 1, "rope": 1, "medicine": 1, "flint": 1, "filter": 1}
 
 var resources: Dictionary = {}        ## {"water": int, "food": int, "rope": int, "shelter": int}
 var leg: int = 0                      ## 원정 전체 누적 걸음(거리 곡선)

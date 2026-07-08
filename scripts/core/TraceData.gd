@@ -8,6 +8,7 @@ extends RefCounted
 ## object_kind 는 enum ObjectKind 의 값이지만 변수 타입은 int 로 둔다
 ## (Dictionary/JSON 왕복 시 enum 타입 대입 마찰을 피하기 위함).
 
+## 새 종류는 반드시 뒤에 추가한다 — enum 값이 곧 세이브에 저장되는 정수라(직렬화), 순서가 바뀌면 기존 세이브가 깨진다.
 enum ObjectKind {
 	WATER,    ## 물통 — 소모(갈증) 대비
 	FOOD,     ## 식량 — 소모(갈증) 대비
@@ -15,6 +16,9 @@ enum ObjectKind {
 	SHELTER,  ## 은신처 — 폭풍 대비
 	BODY,     ## 시체 자리 — 이전 원정대가 끝난 곳 (정보 0, 정서 100)
 	MARK,     ## 빈 표식 — 물건 없이 태그만
+	MEDICINE, ## 약초 — 열·탈진 대비 (주머니 도구). 남기고/줍기 가능.
+	FLINT,    ## 부싯돌 — 언 밤의 불 (주머니 도구).
+	FILTER,   ## 정화천 — 탁한 물 거름 (주머니 도구).
 }
 
 const PICKUP_USES: int = 3   ## 줍기형 흔적의 기본 사용 횟수 (다음 원정들이 나눠 쓰다 소진)
@@ -45,6 +49,27 @@ func to_dict() -> Dictionary:
 		"tags": tags.duplicate(),
 		"uses": uses,
 	}
+
+## 흔적 종류 → resources 키 (남기기·줍기 공용). ROPE 는 다리(bridged_nodes)로 따로 다루되 남기기 키는 있다. BODY/MARK 는 "".
+static func kind_to_key(kind: int) -> String:
+	match kind:
+		ObjectKind.WATER: return "water"
+		ObjectKind.FOOD: return "food"
+		ObjectKind.ROPE: return "rope"
+		ObjectKind.SHELTER: return "shelter"
+		ObjectKind.MEDICINE: return "medicine"
+		ObjectKind.FLINT: return "flint"
+		ObjectKind.FILTER: return "filter"
+		_: return ""
+
+## 다음 원정대가 집어 쓸 수 있는 흔적인가 — 자원(물/식량/은신막) + 주머니 도구(약초/부싯돌/정화천).
+## ROPE 는 줍는 게 아니라 영구 다리로 남으니 제외. BODY/MARK 도 제외.
+static func is_pickable(kind: int) -> bool:
+	match kind:
+		ObjectKind.WATER, ObjectKind.FOOD, ObjectKind.SHELTER, ObjectKind.MEDICINE, ObjectKind.FLINT, ObjectKind.FILTER:
+			return true
+		_:
+			return false
 
 ## Dictionary(또는 JSON 파싱 결과)에서 흔적을 복원한다.
 static func from_dict(d: Dictionary) -> TraceData:

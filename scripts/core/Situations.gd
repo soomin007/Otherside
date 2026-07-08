@@ -379,6 +379,19 @@ static func pickup_trace(info: Dictionary) -> Dictionary:
 			res_key = "shelter"
 			amount = 1
 			obj_name = "은신막"
+		# 주머니 도구 유품 — 남긴 도구 1 = 줍기 1(대칭). 자원과 같은 줍기 흐름.
+		TraceData.ObjectKind.MEDICINE:
+			res_key = "medicine"
+			amount = 1
+			obj_name = "약초 꾸러미"
+		TraceData.ObjectKind.FLINT:
+			res_key = "flint"
+			amount = 1
+			obj_name = "부싯돌"
+		TraceData.ObjectKind.FILTER:
+			res_key = "filter"
+			amount = 1
+			obj_name = "정화천"
 	var tag_str: String = ""
 	if not tags.is_empty():
 		tag_str = "  곁의 표식: [ %s ]" % " · ".join(PackedStringArray(tags))

@@ -25,6 +25,7 @@ func _init() -> void:
 	_test_section_budget()
 	_test_section_mandatory_threat()
 	_test_bequeath_gate()
+	_test_tool_bequest()
 	_test_vocations()
 	_test_items()
 	_test_weight()
@@ -301,6 +302,24 @@ func _test_bequeath_gate() -> void:
 	# 생존 게이트: 남기면 죽는(<1) 자원은 못 남김
 	var poor: ExpeditionRun = _fresh({"water": 4, "food": 13, "rope": 0, "shelter": 0})
 	_ok(not poor.can_leave("water"), "남기기: 물 4(비용 4) → 남기면 0 이라 잠금(생존 게이트)")
+
+## 도구 유품 — 주머니 도구도 자원처럼 남기고/줍는다(TraceData 매핑·비용·줍기 카드 대칭).
+func _test_tool_bequest() -> void:
+	_ok(TraceData.kind_to_key(TraceData.ObjectKind.MEDICINE) == "medicine", "도구 유품: kind_to_key MEDICINE=medicine")
+	_ok(TraceData.is_pickable(TraceData.ObjectKind.FLINT), "도구 유품: FLINT 줍기 대상")
+	_ok(not TraceData.is_pickable(TraceData.ObjectKind.ROPE), "도구 유품: ROPE 는 줍기 아님(다리로 남음)")
+	var run: ExpeditionRun = _fresh({"water": 99, "food": 99, "medicine": 1, "flint": 1})
+	_ok(run.leave_cost("medicine") == 1, "도구 유품: 약초 남기기 비용 1")
+	_ok(run.can_leave("medicine"), "도구 유품: 약초 1 보유 → 남길 수 있음")
+	run.do_leave("medicine")
+	_ok(run.get_res("medicine") == 0 and run.bequeathed, "도구 유품: 약초 남기면 0·토큰 소진")
+	_ok(not run.can_leave("flint"), "도구 유품: 이미 남겼으면 또 못 남김(런당 1회)")
+	# 줍기 카드 — 부싯돌 흔적을 집으면 부싯돌 +1(대칭).
+	var card: Dictionary = Situations.pickup_trace({"kind": TraceData.ObjectKind.FLINT, "tags": []})
+	var choices: Array = card.get("choices", [])
+	var first: Dictionary = choices[0]
+	var eff: Dictionary = first.get("effect", {})
+	_ok(int(eff.get("flint", 0)) == 1 and str(first.get("action", "")) == "pickup", "도구 유품: 부싯돌 흔적 줍기 → 부싯돌 +1(action=pickup)")
 
 func _test_vocations() -> void:
 	# 짐꾼 — 시작 자원 넉넉(물+6·식+5), 대신 후반 곡선이 더 가혹(무거운 짐 → desolation 악화)
