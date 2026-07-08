@@ -173,3 +173,7 @@
 - **증상:** `DisplayServer.screen_set_orientation` 으로 웹 가로 잠금 시도 — 아무 일도 안 일어남. (2026-07-06 실기기)
   **원인:** 웹 DisplayServer 에 해당 기능 구현이 없음(안드로이드/iOS 네이티브 전용).
   **방지:** 웹에선 `JavaScriptBridge.eval("screen.orientation.lock(''landscape'')...")` 로 브라우저 API 직접 호출. 전체화면 상태에서만 받아들여지므로 전체화면 진입 후 지연 호출·재시도.
+
+- **증상:** 커밋 메시지 첫 줄/끝에 `@` 가 리터럴로 섞임(예: `@ fix(...): ...` … 끝줄 `@`). (2026-07-08)
+  **원인:** **Bash 도구는 Git Bash(POSIX sh)** 인데 PowerShell here-string 문법 `git commit -m @'…'@` 를 씀 → `@` 가 그냥 인자 문자로 붙는다(PowerShell 전용 문법을 sh 에서 오용).
+  **방지:** Bash 도구에서 여러 줄 커밋 메시지는 **POSIX heredoc** 으로: `git commit -F - <<'EOF'` … `EOF`(닫는 EOF 는 0열). `@'…'@` 는 PowerShell 도구에서만. 한 번 push 된 메시지는 force-push 정정이 auto 모드에서 막히니 **처음부터 올바른 문법으로**.
