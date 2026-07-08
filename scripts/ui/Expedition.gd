@@ -68,6 +68,7 @@ func _ready() -> void:
 		# 죽음·결말 진입에선 생략(패널이 주인공이라 등장 연출이 어색하다).
 		Transition.appear(_hud_box, 0.08)
 		Transition.appear(_bottom_bar, 0.20)
+		_sync_advance_gate()  # 필수 위협이 있으면 마주하기 전까지 "떠난다" 잠금
 
 func _build_hud() -> void:
 	# 상단 HUD 바 — 가독성을 위해 반투명 어두운 배경 위에 텍스트. 전체 폭.
@@ -252,7 +253,17 @@ func _on_advance() -> void:
 	# 이동은 맵에서 끝났다. 이 화면은 도착한 노드 — 결정을 마쳤으면 지도로 복귀한다.
 	if not _run.alive or not _run.pending_situation.is_empty():
 		return
+	# 폭풍/차단 같은 필수 위협은 마주하기 전엔 떠날 수 없다(스킵 방지 — 버튼도 잠기지만 방어적으로 막는다).
+	if _section != null and _section.has_unresolved_threat():
+		return
 	GameState.arrive_node()
+
+## "떠난다" 잠금 상태를 위협 게이트에 맞춘다 — 마주 안 한 필수 위협이 있으면 잠긴다.
+## (카드/팝업이 열려 있는 동안의 잠금은 각 흐름이 따로 관리한다 — 여긴 위협 게이트만.)
+func _sync_advance_gate() -> void:
+	if _advance_btn == null:
+		return
+	_advance_btn.disabled = _section != null and _section.has_unresolved_threat()
 
 ## 남기기 — 물건 하나를 두고(자원 -비용) 계속 간다(런당 1회). 죽음과 분리.
 func _on_leave_pressed() -> void:
@@ -329,7 +340,7 @@ func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, a
 
 ## 결과 팝업을 닫은 뒤 — 계속 전진(또는 결정이 곧 죽음이었으면 죽음 화면).
 func _after_choice() -> void:
-	_advance_btn.disabled = false
+	_sync_advance_gate()  # 위협 카드를 방금 해결했으면 잠금이 풀린다. 보조 이벤트면 위협이 남아 계속 잠긴다.
 	if not _run.alive:
 		_die(_run.death_cause)
 
@@ -354,7 +365,7 @@ func _clear_choices() -> void:
 
 ## 남기기 패널이 닫힌 뒤 (남겼든 취소든) — 계속 전진. 줄어든 자원·소진된 버튼을 반영한다.
 func _on_bequeath_done() -> void:
-	_advance_btn.disabled = false
+	_sync_advance_gate()  # 남기기를 위협보다 먼저 했어도 위협이 남아 있으면 "떠난다"는 잠긴 채로.
 	_refresh()
 
 func _obj_name(kind: int) -> String:
@@ -470,6 +481,7 @@ func _probe_spot(i: int) -> void:
 
 ## 자원 결과 팝업을 닫은 뒤 — delta 로도 죽을 수 있으니(음수 효과) 죽음 판정.
 func _after_delta() -> void:
+	_sync_advance_gate()  # 보조 지점을 파도 필수 위협이 남아 있으면 "떠난다"는 계속 잠긴 채로.
 	if not _run.alive:
 		_die(_run.death_cause)
 
@@ -575,12 +587,17 @@ func _draw() -> void:
 		var st: int = 0
 		if bool(spot.get("done", false)):
 			st = 1
-		elif _section.budget_left() <= 0:
-			st = 2
+		elif not _section.can_probe(i):
+			st = 2  # 예산 소진(선택형). 필수 위협은 can_probe 가 항상 true라 열린 채로 남는다.
 		var is_main: bool = bool(spot.get("_result", {}).get("main", false))
 		SectionArt.draw_spot(self, font, _spot_screen(at), str(spot.get("label", "")), st, is_main)
 	if _section.spot_count() == 0:
 		draw_string(font, Vector2(0.0, rect.y * 0.5), "둘러볼 것이 없다. 떠난다.", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_BODY, UITheme.FG)
+	elif _section.has_unresolved_threat():
+		# 필수 위협(폭풍/차단)을 아직 안 열었다 — 마주해야 떠날 수 있다고 짚어준다(모래빛 경고 톤).
+		var tk: int = _section.unresolved_threat_kind()
+		var tlabel: String = str(Threats.info(tk).get("label", "위협")) if tk >= 0 else "위협"
+		draw_string(font, Vector2(0.0, rect.y - 140.0), "%s을 마주하기 전엔 떠날 수 없다" % tlabel, HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, UITheme.SAND)
 	elif _section.budget_left() > 0 and _section.probed_count() == 0:
 		# 첫 도착 안내 — 지점을 눌러 조사한다는 걸 짚어준다. 한 번이라도 조사하면 숨긴다(학습).
 		# 하단 버튼 위 스크림 자리(그림에 안 묻히게 — 예전엔 그림 위 잉크색이라 안 읽혔다).

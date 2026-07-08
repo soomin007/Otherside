@@ -8,6 +8,12 @@ extends RefCounted
 ##  - 주요 지점(동적): 노드의 도착 카드(로프 무료통과 > 흔적 줍기 > 노드 이벤트 = ExpeditionRun.arrival_event). 있으면 하나.
 ##  - 보조 지점(정적): node.spots 중 requires 통과분(자원 캐시/작은 이벤트/빈손).
 ## 조사는 부작용 없이 "결과 디스크립터"를 반환한다. 실제 자원·플래그·흔적 변경은 ui 가 기존 경로(apply_choice/_on_choice/GameState)로 한다.
+##
+## 필수 위협(mandatory): 주요 지점이 진짜 위협(폭풍/차단, 이미 로프 걸린 무료 통과 제외)이면 반드시 마주해야 떠날 수 있다.
+##  기획서 §4 위협 삼각형 — 폭풍=노출 시 사망/유실, 차단=못 지나가 소진. "위협은 원래 치르는 것"이라 스킵 불가.
+##  구현: 필수 위협은 예산 한 칸을 미리 차지하되(위협 노드는 보조 탐색 −1 = 기존 정직 플레이와 동일, 밸런스 무변동)
+##       예산과 무관하게 항상 조사 가능 → 보조 지점을 먼저 다 파도 위협을 못 여는 소프트락이 없다.
+##  ui(Expedition._on_advance)는 has_unresolved_threat() 면 "떠난다"를 막는다. 소모·줍기 주요 지점은 선택(포기 가능).
 
 const SECTION_PROBES: int = 2   ## 기본 예산(노드가 probes 로 오버라이드)
 
@@ -28,6 +34,7 @@ func _init(run: ExpeditionRun, node: Dictionary) -> void:
 			"label": _main_label(main_ev),
 			"at": main_at,
 			"done": false,
+			"mandatory": _is_mandatory_threat(main_ev),  # 진짜 위협(폭풍/차단)이면 반드시 마주해야 떠난다
 			"_result": {"type": "event", "event": main_ev, "main": true},  # 노드의 본 사건(밸런스 시뮬이 우선순위에 씀)
 		})
 	# 보조 지점 — node.spots 중 requires 통과분.
@@ -42,7 +49,20 @@ func _init(run: ExpeditionRun, node: Dictionary) -> void:
 			"done": false,
 			"_result": _spot_result(spot),
 		})
-	budget = mini(int(node.get("probes", SECTION_PROBES)), spots.size())
+	# 예산 = 선택형(보조) 지점에만 적용. 필수 위협이 있으면 예산 한 칸을 미리 차지한다 — 위협 노드는
+	# 선택 탐색이 한 칸 줄어 기존 정직 플레이와 같은 조사량(멀수록 척박, 밸런스 무변동). 스킵 익스플로잇만 제거.
+	# 대신 필수 위협은 예산과 무관하게 항상 마주 가능(can_probe/probe 참조) → 보조를 먼저 다 파도 소프트락 없음.
+	var optional_count: int = 0
+	var has_mandatory: bool = false
+	for s in spots:
+		if bool(s.get("mandatory", false)):
+			has_mandatory = true
+		else:
+			optional_count += 1
+	var probes: int = int(node.get("probes", SECTION_PROBES))
+	if has_mandatory:
+		probes -= 1
+	budget = mini(maxi(0, probes), optional_count)
 	budget_start = budget
 
 func spot_count() -> int:
@@ -58,21 +78,42 @@ func budget_left() -> int:
 	return budget
 
 func can_probe(i: int) -> bool:
-	if i < 0 or i >= spots.size() or budget <= 0:
+	if i < 0 or i >= spots.size():
 		return false
 	var spot: Dictionary = spots[i]
-	return not bool(spot.get("done", false))
+	if bool(spot.get("done", false)):
+		return false
+	# 필수 위협은 예산과 무관하게 항상 조사 가능(마주하기 전엔 떠날 수 없으므로 막히면 안 된다).
+	if bool(spot.get("mandatory", false)):
+		return true
+	return budget > 0
 
-## 지점을 조사한다 — done 표시, 예산 -1, 결과 디스크립터를 반환한다. (조사 불가면 빈 Dictionary.)
+## 지점을 조사한다 — done 표시, (선택형이면) 예산 -1, 결과 디스크립터를 반환한다. (조사 불가면 빈 Dictionary.)
 func probe(i: int) -> Dictionary:
 	if not can_probe(i):
 		return {}
 	var spot: Dictionary = spots[i]
 	spot["done"] = true
 	spots[i] = spot
-	budget -= 1
+	if not bool(spot.get("mandatory", false)):
+		budget -= 1  # 필수 위협은 예산을 쓰지 않는다 — 선택형 지점만 예산 차감
 	var result: Dictionary = spot.get("_result", {})
 	return result
+
+## 아직 마주하지 않은 필수 위협(폭풍/차단)이 있나 — 있으면 ui 가 "떠난다"를 막는다(위협 스킵 방지).
+func has_unresolved_threat() -> bool:
+	for spot in spots:
+		if bool(spot.get("mandatory", false)) and not bool(spot.get("done", false)):
+			return true
+	return false
+
+## 마주하지 않은 필수 위협의 종류(Threats.Kind int) — ui 안내 문구용. 없으면 -1.
+func unresolved_threat_kind() -> int:
+	for spot in spots:
+		if bool(spot.get("mandatory", false)) and not bool(spot.get("done", false)):
+			var ev: Dictionary = spot.get("_result", {}).get("event", {})
+			return int(ev.get("threat", -1))
+	return -1
 
 ## 지금까지 조사한 지점 수 (첫 도착 안내 표시 판단용 — 0이면 아직 아무것도 안 봤다).
 func probed_count() -> int:
@@ -84,7 +125,10 @@ func probed_count() -> int:
 	return n
 
 ## 더 조사할 게 없다 — 예산 소진이거나 모든 지점을 봤다.
+## 단, 마주 안 한 필수 위협이 남았으면 아직 끝난 게 아니다(그건 예산과 무관하게 조사 가능 → 시뮬 루프가 위협까지 마주한다).
 func exhausted() -> bool:
+	if has_unresolved_threat():
+		return false
 	if budget <= 0:
 		return true
 	for i in range(spots.size()):
@@ -94,6 +138,14 @@ func exhausted() -> bool:
 	return true
 
 # --- 내부 ---
+
+## 이 주요 지점이 반드시 마주해야 하는 위협인가 — 폭풍/차단만.
+## 이미 로프 걸린 무료 통과(bridged)는 위협이 아니라 이전 원정대의 보답이라 제외. 줍기·소모 이벤트도 선택(포기 가능).
+func _is_mandatory_threat(ev: Dictionary) -> bool:
+	if str(ev.get("kind", "")) == "bridged":
+		return false
+	var th: int = int(ev.get("threat", Threats.Kind.CONSUMPTION))
+	return th == Threats.Kind.STORM or th == Threats.Kind.BLOCKAGE
 
 func _spot_result(spot: Dictionary) -> Dictionary:
 	var source: String = str(spot.get("source", "empty"))

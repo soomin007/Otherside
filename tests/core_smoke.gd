@@ -23,6 +23,7 @@ func _init() -> void:
 	_test_biome_weighting()
 	_test_progress_gating()
 	_test_section_budget()
+	_test_section_mandatory_threat()
 	_test_bequeath_gate()
 	_test_vocations()
 	_test_items()
@@ -255,6 +256,41 @@ func _test_section_budget() -> void:
 	section.probe(1)
 	_ok(section.budget_left() == 0 and section.exhausted(), "단면: 2회 조사 후 예산 소진·exhausted")
 	_ok(section.probe(2).is_empty(), "단면: 예산 0 이면 더 조사 불가")
+
+## 필수 위협(폭풍/차단) 게이트 — 예산과 별개로 항상 조사 가능·마주 전엔 떠날 수 없다(스킵 치즈 방지).
+func _test_section_mandatory_threat() -> void:
+	# e1(무너진 담, blockage): 주요 지점 = 필수 위협. 보조 4지점(전부 requires 없음).
+	var run: ExpeditionRun = _fresh()
+	run.begin_edge("e1")
+	var node: Dictionary = MapGraph.node("e1")
+	var section := SectionRun.new(run, node)
+	_ok(section.has_unresolved_threat(), "단면(위협): e1 도착 시 마주 안 한 필수 위협 있음")
+	# 예산은 보조(선택형) 지점만 센다 — 필수 위협은 예산 밖.
+	var optional: int = 0
+	for sp in node.get("spots", []):
+		var req: String = str(sp.get("requires", ""))
+		if req == "" or run.has_flag(req):
+			optional += 1
+	_ok(section.budget_left() == mini(1, optional), "단면(위협): 예산 = min(probes-1, 보조 %d) — 필수 위협이 한 칸 차지" % optional)
+	# 필수 위협 지점 인덱스(주요 = 첫 지점).
+	var main_idx: int = -1
+	for i in range(section.spot_count()):
+		if bool(section.get_spot(i).get("mandatory", false)):
+			main_idx = i
+			break
+	# 보조 지점으로 예산을 모두 소진한다(위협은 건드리지 않고).
+	var used: int = 0
+	for i in range(section.spot_count()):
+		if used >= 2:
+			break
+		if i != main_idx and section.can_probe(i):
+			section.probe(i)
+			used += 1
+	_ok(section.budget_left() <= 0, "단면(위협): 보조 지점으로 예산 소진")
+	_ok(main_idx >= 0 and section.can_probe(main_idx), "단면(위협): 예산 0이어도 필수 위협은 조사 가능(소프트락 없음)")
+	_ok(section.has_unresolved_threat(), "단면(위협): 위협 조사 전엔 여전히 미해결(떠날 수 없음)")
+	section.probe(main_idx)
+	_ok(not section.has_unresolved_threat(), "단면(위협): 필수 위협 조사 후 떠날 수 있음")
 
 func _test_bequeath_gate() -> void:
 	var run: ExpeditionRun = _fresh({"water": 20, "food": 13, "rope": 1, "shelter": 1})
