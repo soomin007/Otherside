@@ -20,6 +20,14 @@ const MARKET_PAGES: Array = [
 	"시장: 이 기록지를 가져가게. 떠난 원정대의 이야기가 여기 적힐 걸세. 화면 구석 책갈피에서 언제든 펴 보게.",
 ]
 
+## 첫 순환 도달 후 1회 — 시장의 재회 옛말. 순환 엔딩을 본 플레이어에게 다른 결말의 존재와 방법(남김+기림)을
+## 사람 말로 암시한다(숫자는 안 밝힘 — 돌파 난이도가 정서 튜닝, 기획서 §3). reunion_hint_seen 으로 1회 게이트.
+const REUNION_HINT_PAGES: Array = [
+	"시장: 끝에 닿았다 왔다지. 그런데도 릴레이는 이어지는군.",
+	"시장: 옛말이 하나 있네. 잘 물려주고, 길에 잠든 이들을 기린 원정대만이, 밀어내지 않고 지나간다고.",
+	"시장: 물건을 남기게. 그리고 죽은 자리를 그냥 지나치지 말게. 그게 전부일지도 모르지.",
+]
+
 ## 첫 원정 시장 인트로 — 오프닝 뒤 한 박자 뜸을 두고 서서히 나타난다(마을에 도착한 여운).
 const MARKET_INTRO_DELAY: float = 1.3  ## 나타나기까지 뜸(초)
 const MARKET_INTRO_FADE: float = 1.1   ## 페이드 인(초)
@@ -65,9 +73,11 @@ var _pending_tool: String = ""     ## 주머니 도구 하나 (기본 "" = 없�
 var _voc_desc: Label               ## step1 위젯 (직능 설명 갱신)
 var _name_edit: LineEdit           ## step1 위젯
 var _rng := RandomNumberGenerator.new()
-var _market_panel: Control         ## 첫 원정 시장 인트로 모달(있을 때만)
+var _market_panel: Control         ## 시장 대화 모달(있을 때만) — 첫 원정 인트로/첫 순환 후 옛말 공용
 var _market_label: Label
 var _market_idx: int = 0
+var _market_pages: Array = []      ## 지금 흐름의 대사(MARKET_PAGES 또는 REUNION_HINT_PAGES)
+var _market_flow: String = ""      ## "intro"(기록지 건네기) / "hint"(재회 옛말)
 var _market_ready: bool = false    ## 페이드 인 완료 전엔 입력 무시(실수로 넘김 방지)
 var _market_tw: Tween              ## 대사 사이 페이드(연타 시 킬)
 
@@ -117,6 +127,9 @@ func _ready() -> void:
 	# 첫 원정이면 시장이 규칙을 쭉 설명하고 기록지를 건넨다(책갈피가 켜진다).
 	if GameState.expedition_count == 0 and not GameState.record_seen:
 		_show_market_intro()
+	elif not GameState.reunion_hint_seen and GameState.has_arrival_of("cycle") and not GameState.has_arrival_of("reunion"):
+		# 첫 순환을 보고 돌아온 뒤 1회 — 시장이 재회의 옛말을 들려준다(이미 재회를 봤으면 불필요).
+		_show_market_hint()
 
 ## 단계 전환 — 단계 루트를 통째로 갈아끼운다(1=중앙 컬럼, 2=창고 사진 디에게틱). _pending_* 은 멤버라 단계 넘어 유지된다.
 func _show_step(n: int) -> void:
@@ -865,9 +878,20 @@ func _field_stylebox(line_alpha: float) -> StyleBoxFlat:
 	sb.content_margin_bottom = 10.0
 	return sb
 
-# --- 첫 원정 시장 인트로 (초상 + 규칙 설명 + 기록지 건네기) ---
+# --- 시장 대화 (초상 + 대사) — 첫 원정 인트로(규칙+기록지) / 첫 순환 후 옛말(재회 암시) 공용 ---
 
 func _show_market_intro() -> void:
+	_market_pages = MARKET_PAGES
+	_market_flow = "intro"
+	_show_market_panel()
+
+## 첫 순환 도달 후 1회 — 재회의 옛말(남김+기림 암시). 끝나면 reunion_hint_seen 영속.
+func _show_market_hint() -> void:
+	_market_pages = REUNION_HINT_PAGES
+	_market_flow = "hint"
+	_show_market_panel()
+
+func _show_market_panel() -> void:
 	_market_idx = 0
 	# 인트로 동안 꾸리기 폼은 숨긴다 — 카드 상자를 없앤 각인 대사가 폼 글씨와 겹치지 않게.
 	# (서사로도 맞다: 시장이 먼저 말을 걸고, 대화가 끝나면 채비가 시작된다.)
@@ -897,7 +921,7 @@ func _show_market_intro() -> void:
 	fig.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_child(fig)
 	box.add_child(UITheme.make_hairline(Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.35), 2.0))
-	_market_label = UITheme.make_label(str(MARKET_PAGES[0]), UITheme.FS_BODY)
+	_market_label = UITheme.make_label(str(_market_pages[0]), UITheme.FS_BODY)
 	box.add_child(_market_label)
 	box.add_child(UITheme.make_hairline(Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.35), 2.0))
 	var row := HBoxContainer.new()
@@ -931,7 +955,7 @@ func _market_advance() -> void:
 	if not _market_ready:
 		return
 	_market_idx += 1
-	if _market_idx >= MARKET_PAGES.size():
+	if _market_idx >= _market_pages.size():
 		_finish_market()
 		return
 	if _market_label == null:
@@ -941,13 +965,16 @@ func _market_advance() -> void:
 		_market_tw.kill()  # 연타 — 진행 중 페이드는 끊고 바로 다음 대사로
 	_market_tw = _market_label.create_tween()
 	_market_tw.tween_property(_market_label, "modulate:a", 0.0, 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
-	_market_tw.tween_callback(func() -> void: _market_label.text = str(MARKET_PAGES[_market_idx]))
+	_market_tw.tween_callback(func() -> void: _market_label.text = str(_market_pages[_market_idx]))
 	_market_tw.tween_property(_market_label, "modulate:a", 1.0, 0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 func _finish_market() -> void:
 	if not _market_ready:
 		return  # 페이드 인 중 스킵 방지
-	GameState.give_record()  # 기록지 = 책갈피(Bookmark)를 켠다
+	if _market_flow == "hint":
+		GameState.mark_reunion_hint_seen()  # 옛말은 한 번만
+	else:
+		GameState.give_record()  # 기록지 = 책갈피(Bookmark)를 켠다
 	if _market_panel != null:
 		_market_panel.queue_free()
 		_market_panel = null

@@ -29,6 +29,7 @@ var record_seen: bool = false  ## 시장이 원정 기록지를 건넸나 (영�
 var controls_tutorial_seen: bool = false ## 첫 원정 조작 오버레이 튜토리얼을 봤나 (영속). Tutorial autoload 자동재생 게이트.
 var village_intro_seen: bool = false ## 첫 원정 마을 단면 탐색 연습을 봤나 (영속). Loadout 이 첫 출발 때 한 번 VillageIntro 로 보낸다.
 var mourned_nodes: Array = []  ## 추모 표식을 남긴 죽은 자리 node_id (영속). 재회 조건의 두 번째 축(REUNION_MOURN).
+var reunion_hint_seen: bool = false ## 첫 순환 도달 후 시장의 재회 옛말을 들었나 (영속). Loadout 이 1회만 띄운다.
 var expedition_names: Array = [] ## 원정별 이름 (인덱스 = 회차-1, 영속). 랜덤(ExpeditionNamer) 또는 직접 입력(Loadout).
 var arrivals: Array = [] ## end 에 닿은 원정 기록 — {expedition:int, ending:"cycle"|"reunion"} (영속). 일대기(Bookmark)가 죽음만이 아니라 도달/재회도 보이게 한다.
 var seeded: bool = false ## 유령 흔적(플레이어 이전 원정대들)을 심었나 (영속, 세계당 1회). 빈 세계 회피.
@@ -251,6 +252,19 @@ func mark_mourned(node_id: String) -> void:
 func mourn_count() -> int:
 	return mourned_nodes.size()
 
+## 이 종류("cycle"/"reunion")의 도달 기록이 있나 — 시장 옛말(첫 순환 후 재회 암시) 게이트 등에 쓴다.
+func has_arrival_of(kind: String) -> bool:
+	for a in arrivals:
+		if a is Dictionary and str(a.get("ending", "")) == kind:
+			return true
+	return false
+
+## 시장의 재회 옛말을 들었다고 기록(영속). 이후 다시 안 띄운다.
+func mark_reunion_hint_seen() -> void:
+	if not reunion_hint_seen:
+		reunion_hint_seen = true
+		save_game()
+
 func record_death(leg: int, node_id: String = "") -> void:
 	deaths.append({"leg": leg, "node_id": node_id, "expedition": expedition_count})
 
@@ -379,6 +393,7 @@ func save_game() -> void:
 		"controls_tutorial_seen": controls_tutorial_seen,
 			"village_intro_seen": village_intro_seen,
 			"mourned_nodes": mourned_nodes,
+			"reunion_hint_seen": reunion_hint_seen,
 		"expedition_names": expedition_names,
 		"arrivals": arrivals,
 		"seen_choices": seen_choices,
@@ -414,6 +429,7 @@ func load_game() -> void:
 	controls_tutorial_seen = bool(data.get("controls_tutorial_seen", false))
 	village_intro_seen = bool(data.get("village_intro_seen", false))
 	mourned_nodes = data.get("mourned_nodes", [])
+	reunion_hint_seen = bool(data.get("reunion_hint_seen", false))
 	expedition_names = data.get("expedition_names", [])
 	arrivals = data.get("arrivals", [])
 	seen_choices = data.get("seen_choices", {})
@@ -431,6 +447,7 @@ func reset_save() -> void:
 	controls_tutorial_seen = false
 	village_intro_seen = false
 	mourned_nodes = []
+	reunion_hint_seen = false
 	expedition_names = []
 	arrivals = []
 	current_run = null
