@@ -33,7 +33,7 @@ var seeded: bool = false ## 유령 흔적(플레이어 이전 원정대들)을 �
 # --- 현재 원정 한정 상태 (죽으면 리셋) ---
 ## 초기 자원 — 임시치. 자원 = 수명 (남기면 그만큼 잃는다). 밸런스는 폰 테스트로 검증 예정.
 const START_RESOURCES: Dictionary = {"water": 20, "food": 13, "rope": 1, "shelter": 1}
-const REUNION_TRACES: int = 8  ## 재회 엔딩 흔적 축적 임계(임시 — 밸런싱 핵심 튜닝, 기획서 §3 결말)
+const REUNION_TRACES: int = 4  ## 재회 흔적 임계. 8→4(2026-07-09). 카운트=player_trace_count(의도적으로 남긴 것+로프/다리, 비-seed). 죽음(시체)은 deaths 배열이라 0 기여. 4 = 무사 도달용 세계 만들기(다리+스태시 ~3런) 동안 자연히 채워지는 수 → 그리드 대신 "공략 지식"이 관문.
 var current_run: ExpeditionRun = null  ## 진행 중인 원정의 순수 상태·로직 (core/ExpeditionRun)
 var ending_kind_pending: String = ""  ## 엔딩 슬라이드쇼(Ending 오버레이)가 읽을 결말("cycle"/"reunion"). Expedition._show_ending 이 세팅.
 var pending_expedition_name: String = ""  ## 폭풍 막간(Interlude)이 지명한 다음 원정대 이름 → Loadout 이 초기값으로 소비(비영속).
@@ -73,7 +73,7 @@ func _plant_seeds() -> void:
 		t["position"] = 0.0
 		traces.append(t)
 
-## 재회 카운트용 흔적 수 — 유령(seed) 제외, 플레이어가 남긴 것만.
+## 재회 카운트용 흔적 수. 유령(seed) 제외, 플레이어가 남긴 것만. 죽음은 deaths 배열이라 여기 안 들어감(시체는 재회에 0 기여).
 func player_trace_count() -> int:
 	var n: int = 0
 	for t in traces:
