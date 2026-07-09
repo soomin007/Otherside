@@ -317,7 +317,7 @@ func _coverage_report() -> void:
 			print("    %-24s %4d%s" % [eid, cnt, mark])
 	print("    ─ 0 의 뜻: (a) 재방문 변형(_again/_revisit_/_sheltered 등) — 영속 플래그 필요, 단일 런 시뮬은 못 뜸")
 	print("             (b) 그 노드까지 못 감(런이 짧아 도달 전 사망 — 예: f1 storm_gate*)")
-	print("             (c) 탐욕 정책이 안 고르는 선택이 켜는 체인(예: 은신막 챙김→sand_wall_sheltered)")
+	print("             (c) 탐욕 정책이 안 고르는 선택이 켜는 체인(예: 장막 챙김→sand_wall_sheltered)")
 
 # --- util ---
 

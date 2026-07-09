@@ -80,8 +80,8 @@ const NODES: Dictionary = {
 				"text": "지난 원정대의 야영지. 천막이 모래에 반쯤 묻혔다. 한 곳만 뒤질 시간이 있다.",
 				"choices": [
 					{"label": "식량 자루를 챙긴다", "effect": {"food": 3}},
-					# 은신막을 챙기면 이번 런 폭풍이 든든해진다(같은 런 연쇄) + 다음 원정 야영지 변형(영속).
-					{"label": "버려진 은신막을 챙긴다", "effect": {"shelter": 1}, "sets": ["camp_shelter_now"], "sets_persist": ["camp_shelter"]},
+					# 장막을 챙기면 이번 런 폭풍이 든든해진다(같은 런 연쇄) + 다음 원정 야영지 변형(영속).
+					{"label": "버려진 장막을 챙긴다", "effect": {"shelter": 1}, "sets": ["camp_shelter_now"], "sets_persist": ["camp_shelter"]},
 				],
 			},
 			{
@@ -102,7 +102,7 @@ const NODES: Dictionary = {
 			},
 			{
 				"id": "camp_revisit_shelter", "requires": "camp_shelter", "threat": Threats.Kind.CONSUMPTION,
-				"text": "이전 원정대가 은신막을 떼어간 자리. 남은 천 조각이 바람에 떤다. 식량 자루는 아직 있다.",
+				"text": "이전 원정대가 장막을 떼어간 자리. 남은 천 조각이 바람에 떤다. 식량 자루는 아직 있다.",
 				"choices": [
 					{"label": "식량 자루를 챙긴다", "effect": {"food": 3}},
 					{"label": "지나친다", "effect": {}},
@@ -112,7 +112,7 @@ const NODES: Dictionary = {
 		"spots": [
 			{"id": "camp_sacks", "label": "식량 자루", "at": Vector2(0.32, 0.78), "source": "cache", "effect": {"food": 2}, "text": "모래에 반쯤 묻힌 자루. 아직 상하지 않았다."},
 			{"id": "camp_cold", "label": "식은 재", "at": Vector2(0.74, 0.80), "source": "empty", "text": "불은 오래전에 꺼졌다. 쓸 것이 없다."},
-			{"id": "camp_tent", "label": "무너진 천막", "at": Vector2(0.57, 0.56), "source": "event", "event": {"id": "camp_tent_take", "threat": Threats.Kind.CONSUMPTION, "text": "무너진 천막 골조에 성한 은신막 한 장이 걸려 있다. 떼어 가면 폭풍에 든든하지만 짐이 된다.", "choices": [{"label": "떼어 챙긴다", "effect": {"shelter": 1}, "sets": ["camp_shelter_now"], "sets_persist": ["camp_shelter"]}, {"label": "둔다 (짐을 줄인다)", "effect": {}}]}},
+			{"id": "camp_tent", "label": "무너진 천막", "at": Vector2(0.57, 0.56), "source": "event", "event": {"id": "camp_tent_take", "threat": Threats.Kind.CONSUMPTION, "text": "무너진 천막 골조에 성한 장막 한 장이 걸려 있다. 떼어 가면 폭풍에 든든하지만 짐이 된다.", "choices": [{"label": "떼어 챙긴다", "effect": {"shelter": 1}, "sets": ["camp_shelter_now"], "sets_persist": ["camp_shelter"]}, {"label": "둔다 (짐을 줄인다)", "effect": {}}]}},
 			{"id": "camp_well", "label": "야영지 우물", "at": Vector2(0.24, 0.70), "source": "event", "event": {"id": "camp_well_draw", "threat": Threats.Kind.CONSUMPTION, "text": "우물 바닥에 물이 조금 남았다. 두레박 줄이 삭아 길어 올리기 수고롭다.", "choices": [{"label": "식량을 헐어 힘써 길어 올린다", "effect": {"water": 2, "food": -2}}, {"label": "삭은 줄이라 둔다", "effect": {}}]}},
 		],
 	},
@@ -203,22 +203,22 @@ const NODES: Dictionary = {
 				"id": "sand_wall", "threat": Threats.Kind.STORM,
 				"text": "앞이 온통 모래바람이다. 폭풍 구간이 길게 이어진다.",
 				"choices": [
-					{"label": "은신처를 치고 버틴다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
+					{"label": "장막를 치고 버틴다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
 					{"label": "강행 돌파한다", "effect": {"water": -4, "food": -2}},
 				],
 			},
 			{
 				"id": "sand_wall_sheltered", "requires": "camp_shelter_now", "threat": Threats.Kind.STORM,
-				"text": "야영지에서 챙긴 여분 은신막이 있다. 이번 폭풍은 한결 든든하게 버틴다.",
+				"text": "야영지에서 챙긴 여분 장막이 있다. 이번 폭풍은 한결 든든하게 버틴다.",
 				"choices": [
-					{"label": "여분 은신막을 친다", "effect": {}},
+					{"label": "여분 장막을 친다", "effect": {}},
 					{"label": "그래도 강행한다", "effect": {"water": -3}},
 				],
 			},
 			{
-				# self-async: 묻힌 천막을 파내 은신막을 얻으면 영속(wall_tent_taken) → 다음 원정 재방문 변형(wall_revisit).
+				# self-async: 묻힌 천막을 파내 장막을 얻으면 영속(wall_tent_taken) → 다음 원정 재방문 변형(wall_revisit).
 				"id": "wall_dig_tent", "threat": Threats.Kind.STORM,
-				"text": "모래 둔덕에 천막 한 귀퉁이가 삐져나와 있다. 파내면 은신막이 될지도. 파는 동안 바람에 시달린다.",
+				"text": "모래 둔덕에 천막 한 귀퉁이가 삐져나와 있다. 파내면 장막이 될지도. 파는 동안 바람에 시달린다.",
 				"choices": [
 					{"label": "천막을 파낸다", "effect": {"shelter": 1, "water": -1}, "sets_persist": ["wall_tent_taken"]},
 					{"label": "몸을 낮추고 버틴다", "effect": {"water": -3}},
@@ -268,11 +268,11 @@ const NODES: Dictionary = {
 				],
 			},
 			{
-				# threat source 다양화: cache 노드에도 폭풍이 스친다 — 은신막의 쓸 곳이 폭풍 노드 밖에도 생긴다(대비 자원 경쟁).
+				# threat source 다양화: cache 노드에도 폭풍이 스친다 — 장막의 쓸 곳이 폭풍 노드 밖에도 생긴다(대비 자원 경쟁).
 				"id": "bones_gust", "threat": Threats.Kind.STORM,
 				"text": "들판을 훑는 돌풍이 모래를 걷어 올린다. 묻혀 있던 것들이 드러났다 다시 묻히기 시작한다.",
 				"choices": [
-					{"label": "은신막을 펴고 드러난 것을 줍는다", "effect": {"shelter": -1, "water": 3}, "needs": {"shelter": 1}},
+					{"label": "장막을 펴고 드러난 것을 줍는다", "effect": {"shelter": -1, "water": 3}, "needs": {"shelter": 1}},
 					{"label": "웅크려 바람을 보낸다", "effect": {"water": -1}},
 				],
 			},
@@ -370,7 +370,7 @@ const NODES: Dictionary = {
 				"id": "storm_gate", "threat": Threats.Kind.STORM,
 				"text": "협곡 입구를 폭풍이 가로막았다. 모래가 살을 벤다.",
 				"choices": [
-					{"label": "은신처 치고 잦아들길 기다린다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
+					{"label": "장막 치고 잦아들길 기다린다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
 					{"label": "눈 감고 뚫고 간다", "effect": {"water": -5, "food": -2}},
 				],
 			},
@@ -378,7 +378,7 @@ const NODES: Dictionary = {
 				"id": "storm_gate_eye", "threat": Threats.Kind.STORM,
 				"text": "폭풍 한가운데 바람이 잠깐 멎는 눈이 보인다. 지금 달리면 통과할 수 있을지도.",
 				"choices": [
-					{"label": "은신처 치고 안전하게 간다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
+					{"label": "장막 치고 안전하게 간다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
 					{"label": "폭풍의 눈으로 달린다", "effect": {"water": -3, "food": -1}},
 				],
 			},
@@ -387,7 +387,7 @@ const NODES: Dictionary = {
 				"id": "storm_gate_ill", "requires": "pool_drank", "threat": Threats.Kind.STORM,
 				"text": "속이 뒤집힌다. 아까 그 물이 탈이 났다. 폭풍 앞에서 다리가 풀린다.",
 				"choices": [
-					{"label": "은신처 치고 최대한 버틴다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
+					{"label": "장막 치고 최대한 버틴다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
 					{"label": "이 악물고 뚫는다", "effect": {"water": -6, "food": -3}},
 				],
 			},
@@ -396,7 +396,7 @@ const NODES: Dictionary = {
 				"id": "storm_gate_stocked", "requires": "water_stocked", "threat": Threats.Kind.STORM,
 				"text": "앞서 채운 물이 아직 넉넉하다. 폭풍 앞에서도 조금은 든든하다.",
 				"choices": [
-					{"label": "은신처 치고 안전하게 간다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
+					{"label": "장막 치고 안전하게 간다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
 					{"label": "물을 아끼지 않고 강행한다", "effect": {"water": -3, "food": -1}},
 				],
 			},

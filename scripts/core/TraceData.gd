@@ -13,7 +13,7 @@ enum ObjectKind {
 	WATER,    ## 물통 — 소모(갈증) 대비
 	FOOD,     ## 식량 — 소모(갈증) 대비
 	ROPE,     ## 로프/사다리 — 차단 대비 (영구 지형 변화, 가장 뿌듯한 흔적)
-	SHELTER,  ## 은신처 — 폭풍 대비
+	SHELTER,  ## 장막 — 폭풍 대비
 	BODY,     ## 시체 자리 — 이전 원정대가 끝난 곳 (정보 0, 정서 100)
 	MARK,     ## 빈 표식 — 물건 없이 태그만
 	MEDICINE, ## 약초 — 열·탈진 대비 (주머니 도구). 남기고/줍기 가능.
@@ -62,7 +62,7 @@ static func kind_to_key(kind: int) -> String:
 		ObjectKind.FILTER: return "filter"
 		_: return ""
 
-## 다음 원정대가 집어 쓸 수 있는 흔적인가 — 자원(물/식량/은신막) + 주머니 도구(약초/부싯돌/정화천).
+## 다음 원정대가 집어 쓸 수 있는 흔적인가 — 자원(물/식량/장막) + 주머니 도구(약초/부싯돌/정화천).
 ## ROPE 는 줍는 게 아니라 영구 다리로 남으니 제외. BODY/MARK 도 제외.
 static func is_pickable(kind: int) -> bool:
 	match kind:

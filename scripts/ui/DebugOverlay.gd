@@ -325,7 +325,7 @@ func _refresh_state() -> void:
 	lines.append("공개 노드 %d/%d" % [GameState.visited_nodes.size(), MapGraph.NODES.size()])
 	if run != null:
 		lines.append("노드 %s · leg %d · %s" % [run.current_node, run.leg, ("살아있음" if run.alive else "사망:" + run.death_cause)])
-		lines.append("물 %d · 식량 %d · 로프 %d · 은신 %d" % [run.get_res("water"), run.get_res("food"), run.get_res("rope"), run.get_res("shelter")])
+		lines.append("물 %d · 식량 %d · 로프 %d · 장막 %d" % [run.get_res("water"), run.get_res("food"), run.get_res("rope"), run.get_res("shelter")])
 	else:
 		lines.append("(진행 중 원정 없음)")
 	_state.text = "\n".join(PackedStringArray(lines))

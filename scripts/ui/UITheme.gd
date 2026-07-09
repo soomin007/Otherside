@@ -333,7 +333,7 @@ static func _set_margin(mc: MarginContainer, v: int) -> void:
 # --- 선택지 라벨 (blind choice) ---
 ## 지도(이동 중 상황)·단면(도착 카드)이 공유. 결과를 미리 보여줄지(seen)·조건만 보여줄지(needs)를 한곳에서 정한다.
 
-const RES_KO: Dictionary = {"water": "물", "food": "식량", "rope": "로프", "shelter": "은신처", "medicine": "약초", "flint": "부싯돌", "filter": "정화천"}
+const RES_KO: Dictionary = {"water": "물", "food": "식량", "rope": "로프", "shelter": "장막", "medicine": "약초", "flint": "부싯돌", "filter": "정화천"}
 
 ## 자원 델타를 읽기 쉬운 한 줄로 ("물 -2 · 식량 +1"). 빈 효과는 "그대로".
 static func effect_hint(effect: Dictionary) -> String:

@@ -372,7 +372,7 @@ func _obj_name(kind: int) -> String:
 		TraceData.ObjectKind.WATER: return "물통"
 		TraceData.ObjectKind.FOOD: return "식량 자루"
 		TraceData.ObjectKind.ROPE: return "로프"
-		TraceData.ObjectKind.SHELTER: return "은신막"
+		TraceData.ObjectKind.SHELTER: return "장막"
 		TraceData.ObjectKind.BODY: return "시체"
 		_: return "표식"
 

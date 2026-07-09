@@ -30,7 +30,7 @@
 | 23 | 공통 화면 배경 | §6 | ✅ 완료 (불투명, `Backdrop.gd` cover — 타이틀·오프닝 공용) |
 | 24~28 | 오프닝 삽화 5장 | §7 | ✅ 완료 (불투명, `Opening.gd` 슬라이드별 삽화 + 크로스페이드) |
 | 29 | 타이틀 키아트 | §8 | ✅ 완료 (불투명, `Main.gd` 배경 TextureRect cover + 스크림) |
-| 30~37 | 아이템 삽화 8종 (물통/식량/말린고기/로프/은신막/약초/부싯돌/정화천) | §9 | ✅ 완료 (흰→투명 변환·`ItemIcon.gd` 배선, 가방 슬롯 아이콘 확인) |
+| 30~37 | 아이템 삽화 8종 (물통/식량/말린고기/로프/장막/약초/부싯돌/정화천) | §9 | ✅ 완료 (흰→투명 변환·`ItemIcon.gd` 배선, 가방 슬롯 아이콘 확인) |
 | 38 | 열린 가방(위에서 본 빈 배낭) — 가방 슬롯 뒤 배경 | §10 | ✅ 완료 (흰→투명 `alpha_key`, `Loadout.gd` 배선 — 슬롯 뒤 은은히 50%) |
 | 29가로 | 타이틀 키아트 **가로판**(데스크톱) — `29_타이틀_키아트_가로.png` | §11 | ✅ 완료 (방향 자동 교체 배선·`Main.gd`) |
 | 23가로 | 공통 배경 **가로판**(데스크톱) — `23_배경_공통_가로.png` | §11 | ✅ 완료 (`Backdrop.gd`) |
@@ -383,7 +383,7 @@ no letters, no labels, no numbers, no watermark, no checkerboard, no scenery, no
 no second object.
 ```
 
-### 은신막 (shelter)
+### 장막 (shelter)
 ```
 A single folded weathered canvas tarp shelter cloth, rolled and tied with cord, dusty desert tones, a
 single object centered with generous margin on a plain solid pure white background (#FFFFFF). Painterly

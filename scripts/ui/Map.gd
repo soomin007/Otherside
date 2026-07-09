@@ -86,7 +86,7 @@ const CIRC_CURRENT: Color = Color(0.984, 0.149, 0.0)   ## #fb2600 현재 위치(
 const CIRC_HOVER: Color = Color(0.290, 0.184, 0.094)   ## #4a2f18 목적지 잉크원
 const RED_PATH: Color = Color(0.824, 0.235, 0.118)     ## #d23c1e 선택 가능한 붉은 길(§3)
 ## 남긴 자원 점 안료색 — 세피아 양피지 위 형광점 금지(죽은 픽셀처럼 보임). 잉크에 갠 안료 톤으로,
-## 색 구분(물=청록·식량=황토·은신막=올리브)은 유지. 마커·범례가 공유한다.
+## 색 구분(물=청록·식량=황토·장막=올리브)은 유지. 마커·범례가 공유한다.
 const TRACE_WATER: Color = Color(0.25, 0.44, 0.55)
 const TRACE_FOOD: Color = Color(0.63, 0.44, 0.19)
 const TRACE_SHELTER: Color = Color(0.45, 0.51, 0.30)
@@ -1169,7 +1169,7 @@ func _draw_col_left(font: Font, sc: float) -> void:
 		["water", "물", "걸음마다 줆"],
 		["food", "식량", "굶으면 쇠약"],
 		["rope", "로프", "차단을 넘음"],
-		["shelter", "은신막", "폭풍을 견딤"],
+		["shelter", "장막", "폭풍을 견딤"],
 	]
 	for r in rows:
 		y += 30.0 * sc
@@ -1211,13 +1211,13 @@ func _draw_col_left(font: Font, sc: float) -> void:
 		y += 21.0 * sc
 		_draw_sketch(warn, Vector2(x + 9.0 * sc, y - 5.0 * sc), 17.0 * sc)
 		draw_string(font, Vector2(x + sym_w, y), "위험", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
-	# 남긴 자원 점 — 점 셋을 글 순서대로(물·식량·은신막) 찍어 색↔자원 대응을 보여준다(2026-07-06 사용자 지시).
+	# 남긴 자원 점 — 점 셋을 글 순서대로(물·식량·장막) 찍어 색↔자원 대응을 보여준다(2026-07-06 사용자 지시).
 	y += 21.0 * sc
 	var trace_cols: Array = [TRACE_WATER, TRACE_FOOD, TRACE_SHELTER]
 	for i in trace_cols.size():
 		var tc: Color = trace_cols[i]
 		_draw_resource_dot(Vector2(x + (5.0 + 12.0 * float(i)) * sc, y - 4.0 * sc), tc, sc * 0.75)
-	draw_string(font, Vector2(x + sym_w + 16.0 * sc, y), "남긴 물·식량·은신막", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w - 16.0 * sc, fs, tcol)
+	draw_string(font, Vector2(x + sym_w + 16.0 * sc, y), "남긴 물·식량·장막", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w - 16.0 * sc, fs, tcol)
 	# 통계 한 줄(컴팩트).
 	y += 24.0 * sc
 	draw_string(font, Vector2(x, y), "원정 %d · 흔적 %d · 죽음 %d" % [GameState.expedition_count, GameState.traces.size(), GameState.deaths.size()], HORIZONTAL_ALIGNMENT_LEFT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))

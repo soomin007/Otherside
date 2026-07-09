@@ -25,7 +25,7 @@ const PAGE_SFX: Array = [
 const TUTORIAL_PAGES: Array = [
 	"지도에서 갈 곳을 눌러 원정대를 움직입니다. 가봐야 무엇이 있는지 압니다. 걸음마다 물과 식량이 닳습니다.",
 	"도착하면 그곳의 단면이 펼쳐집니다. 표시된 곳을 눌러 살핍니다. 살필 수 있는 횟수는 정해져 있고, 살핀다고 물이나 식량이 줄지는 않습니다.",
-	"물은 걸음마다, 식량은 두 걸음마다 줄어듭니다. 로프는 갈라진 틈을, 은신막은 폭풍을 견디게 합니다.",
+	"물은 걸음마다, 식량은 두 걸음마다 줄어듭니다. 로프는 갈라진 틈을, 장막은 폭풍을 견디게 합니다.",
 	"죽기 전 단 한 번, 물건 하나를 남길 수 있습니다. 그만큼 잃지만 다음 원정대가 줍습니다. 무엇을 남길지가 이 여정의 마음입니다.",
 ]
 
@@ -676,7 +676,7 @@ func _ctrl_legend() -> void:
 	_box_l.add_child(_legend_row("ramp", "조사 남음", "이 자리에서 살필 수 있는 횟수. 찬 점이 남은 것."))
 	_box_r.add_child(_legend_row("route", "밟은 길", "지난 원정대가 밟아 이어진 길."))
 	_box_r.add_child(_legend_row("marker", "원정대", "지금 이 원정대가 선 자리."))
-	_box_r.add_child(_legend_row("trace", "남긴 흔적", "이전 원정대가 남긴 물건. 색으로 물과 식량, 은신막을 나눈다."))
+	_box_r.add_child(_legend_row("trace", "남긴 흔적", "이전 원정대가 남긴 물건. 색으로 물과 식량, 장막을 나눈다."))
 
 ## 범례 한 줄 — 왼쪽 표식 그림 + 오른쪽 이름·뜻.
 func _legend_row(kind: String, title: String, meaning: String) -> HBoxContainer:

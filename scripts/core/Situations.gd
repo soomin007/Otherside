@@ -145,7 +145,7 @@ const CATALOG: Array = [
 		"threat": Threats.Kind.STORM,
 		"text": "느닷없이 모래바람이 몰아친다. 짧지만 살을 벤다.",
 		"choices": [
-			{"label": "은신막을 펴 버틴다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
+			{"label": "장막을 펴 버틴다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
 			{"label": "몸을 낮추고 견딘다", "effect": {"water": -4}},
 		],
 	},
@@ -210,7 +210,7 @@ const CATALOG: Array = [
 			{"label": "천으로 대충 묶고 간다", "effect": {"water": -4}},
 		],
 	},
-	# --- 위협 다양화 — 이동 중에도 차단·폭풍이 스친다(소모 일색 보강). 대비 자원(로프·은신막)의 쓸 곳을 넓힌다 ---
+	# --- 위협 다양화 — 이동 중에도 차단·폭풍이 스친다(소모 일색 보강). 대비 자원(로프·장막)의 쓸 곳을 넓힌다 ---
 	{
 		# 이동 중 차단(첫 종). 로프는 소모하지 않고 "가진 것"의 값을 만든다 — 다리 걸기(영구)와 경쟁하지 않게.
 		"id": "rope_gully", "biome": ["rock"],
@@ -378,7 +378,7 @@ static func pickup_trace(info: Dictionary) -> Dictionary:
 		TraceData.ObjectKind.SHELTER:
 			res_key = "shelter"
 			amount = 1
-			obj_name = "은신막"
+			obj_name = "장막"
 		# 주머니 도구 유품 — 남긴 도구 1 = 줍기 1(대칭). 자원과 같은 줍기 흐름.
 		TraceData.ObjectKind.MEDICINE:
 			res_key = "medicine"

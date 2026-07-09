@@ -1,7 +1,7 @@
 class_name Items
 extends RefCounted
 
-## 가방 아이템 카탈로그 — 자원(물/식량) + 도구(로프/은신막/약초/부싯돌/정화천) + 부작용 아이템. 단일 진실.
+## 가방 아이템 카탈로그 — 자원(물/식량) + 도구(로프/장막/약초/부싯돌/정화천) + 부작용 아이템. 단일 진실.
 ##
 ## 60초식 "이 위기엔 이 도구": resources dict 의 키가 곧 아이템(보유량). 위기 이벤트가
 ##  needs(그 도구를 가졌나) 로 안전 선택지를 열고 effect(도구 -1) 로 소비한다. can_choose/apply_choice 가 임의 키를 다룬다.
@@ -17,7 +17,7 @@ const CATALOG: Array = [
 	{"key": "jerky", "label": "말린 고기", "start": {"food": 9, "water": -2}, "desc": "오래가는 식량. 대신 짜서 더 마른 목."},
 	# 위협 대비 도구 — 보유하면 특정 위기에서 안전 선택지가 열린다(needs), 쓰면 소진(effect).
 	{"key": "rope", "label": "로프", "start": {"rope": 1}, "desc": "갈라진 틈 건너기. 다음 원정에도 남음."},
-	{"key": "shelter", "label": "은신막", "start": {"shelter": 1}, "desc": "폭풍 버티기."},
+	{"key": "shelter", "label": "장막", "start": {"shelter": 1}, "desc": "폭풍 버티기."},
 	{"key": "medicine", "label": "약초 꾸러미", "start": {"medicine": 1}, "desc": "열·탈진 다스리기."},
 	{"key": "flint", "label": "부싯돌", "start": {"flint": 1}, "desc": "언 밤의 불 피우기."},
 	{"key": "filter", "label": "정화천", "start": {"filter": 1}, "desc": "탁한 물 걸러 마시기."},
@@ -30,11 +30,11 @@ const RES_KEYS: Array = ["water", "food", "rope", "shelter", "medicine", "flint"
 const TOOL_KEYS: Array = ["rope", "shelter", "medicine", "flint", "filter"]
 
 ## 주머니 도구 — 가방 6칸과 별개로 원정마다 하나 챙기는 선택형 도구(위기 대응 보험). Loadout 이 OptionButton 으로 고른다.
-## 로프·은신막은 가방(6칸)에 두어 기존 밸런스를 지키고, 신규 도구만 주머니로 물/식량과의 칸 경쟁에서 뗀다.
+## 로프·장막은 가방(6칸)에 두어 기존 밸런스를 지키고, 신규 도구만 주머니로 물/식량과의 칸 경쟁에서 뗀다.
 const POUCH_TOOLS: Array = ["medicine", "flint", "filter"]
 
 const TOOL_LABEL: Dictionary = {
-	"rope": "로프", "shelter": "은신막", "medicine": "약초", "flint": "부싯돌", "filter": "정화천",
+	"rope": "로프", "shelter": "장막", "medicine": "약초", "flint": "부싯돌", "filter": "정화천",
 }
 
 ## 아이템 무게 — 가방 총 무게가 크면 걸음당 물 소모가 는다(ExpeditionRun.WEIGHT_FREE/STEP). 물/식량·말린고기가 무겁다.

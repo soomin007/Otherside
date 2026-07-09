@@ -9,7 +9,7 @@ const ART_PATHS: Dictionary = {
 	"food": "res://assets/arts/transparent/31_아이템_식량.png",
 	"jerky": "res://assets/arts/transparent/32_아이템_말린고기.png",
 	"rope": "res://assets/arts/transparent/33_아이템_로프.png",
-	"shelter": "res://assets/arts/transparent/34_아이템_은신막.png",
+	"shelter": "res://assets/arts/transparent/34_아이템_은신막.png",  # 표시명은 "장막"(2026-07-09 리네임) — 에셋 파일명만 옛 이름 유지(.import 연쇄 방지)
 	"medicine": "res://assets/arts/transparent/35_아이템_약초.png",
 	"flint": "res://assets/arts/transparent/36_아이템_부싯돌.png",
 	"filter": "res://assets/arts/transparent/37_아이템_정화천.png",
@@ -112,7 +112,7 @@ func _g_rope(c: Vector2, r: float) -> void:  # 로프 — 감긴 사리
 	draw_arc(c, r * 0.85, 0.0, TAU, 28, DARK, 1.0)
 	draw_arc(c, r * 0.55, 0.0, TAU, 24, DARK, 1.0)
 
-func _g_shelter(c: Vector2, r: float) -> void:  # 은신막 — 접힌 천(삼각 천막꼴)
+func _g_shelter(c: Vector2, r: float) -> void:  # 장막 — 접힌 천(삼각 천막꼴)
 	draw_colored_polygon(PackedVector2Array([
 		Vector2(c.x, c.y - r * 0.8), Vector2(c.x + r * 0.85, c.y + r * 0.7),
 		Vector2(c.x - r * 0.85, c.y + r * 0.7)]), CANVAS)

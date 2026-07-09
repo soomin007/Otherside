@@ -302,7 +302,7 @@ func pickup_traces_by_node() -> Dictionary:
 		if not (raw is Dictionary):
 			continue
 		var kind: int = int(raw.get("object_kind", -1))
-		if not TraceData.is_pickable(kind):   # 자원(물/식량/은신막) + 주머니 도구만 줍기 대상
+		if not TraceData.is_pickable(kind):   # 자원(물/식량/장막) + 주머니 도구만 줍기 대상
 			continue
 		if int(raw.get("uses", 0)) <= 0:
 			continue

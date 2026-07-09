@@ -132,7 +132,7 @@ func _step_what() -> void:
 		[TraceData.ObjectKind.WATER, "물통", "water"],
 		[TraceData.ObjectKind.FOOD, "식량 자루", "food"],
 		[TraceData.ObjectKind.ROPE, "로프", "rope"],
-		[TraceData.ObjectKind.SHELTER, "은신막", "shelter"],
+		[TraceData.ObjectKind.SHELTER, "장막", "shelter"],
 	]
 	# 주머니 도구 유품 — 지금 지닌 것만 후보에 얹는다(원정당 최대 하나라 줄이 넘치지 않는다).
 	for t in [[TraceData.ObjectKind.MEDICINE, "약초 꾸러미", "medicine"], [TraceData.ObjectKind.FLINT, "부싯돌", "flint"], [TraceData.ObjectKind.FILTER, "정화천", "filter"]]:
@@ -429,7 +429,7 @@ func _cancel() -> void:
 
 # --- helpers ---
 
-## 줍기형(자원/도구) 흔적인가 — 물통/식량/은신막 + 주머니 도구가 uses 를 받아 다음 원정대가 집어 쓴다(TraceData 단일 판정).
+## 줍기형(자원/도구) 흔적인가 — 물통/식량/장막 + 주머니 도구가 uses 를 받아 다음 원정대가 집어 쓴다(TraceData 단일 판정).
 func _is_pickup_kind(kind: int) -> bool:
 	return TraceData.is_pickable(kind)
 
@@ -442,7 +442,7 @@ func _obj_name(kind: int) -> String:
 		TraceData.ObjectKind.WATER: return "물통"
 		TraceData.ObjectKind.FOOD: return "식량 자루"
 		TraceData.ObjectKind.ROPE: return "로프"
-		TraceData.ObjectKind.SHELTER: return "은신막"
+		TraceData.ObjectKind.SHELTER: return "장막"
 		TraceData.ObjectKind.MEDICINE: return "약초 꾸러미"
 		TraceData.ObjectKind.FLINT: return "부싯돌"
 		TraceData.ObjectKind.FILTER: return "정화천"
