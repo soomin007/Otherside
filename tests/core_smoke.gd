@@ -24,6 +24,7 @@ func _init() -> void:
 	_test_progress_gating()
 	_test_section_budget()
 	_test_section_mandatory_threat()
+	_test_section_bridged_gate()
 	_test_bequeath_gate()
 	_test_tool_bequest()
 	_test_vocations()
@@ -258,9 +259,10 @@ func _test_section_budget() -> void:
 	_ok(section.budget_left() == 0 and section.exhausted(), "단면: 2회 조사 후 예산 소진·exhausted")
 	_ok(section.probe(2).is_empty(), "단면: 예산 0 이면 더 조사 불가")
 
-## 필수 위협(폭풍/차단) 게이트 — 예산과 별개로 항상 조사 가능·마주 전엔 떠날 수 없다(스킵 치즈 방지).
+## 필수 위협(폭풍/차단) 게이트 — 두 단계(2026-07-09): 통과를 열기 전엔 보조 지점이 숨고,
+## 통과는 예산 무료·마주 전엔 떠날 수 없다(스킵 치즈 방지).
 func _test_section_mandatory_threat() -> void:
-	# e1(무너진 담, blockage): 주요 지점 = 필수 위협. 보조 4지점(전부 requires 없음).
+	# e1(무너진 담, blockage): 주요 지점 = 필수 위협(게이트). 보조 4지점(전부 requires 없음).
 	var run: ExpeditionRun = _fresh()
 	run.begin_edge("e1")
 	var node: Dictionary = MapGraph.node("e1")
@@ -273,25 +275,49 @@ func _test_section_mandatory_threat() -> void:
 		if req == "" or run.has_flag(req):
 			optional += 1
 	_ok(section.budget_left() == mini(1, optional), "단면(위협): 예산 = min(probes-1, 보조 %d) — 필수 위협이 한 칸 차지" % optional)
-	# 필수 위협 지점 인덱스(주요 = 첫 지점).
-	var main_idx: int = -1
-	for i in range(section.spot_count()):
-		if bool(section.get_spot(i).get("mandatory", false)):
-			main_idx = i
-			break
-	# 보조 지점으로 예산을 모두 소진한다(위협은 건드리지 않고).
-	var used: int = 0
-	for i in range(section.spot_count()):
-		if used >= 2:
-			break
-		if i != main_idx and section.can_probe(i):
-			section.probe(i)
-			used += 1
-	_ok(section.budget_left() <= 0, "단면(위협): 보조 지점으로 예산 소진")
-	_ok(main_idx >= 0 and section.can_probe(main_idx), "단면(위협): 예산 0이어도 필수 위협은 조사 가능(소프트락 없음)")
-	_ok(section.has_unresolved_threat(), "단면(위협): 위협 조사 전엔 여전히 미해결(떠날 수 없음)")
-	section.probe(main_idx)
+	_ok(section.gate_idx == 0 and not section.gate_opened(), "단면(위협/2단계): 위협이 게이트")
+	# 두 단계 — 통과를 열기 전엔 보조가 숨고 조사도 불가.
+	var leaked: int = 0
+	for i in range(1, section.spot_count()):
+		if section.is_spot_visible(i) or section.can_probe(i):
+			leaked += 1
+	_ok(leaked == 0, "단면(위협/2단계): 통과 전 보조 지점 숨김·조사 불가")
+	_ok(not section.exhausted(), "단면(위협/2단계): 게이트가 남아 exhausted 아님")
+	# 게이트(위협) 조사 — 예산 무료, 이후 보조가 드러난다.
+	var b0: int = section.budget_left()
+	section.probe(0)
+	_ok(section.budget_left() == b0, "단면(위협): 위협 조사는 예산 무료")
 	_ok(not section.has_unresolved_threat(), "단면(위협): 필수 위협 조사 후 떠날 수 있음")
+	var revealed: int = 0
+	for i in range(1, section.spot_count()):
+		if section.is_spot_visible(i):
+			revealed += 1
+	_ok(revealed == section.spot_count() - 1, "단면(위협/2단계): 통과 후 보조 전부 드러남")
+	# 보조 조사로 예산 소진.
+	for i in range(1, section.spot_count()):
+		if section.can_probe(i):
+			section.probe(i)
+	_ok(section.budget_left() == 0 and section.exhausted(), "단면(위협): 보조 조사로 예산 소진·exhausted")
+
+## 로프 다리(bridged) 게이트 — 통과가 보조를 여는 게이트이되 예산 무료, 떠나기는 안 막는다(보답이지 위협 아님).
+func _test_section_bridged_gate() -> void:
+	var run: ExpeditionRun = _fresh({}, ["e1"])   # e1 에 이전 원정대의 로프가 걸린 세계
+	run.begin_edge("e1")
+	var node: Dictionary = MapGraph.node("e1")
+	var section := SectionRun.new(run, node)
+	_ok(str(run.arrival_event().get("kind", "")) == "bridged", "단면(다리): e1 도착 카드 = bridged")
+	_ok(section.gate_idx == 0, "단면(다리/2단계): 다리 통과가 게이트")
+	_ok(not section.has_unresolved_threat(), "단면(다리): 위협 아님 — 떠나기 안 막음")
+	_ok(section.budget_left() == 2, "단면(다리): 예산 2 유지(통과가 예산을 안 차지)")
+	var hidden: bool = true
+	for i in range(1, section.spot_count()):
+		if section.is_spot_visible(i):
+			hidden = false
+	_ok(hidden, "단면(다리/2단계): 통과 전 보조 숨김")
+	var b0: int = section.budget_left()
+	section.probe(0)
+	_ok(section.budget_left() == b0, "단면(다리): 통과 조사는 예산 무료(옛 예산 낭비 함정 제거)")
+	_ok(section.gate_opened() and section.spot_count() > 1 and section.is_spot_visible(1), "단면(다리/2단계): 통과 후 보조 드러남")
 
 func _test_bequeath_gate() -> void:
 	var run: ExpeditionRun = _fresh({"water": 20, "food": 13, "rope": 1, "shelter": 1})

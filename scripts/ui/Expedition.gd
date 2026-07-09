@@ -581,6 +581,8 @@ func _draw() -> void:
 	if _section == null:
 		return
 	for i in range(_section.spot_count()):
+		if not _section.is_spot_visible(i):
+			continue  # 두 단계 — 통과(위협/다리)를 열기 전엔 보조 지점을 그리지 않는다
 		var spot: Dictionary = _section.get_spot(i)
 		var at: Vector2 = spot.get("at", Vector2(0.5, 0.5))
 		var st: int = 0
@@ -601,6 +603,9 @@ func _draw() -> void:
 		# 첫 도착 안내 — 지점을 눌러 조사한다는 걸 짚어준다. 한 번이라도 조사하면 숨긴다(학습).
 		# 하단 버튼 위 스크림 자리(그림에 안 묻히게 — 예전엔 그림 위 잉크색이라 안 읽혔다).
 		draw_string(font, Vector2(0.0, rect.y - 140.0), "표시된 곳을 눌러 조사한다  (자원은 들지 않는다)", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, Color(0.88, 0.84, 0.76))
+	elif _section.gate_opened() and _section.probed_count() == 1 and _section.budget_left() > 0 and _section.spot_count() > 1:
+		# 두 단계 안내 — 통과(위협/다리)를 막 열어 보조 지점이 드러났다. 한 곳이라도 살피면 숨긴다.
+		draw_string(font, Vector2(0.0, rect.y - 140.0), "건너온 자리다. 이제 주변을 둘러볼 수 있다", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, Color(0.88, 0.84, 0.76))
 
 # --- 결말 (목적지 도달: 순환과 재회) ---
 # (옛 결말 카드 패널은 폐기 — 엔딩 슬라이드쇼 오버레이(Ending.gd)가 전부 맡는다. 2026-07-06 죽은 코드 정리.)

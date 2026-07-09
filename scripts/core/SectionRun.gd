@@ -14,6 +14,11 @@ extends RefCounted
 ##  구현: 필수 위협은 예산 한 칸을 미리 차지하되(위협 노드는 보조 탐색 −1 = 기존 정직 플레이와 동일, 밸런스 무변동)
 ##       예산과 무관하게 항상 조사 가능 → 보조 지점을 먼저 다 파도 위협을 못 여는 소프트락이 없다.
 ##  ui(Expedition._on_advance)는 has_unresolved_threat() 면 "떠난다"를 막는다. 소모·줍기 주요 지점은 선택(포기 가능).
+##
+## 두 단계 단면(2026-07-09, 사용자 확정): 주요 지점이 "통과"(필수 위협 폭풍/차단 or 로프 다리 bridged)면
+##  그게 게이트(gate_idx)다 — 열기 전엔 보조 지점이 보이지 않는다(먼저 치르고, 넘은 뒤에 둘러본다).
+##  게이트 조사는 예산 무료("free"). 다리 통과는 떠나기를 막지 않는다(위협이 아니라 이전 원정대의 보답).
+##  줍기가 주요인 노드는 게이트 없음 — 줍기가 위협을 가리는 우선순위는 확정 의도(arrival_event 주석).
 
 const SECTION_PROBES: int = 2   ## 기본 예산(노드가 probes 로 오버라이드)
 
@@ -21,6 +26,7 @@ var node_id: String = ""
 var kind: String = ""
 var budget: int = 0
 var budget_start: int = 0   ## 초기 예산(램프 UI 가 "몇 중 몇 남음"을 그리는 데 씀)
+var gate_idx: int = -1      ## 통과 게이트 지점 인덱스(-1=게이트 없음). done 전엔 보조 지점 숨김.
 var spots: Array = []   ## 각: {label:String, at:Vector2, done:bool, _result:Dictionary}
 
 func _init(run: ExpeditionRun, node: Dictionary) -> void:
@@ -30,13 +36,18 @@ func _init(run: ExpeditionRun, node: Dictionary) -> void:
 	var main_ev: Dictionary = run.arrival_event()
 	if not main_ev.is_empty():
 		var main_at: Vector2 = node.get("main_at", _default_main_at(kind))
+		var mand: bool = _is_mandatory_threat(main_ev)
+		var bridge: bool = str(main_ev.get("kind", "")) == "bridged"
 		spots.append({
 			"label": _main_label(main_ev),
 			"at": main_at,
 			"done": false,
-			"mandatory": _is_mandatory_threat(main_ev),  # 진짜 위협(폭풍/차단)이면 반드시 마주해야 떠난다
+			"mandatory": mand,           # 진짜 위협(폭풍/차단)이면 반드시 마주해야 떠난다
+			"free": mand or bridge,      # 통과(위협·다리)는 예산 무료 — 다리 통과가 예산을 낭비하던 함정도 제거
 			"_result": {"type": "event", "event": main_ev, "main": true},  # 노드의 본 사건(밸런스 시뮬이 우선순위에 씀)
 		})
+		if mand or bridge:
+			gate_idx = 0  # 두 단계: 통과를 열기 전엔 보조 지점이 안 보인다
 	# 보조 지점 — node.spots 중 requires 통과분.
 	for sp in node.get("spots", []):
 		var spot: Dictionary = sp
@@ -77,14 +88,32 @@ func get_spot(i: int) -> Dictionary:
 func budget_left() -> int:
 	return budget
 
+## 두 단계 가시성 — 게이트(통과)가 있으면 열기 전까지 보조 지점이 보이지 않는다.
+func is_spot_visible(i: int) -> bool:
+	if i < 0 or i >= spots.size():
+		return false
+	if gate_idx < 0 or i == gate_idx:
+		return true
+	var gate: Dictionary = spots[gate_idx]
+	return bool(gate.get("done", false))
+
+## 게이트(통과)를 이미 열었나 — ui 가 "건너온 자리를 둘러본다" 안내에 쓴다.
+func gate_opened() -> bool:
+	if gate_idx < 0:
+		return false
+	var gate: Dictionary = spots[gate_idx]
+	return bool(gate.get("done", false))
+
 func can_probe(i: int) -> bool:
 	if i < 0 or i >= spots.size():
 		return false
 	var spot: Dictionary = spots[i]
 	if bool(spot.get("done", false)):
 		return false
-	# 필수 위협은 예산과 무관하게 항상 조사 가능(마주하기 전엔 떠날 수 없으므로 막히면 안 된다).
-	if bool(spot.get("mandatory", false)):
+	if not is_spot_visible(i):
+		return false  # 게이트 뒤 보조 지점은 통과 전엔 조사 불가(두 단계)
+	# 통과(필수 위협·다리)는 예산과 무관하게 항상 조사 가능(마주하기 전엔 떠날 수 없으므로 막히면 안 된다).
+	if bool(spot.get("free", false)):
 		return true
 	return budget > 0
 
@@ -95,8 +124,8 @@ func probe(i: int) -> Dictionary:
 	var spot: Dictionary = spots[i]
 	spot["done"] = true
 	spots[i] = spot
-	if not bool(spot.get("mandatory", false)):
-		budget -= 1  # 필수 위협은 예산을 쓰지 않는다 — 선택형 지점만 예산 차감
+	if not bool(spot.get("free", false)):
+		budget -= 1  # 통과(위협·다리)는 예산을 쓰지 않는다 — 선택형 지점만 예산 차감
 	var result: Dictionary = spot.get("_result", {})
 	return result
 
@@ -124,16 +153,12 @@ func probed_count() -> int:
 			n += 1
 	return n
 
-## 더 조사할 게 없다 — 예산 소진이거나 모든 지점을 봤다.
-## 단, 마주 안 한 필수 위협이 남았으면 아직 끝난 게 아니다(그건 예산과 무관하게 조사 가능 → 시뮬 루프가 위협까지 마주한다).
+## 더 조사할 게 없다 — 지금 조사 가능한 지점이 하나도 없다.
+## can_probe 가 예산·가시성(두 단계)·free(위협/다리) 전부를 알므로 그 합성으로 정의한다:
+## 필수 위협이 남았으면 그게 조사 가능이라 false, 게이트 뒤 숨은 보조는 게이트를 열면 드러나며 재평가된다.
 func exhausted() -> bool:
-	if has_unresolved_threat():
-		return false
-	if budget <= 0:
-		return true
 	for i in range(spots.size()):
-		var spot: Dictionary = spots[i]
-		if not bool(spot.get("done", false)):
+		if can_probe(i):
 			return false
 	return true
 
