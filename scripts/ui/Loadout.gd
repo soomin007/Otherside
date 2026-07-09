@@ -13,6 +13,7 @@ const PRESET: Array = ["water", "water", "food", "food", "rope", "shelter"]  ## 
 const MARKET_PAGES: Array = [
 	"시장: 잘 왔네. 떠날 채비를 도와주지.",
 	"시장: 가방은 여섯 칸뿐일세. 물과 식량이 곧 목숨이고, 로프는 갈라진 틈을, 은신막은 폭풍을 견디게 하네.",
+	"시장: 다만 짐이 무거우면 그만큼 목이 타네. 가방을 가득 채울수록 걸음마다 물이 더 들지. 욕심은 금물일세.",
 	"시장: 지도에서 갈 곳을 고르면 원정대가 그리로 가네. 걸음마다 물이 닳으니, 멀수록 목이 마르지.",
 	"시장: 도착한 곳은 몇 번 살필 수 있네. 살피는 데 자원은 안 드니 아끼지 말게.",
 	"시장: 죽기 전 단 한 번, 물건을 남길 수 있네. 다음 원정대가 그걸 줍지. 무엇을 남길지가 자네 몫일세.",
@@ -766,7 +767,11 @@ func _bag_resources() -> Dictionary:
 func _depart() -> void:
 	var wgt: int = Items.bag_weight(_bag)  # 주머니 도구는 무게 미포함(보험 슬롯 — 표준 가방 15가 무료 상한에 붙어 도구 하나로 절벽 넘던 함정 방지)
 	GameState.begin_run_with(_bag_resources(), _pending_name.strip_edges(), _pending_vocation, wgt)
-	GameState.go_to_map()
+	# 첫 원정만 — 마을 단면 탐색 연습(안전·무보상)을 거쳐 지도로. 이후엔 곧장 지도.
+	if not GameState.village_intro_seen:
+		GameState.go_to_village_intro()
+	else:
+		GameState.go_to_map()
 
 # --- 원정대 이름 / 직능 / 도구 (단계 1 핸들러) ---
 

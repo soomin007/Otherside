@@ -35,7 +35,8 @@
 ```
 타이틀(Main.gd)
   → [첫 플레이만] 오프닝 서사(Opening.gd) →
-  → 마을 · 가방 꾸리기(Loadout.gd): 6칸 가방에 물품 담기 → 시작 자원 결정 + 첫 원정 시장 NPC 튜토리얼
+  → 마을 · 가방 꾸리기(Loadout.gd): 6칸 가방에 물품 담기 → 시작 자원 결정 + 첫 원정 시장 NPC 튜토리얼(무게 설명 포함)
+  → [첫 원정만] 마을 단면 탐색 연습(VillageIntro.gd): 안전·무보상, 조사 예산·지점 살피기 익히기 → 지도
   → 지도(Map.gd, 양피지 노드 그래프): 갈 노드 선택(강한 미지 — 가봐야 안다)
   → 맵 위에서 마커가 그 노드로 이동(Map._process): 거리만큼 자원 소모 + 이동 중 자잘한 상황 카드
   → 도착 노드 "단면 탐색"(Expedition.gd + SectionRun/SectionArt): 여러 지점 중 제한된 조사 횟수(예산 2)만 쓴다
@@ -57,7 +58,7 @@
 - `TraceData.gd` — 흔적(`object_kind`, **`node_id`**, tags, uses). `Threats.gd` — 위협 종류.
 
 **ui (`scripts/ui/`, 렌더·입력) + scenes:**
-- `Main.gd`(타이틀) → `Opening.gd`(서사 5장+제목) → `Loadout.gd`(가방·시장 NPC) → `Map.gd`(양피지 지도, 마커 이동, 이동 중 상황 카드) → `Expedition.gd`(도착 단면 탐색 + 남기기 + 죽음 + **결말 엔딩**). 원정 종료(죽음/순환) 후 `Interlude.gd`(폭풍 막간 — 지도 쓸기·흔적 묻힘·다음 원정대 지명, 절차적 draw + CPUParticles2D)를 거쳐 다시 `Loadout`.
+- `Main.gd`(타이틀) → `Opening.gd`(서사 5장+제목) → `Loadout.gd`(가방·시장 NPC) → [첫 원정만] `VillageIntro.gd`(마을 단면 탐색 연습, 사장된 13_단면_마을 재활용) → `Map.gd`(양피지 지도, 마커 이동, 이동 중 상황 카드) → `Expedition.gd`(도착 단면 탐색 + 남기기 + 죽음 + **결말 엔딩**). 원정 종료(죽음/순환) 후 `Interlude.gd`(폭풍 막간 — 지도 쓸기·흔적 묻힘·다음 원정대 지명, 절차적 draw + CPUParticles2D)를 거쳐 다시 `Loadout`.
 - `SectionArt.gd` — kind별 절차적 단면 그림(static). `UITheme.gd` — 색·헬퍼(양피지 팔레트 `PAPER/INK/...` 포함). `StormFX.gd`(폭풍 파티클). **설정·조작 안내·원정 일대기는 autoload `Bookmark.gd`**(원정 일지 한 권 — 옛 `SettingsPanel` 폐지).
 - **모든 비주얼은 절차적 `draw_*` 1차** — 나중에 실제 그림 에셋으로 교체 예정(SectionArt/오프닝).
 

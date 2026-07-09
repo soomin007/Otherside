@@ -15,6 +15,7 @@ const SCENE_EXPEDITION: String = "res://scenes/expedition.tscn"
 const SCENE_OPENING: String = "res://scenes/opening.tscn"
 const SCENE_LOADOUT: String = "res://scenes/loadout.tscn"
 const SCENE_INTERLUDE: String = "res://scenes/interlude.tscn"
+const SCENE_VILLAGE_INTRO: String = "res://scenes/village_intro.tscn"
 
 # --- 한 세계에 누적되는 영속 데이터 (원정을 가로질러 살아남음) ---
 var expedition_count: int = 0  ## 지금까지 보낸 원정 수
@@ -26,6 +27,7 @@ var opening_seen: bool = false ## 오프닝 서사를 봤나 (영속). 첫 플�
 var opening_replay: bool = false ## 설정 "오프닝 다시보기"로 재생 중(비영속) — 끝나면 마을이 아니라 타이틀로.
 var record_seen: bool = false  ## 시장이 원정 기록지를 건넸나 (영속). give_record 로 켜면 책갈피(Bookmark)가 상시 뜬다.
 var controls_tutorial_seen: bool = false ## 첫 원정 조작 오버레이 튜토리얼을 봤나 (영속). Tutorial autoload 자동재생 게이트.
+var village_intro_seen: bool = false ## 첫 원정 마을 단면 탐색 연습을 봤나 (영속). Loadout 이 첫 출발 때 한 번 VillageIntro 로 보낸다.
 var expedition_names: Array = [] ## 원정별 이름 (인덱스 = 회차-1, 영속). 랜덤(ExpeditionNamer) 또는 직접 입력(Loadout).
 var arrivals: Array = [] ## end 에 닿은 원정 기록 — {expedition:int, ending:"cycle"|"reunion"} (영속). 일대기(Bookmark)가 죽음만이 아니라 도달/재회도 보이게 한다.
 var seeded: bool = false ## 유령 흔적(플레이어 이전 원정대들)을 심었나 (영속, 세계당 1회). 빈 세계 회피.
@@ -93,6 +95,15 @@ func go_to_opening() -> void:
 ## 마을(가방 꾸리기)로 — 매 원정 출발 전. 여기서 시작 자원을 고른다.
 func go_to_loadout() -> void:
 	Transition.go(SCENE_LOADOUT)
+
+## 첫 원정 마을 단면 탐색 연습(VillageIntro) — Loadout 출발 뒤 지도 전에 한 번(첫 원정만).
+func go_to_village_intro() -> void:
+	Transition.go(SCENE_VILLAGE_INTRO)
+
+func mark_village_intro_seen() -> void:
+	if not village_intro_seen:
+		village_intro_seen = true
+		save_game()
 
 ## 오프닝을 봤다고 기록(영속). 이후 자동 재생 안 함.
 func mark_opening_seen() -> void:
@@ -335,6 +346,7 @@ func save_game() -> void:
 		"opening_seen": opening_seen,
 		"record_seen": record_seen,
 		"controls_tutorial_seen": controls_tutorial_seen,
+			"village_intro_seen": village_intro_seen,
 		"expedition_names": expedition_names,
 		"arrivals": arrivals,
 		"seen_choices": seen_choices,
@@ -368,6 +380,7 @@ func load_game() -> void:
 	opening_seen = bool(data.get("opening_seen", false))
 	record_seen = bool(data.get("record_seen", false))
 	controls_tutorial_seen = bool(data.get("controls_tutorial_seen", false))
+	village_intro_seen = bool(data.get("village_intro_seen", false))
 	expedition_names = data.get("expedition_names", [])
 	arrivals = data.get("arrivals", [])
 	seen_choices = data.get("seen_choices", {})
@@ -383,6 +396,7 @@ func reset_save() -> void:
 	opening_seen = false
 	record_seen = false
 	controls_tutorial_seen = false
+	village_intro_seen = false
 	expedition_names = []
 	arrivals = []
 	current_run = null
