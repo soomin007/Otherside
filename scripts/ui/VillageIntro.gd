@@ -41,7 +41,7 @@ func _ready() -> void:
 	if not is_inside_tree():
 		return
 	# 첫 안내 — 무엇을 하는 화면인지 담담하게(무보상 연습임을 못박는다).
-	_popup.show_result("여기는 마을. 도착한 곳마다 이렇게 몇 군데를 살필 수 있네.\n살필 수 있는 횟수는 정해져 있으니 잘 고르게.\n마을에선 아무 일도 없으니 편히 익혀 두게.", {})
+	_popup.show_result("여기는 마을. 도착한 곳마다\n몇 군데를 살필 수 있네.\n살필 횟수는 정해져 있으니 잘 고르게.\n마을에선 아무 일도 없으니 편히 익혀 두게.", {})
 	queue_redraw()
 
 func _gui_input(event: InputEvent) -> void:
