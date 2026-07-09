@@ -23,12 +23,13 @@ const MARKET_PAGES: Array = [
 	"시장: 이 기록지를 가져가게.\n떠난 이들의 이야기가 여기 적힐 걸세.\n화면 귀퉁이 책갈피를 누르면 언제든 볼 수 있네.",
 ]
 
-## 첫 순환 도달 후 1회 — 시장의 재회 옛말. 순환 엔딩을 본 플레이어에게 다른 결말의 존재와 방법(남김+기림)을
-## 사람 말로 암시한다(숫자는 안 밝힘 — 돌파 난이도가 정서 튜닝, 기획서 §3). reunion_hint_seen 으로 1회 게이트.
+## 순환 엔딩을 볼 때마다 다음 마을에서 한 번 — 시장의 재회 옛말(사용자 확정: 반복 노출).
+## 다른 결말의 존재와 방법(남김+기림)을 사람 말로 암시한다. 숫자는 안 밝힘(돌파 난이도가 정서 튜닝, 기획서 §3).
+## 게이트: cycle_arrival_count() > reunion_hints_shown (재회를 이미 봤으면 안 띄움).
 const REUNION_HINT_PAGES: Array = [
 	"시장: 끝에 닿았다 왔다지.\n그런데도 원정은 끝나질 않는군.",
 	"시장: 옛말이 하나 있긴 하지.\n길에 잘 남기고, 잠든 이들을 기린 사람만이\n밀어내지 않고 지나간다고.",
-	"시장: 그러니 물건을 남기게.\n죽은 자리를 보거든 그냥 지나치지 말고.\n옛말이 다 헛말은 아닐 걸세.",
+	"시장: 왠지 자네도 알 것 같네만.\n물건을 남기게. 죽은 자리를 지나치지 말고.\n옛말이 다 헛말은 아닐 걸세.",
 ]
 
 ## 첫 원정 시장 인트로 — 오프닝 뒤 한 박자 뜸을 두고 서서히 나타난다(마을에 도착한 여운).
@@ -130,8 +131,8 @@ func _ready() -> void:
 	# 첫 원정이면 시장이 규칙을 쭉 설명하고 기록지를 건넨다(책갈피가 켜진다).
 	if GameState.expedition_count == 0 and not GameState.record_seen:
 		_show_market_intro()
-	elif not GameState.reunion_hint_seen and GameState.has_arrival_of("cycle") and not GameState.has_arrival_of("reunion"):
-		# 첫 순환을 보고 돌아온 뒤 1회 — 시장이 재회의 옛말을 들려준다(이미 재회를 봤으면 불필요).
+	elif GameState.cycle_arrival_count() > GameState.reunion_hints_shown and not GameState.has_arrival_of("reunion"):
+		# 순환 엔딩을 볼 때마다 그다음 마을에서 한 번 — 시장이 재회의 옛말을 들려준다(이미 재회를 봤으면 불필요).
 		_show_market_hint()
 
 ## 단계 전환 — 단계 루트를 통째로 갈아끼운다(1=중앙 컬럼, 2=창고 사진 디에게틱). _pending_* 은 멤버라 단계 넘어 유지된다.
@@ -975,7 +976,7 @@ func _finish_market() -> void:
 	if not _market_ready:
 		return  # 페이드 인 중 스킵 방지
 	if _market_flow == "hint":
-		GameState.mark_reunion_hint_seen()  # 옛말은 한 번만
+		GameState.mark_reunion_hint_shown()  # 이번 순환 몫의 옛말 소화 — 다음 순환을 보면 또 들려준다
 	else:
 		GameState.give_record()  # 기록지 = 책갈피(Bookmark)를 켠다
 	if _market_panel != null:

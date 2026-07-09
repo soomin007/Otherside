@@ -30,6 +30,7 @@ var _busy: bool = false          ## 페이드 중 입력 무시
 var _illus: TextureRect
 var _label: Label
 var _dim: ColorRect
+var _hint: Label                 ## 순환 암전 뒤 어둠 속 독백 — 다른 결말의 존재를 암시(사용자 확정)
 var _prompt: Label
 var _credits_box: VBoxContainer  ## 재회 크레딧 롤(원정대 이름들)
 var _credits_tw: Tween
@@ -92,6 +93,22 @@ func _build() -> void:
 	_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_dim)
+
+	# 순환 암전 뒤 화면 가운데 독백 — 재회(다른 결말)가 있음을 짧게 암시. 어둠(dim) 위에 얹는다.
+	_hint = Label.new()
+	_hint.text = "다시 한 번, 완벽한 원정을 해낸다면\n무언가 바꿀 수 있지 않을까."
+	_hint.add_theme_font_size_override("font_size", UITheme.FS_H2)
+	_hint.add_theme_color_override("font_color", UITheme.SAND)
+	_hint.add_theme_constant_override("line_spacing", 10)
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_hint.anchor_left = 0.08
+	_hint.anchor_right = 0.92
+	_hint.anchor_top = 0.4
+	_hint.anchor_bottom = 0.6
+	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint.modulate.a = 0.0
+	add_child(_hint)
 
 	_prompt = Label.new()
 	_prompt.add_theme_font_size_override("font_size", UITheme.FS_SMALL)
@@ -156,8 +173,10 @@ func _end_slides() -> void:
 		AudioManager.play_sfx(AudioManager.CYCLE_HIT)  # 순환 저음 울림 — 해소 없이 잦아든다
 		# 음악은 자르지 않는다 — 암전·안내에서도 순환곡이 계속 흐른다(곡의 기승전결 보존).
 		var t := create_tween()
-		t.tween_property(_dim, "color:a", 1.0, 2.5)   # 암전
-		t.tween_interval(3.0)                          # 3초 여운
+		t.tween_property(_dim, "color:a", 1.0, 2.5)     # 암전
+		t.tween_interval(1.4)                            # 짧은 여운
+		t.tween_property(_hint, "modulate:a", 1.0, 1.8)  # 어둠 속 독백 — 재회의 존재를 암시
+		t.tween_interval(2.4)
 		t.tween_callback(_reveal_prompt.bind("아무 키나 눌러 계속"))
 
 func _reveal_prompt(text: String) -> void:
