@@ -359,7 +359,7 @@ const NODES: Dictionary = {
 		"spots": [
 			{"id": "wall_pack", "label": "틈에 낀 배낭", "at": Vector2(0.26, 0.68), "source": "cache", "effect": {"water": 2, "food": 2}, "text": "무너진 틈에 배낭이 끼어 있다. 물통과 식량이 남았다."},
 			{"id": "wall_beyond", "label": "담 너머", "at": Vector2(0.74, 0.64), "source": "empty", "text": "담 너머는 보이지 않는다. 넘어봐야 안다."},
-			{"id": "wall_scramble", "label": "무너진 담", "at": Vector2(0.5, 0.42), "source": "event", "event": {"id": "wall_scramble", "threat": Threats.Kind.BLOCKAGE, "text": "무너진 담을 기어오르면 넘을 수 있다. 돌이 무르다.", "choices": [{"label": "기어 넘는다", "effect": {"water": -2}}, {"label": "틈으로 돌아 넘는다", "effect": {"food": -2}}]}},
+			{"id": "wall_scramble", "label": "무른 돌더미", "at": Vector2(0.5, 0.42), "source": "event", "event": {"id": "wall_scramble", "threat": Threats.Kind.BLOCKAGE, "text": "무너진 담을 기어오르면 넘을 수 있다. 돌이 무르다.", "choices": [{"label": "기어 넘는다", "effect": {"water": -2}}, {"label": "틈으로 돌아 넘는다", "effect": {"food": -2}}]}},
 			{"id": "wall_stash", "label": "벽돌 틈", "at": Vector2(0.72, 0.74), "source": "event", "event": {"id": "wall_hidden_stash", "threat": Threats.Kind.BLOCKAGE, "text": "벽돌 사이에 천으로 싼 꾸러미가 보인다. 손을 넣기엔 틈이 좁다.", "choices": [{"label": "팔을 긁혀가며 꺼낸다", "effect": {"food": 2, "water": -2}}, {"label": "포기한다", "effect": {}}]}},
 		],
 	},
