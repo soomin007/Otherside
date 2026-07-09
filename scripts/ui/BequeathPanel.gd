@@ -156,7 +156,7 @@ func _step_what() -> void:
 		mourn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		mourn.pressed.connect(_pick_mourn)
 		_box.add_child(mourn)
-		_box.add_child(UITheme.make_label("자원은 들지 않는다. 대신 이번 생의 남김을 여기에 쓴다.", 13, NOTE_COL))
+		_box.add_child(UITheme.make_label("잃는 것은 없다. 대신 이번 생의 남김을 여기에 쓴다.", 13, NOTE_COL))
 
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 10)

@@ -602,7 +602,7 @@ func _draw() -> void:
 	elif _section.budget_left() > 0 and _section.probed_count() == 0:
 		# 첫 도착 안내 — 지점을 눌러 조사한다는 걸 짚어준다. 한 번이라도 조사하면 숨긴다(학습).
 		# 하단 버튼 위 스크림 자리(그림에 안 묻히게 — 예전엔 그림 위 잉크색이라 안 읽혔다).
-		draw_string(font, Vector2(0.0, rect.y - 140.0), "표시된 곳을 눌러 조사한다  (자원은 들지 않는다)", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, Color(0.88, 0.84, 0.76))
+		draw_string(font, Vector2(0.0, rect.y - 140.0), "표시된 곳을 눌러 살핀다  (드는 것은 없다)", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, Color(0.88, 0.84, 0.76))
 	elif _section.gate_opened() and _section.probed_count() == 1 and _section.budget_left() > 0 and _section.spot_count() > 1:
 		# 두 단계 안내 — 통과(위협/다리)를 막 열어 보조 지점이 드러났다. 한 곳이라도 살피면 숨긴다.
 		draw_string(font, Vector2(0.0, rect.y - 140.0), "건너온 자리다. 이제 주변을 둘러볼 수 있다", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, Color(0.88, 0.84, 0.76))

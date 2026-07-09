@@ -13,12 +13,12 @@ const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")  ## 크레딧 �
 const CYCLE_SLIDES: Array = [
 	{"img": "res://assets/arts/47_엔딩순환_도착.png", "text": "재앙의 자리엔, 먼저 간 원정대가 서 있었다."},
 	{"img": "res://assets/arts/48_엔딩순환_밀어냄.png", "text": "멈추려면 그를 밀어내야 했다.\n이제 이 자리에 선 것은 우리다."},
-	{"img": "res://assets/arts/49_엔딩순환_이어짐.png", "text": "곧 다음 원정대가 이곳을 향해 온다.\n릴레이는 멈추지 않는다."},
+	{"img": "res://assets/arts/49_엔딩순환_이어짐.png", "text": "곧 다음 원정대가 이곳을 향해 온다.\n행렬은 멈추지 않는다."},
 ]
 const REUNION_SLIDES: Array = [
 	{"img": "res://assets/arts/50_엔딩재회_닿음.png", "text": "목적지에 닿았다. 죽지 않고, 온전히."},
 	{"img": "res://assets/arts/51_엔딩재회_지나쳐.png", "text": "밀어내지 않아도 되었다.\n지나쳐, 건너편으로."},
-	{"img": "res://assets/arts/52_엔딩재회_모두.png", "text": "먼저 간 모든 원정대가 기다리고 있었다.\n릴레이가 멈춘다. 드디어 그쪽에서 만난다."},
+	{"img": "res://assets/arts/52_엔딩재회_모두.png", "text": "먼저 간 모든 원정대가 기다리고 있었다.\n행렬이 멈춘다. 드디어 그쪽에서 만난다."},
 ]
 
 var _slides: Array = []

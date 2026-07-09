@@ -10,11 +10,11 @@ const BUDGET: int = 2   ## 실제 단면 기본 예산과 동일(SectionRun.SECT
 # 마을 단면의 연습 지점 — 정규화 좌표 + 살필 때 뜨는 담담한 문구(무보상). 마을=평화(거리 곡선 §1).
 var _spots: Array = [
 	{"at": Vector2(0.29, 0.72), "label": "우물", "done": false,     # 화면 왼쪽 아래 돌우물
-		"flavor": "맑은 물이 고여 있다.\n무엇을 지고 떠날지는 가방을 꾸릴 때 정한다."},
+		"flavor": "맑은 물이 고여 있다.\n떠나면 이런 물 한 모금이 아쉬워진다."},
 	{"at": Vector2(0.50, 0.72), "label": "좌판", "done": false,     # 천막 앞 등불·궤짝(마른 고기·밧줄)
-		"flavor": "마른 고기와 밧줄이 널려 있다.\n도착한 곳마다 이렇게 몇 군데를 살피게 될 걸세."},
+		"flavor": "마른 고기와 밧줄이 널려 있다.\n길 위에서도 이렇게 쓸 만한 것들을 찾게 된다."},
 	{"at": Vector2(0.63, 0.54), "label": "천막", "done": false,     # 가운데 큰 천막
-		"flavor": "먼저 떠난 이들의 자리.\n돌아온 원정대는 아직 없었네."},
+		"flavor": "먼저 떠난 이들의 자리다.\n돌아온 원정대는 아직 없다."},
 ]
 var _budget: int = BUDGET
 var _rect: Rect2 = Rect2()
@@ -41,7 +41,7 @@ func _ready() -> void:
 	if not is_inside_tree():
 		return
 	# 첫 안내 — 무엇을 하는 화면인지 담담하게(무보상 연습임을 못박는다).
-	_popup.show_result("여기는 마을. 도착한 곳마다\n몇 군데를 살필 수 있네.\n살필 횟수는 정해져 있으니 잘 고르게.\n마을에선 아무 일도 없으니 편히 익혀 두게.", {})
+	_popup.show_result("여기는 마을일세. 길을 나서면\n닿는 곳마다 몇 군데 둘러보게 되지.\n둘러볼 횟수는 정해져 있으니 잘 고르게.\n여기선 아무 일도 없으니 편히 연습해 보게.", {})
 	queue_redraw()
 
 func _gui_input(event: InputEvent) -> void:

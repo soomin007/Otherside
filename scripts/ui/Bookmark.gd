@@ -24,7 +24,7 @@ const PAGE_SFX: Array = [
 ## 조작 안내 장(정적).
 const TUTORIAL_PAGES: Array = [
 	"지도에서 갈 곳을 눌러 원정대를 움직입니다. 가봐야 무엇이 있는지 압니다. 걸음마다 물과 식량이 닳습니다.",
-	"도착하면 그곳의 단면이 펼쳐집니다. 표시된 곳을 눌러 살핍니다. 조사 횟수는 정해져 있고, 조사에는 자원이 들지 않습니다.",
+	"도착하면 그곳의 단면이 펼쳐집니다. 표시된 곳을 눌러 살핍니다. 살필 수 있는 횟수는 정해져 있고, 살핀다고 물이나 식량이 줄지는 않습니다.",
 	"물은 걸음마다, 식량은 두 걸음마다 줄어듭니다. 로프는 갈라진 틈을, 은신막은 폭풍을 견디게 합니다.",
 	"죽기 전 단 한 번, 물건 하나를 남길 수 있습니다. 그만큼 잃지만 다음 원정대가 줍습니다. 무엇을 남길지가 이 여정의 마음입니다.",
 ]
@@ -671,7 +671,7 @@ func _ctrl_legend() -> void:
 	_box_l.add_child(_brush_heading("표식 읽기", 40, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	_box_l.add_child(_legend_row("main", "주요 지점", "이 자리의 본 사건. 큰 이중 고리로 눈에 띈다."))
-	_box_l.add_child(_legend_row("collect", "살필 곳", "자원이나 흔적, 작은 일이 있을 수 있다."))
+	_box_l.add_child(_legend_row("collect", "살필 곳", "물이나 식량, 흔적, 작은 일이 있을 수 있다."))
 	_box_l.add_child(_legend_row("done", "다 살핀 곳", "이미 살펴 흐려진 지점."))
 	_box_l.add_child(_legend_row("ramp", "조사 남음", "이 자리에서 살필 수 있는 횟수. 찬 점이 남은 것."))
 	_box_r.add_child(_legend_row("route", "밟은 길", "지난 원정대가 밟아 이어진 길."))
