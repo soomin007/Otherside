@@ -77,11 +77,13 @@ static func draw_spot(ci: CanvasItem, font: Font, center: Vector2, label: String
 	var r: float = 27.0 if is_main else 20.0
 	var faded: Color = UITheme.INK_FADE
 	if state == 0:
+		# 대비 후광 — 어두운 원반(밝은 하늘·모래 대비) + 밝은 외곽 링(어두운 천막·바위 대비).
+		# 어떤 그림 위에서도 마커가 뜨게(2026-07-09 시인성 보강). 웹 안전(draw_circle/arc).
+		ci.draw_circle(center, r + 6.0, Color(0.0, 0.0, 0.0, 0.30))
+		ci.draw_arc(center, r + 4.0, 0.0, TAU, 40, Color(0.98, 0.91, 0.72, 0.6), 2.0)
 		if is_main:
-			# 바깥 헤일로 링 — "여기가 이 자리의 본 사건"을 은은히 알린다.
-			ci.draw_arc(center, r + 7.0, 0.0, TAU, 40, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.22), 1.5)
-		ci.draw_circle(center, r + 3.0, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.18))
-		ci.draw_arc(center, r, 0.0, TAU, 32, UITheme.MARKER_INK, 3.0 if is_main else 2.5)
+			ci.draw_arc(center, r + 9.0, 0.0, TAU, 44, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.32), 1.5)
+		ci.draw_arc(center, r, 0.0, TAU, 32, UITheme.MARKER_INK, 3.5 if is_main else 3.0)
 		ci.draw_circle(center, 5.0 if is_main else 4.0, UITheme.MARKER_INK)
 	else:
 		ci.draw_arc(center, r, 0.0, TAU, 32, faded, 1.5)

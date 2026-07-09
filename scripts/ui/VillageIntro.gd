@@ -9,11 +9,11 @@ const BUDGET: int = 2   ## 실제 단면 기본 예산과 동일(SectionRun.SECT
 
 # 마을 단면의 연습 지점 — 정규화 좌표 + 살필 때 뜨는 담담한 문구(무보상). 마을=평화(거리 곡선 §1).
 var _spots: Array = [
-	{"at": Vector2(0.27, 0.60), "label": "우물", "done": false,
+	{"at": Vector2(0.29, 0.72), "label": "우물", "done": false,     # 화면 왼쪽 아래 돌우물
 		"flavor": "맑은 물이 고여 있다.\n무엇을 지고 떠날지는 가방을 꾸릴 때 정한다."},
-	{"at": Vector2(0.52, 0.55), "label": "좌판", "done": false,
+	{"at": Vector2(0.50, 0.72), "label": "좌판", "done": false,     # 천막 앞 등불·궤짝(마른 고기·밧줄)
 		"flavor": "마른 고기와 밧줄이 널려 있다.\n도착한 곳마다 이렇게 몇 군데를 살피게 될 걸세."},
-	{"at": Vector2(0.75, 0.62), "label": "천막", "done": false,
+	{"at": Vector2(0.63, 0.54), "label": "천막", "done": false,     # 가운데 큰 천막
 		"flavor": "먼저 떠난 이들의 자리.\n돌아온 원정대는 아직 없었네."},
 ]
 var _budget: int = BUDGET
