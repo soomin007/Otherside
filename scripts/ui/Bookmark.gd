@@ -624,6 +624,7 @@ func _show_chronicle() -> void:
 	_box_r.add_child(_ledger_row("보낸 원정", "%d회" % GameState.expedition_count))
 	_box_r.add_child(_ledger_row("남긴 흔적", "%d" % GameState.traces.size()))
 	_box_r.add_child(_ledger_row("죽은 자리", "%d" % GameState.deaths.size()))
+	_box_r.add_child(_ledger_row("기린 자리", "%d" % GameState.mourn_count()))
 	_box_r.add_child(_ledger_row("끝에 닿음", "%d번" % GameState.arrivals.size()))
 	_add_close(_box_r)
 

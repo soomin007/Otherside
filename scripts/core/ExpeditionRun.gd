@@ -112,6 +112,14 @@ func do_leave(key: String) -> void:
 	resources[key] = get_res(key) - leave_cost(key)
 	bequeathed = true
 
+## 표식만 남긴다(추모 — 죽은 자리 기리기). 자원은 잃지 않되 런당 1회의 남기기 토큰을 소진한다:
+## "이번 생의 유일한 남김을 물건 대신 기림에 쓴다"는 트레이드오프(재회 조건, 기획서 §3 결말).
+func can_leave_mark() -> bool:
+	return not bequeathed
+
+func do_leave_mark() -> void:
+	bequeathed = true
+
 # --- 노드 진행 (지도 ↔ 횡스크롤) ---
 
 ## 지도에서 고른 다음 노드로 향하는 엣지를 시작한다(횡스크롤 진입 시).

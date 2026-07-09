@@ -328,6 +328,13 @@ func _test_bequeath_gate() -> void:
 	# 생존 게이트: 남기면 죽는(<1) 자원은 못 남김
 	var poor: ExpeditionRun = _fresh({"water": 4, "food": 13, "rope": 0, "shelter": 0})
 	_ok(not poor.can_leave("water"), "남기기: 물 4(비용 4) → 남기면 0 이라 잠금(생존 게이트)")
+	# 추모 표식 — 자원 무변, 런당 1회의 남기기 토큰을 공유·소진.
+	var m: ExpeditionRun = _fresh()
+	_ok(m.can_leave_mark(), "추모: 토큰 미사용이면 기릴 수 있음")
+	var w0: int = m.get_res("water")
+	m.do_leave_mark()
+	_ok(m.get_res("water") == w0 and m.bequeathed, "추모: 자원 무변 + 토큰 소진")
+	_ok(not m.can_leave("water") and not m.can_leave_mark(), "추모: 같은 런에 남기기/기림 모두 잠김(토큰 공유)")
 
 ## 도구 유품 — 주머니 도구도 자원처럼 남기고/줍는다(TraceData 매핑·비용·줍기 카드 대칭).
 func _test_tool_bequest() -> void:

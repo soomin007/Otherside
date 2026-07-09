@@ -19,6 +19,7 @@ var _run: ExpeditionRun
 var _node_id: String = ""                            ## 남길 노드(도착=target, 이동 중=current)
 var _picked_kind: int = TraceData.ObjectKind.MARK    ## 남길 물건 종류
 var _picked_tags: Array[String] = []                 ## 얹을 태그(WordPool, 최대 2개)
+var _mourning: bool = false                          ## 추모 흐름(죽은 자리 기리기) — 물건 대신 표식만, 재회 조건의 두 번째 축
 var _box: VBoxContainer                              ## 단계별 내용을 갈아끼우는 컨테이너
 var _busy: bool = false                              ## 흩어짐 연출 중 재입력 잠금
 var _ambient: CPUParticles2D                         ## 상시 모래 드리프트(열려 있는 동안)
@@ -90,6 +91,7 @@ func open(run: ExpeditionRun, node_id: String) -> void:
 	_node_id = node_id
 	_picked_kind = TraceData.ObjectKind.MARK
 	_picked_tags = []
+	_mourning = false
 	if _ambient != null:
 		_ambient.position = size * 0.5
 		_ambient.emission_rect_extents = size * 0.46
@@ -142,6 +144,20 @@ func _step_what() -> void:
 		var res_key: String = o[2]
 		row.add_child(_make_candidate(kind, label, res_key))
 
+	# 추모 — 이 자리에 죽은 이가 있으면(죽은 자리·시체) 물건 대신 표식만 남겨 기릴 수 있다.
+	# 자원은 안 들지만 런당 1회의 남기기를 쓴다. 기림이 쌓여야 재회가 열린다(GameState.REUNION_MOURN).
+	_mourning = false
+	if GameState.is_death_site(_node_id) and not GameState.is_mourned(_node_id):
+		var mgap := Control.new()
+		mgap.custom_minimum_size = Vector2(0, 6)
+		_box.add_child(mgap)
+		var mourn := EngravedItem.new()
+		mourn.init_item("여기 잠든 이를 기린다 · 표식만 남긴다", 18, false)
+		mourn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		mourn.pressed.connect(_pick_mourn)
+		_box.add_child(mourn)
+		_box.add_child(UITheme.make_label("자원은 들지 않는다. 대신 이번 생의 남김을 여기에 쓴다.", 13, NOTE_COL))
+
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 10)
 	_box.add_child(gap)
@@ -150,6 +166,15 @@ func _step_what() -> void:
 	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	cancel.pressed.connect(_cancel)
 	_box.add_child(cancel)
+
+## 추모를 고름 — 물건이 바스러지는 연출 없이(놓을 물건이 없다) 바로 새길 말을 고른다.
+func _pick_mourn() -> void:
+	if _busy:
+		return
+	_mourning = true
+	_picked_kind = TraceData.ObjectKind.MARK
+	AudioManager.play_sfx("res://assets/sfx/sfx_leave.wav")
+	_step_tags()
 
 ## 남길 후보 하나 — 사진(130×130) 위 이름(ivory)·대가(#c98a7a). 남길 수 없으면 흐리게+잠금.
 func _make_candidate(kind: int, label: String, res_key: String) -> Control:
@@ -298,10 +323,16 @@ func _pick_object(kind: int, btn: Control) -> void:
 ## 2단계 — 어떤 표식(태그)을 얹을까. WordPool 에서 최대 2개. 없이 남겨도 된다.
 func _step_tags() -> void:
 	_clear()
-	_box.add_child(UITheme.make_label("남길 것: %s" % _obj_name(_picked_kind), UITheme.FS_BODY, UITheme.SAND))
+	if _mourning:
+		_box.add_child(UITheme.make_label("여기 잠든 이를 기린다", UITheme.FS_BODY, UITheme.SAND))
+	else:
+		_box.add_child(UITheme.make_label("남길 것: %s" % _obj_name(_picked_kind), UITheme.FS_BODY, UITheme.SAND))
 	var picked_str: String = (" · ".join(PackedStringArray(_picked_tags))) if not _picked_tags.is_empty() else "(없음)"
 	_box.add_child(UITheme.make_label("표식: %s" % picked_str, UITheme.FS_SMALL, UITheme.MUTED))
-	_box.add_child(UITheme.make_label("한두 마디. 다음 원정대가 읽는다.", UITheme.FS_SMALL, UITheme.MUTED))
+	if _mourning:
+		_box.add_child(UITheme.make_label("돌 위에 한두 마디를 새긴다. 다음 원정대도 읽는다.", UITheme.FS_SMALL, UITheme.MUTED))
+	else:
+		_box.add_child(UITheme.make_label("한두 마디. 다음 원정대가 읽는다.", UITheme.FS_SMALL, UITheme.MUTED))
 	for cat in [WordPool.DIRECTION, WordPool.WARNING, WordPool.TIME, WordPool.GREETING]:
 		var flow := HFlowContainer.new()
 		flow.add_theme_constant_override("h_separation", 8)
@@ -337,7 +368,7 @@ func _step_tags() -> void:
 	back.pressed.connect(_step_what)
 	row.add_child(back)
 	var done := EngravedItem.new()
-	done.init_item("남기고 계속 간다", 20, true)
+	done.init_item("기리고 계속 간다" if _mourning else "남기고 계속 간다", 20, true)
 	done.pressed.connect(_commit)
 	row.add_child(done)
 	_box.add_child(row)
@@ -354,7 +385,22 @@ func _toggle_tag(word: String) -> void:
 
 ## 결정 확정 — 물건을 그 자리에 남기고(자원 그만큼 잃음) 계속 간다. 죽지 않는다.
 ## 남긴 자원 흔적은 줍기 가능(uses) — 다음 원정대가 집어 쓴다(루프가 닫힌다).
+## 추모(_mourning)면 자원 없이 표식(MARK)만 — 토큰만 소진하고 죽은 자리를 기린 것으로 기록(재회 축).
 func _commit() -> void:
+	if _mourning:
+		_run.do_leave_mark()  # 자원 무변, 남기기 토큰만 소진
+		var mark := TraceData.new(TraceData.ObjectKind.MARK, _run.leg, _picked_tags, 0)
+		mark.node_id = _node_id
+		if _run.is_mid_edge():
+			mark.to_node = _run.target_node_id()
+			mark.position = _run.edge_fraction()
+		GameState.leave_trace(mark)
+		GameState.mark_mourned(_node_id)
+		GameState.save_game()
+		if _ambient != null:
+			_ambient.emitting = false
+		UITheme.fade_out(self, func() -> void: committed.emit())
+		return
 	var res_key: String = _kind_to_key(_picked_kind)
 	if res_key == "":
 		_cancel()

@@ -28,6 +28,7 @@ var opening_replay: bool = false ## 설정 "오프닝 다시보기"로 재생 �
 var record_seen: bool = false  ## 시장이 원정 기록지를 건넸나 (영속). give_record 로 켜면 책갈피(Bookmark)가 상시 뜬다.
 var controls_tutorial_seen: bool = false ## 첫 원정 조작 오버레이 튜토리얼을 봤나 (영속). Tutorial autoload 자동재생 게이트.
 var village_intro_seen: bool = false ## 첫 원정 마을 단면 탐색 연습을 봤나 (영속). Loadout 이 첫 출발 때 한 번 VillageIntro 로 보낸다.
+var mourned_nodes: Array = []  ## 추모 표식을 남긴 죽은 자리 node_id (영속). 재회 조건의 두 번째 축(REUNION_MOURN).
 var expedition_names: Array = [] ## 원정별 이름 (인덱스 = 회차-1, 영속). 랜덤(ExpeditionNamer) 또는 직접 입력(Loadout).
 var arrivals: Array = [] ## end 에 닿은 원정 기록 — {expedition:int, ending:"cycle"|"reunion"} (영속). 일대기(Bookmark)가 죽음만이 아니라 도달/재회도 보이게 한다.
 var seeded: bool = false ## 유령 흔적(플레이어 이전 원정대들)을 심었나 (영속, 세계당 1회). 빈 세계 회피.
@@ -36,6 +37,7 @@ var seeded: bool = false ## 유령 흔적(플레이어 이전 원정대들)을 �
 ## 초기 자원 — 임시치. 자원 = 수명 (남기면 그만큼 잃는다). 밸런스는 폰 테스트로 검증 예정.
 const START_RESOURCES: Dictionary = {"water": 20, "food": 13, "rope": 1, "shelter": 1}
 const REUNION_TRACES: int = 4  ## 재회 흔적 임계. 8→4(2026-07-09). 카운트=player_trace_count(의도적으로 남긴 것+로프/다리, 비-seed). 죽음(시체)은 deaths 배열이라 0 기여. 4 = 무사 도달용 세계 만들기(다리+스태시 ~3런) 동안 자연히 채워지는 수 → 그리드 대신 "공략 지식"이 관문.
+const REUNION_MOURN: int = 2   ## 재회에 필요한 기린(추모한) 죽은 자리 수(2026-07-09 사용자 확정). 추모 = 죽은 자리에 표식(MARK)을 남김(런당 1회의 남기기를 씀). 순환과 재회를 가르는 두 축 = 남김 + 기림.
 var current_run: ExpeditionRun = null  ## 진행 중인 원정의 순수 상태·로직 (core/ExpeditionRun)
 var ending_kind_pending: String = ""  ## 엔딩 슬라이드쇼(Ending 오버레이)가 읽을 결말("cycle"/"reunion"). Expedition._show_ending 이 세팅.
 var pending_expedition_name: String = ""  ## 폭풍 막간(Interlude)이 지명한 다음 원정대 이름 → Loadout 이 초기값으로 소비(비영속).
@@ -173,10 +175,13 @@ func arrive_node() -> void:
 
 # --- 결말 (기획서 §3 결말: 순환과 재회) ---
 
-## end 도달 시 엔딩 종류 — "reunion"(재회) = 흔적 충분 축적 + 무사 도달(alive), 아니면 "cycle"(순환).
-## 밸런싱 북극성: 승리 = 한 번의 런이 아니라 여러 원정에 걸친 흔적 축적. REUNION_TRACES 가 돌파 난이도.
+## end 도달 시 엔딩 종류 — "reunion"(재회) = 흔적 충분 축적 + 죽은 자리를 기림(추모), 아니면 "cycle"(순환).
+## (엔딩은 살아 도착해야만 뜨므로 alive 는 사실상 잉여 — 방어적으로만 유지. 순환과 재회를 가르는 건
+##  "얼마나 남기고, 먼저 간 이들을 기렸는가"다. 2026-07-09 사용자 확정: 남김 + 기림의 두 축.)
+## 밸런싱 북극성: 승리 = 한 번의 런이 아니라 여러 원정에 걸친 흔적 축적. REUNION_TRACES/MOURN 이 돌파 난이도.
 func ending_kind() -> String:
-	if current_run != null and current_run.alive and player_trace_count() >= REUNION_TRACES:
+	if current_run != null and current_run.alive \
+			and player_trace_count() >= REUNION_TRACES and mourn_count() >= REUNION_MOURN:
 		return "reunion"
 	return "cycle"
 
@@ -219,6 +224,32 @@ func _mark_visited(node_id: String) -> void:
 ## 죽기 전 단 한 번 흔적을 남긴다 (기획서 §3). 남김 = 자기 수명 깎기.
 func leave_trace(trace: TraceData) -> void:
 	traces.append(trace.to_dict())
+
+# --- 추모 (죽은 자리 기리기 — 재회 조건의 두 번째 축, 기획서 §3 결말) ---
+
+## 이 노드에 죽은 이가 있나 — 죽음 기록(deaths) 또는 시체 흔적(BODY, 유령 포함: 첫 세계 d1 도 기릴 수 있다).
+func is_death_site(node_id: String) -> bool:
+	if node_id == "":
+		return false
+	for d in deaths:
+		if d is Dictionary and str(d.get("node_id", "")) == node_id:
+			return true
+	for t in traces:
+		if t is Dictionary and int(t.get("object_kind", -1)) == TraceData.ObjectKind.BODY \
+				and str(t.get("node_id", "")) == node_id:
+			return true
+	return false
+
+func is_mourned(node_id: String) -> bool:
+	return mourned_nodes.has(node_id)
+
+## 죽은 자리를 기렸다고 기록(영속). 저장은 호출측(BequeathPanel._commit)이 남기기와 묶어 한 번에.
+func mark_mourned(node_id: String) -> void:
+	if node_id != "" and not mourned_nodes.has(node_id):
+		mourned_nodes.append(node_id)
+
+func mourn_count() -> int:
+	return mourned_nodes.size()
 
 func record_death(leg: int, node_id: String = "") -> void:
 	deaths.append({"leg": leg, "node_id": node_id, "expedition": expedition_count})
@@ -347,6 +378,7 @@ func save_game() -> void:
 		"record_seen": record_seen,
 		"controls_tutorial_seen": controls_tutorial_seen,
 			"village_intro_seen": village_intro_seen,
+			"mourned_nodes": mourned_nodes,
 		"expedition_names": expedition_names,
 		"arrivals": arrivals,
 		"seen_choices": seen_choices,
@@ -381,6 +413,7 @@ func load_game() -> void:
 	record_seen = bool(data.get("record_seen", false))
 	controls_tutorial_seen = bool(data.get("controls_tutorial_seen", false))
 	village_intro_seen = bool(data.get("village_intro_seen", false))
+	mourned_nodes = data.get("mourned_nodes", [])
 	expedition_names = data.get("expedition_names", [])
 	arrivals = data.get("arrivals", [])
 	seen_choices = data.get("seen_choices", {})
@@ -397,6 +430,7 @@ func reset_save() -> void:
 	record_seen = false
 	controls_tutorial_seen = false
 	village_intro_seen = false
+	mourned_nodes = []
 	expedition_names = []
 	arrivals = []
 	current_run = null
