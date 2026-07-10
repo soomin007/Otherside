@@ -25,6 +25,17 @@ static var WEIGHT_STEP: int = 4        ## 초과 무게 이만큼마다 걸음�
 ## 남길 때 잃는 양 = 다음 원정대가 줍기로 얻는 양(Situations.pickup_trace 와 대칭). 물건 하나 = 그만큼의 희생.
 const LEAVE_COST: Dictionary = {"water": 4, "food": 3, "shelter": 1, "rope": 1, "medicine": 1, "flint": 1, "filter": 1}
 
+## 행렬(연출 파티, 기획서 §3 결말 — 2026-07-10 사용자 확정). 원정대 = 대장 + 대원 PARTY_MATES 명.
+## 자원 모델은 그대로 두고 "위험한 순간"마다 대원 한 사람이 스러진다(서사·카운트만, 지도 마커 없음).
+## 재회의 세 번째 축 = 온전한 도달(party_lost == 0). 위험한 순간 두 종:
+##  ① 위기에 당함 — 한 선택으로 물+식량을 PERIL_TOTAL 이상(그중 물 PERIL_WATER 이상) 잃음.
+##     도구(약초·부싯돌·장막·정화천·로프)로 대비했으면 안 일어난다 — 대비가 사람을 살린다.
+##  ② 바닥 스침 — 물/식량이 처음 CLOSE_CALL_AT 이하로 떨어짐(자원별 런당 1회).
+const PARTY_MATES: int = 4      ## 대장 외 대원 수(행렬 = 1 + 4 = 5명)
+const PERIL_TOTAL: int = 4      ## 한 선택의 물+식량 손실 합 임계(도구 위기 강행·폭풍 강행이 걸린다)
+const PERIL_WATER: int = 3      ## 그중 물 손실 임계 — 신중한 우회(합은 커도 물은 적음)는 제외
+const CLOSE_CALL_AT: int = 2    ## 물/식량 바닥 스침 임계
+
 var resources: Dictionary = {}        ## {"water": int, "food": int, "rope": int, "shelter": int}
 var leg: int = 0                      ## 원정 전체 누적 걸음(거리 곡선)
 var alive: bool = true
@@ -32,11 +43,15 @@ var death_cause: String = ""          ## "" | "thirst" | "hunger"
 var pending_situation: Dictionary = {} ## 지금 결정해야 할 상황 (비어 있으면 없음)
 var bequeathed: bool = false          ## 이번 원정에 "남기기"를 이미 썼나 (런당 1회)
 var current_node: String = ""         ## 지금 서 있는 노드(지도 복귀의 기준)
+var party_lost: int = 0               ## 스러진 대원 수(0~PARTY_MATES). 0 이어야 온전한 도달(재회 축 ③)
 var vocation_id: String = ""          ## 이번 원정 대장의 직능 id(저장·표시용, Vocations)
 var _vocation: Dictionary = {}        ## 직능 정의 — 효과 파라미터의 출처(생성자에서 로드)
 var carry_weight: int = 0             ## 가방 총 무게(무거우면 물 소모↑). Loadout 이 주입, 기본 0=무게 무시.
 
 var rng := RandomNumberGenerator.new()
+var _loss_notes: Array = []           ## 방금 스러진 손실의 서사 줄들 — UI 가 take_loss_notes 로 소비
+var _water_scare: bool = false        ## 물 바닥 스침을 이미 겪었나(런당 1회만 센다)
+var _food_scare: bool = false
 var _last_situation_id: String = ""
 var _next_situation_leg: int = 0      ## 다음 일반 상황이 뜰 걸음
 var _bridged: Dictionary = {}         ## 로프가 걸린 차단 노드(node_id→true) — 그 노드 도착 시 무료 통과
@@ -86,6 +101,46 @@ func has_flag(f: String) -> bool:
 
 func set_flag(f: String) -> void:
 	_flags[f] = true
+
+# --- 행렬 (연출 파티 — 위험한 순간마다 대원이 스러진다, 재회 축 ③ "온전한 도달") ---
+
+## 지금 함께 걷는 사람 수(대장 포함).
+func party_left() -> int:
+	return 1 + PARTY_MATES - party_lost
+
+## 온전한가 — 아무도 잃지 않았나. 재회(ending_kind)의 세 번째 축.
+func is_intact() -> bool:
+	return party_lost == 0
+
+## 방금 발생한 손실 서사를 꺼내 간다(꺼내면 비운다) — Map/Expedition 이 팝업으로 보여준다.
+func take_loss_notes() -> Array:
+	var out: Array = _loss_notes
+	_loss_notes = []
+	return out
+
+## 대원 한 사람이 스러진다. 대장 혼자 남았으면 더 잃을 사람이 없다(대장의 죽음 = 런 종료 죽음뿐).
+func _lose_mate(cause: String) -> void:
+	if party_lost >= PARTY_MATES:
+		return
+	party_lost += 1
+	var line: String = "행렬의 한 사람이 일어나지 못했다."
+	match cause:
+		"thirst":
+			line = "목마름에 한 사람이 쓰러졌다."
+		"hunger":
+			line = "굶주림에 한 사람이 뒤처졌다."
+	_loss_notes.append(line + "\n이제 행렬은 %d명이다." % party_left())
+
+## 바닥 스침 — 물/식량이 처음 임계 이하로 떨어진 순간(자원별 런당 1회). 고갈사가 먼저면 안 센다(죽음이 말한다).
+func _check_close_call() -> void:
+	if not alive:
+		return
+	if not _water_scare and get_res("water") <= CLOSE_CALL_AT:
+		_water_scare = true
+		_lose_mate("thirst")
+	if not _food_scare and get_res("food") <= CLOSE_CALL_AT:
+		_food_scare = true
+		_lose_mate("hunger")
 
 # --- 남기기 (런당 1회, 죽음과 별개) ---
 
@@ -189,6 +244,7 @@ func step() -> void:
 	_check_death()
 	if not alive:
 		return
+	_check_close_call()  # 걸음 소모로 물/식량이 바닥을 스쳤나 — 행렬 손실(위험한 순간 ②)
 	if _edge_step < _edge_len and leg >= _next_situation_leg:
 		# 엣지 중(도착 전) 일반 상황 — 이동 중 자잘한 결정(맵 카드로 뜬다). 직전과 같은 id 는 피한다.
 		var sit: Dictionary = Situations.pick(rng, _last_situation_id, _flags, leg < EARLY_SAFE_LEG, MapGraph.biome_of(_target_node), MapGraph.progress(_target_node))
@@ -218,6 +274,8 @@ func raise_situation(ev: Dictionary) -> void:
 ## 직능: 물지기는 물을 얻을 때(양수) 한 모금 더(water_gain_bonus). 잃을 때는 그대로.
 func apply_choice(effect: Dictionary) -> void:
 	var water_gain: int = int(_vocation.get("water_gain_bonus", 0))
+	var w_loss: int = maxi(0, -int(effect.get("water", 0)))  # 위험한 순간 ① 판정용(원 델타 기준)
+	var f_loss: int = maxi(0, -int(effect.get("food", 0)))
 	for key in effect:
 		var delta: int = int(effect[key])
 		if key == "water" and delta > 0 and water_gain > 0:
@@ -225,6 +283,11 @@ func apply_choice(effect: Dictionary) -> void:
 		resources[key] = get_res(key) + delta
 	pending_situation = {}
 	_check_death()
+	if alive:
+		# 위기에 당함 — 도구 없이 큰 대가를 치른 선택(열병 강행·폭풍 강행 등). 대비했으면 안 일어난다.
+		if w_loss + f_loss >= PERIL_TOTAL and w_loss >= PERIL_WATER:
+			_lose_mate("peril")
+		_check_close_call()
 
 func _set_pending(sit: Dictionary) -> void:
 	pending_situation = sit

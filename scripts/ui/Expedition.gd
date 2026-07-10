@@ -69,6 +69,10 @@ func _ready() -> void:
 		Transition.appear(_hud_box, 0.08)
 		Transition.appear(_bottom_bar, 0.20)
 		_sync_advance_gate()  # 필수 위협이 있으면 마주하기 전까지 "떠난다" 잠금
+		# 도착하는 마지막 걸음이 행렬에서 사람을 앗아갔으면(지도가 못 보여주고 넘어온 손실) 여기서 알린다.
+		var carried_loss: String = _take_loss_note()
+		if carried_loss != "":
+			_result_popup.show_result("", {}, Callable(), carried_loss)
 
 func _build_hud() -> void:
 	# 상단 HUD 바 — 가독성을 위해 반투명 어두운 배경 위에 텍스트. 전체 폭.
@@ -215,7 +219,7 @@ func _build_death_panel() -> void:
 
 func _refresh() -> void:
 	var food_per_leg: String = String.num(1.0 / float(ExpeditionRun.FOOD_EVERY), 2)
-	_status_label.text = "원정 %d째 · %d걸음\n물 %d/걸음 · 식량 %s/걸음" % [GameState.expedition_count, _run.leg, _run.water_cost(), food_per_leg]
+	_status_label.text = "원정 %d째 · %d걸음 · 행렬 %d명\n물 %d/걸음 · 식량 %s/걸음" % [GameState.expedition_count, _run.leg, _run.party_left(), _run.water_cost(), food_per_leg]
 	var water: int = maxi(0, _run.get_res("water"))
 	var food: int = maxi(0, _run.get_res("food"))
 	AudioManager.warn_thirst(water)  # 물이 임계로 떨어지는 순간 경고음 1회(지도와 공용 상태)
@@ -246,6 +250,13 @@ func _any_leavable() -> bool:
 
 func _res_color(value: int, low: int, base: Color) -> Color:
 	return UITheme.DANGER if value <= low else base
+
+## 방금 선택/조사가 행렬에서 사람을 앗아갔으면 그 서사를 꺼낸다. 죽었으면 버린다(죽음 화면이 말한다).
+func _take_loss_note() -> String:
+	var notes: Array = _run.take_loss_notes()
+	if not _run.alive or notes.is_empty():
+		return ""
+	return "\n".join(PackedStringArray(notes))
 
 # --- 입력 ---
 
@@ -335,7 +346,7 @@ func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, a
 	_sit_panel.visible = false
 	_refresh()
 	# blind choice 뒷면 — 눌러봐야 결과를 안다. 무엇이 일어났는지(자원 변화)를 팝업으로 공개한다.
-	_result_popup.show_result(label, effect, _after_choice)
+	_result_popup.show_result(label, effect, _after_choice, _take_loss_note())
 
 ## 결과 팝업을 닫은 뒤 — 계속 전진(또는 결정이 곧 죽음이었으면 죽음 화면).
 func _after_choice() -> void:
@@ -471,7 +482,7 @@ func _probe_spot(i: int) -> void:
 			GameState.add_persist_flags(sp)
 		_refresh()
 		queue_redraw()
-		_result_popup.show_result(str(res.get("text", "")), effect, _after_delta)
+		_result_popup.show_result(str(res.get("text", "")), effect, _after_delta, _take_loss_note())
 		return
 	# empty — 빈손도 팝업으로(하단 배너 폐기, 결과는 전부 모달로 통일).
 	_refresh()

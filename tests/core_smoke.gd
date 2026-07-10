@@ -30,6 +30,7 @@ func _init() -> void:
 	_test_vocations()
 	_test_items()
 	_test_weight()
+	_test_party_intact()
 
 	if _fail == 0:
 		print("=== core_smoke: ALL PASS ===")
@@ -60,6 +61,42 @@ func _advance(run: ExpeditionRun, max_steps: int = 40) -> void:
 		n += 1
 
 # --- tests ---
+
+## 행렬(연출 파티) — 위험한 순간 판정과 온전(재회 축 ③) 불변식.
+func _test_party_intact() -> void:
+	var run: ExpeditionRun = _fresh()
+	_ok(run.party_left() == 1 + ExpeditionRun.PARTY_MATES, "행렬: 시작 인원 = 대장+대원")
+	_ok(run.is_intact(), "행렬: 시작은 온전")
+	# ① 위기에 당함 — 물+식량 합 ≥4 이고 물 ≥3 (열병 강행 -5 등).
+	run.apply_choice({"water": -5})
+	_ok(run.party_lost == 1, "행렬: 큰 물 손실(-5) = 위험한 순간 → 대원 1 손실")
+	var notes: Array = run.take_loss_notes()
+	_ok(notes.size() == 1, "행렬: 손실 서사 1건 발생")
+	_ok(run.take_loss_notes().is_empty(), "행렬: 서사는 꺼내면 비워진다")
+	# 신중한 우회(합 4, 물 2)는 위험한 순간이 아니다.
+	run.apply_choice({"water": -2, "food": -2})
+	_ok(run.party_lost == 1, "행렬: 신중한 우회(물-2·식량-2)는 손실 없음")
+	# 물이 안 끼면(식량만 커도) 아니다.
+	run.apply_choice({"food": -4})
+	_ok(run.party_lost == 1, "행렬: 식량만 큰 손실은 위험한 순간 아님")
+	# ② 바닥 스침 — 물이 처음 ≤2 로 떨어지면 1회만.
+	var low: ExpeditionRun = _fresh({"water": 4, "food": 99, "rope": 0, "shelter": 0})
+	low.apply_choice({"water": -2})
+	_ok(low.party_lost == 1, "행렬: 물 첫 바닥 스침(≤2) → 대원 1 손실")
+	low.apply_choice({"water": 3})
+	low.apply_choice({"water": -3})
+	_ok(low.party_lost == 1, "행렬: 물 바닥 스침은 런당 1회만")
+	_ok(not low.is_intact(), "행렬: 손실 후엔 온전 아님")
+	# 고갈사가 먼저면 손실을 세지 않는다(죽음이 말한다).
+	var doomed: ExpeditionRun = _fresh({"water": 5, "food": 99, "rope": 0, "shelter": 0})
+	doomed.apply_choice({"water": -5})
+	_ok(not doomed.alive and doomed.take_loss_notes().is_empty(), "행렬: 고갈사 순간엔 손실 서사 없음")
+	# 손실 상한 = 대원 수(대장은 마지막까지 걷는다).
+	var worn: ExpeditionRun = _fresh()
+	for i in range(ExpeditionRun.PARTY_MATES + 2):
+		worn.apply_choice({"water": -5})
+	_ok(worn.party_lost == ExpeditionRun.PARTY_MATES, "행렬: 손실은 대원 수까지만")
+	_ok(worn.party_left() == 1, "행렬: 마지막엔 대장 홀로")
 
 func _test_mapgraph_integrity() -> void:
 	var nodes: Dictionary = MapGraph.NODES

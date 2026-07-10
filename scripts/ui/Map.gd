@@ -403,8 +403,14 @@ func _process(delta: float) -> void:
 		_splashes.append({"pos": _marker_pos(_map_area()), "t": 0.0})
 	if not run.alive or run.arrived():
 		_moving = false
-		GameState.go_to_expedition()  # 도착(또는 도중 고갈사) → 그 노드 화면
+		GameState.go_to_expedition()  # 도착(또는 도중 고갈사) → 그 노드 화면 (남은 손실 서사는 그 화면이 보여준다)
 	else:
+		# 이 걸음이 행렬에서 사람을 앗아갔으면(물·식량 바닥 스침) — 멈춰 서서 알린다.
+		var loss_note: String = _take_loss_note(run)
+		if loss_note != "":
+			_moving = false
+			_result_popup.show_result("", {}, _after_loss_note, loss_note)
+			return
 		# 이동 중 엣지 위 자원 흔적을 지나면 줍기 카드(자연 상황이 없을 때만 — 상황을 덮지 않게).
 		if run.pending_situation.is_empty():
 			var ep: Dictionary = _edge_pickup_here(run)
@@ -585,7 +591,24 @@ func _on_situation_choice(event_id: String, idx: int, label: String, effect: Dic
 	_set_card_storm(false)  # 카드 닫힘 — 폭풍 파티클 분출 정지
 	_refresh_hud()
 	# blind choice 뒷면 — 결과(자원 변화)를 팝업으로 공개하고, 닫으면 이동을 잇는다.
-	_result_popup.show_result(label, effect, _after_situation)
+	_result_popup.show_result(label, effect, _after_situation, _take_loss_note(run))
+
+## 방금 걸음/선택이 행렬에서 사람을 앗아갔으면 그 서사를 꺼낸다. 죽었으면 버린다(죽음 화면이 말한다).
+func _take_loss_note(run: ExpeditionRun) -> String:
+	var notes: Array = run.take_loss_notes()
+	if not run.alive or notes.is_empty():
+		return ""
+	return "\n".join(PackedStringArray(notes))
+
+## 손실 팝업을 닫은 뒤 — 같은 걸음에 상황 카드도 떴으면 카드로, 아니면 이동을 잇는다.
+func _after_loss_note() -> void:
+	var run: ExpeditionRun = GameState.current_run
+	if run == null or not run.alive:
+		return
+	if not run.pending_situation.is_empty():
+		_show_situation_card()
+	else:
+		_moving = true
 
 ## 지금 걷는 엣지 위에서 지나친 자원 흔적을 찾는다(진행률 넘어섰고 아직 이번 이동에 제안 안 한 것). 없으면 {}.
 func _edge_pickup_here(run: ExpeditionRun) -> Dictionary:
@@ -1177,6 +1200,12 @@ func _draw_col_left(font: Font, sc: float) -> void:
 		draw_string(EN_TITLE_FONT, Vector2(x, y), str(run.get_res(str(r[0]))), HORIZONTAL_ALIGNMENT_LEFT, 30.0 * sc, maxi(11, int(21.0 * sc)), UITheme.SAND)
 		draw_string(font, Vector2(x + 36.0 * sc, y), str(r[1]), HORIZONTAL_ALIGNMENT_LEFT, w - 36.0 * sc, maxi(10, int(17.0 * sc)), Color(0.910, 0.875, 0.804))
 		draw_string(font, Vector2(x, y), str(r[2]), HORIZONTAL_ALIGNMENT_RIGHT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))
+	# 행렬 — 함께 걷는 사람 수(연출 파티). 위험한 순간마다 줄어든다. 잃은 뒤엔 붉게(온전함이 깨졌다).
+	y += 30.0 * sc
+	var party_color: Color = UITheme.SAND if run.is_intact() else UITheme.DANGER
+	draw_string(EN_TITLE_FONT, Vector2(x, y), str(run.party_left()), HORIZONTAL_ALIGNMENT_LEFT, 30.0 * sc, maxi(11, int(21.0 * sc)), party_color)
+	draw_string(font, Vector2(x + 36.0 * sc, y), "행렬", HORIZONTAL_ALIGNMENT_LEFT, w - 36.0 * sc, maxi(10, int(17.0 * sc)), Color(0.910, 0.875, 0.804))
+	draw_string(font, Vector2(x, y), "함께 걷는 이들", HORIZONTAL_ALIGNMENT_RIGHT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))
 	y += 14.0 * sc
 	_draw_hairline(x, y, w)
 	y += 24.0 * sc

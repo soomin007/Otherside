@@ -131,7 +131,7 @@ func _build() -> void:
 		_add_btn(col, "flag: " + flag, func() -> void: _set_flag(flag))
 
 	_add_title(col, "결말")
-	_add_btn(col, "재회 임계 채우기 (흔적 %d·기림 %d)" % [GameState.REUNION_TRACES, GameState.REUNION_MOURN], _fill_reunion)
+	_add_btn(col, "재회 임계 채우기 (흔적 %d·기림 %d·손실 0)" % [GameState.REUNION_TRACES, GameState.REUNION_MOURN], _fill_reunion)
 	_add_btn(col, "엔딩 바로보기: 순환", func() -> void: _show_ending("cycle"))
 	_add_btn(col, "엔딩 바로보기: 재회 (크레딧 롤)", func() -> void: _show_ending("reunion"))
 
@@ -306,6 +306,9 @@ func _fill_reunion() -> void:
 	# 재회의 두 번째 축(기림)도 채운다 — 더미 node_id 로 mourn_count 만 충족시킨다.
 	for i in range(GameState.REUNION_MOURN):
 		GameState.mark_mourned("debug_mourn_%d" % i)
+	# 세 번째 축(온전한 도달) — 이번 런의 행렬 손실을 되돌린다(테스트에서 재회가 막히지 않게).
+	if GameState.current_run != null:
+		GameState.current_run.party_lost = 0
 	GameState.save_game()
 	_refresh_state()
 

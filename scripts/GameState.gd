@@ -176,12 +176,15 @@ func arrive_node() -> void:
 
 # --- 결말 (기획서 §3 결말: 순환과 재회) ---
 
-## end 도달 시 엔딩 종류 — "reunion"(재회) = 흔적 충분 축적 + 죽은 자리를 기림(추모), 아니면 "cycle"(순환).
+## end 도달 시 엔딩 종류 — "reunion"(재회) = 흔적 충분 축적 + 죽은 자리를 기림 + 온전한 도달, 아니면 "cycle"(순환).
 ## (엔딩은 살아 도착해야만 뜨므로 alive 는 사실상 잉여 — 방어적으로만 유지. 순환과 재회를 가르는 건
-##  "얼마나 남기고, 먼저 간 이들을 기렸는가"다. 2026-07-09 사용자 확정: 남김 + 기림의 두 축.)
+##  "얼마나 남기고, 먼저 간 이들을 기리고, 아무도 잃지 않았는가"다. 세 축(2026-07-10 사용자 확정):
+##  ① 남김 축적(REUNION_TRACES) ② 기림(REUNION_MOURN) ③ 온전한 도달 — 이번 원정의 행렬 손실 0
+##  (ExpeditionRun.is_intact, 위험한 순간마다 대원이 스러진다). 축적이 만든 세계(다리·스태시)라야
+##  온전히 걸을 수 있으니, ③은 한 런의 컨트롤이 아니라 축적의 수확이다.)
 ## 밸런싱 북극성: 승리 = 한 번의 런이 아니라 여러 원정에 걸친 흔적 축적. REUNION_TRACES/MOURN 이 돌파 난이도.
 func ending_kind() -> String:
-	if current_run != null and current_run.alive \
+	if current_run != null and current_run.alive and current_run.is_intact() \
 			and player_trace_count() >= REUNION_TRACES and mourn_count() >= REUNION_MOURN:
 		return "reunion"
 	return "cycle"

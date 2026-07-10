@@ -8,6 +8,7 @@ extends Control
 
 var _body_label: Label
 var _delta_label: Label
+var _note_label: Label   ## 행렬 손실 등 무거운 한 줄 — 델타 아래 붉게(비어 있으면 숨김)
 var _cb: Callable
 var _closing: bool = false  ## "계속" 연타 방지 — 첫 탭의 닫힘 콜백이 유실되지 않게
 
@@ -35,18 +36,24 @@ func _init() -> void:
 	_delta_label = UITheme.make_label("", UITheme.FS_H2, UITheme.SAND)
 	box.add_child(_delta_label)
 
+	_note_label = UITheme.make_label("", UITheme.FS_BODY, UITheme.DANGER)
+	box.add_child(_note_label)
+
 	var btn := UITheme.make_engraved_button("계속", 18, true)
 	btn.pressed.connect(_on_close)
 	box.add_child(btn)
 
 ## 결과를 띄운다. body=묘사(빈 문자열이면 숨김), effect=자원 델타(빈 Dictionary면 "달라진 건 없다").
 ## cb = "계속"을 누를 때 실행할 콜백(다음 단계로 잇기 — 이동 재개·죽음 처리 등).
-func show_result(body: String, effect: Dictionary, cb: Callable = Callable()) -> void:
+## note = 무거운 한 줄(행렬 손실 등) — 델타 아래 붉게. 있으면 "달라진 건 없다"는 생략(이미 잃은 게 말한다).
+func show_result(body: String, effect: Dictionary, cb: Callable = Callable(), note: String = "") -> void:
 	_cb = cb
 	_closing = false
 	move_to_front()  # 연속 모달에서 새로 뜬 팝업이 다른 패널 아래에 깔리지 않게 — 항상 맨 위
 	_body_label.text = body
 	_body_label.visible = body != ""
+	_note_label.text = note
+	_note_label.visible = note != ""
 	if not effect.is_empty():
 		_delta_label.text = UITheme.effect_hint(effect)
 		_delta_label.add_theme_color_override("font_color", UITheme.SAND)
@@ -56,7 +63,7 @@ func show_result(body: String, effect: Dictionary, cb: Callable = Callable()) ->
 			AudioManager.play_sfx(AudioManager.WATER)
 		else:
 			AudioManager.play_sfx(AudioManager.RESOURCE, -4.0)
-	elif body == "":
+	elif body == "" and note == "":
 		# 묘사도 변화도 없을 때만 명시 (묘사가 있으면 그게 결과를 말한다).
 		_delta_label.text = "달라진 건 없다."
 		_delta_label.add_theme_color_override("font_color", UITheme.MUTED)
