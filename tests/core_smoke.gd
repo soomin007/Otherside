@@ -31,6 +31,7 @@ func _init() -> void:
 	_test_items()
 	_test_weight()
 	_test_party_intact()
+	_test_stragglers()
 
 	if _fail == 0:
 		print("=== core_smoke: ALL PASS ===")
@@ -97,6 +98,34 @@ func _test_party_intact() -> void:
 		worn.apply_choice({"water": -5})
 	_ok(worn.party_lost == ExpeditionRun.PARTY_MATES, "행렬: 손실은 대원 수까지만")
 	_ok(worn.party_left() == 1, "행렬: 마지막엔 대장 홀로")
+
+## 낙오자(재회 축 "구조") — 카드·도착 우선순위·거두기·손실 자리 기록 불변식.
+func _test_stragglers() -> void:
+	# 카드 모양 — 거두기(물 나눔, needs 3, action=rescue)와 지나치기.
+	var ev: Dictionary = Situations.straggler_event()
+	_ok(str(ev.get("id", "")) == "straggler", "낙오자: 카드 id = straggler")
+	var c0: Dictionary = ev["choices"][0]
+	_ok(str(c0.get("action", "")) == "rescue" and int(c0["effect"].get("water", 0)) == -2, "낙오자: 거두기 = 물 -2 + rescue")
+	_ok(not Situations.can_choose(c0, {"water": 2}), "낙오자: 물 2 로는 못 거둔다(나누면 내가 못 산다)")
+	# 도착 우선순위 — 낙오자 노드에 닿으면 사람이 무엇보다 먼저다.
+	var run: ExpeditionRun = ExpeditionRun.new({"water": 99, "food": 99}, [], [], {}, "", 0, ["a1"])
+	run.begin_edge("a1")
+	_advance(run)
+	_ok(run.arrived(), "낙오자: a1 도착")
+	_ok(str(run.arrival_event().get("id", "")) == "straggler", "낙오자: 도착 카드 = 낙오자")
+	# 거두면 행렬 +1, 그 노드의 카드는 사라진다.
+	run.apply_choice({"water": -2})
+	run.rescue_straggler("a1")
+	_ok(run.party_gained == 1 and run.party_left() == 2 + ExpeditionRun.PARTY_MATES, "낙오자: 거두면 행렬 +1")
+	_ok(str(run.arrival_event().get("id", "")) != "straggler", "낙오자: 거둔 노드엔 카드 없음")
+	run.party_lost = 1
+	_ok(not run.is_intact(), "낙오자: 구조가 손실을 상쇄하지 않는다(온전은 별도)")
+	# 손실 자리 기록 — 위험한 순간의 자리가 남는다(런이 끝나면 GameState 가 낙오자로 심는다).
+	var lossy: ExpeditionRun = ExpeditionRun.new({"water": 99, "food": 99})
+	lossy.begin_edge("a1")
+	_advance(lossy)
+	lossy.apply_choice({"water": -5})
+	_ok(lossy.loss_sites.size() == 1 and str(lossy.loss_sites[0]["node_id"]) == "a1", "낙오자: 손실 자리 = 그 노드")
 
 func _test_mapgraph_integrity() -> void:
 	var nodes: Dictionary = MapGraph.NODES

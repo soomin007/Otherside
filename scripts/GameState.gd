@@ -28,7 +28,8 @@ var opening_replay: bool = false ## 설정 "오프닝 다시보기"로 재생 �
 var record_seen: bool = false  ## 시장이 원정 기록지를 건넸나 (영속). give_record 로 켜면 책갈피(Bookmark)가 상시 뜬다.
 var controls_tutorial_seen: bool = false ## 첫 원정 조작 오버레이 튜토리얼을 봤나 (영속). Tutorial autoload 자동재생 게이트.
 var village_intro_seen: bool = false ## 첫 원정 마을 단면 탐색 연습을 봤나 (영속). Loadout 이 첫 출발 때 한 번 VillageIntro 로 보낸다.
-var mourned_nodes: Array = []  ## 추모 표식을 남긴 죽은 자리 node_id (영속). 재회 조건의 두 번째 축(REUNION_MOURN).
+var mourned_nodes: Array = []  ## 추모 표식을 남긴 죽은 자리 node_id (영속). 재회 조건의 축 하나(REUNION_MOURN).
+var stragglers: Array = []     ## 낙오자가 기다리는 자리 [{node_id, origin:"seed"|"loss"}] (영속). 거두면 하나 제거, 대원 손실 자리에서 새로 생긴다(재회 축: REUNION_RESCUES).
 var reunion_hints_shown: int = 0 ## 시장의 재회 옛말을 들려준 시점의 순환 도달 수 (영속). 순환 엔딩을 볼 때마다 다음 마을에서 한 번씩 다시 들려준다(사용자 확정 2026-07-09).
 var expedition_names: Array = [] ## 원정별 이름 (인덱스 = 회차-1, 영속). 랜덤(ExpeditionNamer) 또는 직접 입력(Loadout).
 var arrivals: Array = [] ## end 에 닿은 원정 기록 — {expedition:int, ending:"cycle"|"reunion"} (영속). 일대기(Bookmark)가 죽음만이 아니라 도달/재회도 보이게 한다.
@@ -37,8 +38,8 @@ var seeded: bool = false ## 유령 흔적(플레이어 이전 원정대들)을 �
 # --- 현재 원정 한정 상태 (죽으면 리셋) ---
 ## 초기 자원 — 임시치. 자원 = 수명 (남기면 그만큼 잃는다). 밸런스는 폰 테스트로 검증 예정.
 const START_RESOURCES: Dictionary = {"water": 20, "food": 13, "rope": 1, "shelter": 1}
-const REUNION_TRACES: int = 4  ## 재회 흔적 임계. 8→4(2026-07-09). 카운트=player_trace_count(의도적으로 남긴 것+로프/다리, 비-seed). 죽음(시체)은 deaths 배열이라 0 기여. 4 = 무사 도달용 세계 만들기(다리+스태시 ~3런) 동안 자연히 채워지는 수 → 그리드 대신 "공략 지식"이 관문.
-const REUNION_MOURN: int = 2   ## 재회에 필요한 기린(추모한) 죽은 자리 수(2026-07-09 사용자 확정). 추모 = 죽은 자리에 표식(MARK)을 남김(런당 1회의 남기기를 씀). 순환과 재회를 가르는 두 축 = 남김 + 기림.
+const REUNION_RESCUES: int = 2 ## 재회에 필요한, 이번 런에 거둬 데리고 닿은 낙오자 수(2026-07-10 사용자 확정 — 옛 남김 4(REUNION_TRACES) 축을 교체). 낙오자 = 유령 씨앗 + 과거 런의 대원 손실 자리. 남기기의 가치는 생존 효용·기림으로 존속.
+const REUNION_MOURN: int = 2   ## 재회에 필요한 기린(추모한) 죽은 자리 수(2026-07-09 사용자 확정). 추모 = 죽은 자리에 표식(MARK)을 남김(런당 1회의 남기기를 씀). 순환과 재회를 가르는 세 축 = 기림 + 구조 + 온전.
 var current_run: ExpeditionRun = null  ## 진행 중인 원정의 순수 상태·로직 (core/ExpeditionRun)
 var ending_kind_pending: String = ""  ## 엔딩 슬라이드쇼(Ending 오버레이)가 읽을 결말("cycle"/"reunion"). Expedition._show_ending 이 세팅.
 var pending_expedition_name: String = ""  ## 폭풍 막간(Interlude)이 지명한 다음 원정대 이름 → Loadout 이 초기값으로 소비(비영속).
@@ -77,14 +78,89 @@ func _plant_seeds() -> void:
 		t["leg"] = 0
 		t["position"] = 0.0
 		traces.append(t)
+	# 유령 낙오자 — 이전 원정들에서 뒤처진 이들(기획서 §3 재회 축 "구조"). 물이 있는 자리라 버텼다(개연성).
+	# b1 이 핵심: b1 은 c1/c2 어느 갈래와도 한 경로에 묶여(재회 런의 2명 동선이 항상 성립) 교착을 막는다.
+	for nid in ["b1", "c1", "d2"]:
+		stragglers.append({"node_id": nid, "origin": "seed"})
 
-## 재회 카운트용 흔적 수. 유령(seed) 제외, 플레이어가 남긴 것만. 죽음은 deaths 배열이라 여기 안 들어감(시체는 재회에 0 기여).
+## 플레이어가 남긴 흔적 수(유령 seed 제외). 옛 재회 축(REUNION_TRACES, 2026-07-10 폐기) — 지금은 표시·통계용.
 func player_trace_count() -> int:
 	var n: int = 0
 	for t in traces:
 		if t is Dictionary and not bool(t.get("seed", false)):
 			n += 1
 	return n
+
+# --- 낙오자 (재회 축 "구조" — 뒤처진 이를 거두어 데리고 닿는다, 기획서 §3) ---
+
+## 낙오자가 기다리는 노드 id 목록(중복 제거) — 새 원정에 주입, 지도 마커에도 쓴다.
+func straggler_nodes() -> Array:
+	var seen: Dictionary = {}
+	var out: Array = []
+	for s in stragglers:
+		if s is Dictionary:
+			var nid: String = str(s.get("node_id", ""))
+			if nid != "" and not seen.has(nid):
+				seen[nid] = true
+				out.append(nid)
+	return out
+
+## 이 노드의 낙오자 하나를 거둔다(세계에서 제거, 행렬 +1 은 run.rescue_straggler 가). 같은 노드에 여럿이면 하나만.
+func rescue_straggler(node_id: String) -> void:
+	for i in range(stragglers.size()):
+		var s: Dictionary = stragglers[i]
+		if str(s.get("node_id", "")) == node_id:
+			stragglers.remove_at(i)
+			save_game()
+			return
+
+## 런이 끝날 때(죽음/도달) 이번 런의 대원 손실 자리를 낙오자로 심는다 — 내 실패가 다음에 구할 사람이 된다.
+## 거둬서 데려가던 낙오자는 그 런과 운명을 같이한다(사용자 확정 2026-07-10) — 확신 없는 런에 함부로 태우지 마라.
+func _harvest_stragglers() -> void:
+	if current_run == null:
+		return
+	for site in current_run.loss_sites:
+		if site is Dictionary:
+			var nid: String = str(site.get("node_id", ""))
+			if nid != "" and nid != MapGraph.START_ID:
+				stragglers.append({"node_id": nid, "origin": "loss"})
+	current_run.loss_sites = []
+
+## 재회 관문의 교착 방지 — 한 경로로 REUNION_RESCUES 명을 거둘 수 있는 낙오자 배치를 보장한다.
+## (거둔 낙오자를 데려간 런이 순환 도달로 소진시키면 세계가 빌 수 있다.) 부족하면 b1 부터 다시 심는다 —
+## b1 은 어느 갈래(c1/c2·d1/d2)와도 한 경로에 묶인다. 서사: 폭풍이 지날 때마다 또 누군가 뒤처진다.
+func _ensure_stragglers() -> void:
+	if _has_routable_rescues():
+		return
+	for nid in ["b1", "c1"]:
+		stragglers.append({"node_id": nid, "origin": "seed"})
+		if _has_routable_rescues():
+			break
+	save_game()
+
+## 서로 다른 두 노드에 낙오자가 있고, 한 런의 경로로 둘 다 지날 수 있는가(REUNION_RESCUES=2 기준).
+func _has_routable_rescues() -> bool:
+	var nodes: Array = straggler_nodes()
+	for i in range(nodes.size()):
+		for j in range(nodes.size()):
+			if i != j and _path_exists(str(nodes[i]), str(nodes[j])):
+				return true
+	return false
+
+## MapGraph 의 next 방향으로 from → to 경로가 있는가(BFS).
+func _path_exists(from_id: String, to_id: String) -> bool:
+	var stack: Array = [from_id]
+	var seen: Dictionary = {from_id: true}
+	while not stack.is_empty():
+		var cur: String = str(stack.pop_back())
+		if cur == to_id:
+			return true
+		for nx in MapGraph.node(cur).get("next", []):
+			var s: String = str(nx)
+			if not seen.has(s):
+				seen[s] = true
+				stack.append(s)
+	return false
 
 # --- 코어 루프 전이 ---
 
@@ -122,7 +198,8 @@ func begin_run_in_place() -> void:
 
 ## 가방에서 고른 시작 자원으로 새 원정을 만든다 (마을/Loadout 에서 호출). START_RESOURCES 대체.
 func begin_run_with(resources: Dictionary, name: String = "", voc_id: String = "", carry_weight: int = 0) -> void:
-	current_run = ExpeditionRun.new(resources, bridged_nodes(), flags, pickup_traces_by_node(), voc_id, carry_weight)
+	_ensure_stragglers()  # 재회 관문 교착 방지 — 거둘 수 있는 낙오자 동선이 항상 존재하게
+	current_run = ExpeditionRun.new(resources, bridged_nodes(), flags, pickup_traces_by_node(), voc_id, carry_weight, straggler_nodes())
 	expedition_count += 1
 	# 이번 원정대 이름 — 지정 없으면 랜덤(begin_run_in_place·디버그 진입 등). 인덱스 = 회차-1 로 정렬.
 	var nm: String = name
@@ -176,16 +253,16 @@ func arrive_node() -> void:
 
 # --- 결말 (기획서 §3 결말: 순환과 재회) ---
 
-## end 도달 시 엔딩 종류 — "reunion"(재회) = 흔적 충분 축적 + 죽은 자리를 기림 + 온전한 도달, 아니면 "cycle"(순환).
+## end 도달 시 엔딩 종류 — "reunion"(재회) = 기림 + 구조 + 온전한 도달, 아니면 "cycle"(순환).
 ## (엔딩은 살아 도착해야만 뜨므로 alive 는 사실상 잉여 — 방어적으로만 유지. 순환과 재회를 가르는 건
-##  "얼마나 남기고, 먼저 간 이들을 기리고, 아무도 잃지 않았는가"다. 세 축(2026-07-10 사용자 확정):
-##  ① 남김 축적(REUNION_TRACES) ② 기림(REUNION_MOURN) ③ 온전한 도달 — 이번 원정의 행렬 손실 0
-##  (ExpeditionRun.is_intact, 위험한 순간마다 대원이 스러진다). 축적이 만든 세계(다리·스태시)라야
-##  온전히 걸을 수 있으니, ③은 한 런의 컨트롤이 아니라 축적의 수확이다.)
-## 밸런싱 북극성: 승리 = 한 번의 런이 아니라 여러 원정에 걸친 흔적 축적. REUNION_TRACES/MOURN 이 돌파 난이도.
+##  전부 사람이다(2026-07-10 사용자 확정, 옛 남김 4 축은 폐기):
+##  ① 기림(REUNION_MOURN) — 죽은 이를 기렸는가 ② 구조(REUNION_RESCUES) — 뒤처진 이를 거두어
+##  이번 런에 데리고 닿았는가 ③ 온전한 도달 — 걷는 이를 아무도 잃지 않았는가(is_intact).
+##  축적이 만든 세계(다리·스태시)라야 온전히 걸을 수 있으니, 남기기의 가치는 조건에서 빠져도 존속한다.)
+## 밸런싱 북극성: 승리 = 한 번의 런이 아니라 여러 원정에 걸친 축적(지식·다리·스태시·기림). RESCUES/MOURN 이 돌파 난이도.
 func ending_kind() -> String:
 	if current_run != null and current_run.alive and current_run.is_intact() \
-			and player_trace_count() >= REUNION_TRACES and mourn_count() >= REUNION_MOURN:
+			and current_run.party_gained >= REUNION_RESCUES and mourn_count() >= REUNION_MOURN:
 		return "reunion"
 	return "cycle"
 
@@ -196,6 +273,7 @@ func mark_arrival(ending: String) -> void:
 		if a is Dictionary and int(a.get("expedition", -1)) == expedition_count:
 			return
 	arrivals.append({"expedition": expedition_count, "ending": ending})
+	_harvest_stragglers()  # 도달한 런의 손실 자리도 낙오자로 남는다(뒤처진 이는 여전히 길 위에 있다)
 	save_game()
 
 ## 순환 — 이 원정을 닫고 다음 원정을 처음부터 준비한다(흔적·방문 누적은 유지 → 다음이 더 멀리 간다).
@@ -208,6 +286,7 @@ func next_expedition() -> void:
 ## 원정 주기의 시계 = 폭풍(기획서 §2·§3). "매년"이 아니라 폭풍이 지날 때마다 떠난다.
 ## (막간은 순수 연출 — 흔적 uses·안개를 실제로 깎지 않는다. 시간 기반 흔적 소멸은 별도 결정 후 후속.)
 func go_to_interlude() -> void:
+	_harvest_stragglers()  # 방어적 — 죽음/도달 기록이 놓친 손실 자리가 있어도 런을 닫기 전에 심는다
 	current_run = null
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
@@ -277,6 +356,7 @@ func mark_reunion_hint_shown() -> void:
 
 func record_death(leg: int, node_id: String = "") -> void:
 	deaths.append({"leg": leg, "node_id": node_id, "expedition": expedition_count})
+	_harvest_stragglers()  # 죽은 런의 손실 자리를 낙오자로 심는다(데려가던 낙오자는 런과 운명을 같이한다)
 
 ## 복원된 흔적을 TraceData 로 돌려준다 (지도/횡스크롤 렌더링용).
 func loaded_traces() -> Array[TraceData]:
@@ -403,6 +483,7 @@ func save_game() -> void:
 		"controls_tutorial_seen": controls_tutorial_seen,
 			"village_intro_seen": village_intro_seen,
 			"mourned_nodes": mourned_nodes,
+			"stragglers": stragglers,
 			"reunion_hints_shown": reunion_hints_shown,
 		"expedition_names": expedition_names,
 		"arrivals": arrivals,
@@ -439,6 +520,7 @@ func load_game() -> void:
 	controls_tutorial_seen = bool(data.get("controls_tutorial_seen", false))
 	village_intro_seen = bool(data.get("village_intro_seen", false))
 	mourned_nodes = data.get("mourned_nodes", [])
+	stragglers = data.get("stragglers", [])
 	reunion_hints_shown = int(data.get("reunion_hints_shown", 0))
 	expedition_names = data.get("expedition_names", [])
 	arrivals = data.get("arrivals", [])
@@ -457,6 +539,7 @@ func reset_save() -> void:
 	controls_tutorial_seen = false
 	village_intro_seen = false
 	mourned_nodes = []
+	stragglers = []
 	reunion_hints_shown = 0
 	expedition_names = []
 	arrivals = []

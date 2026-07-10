@@ -44,6 +44,8 @@ var pending_situation: Dictionary = {} ## 지금 결정해야 할 상황 (비어
 var bequeathed: bool = false          ## 이번 원정에 "남기기"를 이미 썼나 (런당 1회)
 var current_node: String = ""         ## 지금 서 있는 노드(지도 복귀의 기준)
 var party_lost: int = 0               ## 스러진 대원 수(0~PARTY_MATES). 0 이어야 온전한 도달(재회 축 ③)
+var party_gained: int = 0             ## 이번 런에 거둔 낙오자 수(재회 축 ②: REUNION_RESCUES 이상 데리고 도달)
+var loss_sites: Array = []            ## 이번 런의 대원 손실 자리 [{node_id, cause}] — 런이 끝나면 GameState 가 낙오자로 심는다
 var vocation_id: String = ""          ## 이번 원정 대장의 직능 id(저장·표시용, Vocations)
 var _vocation: Dictionary = {}        ## 직능 정의 — 효과 파라미터의 출처(생성자에서 로드)
 var carry_weight: int = 0             ## 가방 총 무게(무거우면 물 소모↑). Loadout 이 주입, 기본 0=무게 무시.
@@ -52,6 +54,7 @@ var rng := RandomNumberGenerator.new()
 var _loss_notes: Array = []           ## 방금 스러진 손실의 서사 줄들 — UI 가 take_loss_notes 로 소비
 var _water_scare: bool = false        ## 물 바닥 스침을 이미 겪었나(런당 1회만 센다)
 var _food_scare: bool = false
+var _straggler_nodes: Dictionary = {} ## 낙오자가 기다리는 노드(node_id→true, GameState 주입) — 도착 시 거두기 카드
 var _last_situation_id: String = ""
 var _next_situation_leg: int = 0      ## 다음 일반 상황이 뜰 걸음
 var _bridged: Dictionary = {}         ## 로프가 걸린 차단 노드(node_id→true) — 그 노드 도착 시 무료 통과
@@ -63,7 +66,7 @@ var _edge_len: int = 0
 
 ## bridged_nodes/persist_flags/pickup_traces = 과거 원정에서 누적된 영속 데이터(GameState 주입). core 는 GameState 미참조(순수성).
 ## voc_id = 이번 원정 대장의 직능(Vocations). 기본 "" = 평범(효과 없음) → 기존 호출부(4인자)를 안 깨뜨린다.
-func _init(starting: Dictionary = {}, bridged_nodes: Array = [], persist_flags: Array = [], pickup_traces: Dictionary = {}, voc_id: String = "", weight: int = 0) -> void:
+func _init(starting: Dictionary = {}, bridged_nodes: Array = [], persist_flags: Array = [], pickup_traces: Dictionary = {}, voc_id: String = "", weight: int = 0, stragglers_at: Array = []) -> void:
 	resources = starting.duplicate()
 	vocation_id = voc_id
 	carry_weight = weight
@@ -77,6 +80,8 @@ func _init(starting: Dictionary = {}, bridged_nodes: Array = [], persist_flags: 
 	for f in persist_flags:
 		_flags[str(f)] = true
 	_traces = pickup_traces.duplicate(true)
+	for nid in stragglers_at:
+		_straggler_nodes[str(nid)] = true
 	current_node = MapGraph.START_ID
 	rng.randomize()
 
@@ -104,13 +109,19 @@ func set_flag(f: String) -> void:
 
 # --- 행렬 (연출 파티 — 위험한 순간마다 대원이 스러진다, 재회 축 ③ "온전한 도달") ---
 
-## 지금 함께 걷는 사람 수(대장 포함).
+## 지금 함께 걷는 사람 수(대장 포함, 거둔 낙오자 포함).
 func party_left() -> int:
-	return 1 + PARTY_MATES - party_lost
+	return 1 + PARTY_MATES - party_lost + party_gained
 
-## 온전한가 — 아무도 잃지 않았나. 재회(ending_kind)의 세 번째 축.
+## 온전한가 — 아무도 잃지 않았나. 재회(ending_kind)의 축 하나.
+## 거둔 낙오자는 손실을 상쇄하지 않는다(2026-07-10 사용자 확정) — 잃은 사람은 잃은 사람이다.
 func is_intact() -> bool:
 	return party_lost == 0
+
+## 낙오자를 행렬에 거둔다(도착 카드의 action="rescue"). 자원 비용은 카드 effect 가 이미 치렀다.
+func rescue_straggler(node_id: String) -> void:
+	party_gained += 1
+	_straggler_nodes.erase(node_id)
 
 ## 방금 발생한 손실 서사를 꺼내 간다(꺼내면 비운다) — Map/Expedition 이 팝업으로 보여준다.
 func take_loss_notes() -> Array:
@@ -119,10 +130,15 @@ func take_loss_notes() -> Array:
 	return out
 
 ## 대원 한 사람이 스러진다. 대장 혼자 남았으면 더 잃을 사람이 없다(대장의 죽음 = 런 종료 죽음뿐).
+## 스러진 자리는 loss_sites 에 남는다 — 런이 끝나면 그 자리에 낙오자가 생긴다(내 실패가 구할 사람이 된다).
+## 마을(START_ID)은 제외 — 마을 어귀의 낙오는 마을 사람들이 거둔다.
 func _lose_mate(cause: String) -> void:
-	if party_lost >= PARTY_MATES:
+	if party_lost >= PARTY_MATES + party_gained:
 		return
 	party_lost += 1
+	var site: String = death_node_id()
+	if site != "" and site != MapGraph.START_ID:
+		loss_sites.append({"node_id": site, "cause": cause})
 	var line: String = "행렬의 한 사람이 일어나지 못했다."
 	match cause:
 		"thirst":
@@ -253,12 +269,14 @@ func step() -> void:
 	# 도착(_edge_step >= _edge_len)이면 카드를 자동으로 안 띄운다 — 그 노드 단면(SectionRun)이 지점으로 낸다.
 
 ## 도착 노드의 "주요 지점" 카드를 계산해 반환한다 (부작용 없음 — 단면 SectionRun 이 쓴다).
-## 우선순위: ① 로프 걸린 차단 무료 통과 ② 이전 원정대 흔적 줍기 ③ 노드 이벤트. 셋 다 없으면 빈 Dictionary.
-## ⚠ ②가 ③(폭풍/차단 필수 위협 포함)을 가리는 것은 **의도**다(사용자 확정 2026-07-08) — 폭풍 노드에
-## 물건을 남겨두면 다음 원정은 위협 대신 이전 원정대의 배려를 만난다. 남김(자기희생)이 대가를 치른
-## 방패가 되는 self-async 루프. "위협 필수화"의 버그로 오인해 순서를 바꾸지 말 것.
+## 우선순위: ① 낙오자 거두기 ② 로프 걸린 차단 무료 통과 ③ 이전 원정대 흔적 줍기 ④ 노드 이벤트.
+## ⚠ 앞이 뒤(폭풍/차단 필수 위협 포함)를 가리는 것은 **의도**다(사용자 확정 2026-07-08, 흔적 가림과 같은 원리) —
+## 폭풍 노드에 물건을 남겨두면 다음 원정은 위협 대신 이전 원정대의 배려를 만난다. 남김(자기희생)이 대가를 치른
+## 방패가 되는 self-async 루프. 사람(낙오자)은 물건보다 먼저다. "위협 필수화"의 버그로 오인해 순서를 바꾸지 말 것.
 func arrival_event() -> Dictionary:
 	var node: Dictionary = MapGraph.node(_target_node)
+	if _straggler_nodes.has(_target_node):
+		return Situations.straggler_event()
 	if str(node.get("kind", "")) == "blockage" and is_bridged(_target_node):
 		return Situations.crossed_blockage(node)
 	if _traces.has(_target_node):

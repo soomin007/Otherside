@@ -336,6 +336,11 @@ func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, a
 	if action == "pickup" and trace_kind >= 0:
 		GameState.use_trace(here_node, trace_kind)
 		AudioManager.play_sfx(AudioManager.PICKUP)  # 이전 원정대의 흔적을 줍는다
+	# 낙오자 거두기 — 행렬 +1, 세계에서 그 자리 제거(영속). 데리고 닿아야 재회 축이 찬다.
+	var rescued: bool = action == "rescue"
+	if rescued:
+		_run.rescue_straggler(here_node)
+		GameState.rescue_straggler(here_node)
 	# 선택 반영 — 플래그를 켠다. sets(같은 런 즉시) + sets_persist(다음 원정에도, GameState 영속).
 	for f in sets:
 		_run.set_flag(str(f))
@@ -346,7 +351,13 @@ func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, a
 	_sit_panel.visible = false
 	_refresh()
 	# blind choice 뒷면 — 눌러봐야 결과를 안다. 무엇이 일어났는지(자원 변화)를 팝업으로 공개한다.
-	_result_popup.show_result(label, effect, _after_choice, _take_loss_note())
+	# 구조(따뜻한 모래색)와 손실(붉은색)이 겹치면 손실이 우선 — 잃은 쪽이 더 무겁다.
+	var note: String = _take_loss_note()
+	var note_color: Color = UITheme.DANGER
+	if rescued and note == "" and _run.alive:
+		note = "한 사람이 행렬에 들어선다.\n행렬은 %d명이 되었다." % _run.party_left()
+		note_color = UITheme.SAND
+	_result_popup.show_result(label, effect, _after_choice, note, note_color)
 
 ## 결과 팝업을 닫은 뒤 — 계속 전진(또는 결정이 곧 죽음이었으면 죽음 화면).
 func _after_choice() -> void:

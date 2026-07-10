@@ -45,8 +45,9 @@ func _init() -> void:
 
 ## 결과를 띄운다. body=묘사(빈 문자열이면 숨김), effect=자원 델타(빈 Dictionary면 "달라진 건 없다").
 ## cb = "계속"을 누를 때 실행할 콜백(다음 단계로 잇기 — 이동 재개·죽음 처리 등).
-## note = 무거운 한 줄(행렬 손실 등) — 델타 아래 붉게. 있으면 "달라진 건 없다"는 생략(이미 잃은 게 말한다).
-func show_result(body: String, effect: Dictionary, cb: Callable = Callable(), note: String = "") -> void:
+## note = 무거운 한 줄(행렬 손실·구조 등) — 델타 아래. 기본 붉게(손실), note_color 로 바꿀 수 있다(구조=모래색).
+## note 가 있으면 "달라진 건 없다"는 생략(이미 일어난 일이 말한다).
+func show_result(body: String, effect: Dictionary, cb: Callable = Callable(), note: String = "", note_color: Color = UITheme.DANGER) -> void:
 	_cb = cb
 	_closing = false
 	move_to_front()  # 연속 모달에서 새로 뜬 팝업이 다른 패널 아래에 깔리지 않게 — 항상 맨 위
@@ -54,6 +55,7 @@ func show_result(body: String, effect: Dictionary, cb: Callable = Callable(), no
 	_body_label.visible = body != ""
 	_note_label.text = note
 	_note_label.visible = note != ""
+	_note_label.add_theme_color_override("font_color", note_color)
 	if not effect.is_empty():
 		_delta_label.text = UITheme.effect_hint(effect)
 		_delta_label.add_theme_color_override("font_color", UITheme.SAND)

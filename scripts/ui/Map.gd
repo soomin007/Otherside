@@ -837,6 +837,7 @@ func _draw() -> void:
 
 	# 흔적 — 이전 원정대들이 노드에 남긴 것(누적된 길/죽음의 역사, self-async).
 	_draw_traces(area)
+	_draw_stragglers(area)  # 뒤처진 이가 기다리는 자리(재회 축 "구조") — 재회 런의 동선 계획 근거
 	_draw_arrows(area)  # 갈림에서 원정대가 실제 간 방향 화살표(선택의 자취)
 
 	# 이동 중 — 지금 걷는 엣지(미방문 노드로 향함)에 마커가 지나온 만큼만 발자국이 실시간으로 남는다.
@@ -1029,6 +1030,30 @@ func _draw_dashed_poly(pts: PackedVector2Array, col: Color, w: float) -> void:
 				acc = 0.0
 
 ## 노드별 흔적 마커 — 죽음 X·로프 다리·자원 점. 가본 노드에만(흔적은 가본 곳에서만 생긴다).
+## 낙오자 마커 — 그 노드에 뒤처진 이가 기다린다(재회 축 "구조"). 보임 규칙은 흔적과 동일(방문 + 다음 노드).
+## 위치 = 아이콘 오른쪽 옆구리 — 왼쪽의 흔적 스택과 안 겹친다.
+func _draw_stragglers(area: Rect2) -> void:
+	var ms: float = _mscale()
+	for nid in GameState.straggler_nodes():
+		var s: String = str(nid)
+		if not MapGraph.NODES.has(s):
+			continue
+		if not _is_revealed(s) and not _is_next_choice(s):
+			continue
+		var base: Vector2 = _node_screen(s, area)
+		var half: float = _node_size(s) * 0.5
+		_draw_person(base + Vector2(half + 12.0 * ms, -2.0 * ms), ms)
+
+## 손그림 사람 실루엣(머리 + 웅크린 몸) — 세피아 잉크, 옅은 온기 무리(사람이 있다는 신호).
+func _draw_person(at: Vector2, ms: float) -> void:
+	var ink := Color(0.36, 0.24, 0.16, 0.92)
+	draw_circle(at, 9.5 * ms, Color(0.86, 0.66, 0.38, 0.18))
+	draw_circle(at + Vector2(0.0, -6.5 * ms), 2.6 * ms, ink)
+	# 웅크린 몸 — 어깨에서 바닥으로 퍼지는 획 셋(둘러쓴 천).
+	draw_line(at + Vector2(-3.2 * ms, -3.2 * ms), at + Vector2(-4.4 * ms, 4.2 * ms), ink, 1.6 * ms, true)
+	draw_line(at + Vector2(0.0, -3.6 * ms), at + Vector2(0.0, 4.6 * ms), ink, 1.8 * ms, true)
+	draw_line(at + Vector2(3.2 * ms, -3.2 * ms), at + Vector2(4.4 * ms, 4.2 * ms), ink, 1.6 * ms, true)
+
 ## 위치 = 아이콘 왼쪽 옆구리(세로 중앙) — 라벨(아이콘 아래)·경고 표식(오른쪽 위)·원정대 태그(위)를 전부 피한다.
 ## (예전 왼쪽 아래(half+6)는 라벨 글자 줄과 정확히 겹쳤다 — 2026-07-06 사용자 지적.) 여러 개면 위로 쌓는다.
 func _draw_traces(area: Rect2) -> void:
@@ -1235,6 +1260,9 @@ func _draw_col_left(font: Font, sc: float) -> void:
 		draw_line(Vector2(x + 3.0 * sc, y - 9.0 * sc), Vector2(x + 13.0 * sc, y), UITheme.DANGER, 2.0, true)
 		draw_line(Vector2(x + 3.0 * sc, y), Vector2(x + 13.0 * sc, y - 9.0 * sc), UITheme.DANGER, 2.0, true)
 	draw_string(font, Vector2(x + sym_w, y), "죽은 자리", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
+	y += 21.0 * sc
+	_draw_person(Vector2(x + 8.0 * sc, y - 4.0 * sc), sc * 0.62)
+	draw_string(font, Vector2(x + sym_w, y), "뒤처진 이", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
 	var warn: Texture2D = _sketch_tex.get("warn", null)
 	if warn != null:
 		y += 21.0 * sc

@@ -348,6 +348,22 @@ static func pick_event(feat: Dictionary, flags: Dictionary, rng: RandomNumberGen
 		out["threat"] = feat.get("threat", Threats.Kind.CONSUMPTION)
 	return out
 
+## 낙오자를 만난 카드 — 이전 원정에서 뒤처진 이가 버티고 있다(재회 축: 거두어 데리고 온전히 닿기).
+## 거두면 물을 나눠 줘야 한다(needs 3: 나누고도 내가 살아야 한다) — 사람을 거두는 것도 남김의 문법(자기희생).
+## 지나치면 그 자리에 남는다(다음 원정대 몫). action="rescue" 는 UI 가 받아 행렬 +1 + 세계에서 제거.
+static func straggler_event() -> Dictionary:
+	return {
+		"id": "straggler",
+		"kind": "straggler",
+		"name": "웅크린 사람",
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "바람을 피한 그늘에 사람이 웅크리고 있다. 지난 원정에서 뒤처진 이가, 여기까지 버티고 있었다.",
+		"choices": [
+			{"label": "물을 나눠 주고 행렬에 거둔다", "effect": {"water": -2}, "needs": {"water": 3}, "action": "rescue"},
+			{"label": "지금은 지나친다 (다음 원정대가 거둔다)", "effect": {}},
+		],
+	}
+
 ## 이미 로프가 걸린 차단 지점에 다시 왔을 때의 카드 - 이전 원정대가 길을 열어뒀다(self-async 보상).
 ## 자원 소모 없이 통과한다. 차단의 정체성("가장 뿌듯한 흔적")을 죽음 너머에서 되돌려받는 순간.
 static func crossed_blockage(feat: Dictionary) -> Dictionary:

@@ -131,7 +131,7 @@ func _build() -> void:
 		_add_btn(col, "flag: " + flag, func() -> void: _set_flag(flag))
 
 	_add_title(col, "결말")
-	_add_btn(col, "재회 임계 채우기 (흔적 %d·기림 %d·손실 0)" % [GameState.REUNION_TRACES, GameState.REUNION_MOURN], _fill_reunion)
+	_add_btn(col, "재회 임계 채우기 (기림 %d·구조 %d·손실 0)" % [GameState.REUNION_MOURN, GameState.REUNION_RESCUES], _fill_reunion)
 	_add_btn(col, "엔딩 바로보기: 순환", func() -> void: _show_ending("cycle"))
 	_add_btn(col, "엔딩 바로보기: 재회 (크레딧 롤)", func() -> void: _show_ending("reunion"))
 
@@ -298,16 +298,12 @@ func _show_ending(kind: String) -> void:
 	_panel.visible = false
 
 func _fill_reunion() -> void:
-	for i in range(GameState.REUNION_TRACES):
-		GameState.traces.append({
-			"object_kind": TraceData.ObjectKind.MARK,
-			"node_id": "", "leg": 0, "position": 0.0, "tags": [], "uses": 0,
-		})
-	# 재회의 두 번째 축(기림)도 채운다 — 더미 node_id 로 mourn_count 만 충족시킨다.
+	# 기림 축 — 더미 node_id 로 mourn_count 만 충족시킨다.
 	for i in range(GameState.REUNION_MOURN):
 		GameState.mark_mourned("debug_mourn_%d" % i)
-	# 세 번째 축(온전한 도달) — 이번 런의 행렬 손실을 되돌린다(테스트에서 재회가 막히지 않게).
+	# 구조·온전 축은 이번 런의 상태 — 거둔 것으로 치고, 행렬 손실은 되돌린다(테스트에서 재회가 막히지 않게).
 	if GameState.current_run != null:
+		GameState.current_run.party_gained = GameState.REUNION_RESCUES
 		GameState.current_run.party_lost = 0
 	GameState.save_game()
 	_refresh_state()
@@ -322,13 +318,14 @@ func _refresh_state() -> void:
 		return
 	var run: ExpeditionRun = GameState.current_run
 	var lines: Array = []
-	lines.append("원정 #%d · 흔적 %d/%d · 기림 %d/%d · 죽은자리 %d" % [
-		GameState.expedition_count, GameState.traces.size(), GameState.REUNION_TRACES,
-		GameState.mourn_count(), GameState.REUNION_MOURN, GameState.deaths.size()])
+	lines.append("원정 #%d · 기림 %d/%d · 낙오자 %d곳 · 죽은자리 %d" % [
+		GameState.expedition_count, GameState.mourn_count(), GameState.REUNION_MOURN,
+		GameState.straggler_nodes().size(), GameState.deaths.size()])
 	lines.append("공개 노드 %d/%d" % [GameState.visited_nodes.size(), MapGraph.NODES.size()])
 	if run != null:
 		lines.append("노드 %s · leg %d · %s" % [run.current_node, run.leg, ("살아있음" if run.alive else "사망:" + run.death_cause)])
 		lines.append("물 %d · 식량 %d · 로프 %d · 장막 %d" % [run.get_res("water"), run.get_res("food"), run.get_res("rope"), run.get_res("shelter")])
+		lines.append("행렬 %d명 · 손실 %d · 구조 %d/%d" % [run.party_left(), run.party_lost, run.party_gained, GameState.REUNION_RESCUES])
 	else:
 		lines.append("(진행 중 원정 없음)")
 	_state.text = "\n".join(PackedStringArray(lines))
