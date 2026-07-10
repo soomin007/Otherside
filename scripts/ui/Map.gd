@@ -137,6 +137,9 @@ var _hover_t: float = 0.0            ## hover 원 그려짐 경과(호버 바뀔
 func _ready() -> void:
 	if GameState.current_run == null or not GameState.current_run.alive:
 		GameState.begin_run_in_place()
+	# 이어하기 복귀 — 엣지 위에서 끊겼으면(카드가 열려 있었으면 카드부터) 걸음을 잇는다.
+	# 패널들이 _ready 뒤에 만들어지므로 한 프레임 미룬다.
+	_resume_mid_edge.call_deferred()
 	AudioManager.play_bed()  # 폭풍 노드에서 돌아왔으면 베드로 복귀(이미 베드면 무시 — 연속 유지)
 	# 위치 반영 환경 강도 — 현 위치가 깊을수록(진행 row) 돌풍이 잦고 모래가 세게 흐른다(분위기 시스템 (b)).
 	var env_prog: float = MapGraph.progress(_current_node_id())
@@ -397,6 +400,7 @@ func _process(delta: float) -> void:
 		return
 	run.step()
 	AudioManager.play_step()   # 모래 발소리(4변주 랜덤)
+	GameState.autosave_run()   # 걸음마다 이어하기 저장 — 폰 브라우저가 탭을 죽여도 이 걸음까지는 남는다
 	_refresh_hud()
 	# 이 걸음이 닿은 자리에 잉크가 번진다(잉크처럼 퍼지는 이동).
 	if run.alive:
@@ -589,9 +593,21 @@ func _on_situation_choice(event_id: String, idx: int, label: String, effect: Dic
 		_edge_pickup = {}
 	_sit_panel.visible = false
 	_set_card_storm(false)  # 카드 닫힘 — 폭풍 파티클 분출 정지
+	GameState.autosave_run()  # 결정은 되돌릴 수 없다 — 즉시 이어하기 저장
 	_refresh_hud()
 	# blind choice 뒷면 — 결과(자원 변화)를 팝업으로 공개하고, 닫으면 이동을 잇는다.
 	_result_popup.show_result(label, effect, _after_situation, _take_loss_note(run))
+
+## 이어하기 복귀(지도 진입 한 프레임 뒤) — 엣지 위에서 끊긴 원정을 잇는다.
+## 평소 지도 진입(노드에서 복귀·출발 전)엔 is_mid_edge 가 false 라 아무것도 안 한다.
+func _resume_mid_edge() -> void:
+	var run: ExpeditionRun = GameState.current_run
+	if run == null or not run.alive or not run.is_mid_edge() or _moving:
+		return
+	if not run.pending_situation.is_empty():
+		_show_situation_card()  # 카드가 열린 채 끊겼다 — 결정부터. 닫으면 이동이 이어진다.
+	else:
+		_moving = true
 
 ## 방금 걸음/선택이 행렬에서 사람을 앗아갔으면 그 서사를 꺼낸다. 죽었으면 버린다(죽음 화면이 말한다).
 func _take_loss_note(run: ExpeditionRun) -> String:

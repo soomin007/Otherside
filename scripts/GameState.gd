@@ -7,7 +7,7 @@ extends Node
 ## 1차는 self-async — 이전 원정대(내 과거 런)의 흔적이 다음 원정대에게 남는다.
 
 const SAVE_PATH: String = "user://otherside_save.json"  # 웹에선 브라우저 IndexedDB 에 영속
-const SAVE_VERSION: int = 1
+const SAVE_VERSION: int = 2  ## v2(2026-07-10): 이어하기 저장(run·run_section) 추가. 로더는 키 부재에 관대해 v1 세이브 호환.
 
 const SCENE_TITLE: String = "res://scenes/main.tscn"
 const SCENE_MAP: String = "res://scenes/map.tscn"
@@ -41,6 +41,7 @@ const START_RESOURCES: Dictionary = {"water": 20, "food": 13, "rope": 1, "shelte
 const REUNION_RESCUES: int = 2 ## 재회에 필요한, 이번 런에 거둬 데리고 닿은 낙오자 수(2026-07-10 사용자 확정 — 옛 남김 4(REUNION_TRACES) 축을 교체). 낙오자 = 유령 씨앗 + 과거 런의 대원 손실 자리. 남기기의 가치는 생존 효용·기림으로 존속.
 const REUNION_MOURN: int = 2   ## 재회에 필요한 기린(추모한) 죽은 자리 수(2026-07-09 사용자 확정). 추모 = 죽은 자리에 표식(MARK)을 남김(런당 1회의 남기기를 씀). 순환과 재회를 가르는 세 축 = 기림 + 구조 + 온전.
 var current_run: ExpeditionRun = null  ## 진행 중인 원정의 순수 상태·로직 (core/ExpeditionRun)
+var section_state: Dictionary = {}  ## 진행 중 단면 탐색 스냅샷(SectionRun.to_dict, 노드에 있을 때만) — 이어하기 정밀 복원용. Expedition 이 갱신, 세이브에 실린다.
 var ending_kind_pending: String = ""  ## 엔딩 슬라이드쇼(Ending 오버레이)가 읽을 결말("cycle"/"reunion"). Expedition._show_ending 이 세팅.
 var pending_expedition_name: String = ""  ## 폭풍 막간(Interlude)이 지명한 다음 원정대 이름 → Loadout 이 초기값으로 소비(비영속).
 ## blind choice — 겪어본 선택지 ("event_id#idx"→true). 그 선택지 결과를 이후 노출한다(학습).
@@ -209,6 +210,7 @@ func begin_run_with(resources: Dictionary, name: String = "", voc_id: String = "
 		nm = ExpeditionNamer.random(rng)
 	expedition_names.append(nm)
 	_mark_visited(MapGraph.START_ID)
+	autosave_run()  # 출발 즉시 이어하기 슬롯에 실린다(꾸리기 결과 보존)
 
 ## n번째(1-based) 원정의 이름. 없으면(기존 세이브 등) 기본 문구.
 func expedition_name(n: int) -> String:
@@ -239,6 +241,27 @@ func mark_controls_tutorial_seen() -> void:
 func begin_travel(target_id: String) -> void:
 	if current_run != null:
 		current_run.begin_edge(target_id)
+		autosave_run()
+
+# --- 이어하기 (서스펜드 저장 — 한 슬롯·상시 자동 저장·런 종료 시 삭제·시점 선택 없음) ---
+
+## 길 위에 이어갈 원정이 있나 — 타이틀이 "이어서 간다" 게이트로 쓴다.
+func has_resumable_run() -> bool:
+	return current_run != null and current_run.alive
+
+## 진행 중 상태를 저장한다. section = 단면 탐색 스냅샷(노드에 있을 때만, 지도에선 비워서 지운다).
+func autosave_run(section: Dictionary = {}) -> void:
+	section_state = section
+	save_game()
+
+## 떠났던 자리에서 잇는다 — 노드 도착 상태면 그 노드 화면, 아니면(엣지 위·지도) 지도로.
+func resume_run() -> void:
+	if current_run == null:
+		return
+	if current_run.target_node_id() != "" and current_run.arrived():
+		Transition.go(SCENE_EXPEDITION)
+	else:
+		Transition.go(SCENE_MAP)
 
 ## 목표 노드에 도착했을 때 그 노드 화면으로 전환한다 (Map 이 호출).
 func go_to_expedition() -> void:
@@ -249,6 +272,7 @@ func arrive_node() -> void:
 	if current_run != null:
 		current_run.arrive()
 		_mark_visited(current_run.current_node)
+		autosave_run()  # 노드를 떠난다 — 단면 스냅샷은 비우고(기본 {}) 위치만 싣는다
 	Transition.go(SCENE_MAP)
 
 # --- 결말 (기획서 §3 결말: 순환과 재회) ---
@@ -288,6 +312,8 @@ func next_expedition() -> void:
 func go_to_interlude() -> void:
 	_harvest_stragglers()  # 방어적 — 죽음/도달 기록이 놓친 손실 자리가 있어도 런을 닫기 전에 심는다
 	current_run = null
+	section_state = {}
+	save_game()  # 이어하기 슬롯 비우기 — 닫힌 런은 되살릴 수 없다(서스펜드 전용)
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
 	pending_expedition_name = ExpeditionNamer.random(rng)
@@ -296,6 +322,8 @@ func go_to_interlude() -> void:
 ## 재회(진짜 엔딩) 후 — 타이틀로 돌아간다. 세이브(축적)는 유지된다.
 func go_to_title() -> void:
 	current_run = null
+	section_state = {}
+	save_game()  # 이어하기 슬롯 비우기
 	Transition.go(SCENE_TITLE)
 
 ## 노드를 방문 기록에 더한다(영속). 지도 안개를 걷는다.
@@ -307,6 +335,7 @@ func _mark_visited(node_id: String) -> void:
 ## 죽기 전 단 한 번 흔적을 남긴다 (기획서 §3). 남김 = 자기 수명 깎기.
 func leave_trace(trace: TraceData) -> void:
 	traces.append(trace.to_dict())
+	save_game()  # 남김은 되돌릴 수 없는 결정 — 즉시 영속(이어하기 런 상태도 함께 실린다)
 
 # --- 추모 (죽은 자리 기리기 — 재회 조건의 두 번째 축, 기획서 §3 결말) ---
 
@@ -489,6 +518,10 @@ func save_game() -> void:
 		"arrivals": arrivals,
 		"seen_choices": seen_choices,
 		"seeded": seeded,
+		# 이어하기(서스펜드) — 살아 있는 진행 중 원정만 싣는다. 죽음/도달로 런이 닫히면 다음 저장에서 비워진다.
+		# 자유 세이브/로드 아님(사용자 확정 2026-07-10): 한 슬롯, 상시 자동 저장, 시점 선택 없음.
+		"run": current_run.to_dict() if (current_run != null and current_run.alive) else {},
+		"run_section": section_state if (current_run != null and current_run.alive) else {},
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
@@ -526,6 +559,11 @@ func load_game() -> void:
 	arrivals = data.get("arrivals", [])
 	seen_choices = data.get("seen_choices", {})
 	seeded = bool(data.get("seeded", false))
+	# 이어하기 — 길 위에 원정이 있었으면 되살린다(타이틀이 "이어서 간다"를 띄운다).
+	var run_data: Dictionary = data.get("run", {})
+	if not run_data.is_empty():
+		current_run = ExpeditionRun.from_dict(run_data)
+	section_state = data.get("run_section", {})
 
 ## 세이브 초기화 (새 세계). 빈 상태로 덮어쓴다 — 웹/데스크톱 모두 안전.
 func reset_save() -> void:
@@ -540,6 +578,7 @@ func reset_save() -> void:
 	village_intro_seen = false
 	mourned_nodes = []
 	stragglers = []
+	section_state = {}
 	reunion_hints_shown = 0
 	expedition_names = []
 	arrivals = []

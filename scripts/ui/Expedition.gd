@@ -55,7 +55,14 @@ func _ready() -> void:
 	elif _run.target_node_id() == "end":
 		_show_ending()
 	else:
-		_section = SectionRun.new(_run, MapGraph.node(_run.target_node_id()))
+		# 이어하기 복원 — 이 노드의 단면 스냅샷이 있으면 그대로 살린다(살핀 지점·남은 예산·도착 카드까지.
+		# _init 을 다시 태우면 도착 카드가 재추첨되고 예산이 리셋된다 — 정밀 복원, 사용자 확정 2026-07-10).
+		var saved_section: Dictionary = GameState.section_state
+		if not saved_section.is_empty() and str(saved_section.get("node_id", "")) == _run.target_node_id():
+			_section = SectionRun.from_dict(saved_section)
+		else:
+			_section = SectionRun.new(_run, MapGraph.node(_run.target_node_id()))
+			GameState.autosave_run(_section.to_dict())  # 도착 카드 추첨 결과 확정 — 다시 뽑히지 않게 즉시 저장
 		# 폭풍 biome 노드는 위기곡으로 교체, 그 외엔 베드(이미 재생 중이면 무시 — 연속 유지).
 		if str(MapGraph.node(_run.target_node_id()).get("biome", "")) == "storm":
 			AudioManager.play_storm()
@@ -72,7 +79,10 @@ func _ready() -> void:
 		# 도착하는 마지막 걸음이 행렬에서 사람을 앗아갔으면(지도가 못 보여주고 넘어온 손실) 여기서 알린다.
 		var carried_loss: String = _take_loss_note()
 		if carried_loss != "":
-			_result_popup.show_result("", {}, Callable(), carried_loss)
+			_result_popup.show_result("", {}, _after_carried_loss, carried_loss)
+		elif not _run.pending_situation.is_empty():
+			# 이어하기 복귀 — 카드가 열린 채 끊겼다. 결정부터 다시 마주한다.
+			_show_situation.call_deferred()
 
 func _build_hud() -> void:
 	# 상단 HUD 바 — 가독성을 위해 반투명 어두운 배경 위에 텍스트. 전체 폭.
@@ -251,6 +261,11 @@ func _any_leavable() -> bool:
 func _res_color(value: int, low: int, base: Color) -> Color:
 	return UITheme.DANGER if value <= low else base
 
+## 이어하기 복귀에서 이월 손실 팝업을 닫은 뒤 — 열려 있던 카드가 있으면 그것부터 다시 마주한다.
+func _after_carried_loss() -> void:
+	if not _run.pending_situation.is_empty():
+		_show_situation()
+
 ## 방금 선택/조사가 행렬에서 사람을 앗아갔으면 그 서사를 꺼낸다. 죽었으면 버린다(죽음 화면이 말한다).
 func _take_loss_note() -> String:
 	var notes: Array = _run.take_loss_notes()
@@ -349,6 +364,7 @@ func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, a
 	if not sets_persist.is_empty():
 		GameState.add_persist_flags(sets_persist)
 	_sit_panel.visible = false
+	GameState.autosave_run(_section.to_dict() if _section != null else {})  # 결정 확정 — 즉시 이어하기 저장
 	_refresh()
 	# blind choice 뒷면 — 눌러봐야 결과를 안다. 무엇이 일어났는지(자원 변화)를 팝업으로 공개한다.
 	# 구조(따뜻한 모래색)와 손실(붉은색)이 겹치면 손실이 우선 — 잃은 쪽이 더 무겁다.
@@ -473,9 +489,11 @@ func _probe_spot(i: int) -> void:
 	if res.is_empty():
 		return
 	AudioManager.play_sfx(AudioManager.REVEAL, -4.0)  # 조사 — 잉크가 번지듯 드러난다
+	# 이어하기 저장은 각 분기에서 상태가 다 정해진 뒤에 — 열린 카드(pending)·자원 반영까지 스냅샷에 실린다.
 	var t: String = str(res.get("type", ""))
 	if t == "event":
 		_run.raise_situation(res.get("event", {}))
+		GameState.autosave_run(_section.to_dict())
 		_refresh()
 		queue_redraw()
 		if not _run.pending_situation.is_empty():
@@ -491,11 +509,13 @@ func _probe_spot(i: int) -> void:
 			_run.set_flag(str(f))
 		if not sp.is_empty():
 			GameState.add_persist_flags(sp)
+		GameState.autosave_run(_section.to_dict())
 		_refresh()
 		queue_redraw()
 		_result_popup.show_result(str(res.get("text", "")), effect, _after_delta, _take_loss_note())
 		return
 	# empty — 빈손도 팝업으로(하단 배너 폐기, 결과는 전부 모달로 통일).
+	GameState.autosave_run(_section.to_dict())
 	_refresh()
 	queue_redraw()
 	_result_popup.show_result(str(res.get("text", "아무것도 없다.")), {}, Callable())

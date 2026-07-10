@@ -29,7 +29,10 @@ var budget_start: int = 0   ## 초기 예산(램프 UI 가 "몇 중 몇 남음"�
 var gate_idx: int = -1      ## 통과 게이트 지점 인덱스(-1=게이트 없음). done 전엔 보조 지점 숨김.
 var spots: Array = []   ## 각: {label:String, at:Vector2, done:bool, _result:Dictionary}
 
-func _init(run: ExpeditionRun, node: Dictionary) -> void:
+## run == null 은 from_dict(이어하기 복원) 전용 — 빈 껍데기를 만들고 저장본으로 채운다.
+func _init(run: ExpeditionRun = null, node: Dictionary = {}) -> void:
+	if run == null:
+		return
 	node_id = run.target_node_id()
 	kind = str(node.get("kind", ""))
 	# 주요 지점 — 도착 카드(이벤트/차단/줍기)가 있으면 하나.
@@ -75,6 +78,38 @@ func _init(run: ExpeditionRun, node: Dictionary) -> void:
 		probes -= 1
 	budget = mini(maxi(0, probes), optional_count)
 	budget_start = budget
+
+# --- 직렬화 (이어하기 저장 — 단면 탐색 도중의 정밀 복원) ---
+
+## 스냅샷(JSON 안전: Vector2 → [x, y]). 지점의 _result(이벤트 카드 포함)까지 통째로 실어,
+## 복원 시 _init 을 다시 태우지 않는다 — 도착 카드(rng 추첨)가 다시 뽑히는 것을 막는다(같은 노드, 같은 사건).
+func to_dict() -> Dictionary:
+	var sp: Array = []
+	for s in spots:
+		var e: Dictionary = (s as Dictionary).duplicate(true)
+		var at: Vector2 = e.get("at", Vector2(0.5, 0.5))
+		e["at"] = [at.x, at.y]
+		sp.append(e)
+	return {
+		"node_id": node_id, "kind": kind,
+		"budget": budget, "budget_start": budget_start, "gate_idx": gate_idx,
+		"spots": sp,
+	}
+
+## 스냅샷 복원 — JSON 왕복의 float 를 명시 캐스팅하고 [x, y]를 Vector2 로 되돌린다.
+static func from_dict(d: Dictionary) -> SectionRun:
+	var sec := SectionRun.new()
+	sec.node_id = str(d.get("node_id", ""))
+	sec.kind = str(d.get("kind", ""))
+	sec.budget = int(d.get("budget", 0))
+	sec.budget_start = int(d.get("budget_start", 0))
+	sec.gate_idx = int(d.get("gate_idx", -1))
+	for e in d.get("spots", []):
+		var s: Dictionary = (e as Dictionary).duplicate(true)
+		var at: Array = s.get("at", [0.5, 0.5])
+		s["at"] = Vector2(float(at[0]), float(at[1]))
+		sec.spots.append(s)
+	return sec
 
 func spot_count() -> int:
 	return spots.size()

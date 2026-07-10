@@ -32,6 +32,7 @@ func _init() -> void:
 	_test_weight()
 	_test_party_intact()
 	_test_stragglers()
+	_test_run_serialization()
 
 	if _fail == 0:
 		print("=== core_smoke: ALL PASS ===")
@@ -98,6 +99,54 @@ func _test_party_intact() -> void:
 		worn.apply_choice({"water": -5})
 	_ok(worn.party_lost == ExpeditionRun.PARTY_MATES, "행렬: 손실은 대원 수까지만")
 	_ok(worn.party_left() == 1, "행렬: 마지막엔 대장 홀로")
+
+## 이어하기 직렬화 — 실제 JSON 왕복 후 상태가 보존되고, rng 까지 복원돼 같은 미래를 걷는가.
+func _test_run_serialization() -> void:
+	var run: ExpeditionRun = ExpeditionRun.new({"water": 30, "food": 20, "rope": 1, "shelter": 1}, ["b2"], ["river_dug"], {}, "", 0, ["c1"])
+	run.begin_edge("a1")
+	for i in range(3):
+		run.step()
+		if not run.pending_situation.is_empty():
+			run.apply_choice({})
+	run.apply_choice({"water": -5})  # 위험한 순간 — 행렬·손실 자리도 직렬화 대상에 포함시킨다
+	var parsed: Variant = JSON.parse_string(JSON.stringify(run.to_dict()))
+	var d: Dictionary = parsed
+	var back: ExpeditionRun = ExpeditionRun.from_dict(d)
+	_ok(back.get_res("water") == run.get_res("water") and back.get_res("food") == run.get_res("food"), "이어하기: 자원 보존(JSON 왕복)")
+	_ok(back.leg == run.leg and back.current_node == run.current_node and back.target_node_id() == run.target_node_id(), "이어하기: 위치·엣지 보존")
+	_ok(back.party_lost == run.party_lost and back.loss_sites.size() == run.loss_sites.size(), "이어하기: 행렬·손실 자리 보존")
+	_ok(back.has_flag("river_dug") and back.is_bridged("b2"), "이어하기: 플래그·다리 보존")
+	_ok(back.bequeathed == run.bequeathed, "이어하기: 남기기 토큰 보존")
+	# rng 결정론 — 같은 스냅샷에서 복원한 둘이 같은 미래를 걷는다(같은 걸음에 같은 상황).
+	var a: ExpeditionRun = ExpeditionRun.from_dict(d)
+	var b: ExpeditionRun = ExpeditionRun.from_dict(d)
+	var same: bool = true
+	for i in range(8):
+		a.step()
+		b.step()
+		if str(a.pending_situation.get("id", "")) != str(b.pending_situation.get("id", "")):
+			same = false
+		if not a.pending_situation.is_empty():
+			a.apply_choice({})
+		if not b.pending_situation.is_empty():
+			b.apply_choice({})
+	_ok(same and a.leg == b.leg and a.get_res("water") == b.get_res("water"), "이어하기: rng 결정론(복원본 둘이 같은 미래)")
+	# 단면 스냅샷 — 살핀 지점·예산·게이트가 JSON 왕복 후 보존된다(정밀 복원).
+	var host: ExpeditionRun = ExpeditionRun.new({"water": 99, "food": 99})
+	host.begin_edge("a1")
+	_advance(host)
+	var sec: SectionRun = SectionRun.new(host, MapGraph.node("a1"))
+	for i in range(sec.spot_count()):
+		if sec.can_probe(i):
+			sec.probe(i)
+			break
+	var sparsed: Variant = JSON.parse_string(JSON.stringify(sec.to_dict()))
+	var sd: Dictionary = sparsed
+	var sec2: SectionRun = SectionRun.from_dict(sd)
+	_ok(sec2.budget_left() == sec.budget_left() and sec2.probed_count() == sec.probed_count(), "이어하기: 단면 예산·조사 보존")
+	var first_spot: Dictionary = sec2.get_spot(0)
+	_ok(sec2.spot_count() == sec.spot_count() and first_spot.get("at") is Vector2, "이어하기: 지점 좌표 복원(Vector2)")
+	_ok(sec2.has_unresolved_threat() == sec.has_unresolved_threat(), "이어하기: 위협 게이트 보존")
 
 ## 낙오자(재회 축 "구조") — 카드·도착 우선순위·거두기·손실 자리 기록 불변식.
 func _test_stragglers() -> void:

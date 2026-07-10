@@ -107,6 +107,70 @@ func has_flag(f: String) -> bool:
 func set_flag(f: String) -> void:
 	_flags[f] = true
 
+# --- 직렬화 (이어하기 저장 — 진행 중 원정을 세이브에 실어 나른다. 자유 세이브/로드 아님) ---
+
+## 이어하기 스냅샷(JSON 안전). rng 시드·상태는 64비트 정수라 JSON double 정밀도(2^53)를 넘을 수
+## 있어 문자열로 싣는다. _vocation 정의는 vocation_id 로 재구성한다(중복 저장 안 함).
+func to_dict() -> Dictionary:
+	return {
+		"resources": resources,
+		"leg": leg,
+		"alive": alive,
+		"death_cause": death_cause,
+		"pending_situation": pending_situation,
+		"bequeathed": bequeathed,
+		"current_node": current_node,
+		"vocation_id": vocation_id,
+		"carry_weight": carry_weight,
+		"party_lost": party_lost,
+		"party_gained": party_gained,
+		"loss_sites": loss_sites,
+		"loss_notes": _loss_notes,
+		"water_scare": _water_scare,
+		"food_scare": _food_scare,
+		"stragglers": _straggler_nodes.keys(),
+		"bridged": _bridged.keys(),
+		"flags": _flags.keys(),
+		"traces": _traces,
+		"target_node": _target_node,
+		"edge_step": _edge_step,
+		"edge_len": _edge_len,
+		"next_situation_leg": _next_situation_leg,
+		"last_situation_id": _last_situation_id,
+		"rng_seed": str(rng.seed),
+		"rng_state": str(rng.state),
+	}
+
+## 스냅샷 복원 — JSON 왕복으로 int 가 float 이 되므로 명시 캐스팅한다. 생성자가 직능 시작 보너스를
+## 다시 얹고 rng 를 새로 뽑으므로, 자원·rng 는 저장본으로 덮어쓴다(시드 → 상태 순서 유지).
+static func from_dict(d: Dictionary) -> ExpeditionRun:
+	var run := ExpeditionRun.new({}, d.get("bridged", []), d.get("flags", []), {}, str(d.get("vocation_id", "")), int(d.get("carry_weight", 0)), d.get("stragglers", []))
+	run.resources = {}
+	var res: Dictionary = d.get("resources", {})
+	for k in res:
+		run.resources[str(k)] = int(res[k])
+	run.leg = int(d.get("leg", 0))
+	run.alive = bool(d.get("alive", true))
+	run.death_cause = str(d.get("death_cause", ""))
+	run.pending_situation = d.get("pending_situation", {})
+	run.bequeathed = bool(d.get("bequeathed", false))
+	run.current_node = str(d.get("current_node", MapGraph.START_ID))
+	run.party_lost = int(d.get("party_lost", 0))
+	run.party_gained = int(d.get("party_gained", 0))
+	run.loss_sites = d.get("loss_sites", [])
+	run._loss_notes = d.get("loss_notes", [])
+	run._water_scare = bool(d.get("water_scare", false))
+	run._food_scare = bool(d.get("food_scare", false))
+	run._traces = d.get("traces", {}).duplicate(true)
+	run._target_node = str(d.get("target_node", ""))
+	run._edge_step = int(d.get("edge_step", 0))
+	run._edge_len = int(d.get("edge_len", 0))
+	run._next_situation_leg = int(d.get("next_situation_leg", 0))
+	run._last_situation_id = str(d.get("last_situation_id", ""))
+	run.rng.seed = str(d.get("rng_seed", "0")).to_int()
+	run.rng.state = str(d.get("rng_state", "0")).to_int()
+	return run
+
 # --- 행렬 (연출 파티 — 위험한 순간마다 대원이 스러진다, 재회 축 ③ "온전한 도달") ---
 
 ## 지금 함께 걷는 사람 수(대장 포함, 거둔 낙오자 포함).
