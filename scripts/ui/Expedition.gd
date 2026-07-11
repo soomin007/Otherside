@@ -229,7 +229,7 @@ func _build_death_panel() -> void:
 
 func _refresh() -> void:
 	var food_per_leg: String = String.num(1.0 / float(ExpeditionRun.FOOD_EVERY), 2)
-	_status_label.text = "원정 %d째 · %d걸음 · 행렬 %d명\n물 %d/걸음 · 식량 %s/걸음" % [GameState.expedition_count, _run.leg, _run.party_left(), _run.water_cost(), food_per_leg]
+	_status_label.text = "%d번째 원정 · %d걸음 · 행렬 %d명\n걸음마다 물 %d · 식량 %s" % [GameState.expedition_count, _run.leg, _run.party_left(), _run.water_cost(), food_per_leg]
 	var water: int = maxi(0, _run.get_res("water"))
 	var food: int = maxi(0, _run.get_res("food"))
 	AudioManager.warn_thirst(water)  # 물이 임계로 떨어지는 순간 경고음 1회(지도와 공용 상태)
@@ -638,9 +638,13 @@ func _draw() -> void:
 		draw_string(font, Vector2(0.0, rect.y * 0.5), "둘러볼 것이 없다. 떠난다.", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_BODY, UITheme.FG)
 	elif _section.has_unresolved_threat():
 		# 필수 위협(폭풍/차단)을 아직 안 열었다 — 마주해야 떠날 수 있다고 짚어준다(모래빛 경고 톤).
-		var tk: int = _section.unresolved_threat_kind()
-		var tlabel: String = str(Threats.info(tk).get("label", "위협")) if tk >= 0 else "위협"
-		draw_string(font, Vector2(0.0, rect.y - 140.0), "%s을 마주하기 전엔 떠날 수 없다" % tlabel, HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, UITheme.SAND)
+		var gate_msg: String = "이곳의 위협을 마주하기 전엔 떠날 수 없다"
+		match _section.unresolved_threat_kind():
+			Threats.Kind.STORM:
+				gate_msg = "폭풍을 지나기 전엔 떠날 수 없다"
+			Threats.Kind.BLOCKAGE:
+				gate_msg = "막힌 길을 넘기 전엔 떠날 수 없다"
+		draw_string(font, Vector2(0.0, rect.y - 140.0), gate_msg, HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, UITheme.SAND)
 	elif _section.budget_left() > 0 and _section.probed_count() == 0:
 		# 첫 도착 안내 — 지점을 눌러 조사한다는 걸 짚어준다. 한 번이라도 조사하면 숨긴다(학습).
 		# 하단 버튼 위 스크림 자리(그림에 안 묻히게 — 예전엔 그림 위 잉크색이라 안 읽혔다).

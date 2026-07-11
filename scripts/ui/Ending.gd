@@ -258,7 +258,7 @@ func _credits_done() -> void:
 	if _phase != "credits":
 		return
 	_phase = "prompt"
-	_reveal_prompt("여기까지.  아무 키나 누르면 돌아갑니다.")
+	_reveal_prompt("여기까지.  아무 키나 누르면 돌아간다.")
 
 func _skip_credits() -> void:
 	if _credits_tw != null and _credits_tw.is_valid():

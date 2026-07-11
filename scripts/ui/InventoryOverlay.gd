@@ -61,7 +61,7 @@ func _init() -> void:
 		pouch_row.add_child(_make_card(str(k)))
 
 	_content.add_child(_hairline())
-	_desc = UITheme.make_label("물건을 누르면 설명이 나옵니다.", UITheme.FS_SMALL, UITheme.MUTED)
+	_desc = UITheme.make_label("물건을 누르면 설명이 나온다.", UITheme.FS_SMALL, UITheme.MUTED)
 	_shadow(_desc)
 	_desc.custom_minimum_size = Vector2(0, 44)
 	_content.add_child(_desc)

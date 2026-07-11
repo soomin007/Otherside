@@ -367,7 +367,7 @@ static func choice_text(choice: Dictionary, enabled: bool, seen: bool) -> String
 	var needs: Dictionary = choice.get("needs", {})
 	if not enabled:
 		if needs.is_empty():
-			return "%s   (자원 부족)" % label
+			return "%s   (가진 것 부족)" % label
 		return "%s   (%s 부족)" % [label, needs_bare(needs)]
 	if seen:
 		return "%s   (%s)" % [label, effect_hint(choice.get("effect", {}))]

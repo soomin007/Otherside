@@ -21,12 +21,13 @@ const PAGE_SFX: Array = [
 	"res://assets/sfx/sfx_page_3.wav",
 ]
 
-## 조작 안내 장(정적).
+## 조작 안내 장(정적). 페이지 폭 ~450px·FS_BODY = 한 줄 ~19자 — 수동 \n(autowrap 은 음절 중간을 끊는다).
+## 말투 = 담담한 평서(기록지에 적힌 글) — 합쇼체 금지, 게임 공통 목소리.
 const TUTORIAL_PAGES: Array = [
-	"지도에서 갈 곳을 눌러 원정대를 움직입니다. 가봐야 무엇이 있는지 압니다. 걸음마다 물과 식량이 닳습니다.",
-	"도착하면 그곳의 단면이 펼쳐집니다. 표시된 곳을 눌러 살핍니다. 살필 수 있는 횟수는 정해져 있고, 살핀다고 물이나 식량이 줄지는 않습니다.",
-	"물은 걸음마다, 식량은 두 걸음마다 줄어듭니다. 로프는 갈라진 틈을, 장막은 폭풍을 견디게 합니다.",
-	"죽기 전 단 한 번, 물건 하나를 남길 수 있습니다. 그만큼 잃지만 다음 원정대가 줍습니다. 무엇을 남길지가 이 여정의 마음입니다.",
+	"지도에서 갈 곳을 누르면\n원정대가 나아간다.\n가 봐야 무엇이 있는지 알고,\n걸음마다 물과 식량이 닳는다.",
+	"닿은 곳에선 단면이 펼쳐진다.\n표시된 곳을 눌러 살핀다.\n살필 횟수는 정해져 있고,\n살핀다고 물이 줄지는 않는다.",
+	"물은 걸음마다,\n식량은 두 걸음마다 줄어든다.\n로프는 갈라진 틈을 건너게 하고,\n장막은 폭풍을 버티게 한다.",
+	"죽기 전 단 한 번,\n물건 하나를 남길 수 있다.\n그만큼 잃지만\n다음 원정대가 그것을 줍는다.\n무엇을 남길지가 이 여정의 마음이다.",
 ]
 
 const CHAPTERS: Array = ["일대기", "조작", "설정"]
@@ -826,7 +827,7 @@ func _sec_journey(box: VBoxContainer) -> void:
 func _sec_danger(box: VBoxContainer) -> void:
 	box.add_child(_brush_heading("위험 구역", 40, RED))
 	box.add_child(UITheme.make_hairline(Color(RED.r, RED.g, RED.b, 0.5), 2.0))
-	box.add_child(_ink_label("저장된 이 세계를 지웁니다.\n원정·흔적·죽은 자리가 모두 사라지고, 처음부터 시작합니다.",
+	box.add_child(_ink_label("저장된 이 세계를 지운다.\n원정과 흔적, 죽은 자리가 모두 사라지고\n처음부터 다시 시작한다.",
 		UITheme.FS_SMALL, INK_FADE))
 	var wipe := UITheme.make_pill("저장 데이터 지우기", RED, Color(0, 0, 0, 0), Color(RED.r, RED.g, RED.b, 0.55))
 	wipe.pressed.connect(_confirm_wipe)
@@ -858,8 +859,8 @@ func _show_confirm_page(warn: String, title: String, desc: String, yes_txt: Stri
 
 ## 세계 지우기 확인.
 func _confirm_wipe() -> void:
-	_show_confirm_page("되돌릴 수 없습니다", "이 세계를 지울까요",
-		"모래폭풍이 모든 원정과 흔적을 쓸어 갑니다. 처음부터 다시 시작합니다.\n원정 %d회 · 흔적 %d개가 사라집니다." % [GameState.expedition_count, GameState.traces.size()],
+	_show_confirm_page("되돌릴 수 없다", "이 세계를 지울까",
+		"모래폭풍이 모든 원정과 흔적을 쓸어 간다.\n처음부터 다시 시작한다.\n원정 %d번 · 흔적 %d개가 사라진다." % [GameState.expedition_count, GameState.traces.size()],
 		"지운다", _do_reset)
 
 func _do_reset() -> void:
@@ -878,8 +879,8 @@ func _do_reset() -> void:
 ## 타이틀로 — 진행 중 원정이 있으면 한 번 묻는다(원정은 저장되지 않아 모래에 묻힌다).
 func _on_leave_to_title() -> void:
 	if GameState.current_run != null and GameState.current_run.alive:
-		_show_confirm_page("지금 원정은 돌아오지 못합니다", "타이틀로 나갈까요",
-			"길 위의 원정대는 모래에 묻히고, 세계의 기록만 남습니다.", "나간다", _go_title)
+		_show_confirm_page("지금 원정은 돌아오지 못한다", "타이틀로 나갈까",
+			"길 위의 원정대는 모래에 묻히고,\n세계의 기록만 남는다.", "나간다", _go_title)
 	else:
 		_go_title()
 
@@ -889,10 +890,10 @@ func _go_title() -> void:
 
 ## 게임 끝내기(데스크톱만) — 한 번 묻고 종료. 세계(세이브)는 남는다.
 func _on_quit_pressed() -> void:
-	var desc: String = "세계의 기록은 남습니다. 다음에 이어서 원정을 보낼 수 있습니다."
+	var desc: String = "세계의 기록은 남는다.\n다음에 이어서 원정을 보낼 수 있다."
 	if GameState.current_run != null and GameState.current_run.alive:
-		desc = "길 위의 원정대는 모래에 묻히고, 세계의 기록만 남습니다."
-	_show_confirm_page("게임을 끝냅니다", "여기서 덮을까요", desc, "끝낸다",
+		desc = "길 위의 원정대는 모래에 묻히고,\n세계의 기록만 남는다."
+	_show_confirm_page("게임을 끝낸다", "여기서 덮을까", desc, "끝낸다",
 		func() -> void: get_tree().quit())
 
 ## 전체화면 토글(데스크톱만 — 웹은 Fullscreen autoload 가 자동).

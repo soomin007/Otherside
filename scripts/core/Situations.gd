@@ -42,7 +42,7 @@ const CATALOG: Array = [
 	{
 		"id": "fork_road",
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "길이 둘로 갈린다. 메마른 지름길과 둘러 가는 먼 길.",
+		"text": "길이 둘로 갈린다.\n메마른 지름길과 둘러 가는 먼 길.",
 		"choices": [
 			{"label": "지름길로 간다", "effect": {"water": -2}},
 			{"label": "둘러 간다", "effect": {"food": -2}},
@@ -51,7 +51,7 @@ const CATALOG: Array = [
 	{
 		"id": "past_flask", "biome": ["river"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "이전 원정대가 물통을 두고 갔다. 곁의 표식: [ 또 · 봐 ]",
+		"text": "이전 원정대가 물통을 두고 갔다.\n곁의 표식: [ 또 · 봐 ]",
 		"choices": [
 			{"label": "집는다", "effect": {"water": 4}},
 			{"label": "남겨둔다 (다음 원정대에게)", "effect": {}},
@@ -60,7 +60,7 @@ const CATALOG: Array = [
 	{
 		"id": "old_tracks", "biome": ["river"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "모래에 반쯤 지워진 발자국. 이전 원정대도 여기까지는 왔던 모양이다. 자국은 한쪽으로 휘어 사라진다.",
+		"text": "모래에 반쯤 지워진 발자국.\n이전 원정대도\n여기까지는 왔던 모양이다.\n자국은 한쪽으로 휘어 사라진다.",
 		"choices": [
 			{"label": "발자국을 따라간다", "effect": {"water": -1}},
 			{"label": "곧장 내 길로 간다", "effect": {}},
@@ -69,7 +69,7 @@ const CATALOG: Array = [
 	{
 		"id": "scavenge_wreck", "biome": ["river"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "부서진 수레가 모래에 처박혀 있다. 뒤지면 뭔가 나올지도, 시간만 버릴지도.",
+		"text": "부서진 수레가 모래에 처박혀 있다.\n뒤지면 뭔가 나올지도,\n시간만 버릴지도.",
 		"choices": [
 			{"label": "뒤져 본다", "effect": {"food": 2, "water": -1}},
 			{"label": "지나친다", "effect": {}},
@@ -78,7 +78,7 @@ const CATALOG: Array = [
 	{
 		"id": "sun_hammer", "biome": ["flats"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "해가 정수리를 두드린다. 그늘 한 점 없다. 잠깐 쉴지 계속 밀어붙일지.",
+		"text": "해가 정수리를 두드린다.\n그늘 한 점 없다.\n잠깐 쉴지 계속 밀어붙일지.",
 		"choices": [
 			{"label": "그늘 없이 계속 간다", "effect": {"water": -2}},
 			{"label": "천을 둘러쓰고 천천히 간다", "effect": {"water": -1, "food": -1}},
@@ -87,7 +87,7 @@ const CATALOG: Array = [
 	{
 		"id": "loose_sand", "biome": ["flats"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "발이 푹푹 빠지는 고운 모래밭. 한 걸음이 두 걸음 같다.",
+		"text": "발이 푹푹 빠지는 고운 모래밭.\n한 걸음이 두 걸음 같다.",
 		"choices": [
 			{"label": "곧장 가로지른다", "effect": {"water": -1, "food": -1}},
 			{"label": "단단한 가장자리로 돌아간다", "effect": {"food": -2}},
@@ -96,7 +96,7 @@ const CATALOG: Array = [
 	{
 		"id": "mirage", "biome": ["flats"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "멀리 물빛이 어른거린다. 아지랑이인지 진짜인지 알 수 없다.",
+		"text": "멀리 물빛이 어른거린다.\n아지랑이인지 진짜인지 알 수 없다.",
 		"choices": [
 			{"label": "혹시 몰라 다가가 본다", "effect": {"water": -2}},
 			{"label": "속지 않고 길을 지킨다", "effect": {}},
@@ -106,7 +106,7 @@ const CATALOG: Array = [
 	{
 		"id": "fever", "weight": 1,
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "몸이 불덩이 같다. 열이 오르고 다리가 풀린다. 이대로는 못 간다.",
+		"text": "몸이 불덩이 같다.\n열이 오르고 다리가 풀린다.\n이대로는 못 간다.",
 		"choices": [
 			{"label": "약초로 열을 다스린다", "effect": {"medicine": -1}, "needs": {"medicine": 1}},
 			{"label": "이 악물고 버틴다", "effect": {"water": -5}},
@@ -115,7 +115,7 @@ const CATALOG: Array = [
 	{
 		"id": "frozen_night", "weight": 1, "biome": ["storm"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "해가 지자 모래가 얼어붙는다. 이가 딱딱 부딪히고 손끝이 곱는다.",
+		"text": "해가 지자 모래가 얼어붙는다.\n이가 딱딱 부딪히고 손끝이 곱는다.",
 		"choices": [
 			{"label": "부싯돌로 불을 피운다", "effect": {"flint": -1}, "needs": {"flint": 1}},
 			{"label": "떨며 밤을 버틴다", "effect": {"water": -4, "food": -2}},
@@ -124,7 +124,7 @@ const CATALOG: Array = [
 	{
 		"id": "murky_spring", "weight": 1, "biome": ["river"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "고인 물웅덩이를 만났다. 물빛이 탁하지만, 목은 타들어간다.",
+		"text": "고인 물웅덩이를 만났다.\n물빛이 탁하지만, 목은 타들어간다.",
 		"choices": [
 			{"label": "정화천에 걸러 마신다", "effect": {"filter": -1, "water": 3}, "needs": {"filter": 1}},
 			{"label": "그냥 들이켠다", "effect": {"water": 2}, "sets": ["pool_drank"]},
@@ -134,7 +134,7 @@ const CATALOG: Array = [
 	{
 		"id": "twisted_ankle", "weight": 1, "biome": ["rock"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "무너진 비탈에서 발을 헛디뎠다. 발목이 시큰거린다. 잘못 디디면 더 상한다.",
+		"text": "무너진 비탈에서 발을 헛디뎠다.\n발목이 시큰거린다.\n잘못 디디면 더 상한다.",
 		"choices": [
 			{"label": "약초로 싸매고 간다", "effect": {"medicine": -1}, "needs": {"medicine": 1}},
 			{"label": "절뚝이며 계속 간다", "effect": {"water": -4}},
@@ -143,7 +143,7 @@ const CATALOG: Array = [
 	{
 		"id": "sand_squall", "weight": 1, "biome": ["storm"],
 		"threat": Threats.Kind.STORM,
-		"text": "느닷없이 모래바람이 몰아친다. 짧지만 살을 벤다.",
+		"text": "느닷없이 모래바람이 몰아친다.\n짧지만 살을 벤다.",
 		"choices": [
 			{"label": "장막을 펴 버틴다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
 			{"label": "몸을 낮추고 견딘다", "effect": {"water": -4}},
@@ -155,7 +155,7 @@ const CATALOG: Array = [
 		"id": "gut_turn",
 		"requires": "pool_drank",
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "아까 그 물이 속에서 뒤척인다. 식은땀이 난다. 멈춰 게워낼지 참고 갈지.",
+		"text": "아까 그 물이 속에서 뒤척인다.\n식은땀이 난다.\n멈춰 게워낼지 참고 갈지.",
 		"choices": [
 			{"label": "멈춰서 게워내고 간다", "effect": {"food": -2}},
 			{"label": "이 악물고 계속 간다", "effect": {"water": -2}},
@@ -166,7 +166,7 @@ const CATALOG: Array = [
 		"id": "no_rope_ledge",
 		"requires": "rope_spent_now",
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "얕은 골이 앞을 가른다. 로프가 있었으면 단숨에 건넜을 텐데, 앞선 틈에서 다 썼다.",
+		"text": "얕은 골이 앞을 가른다.\n로프가 있었으면 단숨에 건넜을 텐데,\n앞선 틈에서 다 썼다.",
 		"choices": [
 			{"label": "돌아서 얕은 데로 건넌다", "effect": {"water": -1, "food": -1}},
 			{"label": "미끄러운 벽을 조심조심 내려간다", "effect": {"water": -2}},
@@ -176,7 +176,7 @@ const CATALOG: Array = [
 		# self-async 메아리: a1 에서 강바닥을 팠으면(river_dug 영속) 다음 원정의 강 지형 이동 중에 그 자국을 만난다.
 		"id": "dig_marks", "requires": "river_dug", "biome": ["river"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "강바닥을 따라 파헤친 자국이 점점이 이어진다. 이전 원정대가 물길을 더듬던 손자국이다.",
+		"text": "강바닥을 따라 파헤친 자국이\n점점이 이어진다.\n이전 원정대가\n물길을 더듬던 손자국이다.",
 		"choices": [
 			{"label": "자국이 끝난 자리를 마저 판다", "effect": {"water": 2, "food": -1}},
 			{"label": "자국만 눈에 담고 간다", "effect": {}},
@@ -186,7 +186,7 @@ const CATALOG: Array = [
 	{
 		"id": "rockfall", "biome": ["rock"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "좁은 바위 협곡. 위쪽 돌들이 아슬아슬하게 얹혀 있다. 잘못 건드리면 쏟아진다.",
+		"text": "좁은 바위 협곡.\n위쪽 돌들이 아슬아슬하게 얹혀 있다.\n잘못 건드리면 쏟아진다.",
 		"choices": [
 			{"label": "숨죽여 빠르게 지난다", "effect": {"water": -2}},
 			{"label": "먼 바깥쪽으로 돌아간다", "effect": {"food": -2}},
@@ -195,7 +195,7 @@ const CATALOG: Array = [
 	{
 		"id": "narrow_ledge", "biome": ["rock"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "바위 턱이 실낱처럼 좁아진다. 한쪽은 벽, 한쪽은 낭떠러지.",
+		"text": "바위 턱이 실낱처럼 좁아진다.\n한쪽은 벽, 한쪽은 낭떠러지.",
 		"choices": [
 			{"label": "벽에 붙어 조심조심 건넌다", "effect": {"water": -1, "food": -1}},
 			{"label": "짐을 안고 몸을 가볍게 해 지난다", "effect": {"food": -2}},
@@ -204,7 +204,7 @@ const CATALOG: Array = [
 	{
 		"id": "cut_rock", "weight": 1, "biome": ["rock"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "날 선 바위에 손과 정강이가 쓸렸다. 상처가 벌겋게 부어오른다.",
+		"text": "날 선 바위에 손과 정강이가 쓸렸다.\n상처가 벌겋게 부어오른다.",
 		"choices": [
 			{"label": "약초로 상처를 싸맨다", "effect": {"medicine": -1}, "needs": {"medicine": 1}},
 			{"label": "천으로 대충 묶고 간다", "effect": {"water": -4}},
@@ -215,7 +215,7 @@ const CATALOG: Array = [
 		# 이동 중 차단(첫 종). 로프는 소모하지 않고 "가진 것"의 값을 만든다 — 다리 걸기(영구)와 경쟁하지 않게.
 		"id": "rope_gully", "biome": ["rock"],
 		"threat": Threats.Kind.BLOCKAGE,
-		"text": "길이 얕은 골로 뚝 끊긴다. 내려갔다 오를 수는 있어 보인다. 로프가 있으면 한결 수월하다.",
+		"text": "길이 얕은 골로 뚝 끊긴다.\n내려갔다 오를 수는 있어 보인다.\n로프가 있으면 한결 수월하다.",
 		"choices": [
 			{"label": "로프를 걸어 내려갔다 회수한다", "effect": {}, "needs": {"rope": 1}},
 			{"label": "맨손으로 기어 내려갔다 오른다", "effect": {"water": -2}},
@@ -225,7 +225,7 @@ const CATALOG: Array = [
 		# 폭풍 지형의 일반 이동 상황(기존 폭풍은 도구 위기 weight 1 뿐) — 폭풍 엣지가 폭풍답게.
 		"id": "grit_wind", "biome": ["storm"],
 		"threat": Threats.Kind.STORM,
-		"text": "바람에 모래가 섞이기 시작한다. 숨을 쉴 때마다 이 사이에 모래가 씹힌다.",
+		"text": "바람에 모래가 섞이기 시작한다.\n숨을 쉴 때마다\n이 사이에 모래가 씹힌다.",
 		"choices": [
 			{"label": "천으로 코와 입을 감싸고 천천히 간다", "effect": {"water": -1}},
 			{"label": "눈을 가늘게 뜨고 빠르게 벗어난다", "effect": {"water": -2}},
@@ -235,7 +235,7 @@ const CATALOG: Array = [
 	{
 		"id": "sand_marker",
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "모래 위에 돌을 세워 만든 표식. 곁에 긁어 새긴 자국: [ 앞 · 없다 ]",
+		"text": "모래 위에 돌을 세워 만든 표식.\n곁에 긁어 새긴 자국: [ 앞 · 없다 ]",
 		"choices": [
 			{"label": "새겨진 대로 마음에 새기고 간다", "effect": {}},
 			{"label": "돌 하나를 더 얹고 간다", "effect": {}},
@@ -244,7 +244,7 @@ const CATALOG: Array = [
 	{
 		"id": "buried_flask",
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "모래에 반쯤 묻힌 빈 물통. 바닥에 서툰 글씨가 긁혀 있다: [ 여기 · 끝 ]",
+		"text": "모래에 반쯤 묻힌 빈 물통.\n바닥에 서툰 글씨가 긁혀 있다:\n[ 여기 · 끝 ]",
 		"choices": [
 			{"label": "잠시 손을 얹었다 간다", "effect": {}},
 			{"label": "빈 물통을 챙겨 둔다", "effect": {}},
@@ -254,7 +254,7 @@ const CATALOG: Array = [
 	{
 		"id": "scorched_waste", "min_prog": 0.55, "biome": ["flats"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "지평선까지 타버린 땅. 열기가 아지랑이로 일렁이고 그늘 한 점 없다. 여기서부턴 무인지대다.",
+		"text": "지평선까지 타버린 땅.\n열기가 아지랑이로 일렁이고\n그늘 한 점 없다.\n여기서부턴 아무도 없는 땅이다.",
 		"choices": [
 			{"label": "쉬지 않고 가로지른다", "effect": {"water": -4}},
 			{"label": "천을 적셔 두르고 천천히 간다", "effect": {"water": -2, "food": -2}},
@@ -263,7 +263,7 @@ const CATALOG: Array = [
 	{
 		"id": "dry_riverbed", "min_prog": 0.55, "biome": ["river"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "물길인 줄 알았던 자리가 바싹 말라 갈라졌다. 여기까지 와서 헛물을 켰다.",
+		"text": "물길인 줄 알았던 자리가\n바싹 말라 갈라졌다.\n여기까지 와서 헛물을 켰다.",
 		"choices": [
 			{"label": "바닥을 파 물기를 찾는다", "effect": {"water": -1, "food": -1}},
 			{"label": "미련 없이 지나친다", "effect": {"water": -3}},
@@ -272,7 +272,7 @@ const CATALOG: Array = [
 	{
 		"id": "collapsing_gorge", "min_prog": 0.6, "biome": ["rock"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "협곡 벽이 삭아 내린다. 발밑에서 돌이 쏟아지고, 길이 무너지는 소리가 뒤를 쫓는다.",
+		"text": "협곡 벽이 삭아 내린다.\n발밑에서 돌이 쏟아지고,\n길이 무너지는 소리가 뒤를 쫓는다.",
 		"choices": [
 			{"label": "무너지기 전에 내달린다", "effect": {"water": -3, "food": -1}},
 			{"label": "단단한 바위만 골라 신중히 간다", "effect": {"food": -3}},
@@ -357,7 +357,7 @@ static func straggler_event() -> Dictionary:
 		"kind": "straggler",
 		"name": "웅크린 사람",
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "바람을 피한 그늘에 사람이 웅크리고 있다. 지난 원정에서 뒤처진 이가, 여기까지 버티고 있었다.",
+		"text": "바람을 피한 그늘에\n사람이 웅크리고 있다.\n지난 원정에서 뒤처진 이가,\n여기까지 버티고 있었다.",
 		"choices": [
 			{"label": "물을 나눠 주고 행렬에 거둔다", "effect": {"water": -2}, "needs": {"water": 3}, "action": "rescue"},
 			{"label": "지금은 지나친다 (다음 원정대가 거둔다)", "effect": {}},
@@ -372,7 +372,7 @@ static func crossed_blockage(feat: Dictionary) -> Dictionary:
 		"name": str(feat.get("name", "")),
 		"kind": "bridged",
 		"threat": Threats.Kind.BLOCKAGE,
-		"text": "이전 원정대가 여기 로프를 걸어뒀다. 그대로 건넌다.",
+		"text": "이전 원정대가 여기 로프를 걸어뒀다.\n그대로 건넌다.",
 		"choices": [
 			{"label": "고맙게 건넌다", "effect": {}},
 		],
@@ -410,12 +410,12 @@ static func pickup_trace(info: Dictionary) -> Dictionary:
 			obj_name = "정화천"
 	var tag_str: String = ""
 	if not tags.is_empty():
-		tag_str = "  곁의 표식: [ %s ]" % " · ".join(PackedStringArray(tags))
+		tag_str = "\n곁의 표식: [ %s ]" % " · ".join(PackedStringArray(tags))
 	return {
 		"id": "pickup",
 		"kind": "pickup",
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "이전 원정대가 남긴 %s. 아직 쓸 만하다.%s" % [obj_name, tag_str],
+		"text": "이전 원정대가 남긴 %s.\n아직 쓸 만하다.%s" % [obj_name, tag_str],
 		"choices": [
 			{"label": "집는다", "effect": {res_key: amount}, "action": "pickup", "trace_kind": kind},
 			{"label": "남겨둔다 (다음 원정대에게)", "effect": {}},

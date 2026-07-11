@@ -298,8 +298,8 @@ func _guide_text() -> String:
 	if _moving:
 		return "나아가는 중..."
 	if _current_node_id() == "end":
-		return "목적지에 닿았다. (여기까지가 Phase 0)"
-	return "갈 곳을 고르세요. 가봐야 무엇이 있는지 압니다."
+		return "목적지에 닿았다."
+	return "갈 곳을 고른다. 가 봐야 무엇이 있는지 안다."
 
 func _current_node_id() -> String:
 	if GameState.current_run != null:
@@ -1230,10 +1230,10 @@ func _draw_col_left(font: Font, sc: float) -> void:
 	y += 14.0 * sc
 	_draw_hairline(x, y, w)
 	var rows: Array = [
-		["water", "물", "걸음마다 줆"],
-		["food", "식량", "굶으면 쇠약"],
-		["rope", "로프", "차단을 넘음"],
-		["shelter", "장막", "폭풍을 견딤"],
+		["water", "물", "걸음마다 준다"],
+		["food", "식량", "굶으면 쇠한다"],
+		["rope", "로프", "틈을 건넌다"],
+		["shelter", "장막", "폭풍을 견딘다"],
 	]
 	for r in rows:
 		y += 30.0 * sc

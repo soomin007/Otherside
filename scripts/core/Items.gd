@@ -80,4 +80,4 @@ static func tools_summary(resources: Dictionary) -> String:
 		var n: int = int(resources.get(key, 0))
 		if n > 0:
 			parts.append("%s %d" % [str(TOOL_LABEL.get(key, key)), n])
-	return " · ".join(parts) if not parts.is_empty() else "(도구 없음)"
+	return " · ".join(parts) if not parts.is_empty() else "도구 없음"

@@ -18,7 +18,7 @@ const MARKET_PAGES: Array = [
 	"시장: 가방은 여섯 칸뿐일세.\n물하고 먹을 것부터 챙기게. 그게 목숨이야.\n틈엔 로프, 폭풍엔 장막이 자넬 살리지.",
 	"시장: 욕심내서 가득 지면 그만큼 목이 타네.\n무거운 짐은 물을 더 마시게 하거든.\n딱 질 만큼만 지게.",
 	"시장: 길은 지도에서 고르는 걸세.\n어딜 찍든 걸어서 가야 하고,\n걸음마다 물이 줄지. 먼 길일수록 목이 타네.",
-	"시장: 닿은 곳에선 몇 군데 둘러볼 수 있네.\n둘러보는 데 드는 건 없으니 아끼지 말게.",
+	"시장: 닿은 곳에선 몇 군데만 둘러볼 수 있네.\n드는 건 없네만, 살필 눈은 몇 번뿐이지.\n어딜 볼지 잘 고르게.",
 	"시장: 죽기 전에 딱 한 번, 물건을 두고 올 수 있네.\n뒤에 가는 이들이 그걸 줍지.\n무얼 두고 올지는 자네가 정하게.",
 	"시장: 이 기록지를 가져가게.\n떠난 이들의 이야기가 여기 적힐 걸세.\n화면 귀퉁이 책갈피를 누르면 언제든 볼 수 있네.",
 ]
@@ -328,7 +328,7 @@ func _build_step2() -> void:
 	c2.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_shadow(c2)
 	crow.add_child(c2)
-	var hint := UITheme.make_label("담은 물건을 누르면 뺍니다", 11, Color(UITheme.MUTED.r, UITheme.MUTED.g, UITheme.MUTED.b, 0.85))
+	var hint := UITheme.make_label("담은 물건을 누르면 뺀다", 11, Color(UITheme.MUTED.r, UITheme.MUTED.g, UITheme.MUTED.b, 0.85))
 	hint.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_shadow(hint)
 	mid.add_child(hint)
@@ -375,7 +375,7 @@ func _build_step2() -> void:
 	back.pressed.connect(_show_step.bind(1))
 	bl.add_child(back)
 	var preset_btn := EngravedItem.new()
-	preset_btn.init_item("표준 구성", 16, false)
+	preset_btn.init_item("늘 챙기던 대로", 16, false)
 	preset_btn.pressed.connect(_apply_preset)
 	bl.add_child(preset_btn)
 	var depart := EngravedItem.new()
@@ -395,7 +395,7 @@ func _build_step2() -> void:
 ## 시장 NPC 한 마디 — 첫 원정이면 규칙 안내, 이후엔 짧게.
 func _npc_line() -> String:
 	if GameState.expedition_count == 0:
-		return "시장: 무엇을 지고, 누가 이끌지 정하게. 물과 식량이 곧 목숨일세."
+		return "시장: 무엇을 지고, 누가 이끌지 정하게.\n물과 식량이 곧 목숨일세."
 	return "시장: 또 떠나는군. 부디 조심히 가게."
 
 func _add_item(key: String) -> void:
@@ -476,7 +476,7 @@ func _refresh_meta() -> void:
 	var res: Dictionary = _bag_resources()
 	var wgt: int = Items.bag_weight(_bag)  # 주머니 도구는 무게에서 뺀다(가방 6칸과 별개 보험 슬롯 — 절벽 방지)
 	var pen: int = maxi(0, wgt - ExpeditionRun.WEIGHT_FREE) / maxi(1, ExpeditionRun.WEIGHT_STEP)
-	var pen_str: String = "  · 짐 초과, 걸음당 물 +%d" % pen if pen > 0 else ""
+	var pen_str: String = "  · 짐이 무거워 걸음마다 물 +%d" % pen if pen > 0 else ""
 	_preview.text = "물 %d · 식량 %d · %s · 무게 %d%s" % [
 		int(res["water"]), int(res["food"]), Items.tools_summary(res), wgt, pen_str]
 	if _count_n != null:
@@ -510,7 +510,7 @@ func _make_slot_filled(idx: int, key: String) -> Control:
 	slot.add_theme_stylebox_override("hover", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("pressed", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("focus", _slot_stylebox(true))
-	slot.tooltip_text = "%s  (누르면 뺍니다)" % Items.label_of(key)
+	slot.tooltip_text = "%s  (누르면 뺀다)" % Items.label_of(key)
 	slot.pressed.connect(_remove_slot.bind(idx, slot))
 	var icon := ItemIcon.new()
 	icon.key = key
@@ -527,7 +527,7 @@ func _make_pouch_slot(key: String) -> Control:
 	slot.add_theme_stylebox_override("hover", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("pressed", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("focus", _slot_stylebox(true))
-	slot.tooltip_text = "%s  (누르면 창고로 되돌립니다)" % Items.label_of(key)
+	slot.tooltip_text = "%s  (누르면 창고로 되돌린다)" % Items.label_of(key)
 	slot.pressed.connect(_clear_pouch_from.bind(slot))
 	var icon := ItemIcon.new()
 	icon.key = key
