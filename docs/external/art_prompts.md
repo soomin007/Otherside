@@ -43,6 +43,9 @@
 | 53 | **웹 로딩 화면 배경 낮판** — `web/loading_day.webp` (원본 `assets_src/loading_original/`) | §14 | ✅ 완료 (2026-07-06 생성·변환·배치. 접속 8~17시) |
 | 54 | **웹 로딩 화면 배경 새벽/황혼판** — `web/loading_dusk.webp` (사용자 자발 추가 생성) | §14 | ✅ 완료 (2026-07-06. 접속 5~8시·17~20시. 밤 = 그 외 시간) |
 | 55~57 | **막간(런 사이) 삽화 3종** (폭풍/고요/채비, 16:9) | §15 | ⬜ 생성 대기 (배선=Interlude 개편 시 — 크로스페이드+런 요약) |
+| 58~62 | **사람 픽토그램 5종** (대원 갑/을·대장·낙오자·스러진 자리) — 잉크판만, 어둠용 아이보리판은 코드 변환 | §16 | ⬜ 생성 대기 (배선=행렬 표시·낙오자 마커 교체 시) |
+| 63~68 | **지도·단면 기호 6종** (흔적 점 바탕·로프 다리·위치 태그·넘침 배지·주요/보조 지점 고리) | §16 | ⬜ 생성 대기 |
+| 69~71 | **UI 소품 3종** (책갈피 리본·슬롯 담김/빈) | §16 | ⬜ 생성 대기 (선택 — 급하지 않음) |
 
 **기존 아트(01~46 + 38 + 오프닝 가로판) 전부 완료(2026-07-04).** **신규(§13):** 가방 창고 `39` ✅ · 엔딩 슬라이드 `47~52`(순환 3·재회 3) ✅ **전부 삽입**. **배선 대기(구현): 엔딩 슬라이드쇼 2종 + 가방 창고 개편.** (세로형 단면 art 13~18 여부는 오리엔테이션 결정 후 — 아래 논의.) **신규(§15, 2026-07-11):** 막간 삽화 `55~57` 16:9 3장 생성 대기 — 배선은 `Interlude.gd` 개편(오프닝식 크로스페이드 + 실제 런 요약 텍스트)과 함께. (가로 고정 게임 — 세로판 없음.)
 
@@ -695,3 +698,131 @@ center-bottom kept calm and dark. Muted sand and sepia palette with one warm lan
 painterly semi-realistic, low saturation, solemn quiet resolve mood, a full background scene. Absolutely
 no text, no words, no letters, no labels, no watermark, no white background, no face detail.
 ```
+
+---
+## 16. UI 그래픽 킷 — 사람 픽토그램·지도 기호·마커 (흰 배경 → 투명 · 각 512×512 이상) — 58~71
+
+> **연동:** `docs/handoffs/UI_그래픽_핸드오프.md` (2026-07-11 — 절차적 draw 전면 교체 발주). 여기 프롬프트는
+> 그 발주를 **이미지 생성기(GPT 등)로 직접 뽑는 판**이다. 스타일 앵커 = 기존 지도 손스케치(40~46)와 한 손.
+> **공통 규칙:** ① 잉크판(세피아) **한 벌만** 뽑는다 — 어두운 배경용 아이보리판은 Claude 가 코드로 변환
+> (밝기 반전 착색, `tools/` 스크립트). ② 아주 작게(14~20px) 줄여 쓰므로 **굵고 단순한 실루엣**, 내부 디테일 금지.
+> ③ 전부 흰 배경(#FFFFFF) → 흰→투명 변환은 Claude 몫. ④ 글자·체커보드 금지(맨 위 교훈).
+
+### 걷는 대원 갑 — `58_사람_대원갑`
+```
+A tiny hand-drawn pictogram of a single hooded desert traveler walking, seen from the side, wrapped
+in a tattered cloak, mid-stride, in the style of a figure sketched onto an old expedition map with a
+reed pen, bold simple dark sepia ink silhouette with minimal interior detail so it stays readable at
+very small sizes, one small figure centered with generous margin on a plain solid pure white
+background (#FFFFFF). Muted sepia palette, timeworn. Absolutely no text, no words, no letters,
+no numbers, no watermark, no checkerboard, no ground plane, no scenery, no border.
+```
+
+### 걷는 대원 을 — `59_사람_대원을` (같은 프롬프트에 아래 한 줄 교체)
+```
+... mid-stride with the other leg forward and the head bowed slightly lower ...
+```
+(58 프롬프트에서 "mid-stride" 부분만 위로 바꿔 다시 뽑는다 — 행렬에 줄 세울 때 두 걸음이 섞이게.)
+
+### 걷는 대장 — `60_사람_대장`
+```
+A tiny hand-drawn pictogram of a hooded desert expedition leader walking with a tall walking staff,
+seen from the side, cloak blowing slightly behind, in the style of a figure sketched onto an old
+expedition map with a reed pen, bold simple dark sepia ink silhouette with minimal interior detail
+so it stays readable at very small sizes, one small figure centered with generous margin on a plain
+solid pure white background (#FFFFFF). Muted sepia palette, timeworn. Absolutely no text, no words,
+no letters, no numbers, no watermark, no checkerboard, no ground plane, no scenery, no border.
+```
+
+### 웅크린 낙오자 — `61_사람_낙오자` (기존 절차 마커 교체)
+```
+A tiny hand-drawn pictogram of a single person crouching low on the ground hugging their knees,
+wrapped fully in a cloth against the wind, in the style of a figure sketched onto an old expedition
+map with a reed pen, bold simple dark sepia ink silhouette with minimal interior detail so it stays
+readable at very small sizes, one small figure centered with generous margin on a plain solid pure
+white background (#FFFFFF). Muted sepia palette, timeworn. Absolutely no text, no words, no letters,
+no numbers, no watermark, no checkerboard, no ground plane, no scenery, no border.
+```
+
+### 스러진 자리 — `62_사람_스러짐`
+```
+A tiny hand-drawn pictogram of a small low mound of sand with a few grains drifting away in the
+wind, the quiet trace left where a person fell, in the style of a mark sketched onto an old
+expedition map with a reed pen, bold simple dark sepia ink shape with minimal detail so it stays
+readable at very small sizes, one small mound centered with generous margin on a plain solid pure
+white background (#FFFFFF). Muted sepia palette, timeworn. Absolutely no text, no words, no letters,
+no numbers, no watermark, no checkerboard, no skull, no bones, no scenery, no border.
+```
+
+### 흔적 점 바탕 — `63_기호_흔적점` (중심 착색 점은 코드가 얹는다 — 안료 4색)
+```
+A small hand-drawn map symbol of a single rough ink circle ring, drawn with one imperfect pen
+stroke like a spot deliberately marked on an old parchment map, with a soft warm cream glow baked
+around it, the center left empty, bold and simple so it stays readable at very small sizes, centered
+with generous margin on a plain solid pure white background (#FFFFFF). Dark sepia ink and warm cream
+tones only. Absolutely no text, no letters, no numbers, no watermark, no checkerboard, no border.
+```
+
+### 로프 다리 표식 — `64_기호_로프다리`
+```
+A small hand-drawn map symbol of a short taut rope stretched between two tiny anchor stakes,
+sketched onto an old expedition map with a reed pen, bold simple dark sepia ink linework with a
+soft warm cream glow baked behind it, readable at very small sizes, centered with generous margin
+on a plain solid pure white background (#FFFFFF). Muted sepia palette. Absolutely no text,
+no letters, no numbers, no watermark, no checkerboard, no scenery, no border.
+```
+
+### 원정대 위치 태그 — `65_기호_위치태그`
+```
+A small hand-drawn map marker of a tiny downward-pointing pennant flag tag, like a red sepia ink
+mark a cartographer stamps to say "we are here", slightly rough single-stroke linework, bold and
+simple so it stays readable at very small sizes, centered with generous margin on a plain solid
+pure white background (#FFFFFF). Deep rust-red sepia ink (#8C331F) only. Absolutely no text,
+no letters, no numbers, no watermark, no checkerboard, no border.
+```
+
+### 넘침 배지 바탕 — `66_기호_넘침배지` (숫자 "+N"은 폰트가 쓴다 — 바탕만)
+```
+A small hand-drawn map symbol of a soft round cream-colored ink blot, like a pale wax seal or a
+thumb-pressed smudge on old parchment used as a badge background, gentle irregular edge, empty
+center, centered with generous margin on a plain solid pure white background (#FFFFFF). Warm cream
+and faint sepia tones only. Absolutely no text, no letters, no numbers, no watermark,
+no checkerboard, no border.
+```
+
+### 주요 지점 고리 — `67_기호_주요지점` (단면 삽화 위 — 후광 포함)
+```
+A hand-drawn double ring symbol, two concentric rough ink circles drawn with imperfect pen strokes,
+marking an important spot on an explorer's sketch, with a soft warm sand-colored glow baked around
+it so it stays visible on both bright and dark paintings, deep rust-red sepia ink (#8C331F), bold
+and simple, centered with generous margin on a plain solid pure white background (#FFFFFF).
+Absolutely no text, no letters, no numbers, no watermark, no checkerboard, no border.
+```
+
+### 보조 지점 고리 — `68_기호_보조지점` (살핀 뒤 흐림은 코드 알파로)
+```
+A hand-drawn single ring symbol, one rough ink circle drawn with a single imperfect pen stroke,
+marking a spot worth searching on an explorer's sketch, with a soft warm sand-colored glow baked
+around it so it stays visible on both bright and dark paintings, deep rust-red sepia ink (#8C331F),
+bold and simple, centered with generous margin on a plain solid pure white background (#FFFFFF).
+Absolutely no text, no letters, no numbers, no watermark, no checkerboard, no border.
+```
+
+### 책갈피 리본 — `69_소품_책갈피리본` (가로로 긴 그림 — 코드가 가운데를 늘인다)
+```
+A horizontal red bookmark ribbon with a V-shaped notch cut into its left end, flat matte fabric,
+slightly worn edges, deep rust red (#8C331F) with a subtle darker shadow line along the bottom edge,
+long plain middle section (it will be stretched horizontally in engine), wide landscape composition
+centered on a plain solid pure white background (#FFFFFF). Absolutely no text, no letters,
+no numbers, no watermark, no checkerboard, no border, no tassel.
+```
+
+### 가방 슬롯 (담김) — `70_소품_슬롯담김` / (빈) — `71_소품_슬롯빈`
+```
+A small square leather-framed inventory slot for a game bag, worn stitched leather border around a
+softly lit sand-colored recess, warm and dim, hand-painted texture, single square centered with
+generous margin on a plain solid pure white background (#FFFFFF). Muted leather browns (#241A11,
+#8C6B3D). Absolutely no text, no letters, no numbers, no watermark, no checkerboard, no items inside.
+```
+(빈 칸(71)은 위 프롬프트의 "softly lit sand-colored recess" 를 "dark sunken empty recess" 로 바꿔 뽑는다.)
+
