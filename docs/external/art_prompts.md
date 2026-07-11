@@ -42,8 +42,9 @@
 | 50~52 | 재회 엔딩 슬라이드 3종 — `50~52_엔딩재회_(닿음/지나쳐/모두).png` | §13 | ✅ 삽입 (50=닿음·맞이, 배선=엔딩 슬라이드쇼 시) |
 | 53 | **웹 로딩 화면 배경 낮판** — `web/loading_day.webp` (원본 `assets_src/loading_original/`) | §14 | ✅ 완료 (2026-07-06 생성·변환·배치. 접속 8~17시) |
 | 54 | **웹 로딩 화면 배경 새벽/황혼판** — `web/loading_dusk.webp` (사용자 자발 추가 생성) | §14 | ✅ 완료 (2026-07-06. 접속 5~8시·17~20시. 밤 = 그 외 시간) |
+| 55~57 | **막간(런 사이) 삽화 3종** (폭풍/고요/채비) + **가로판** 3종 | §15 | ⬜ 생성 대기 (배선=Interlude 개편 시 — 크로스페이드+런 요약) |
 
-**기존 아트(01~46 + 38 + 오프닝 가로판) 전부 완료(2026-07-04).** **신규(§13):** 가방 창고 `39` ✅ · 엔딩 슬라이드 `47~52`(순환 3·재회 3) ✅ **전부 삽입**. **배선 대기(구현): 엔딩 슬라이드쇼 2종 + 가방 창고 개편.** (세로형 단면 art 13~18 여부는 오리엔테이션 결정 후 — 아래 논의.)
+**기존 아트(01~46 + 38 + 오프닝 가로판) 전부 완료(2026-07-04).** **신규(§13):** 가방 창고 `39` ✅ · 엔딩 슬라이드 `47~52`(순환 3·재회 3) ✅ **전부 삽입**. **배선 대기(구현): 엔딩 슬라이드쇼 2종 + 가방 창고 개편.** (세로형 단면 art 13~18 여부는 오리엔테이션 결정 후 — 아래 논의.) **신규(§15, 2026-07-11):** 막간 삽화 `55~57` 세로+가로 6장 생성 대기 — 배선은 `Interlude.gd` 개편(오프닝식 크로스페이드 + 실제 런 요약 텍스트)과 함께.
 
 ---
 
@@ -652,4 +653,71 @@ A wide 16:9 landscape background, a dim supply storeroom lit by warm lamplight, 
 ```
 ```
 [52 모두] A storytelling illustration, wide 16:9 landscape, many weathered expedition figures gathered together on the far side in warm light, a long-awaited reunion, small against a gentle bright horizon, seen from behind and far. Warm golden sepia palette, soft luminous light, painterly semi-realistic, low saturation lifting to warmth, cathartic tender mood. Absolutely no text, no words, no letters, no labels, no watermark, no white background, no face detail.
+```
+
+---
+
+## 15. 막간(런 사이) 삽화 (불투명 · 세로 1080×1920 + 가로 16:9) — 3장면 × 2방향 (2026-07-11 추가)
+
+> **쓰이는 곳:** 원정이 끝나고 다음 원정 전 폭풍 막간(`scenes/interlude.tscn`). 지금은 절차적 draw 뿐이라
+> 게임에서 유일하게 그림 없는 화면 — 오프닝식 **크로스페이드 3장**(폭풍 → 고요 → 채비)으로 교체 예정.
+> 위에 느린 줌/팬(켄 번즈)과 **실제 런 요약 텍스트**가 얹힌다. 텍스트는 화면 중하단에 뜨므로
+> **하단 1/3 은 차분하게**(스크림도 깔림). 톤은 §7 오프닝과 같은 세트로 뽑을 것(같은 생성기·같은 세션).
+> 파일명: 세로 `55_막간_폭풍`·`56_막간_고요`·`57_막간_채비`, 가로 `NN_막간_이름_가로`.
+> 배선은 이미지 삽입 후 별도 작업(방향 자동 교체는 오프닝 §11 패턴 재사용).
+
+### 55 폭풍 — 폭풍이 세상을 쓸어간다 (세로)
+```
+A storytelling illustration, vertical composition, a colossal wall of sandstorm sweeping across the
+desert at night seen from the gate of a small huddled desert town, low domed rooftops dark in the bottom
+corner, the storm swallowing the horizon and most of the sky, dust devouring everything beyond the walls,
+a full background scene. Muted desert palette of sand and sepia with deep indigo night tones, heavy dusty
+haze, painterly semi-realistic, low saturation, ominous awe-filled mood, the lower third kept calm and
+dark. Absolutely no text, no words, no letters, no labels, no watermark, no white background, no people.
+```
+
+### 56 고요 — 모래가 다시 가라앉았다 (세로)
+```
+A storytelling illustration, vertical composition, the desert at first pale dawn just after a great
+sandstorm has passed, fine dust still settling in the air, dunes reshaped and smooth, a half-buried
+broken marker post and the last trace of an old path barely showing through fresh sand, hushed and
+still, a full background scene. Muted desert palette of sand and sepia, thin dusty haze, painterly
+semi-realistic, low saturation, hushed melancholic mood, the lower third kept calm and open. Absolutely
+no text, no words, no letters, no labels, no watermark, no white background, no people.
+```
+
+### 57 채비 — 다음 원정대가 떠날 채비를 한다 (세로)
+```
+A storytelling illustration, vertical composition, a small new expedition gathering at a desert town
+gate before dawn, a few hooded figures with worn packs around a single warm lantern, seen from behind
+and small in the middle of the frame, the open desert and a pale endless horizon stretching ahead above
+them, a full background scene. Muted desert palette of sand and sepia with one warm lantern glow,
+dusty haze, painterly semi-realistic, low saturation, solemn quiet resolve mood, the lower third kept
+calm and dark. Absolutely no text, no words, no letters, no labels, no watermark, no white background,
+no face detail.
+```
+
+### 가로판 3종 — `55~57_막간_이름_가로` (16:9, 데스크톱)
+```
+[55 폭풍 가로] A storytelling illustration, wide 16:9 landscape, a colossal wall of sandstorm sweeping in
+from the right across a night desert, a small huddled desert town with low domes dark in the lower-left
+corner, dust devouring the horizon, the center-bottom kept calm and dark. Muted sand and sepia palette
+with deep indigo night tones, heavy dusty haze, painterly semi-realistic, low saturation, ominous
+awe-filled mood, a full background scene. Absolutely no text, no words, no letters, no labels,
+no watermark, no white background, no people.
+```
+```
+[56 고요 가로] A storytelling illustration, wide 16:9 landscape, the desert at first pale dawn just after
+a great sandstorm has passed, fine dust settling, smooth reshaped dunes, a half-buried broken marker post
+off to one side, hushed and still, the center-bottom kept calm and open. Muted sand and sepia palette,
+thin dusty haze, painterly semi-realistic, low saturation, hushed melancholic mood, a full background
+scene. Absolutely no text, no words, no letters, no labels, no watermark, no white background, no people.
+```
+```
+[57 채비 가로] A storytelling illustration, wide 16:9 landscape, a small new expedition gathering at a
+desert town gate before dawn on the left, a few hooded figures with worn packs around one warm lantern,
+seen from behind and small, the open desert and a pale endless horizon stretching away to the right, the
+center-bottom kept calm and dark. Muted sand and sepia palette with one warm lantern glow, dusty haze,
+painterly semi-realistic, low saturation, solemn quiet resolve mood, a full background scene. Absolutely
+no text, no words, no letters, no labels, no watermark, no white background, no face detail.
 ```
