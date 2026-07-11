@@ -296,24 +296,48 @@ var _footer_r: VBoxContainer   ## 오른쪽 페이지 바닥 고정 자리 — �
 var _scroll_l: ScrollContainer ## 왼쪽 페이지 스크롤(일대기가 길다)
 var _tabs: Array = []          ## 챕터 책갈피(Ribbon) — 책 오른쪽에 얹힘
 ## 범례 표식 그림 — 조작 챕터 "표식 읽기"가 지도·단면 실제 표식의 축소판을 작은 칸에 그린다.
+## 지점 고리·흔적 점은 실제 킷 텍스처(§16)를 그대로 축소해 게임 화면과 똑같이 보이게 한다(없으면 절차 fallback).
 class LegendMark extends Control:
 	var kind: String = ""
+	static var _kit: Dictionary = {}
+	static func _tex(path: String) -> Texture2D:
+		if _kit.has(path):
+			return _kit[path]
+		var t: Texture2D = null
+		if ResourceLoader.exists(path):
+			t = load(path)
+		_kit[path] = t
+		return t
 	func _draw() -> void:
 		var c: Vector2 = size * 0.5
 		var mk: Color = UITheme.MARKER_INK
 		var sand: Color = UITheme.SAND
 		match kind:
-			"main":  # 주요 지점 — 이중 링 + 헤일로(SectionArt.draw_spot is_main)
-				draw_arc(c, 20.0, 0.0, TAU, 32, Color(sand.r, sand.g, sand.b, 0.22), 1.5)
-				draw_circle(c, 16.0, Color(sand.r, sand.g, sand.b, 0.18))
-				draw_arc(c, 13.0, 0.0, TAU, 32, mk, 3.0)
-				draw_circle(c, 4.0, mk)
-			"collect":  # 채집 지점 — 단일 링
-				draw_circle(c, 13.0, Color(sand.r, sand.g, sand.b, 0.18))
-				draw_arc(c, 11.0, 0.0, TAU, 32, mk, 2.5)
-				draw_circle(c, 3.0, mk)
-			"done":  # 다 살핀 곳 — 흐린 링
-				draw_arc(c, 11.0, 0.0, TAU, 32, Color(UITheme.INK_FADE.r, UITheme.INK_FADE.g, UITheme.INK_FADE.b, 0.7), 1.5)
+			"main":  # 주요 지점 — 이중 고리(킷 67, SectionArt 와 동일)
+				var tm: Texture2D = _tex("res://assets/arts/transparent/67_기호_주요지점.png")
+				if tm != null:
+					SectionArt.draw_tex_center(self, tm, c, 46.0)
+					draw_circle(c, 4.0, mk)
+				else:
+					draw_arc(c, 20.0, 0.0, TAU, 32, Color(sand.r, sand.g, sand.b, 0.22), 1.5)
+					draw_circle(c, 16.0, Color(sand.r, sand.g, sand.b, 0.18))
+					draw_arc(c, 13.0, 0.0, TAU, 32, mk, 3.0)
+					draw_circle(c, 4.0, mk)
+			"collect":  # 채집 지점 — 단일 고리(킷 68)
+				var tc: Texture2D = _tex("res://assets/arts/transparent/68_기호_보조지점.png")
+				if tc != null:
+					SectionArt.draw_tex_center(self, tc, c, 34.0)
+					draw_circle(c, 3.0, mk)
+				else:
+					draw_circle(c, 13.0, Color(sand.r, sand.g, sand.b, 0.18))
+					draw_arc(c, 11.0, 0.0, TAU, 32, mk, 2.5)
+					draw_circle(c, 3.0, mk)
+			"done":  # 다 살핀 곳 — 같은 고리를 흐리게
+				var td: Texture2D = _tex("res://assets/arts/transparent/68_기호_보조지점.png")
+				if td != null:
+					SectionArt.draw_tex_center(self, td, c, 26.0, Color(1.0, 1.0, 1.0, 0.4))
+				else:
+					draw_arc(c, 11.0, 0.0, TAU, 32, Color(UITheme.INK_FADE.r, UITheme.INK_FADE.g, UITheme.INK_FADE.b, 0.7), 1.5)
 			"ramp":  # 조사 예산 — 찬 점 둘 + 빈 점
 				draw_circle(c + Vector2(-14.0, 0.0), 4.0, mk)
 				draw_circle(c, 4.0, mk)
@@ -325,10 +349,15 @@ class LegendMark extends Control:
 			"marker":  # 원정대 마커
 				draw_arc(c, 11.0, 0.0, TAU, 20, Color(mk.r, mk.g, mk.b, 0.4), 1.5)
 				draw_circle(c, 6.0, mk)
-			"trace":  # 남긴 흔적 — 안료 점(Map.TRACE_MARK_INK 톤)
-				var pig: Color = Color(0.40, 0.24, 0.15)
-				draw_arc(c, 9.0, 0.0, TAU, 20, Color(pig.r, pig.g, pig.b, 0.4), 1.5)
-				draw_circle(c, 5.0, pig)
+			"trace":  # 남긴 흔적 — 잉크 링(킷 63) + 안료 점(지도 실물과 동일)
+				var pig: Color = Color(0.25, 0.44, 0.55)  # 물 안료(대표색)
+				var tt: Texture2D = _tex("res://assets/arts/transparent/63_기호_흔적점.png")
+				if tt != null:
+					SectionArt.draw_tex_center(self, tt, c, 26.0)
+					draw_circle(c, 4.0, pig)
+				else:
+					draw_arc(c, 9.0, 0.0, TAU, 20, Color(pig.r, pig.g, pig.b, 0.4), 1.5)
+					draw_circle(c, 5.0, pig)
 
 var _chapter: int = 0
 var _ctrl_idx: int = 0         ## 조작 챕터 펼침(0=안내 글·1=표식 읽기) — 양면에 둘씩, 넘겨서 본다

@@ -19,6 +19,34 @@ const SECTION_PATHS: Dictionary = {
 static var _tex_cache: Dictionary = {}
 static var _label_pool: GradientTexture2D  ## 지점 라벨 뒤 크림 빛 웅덩이 — 사진 위 가독(지도 라벨과 같은 결)
 
+## 지점 마커 킷(2026-07-12, §16) — 손그림 잉크 고리(후광 구움). 없으면 절차적 링 fallback.
+const SPOT_TEX_PATHS: Dictionary = {
+	"main": "res://assets/arts/transparent/67_기호_주요지점.png",
+	"sub": "res://assets/arts/transparent/68_기호_보조지점.png",
+}
+static var _spot_tex_cache: Dictionary = {}
+
+static func _spot_tex(is_main: bool) -> Texture2D:
+	var key: String = "main" if is_main else "sub"
+	if _spot_tex_cache.has(key):
+		return _spot_tex_cache[key]
+	var path: String = str(SPOT_TEX_PATHS[key])
+	var tex: Texture2D = null
+	if ResourceLoader.exists(path):
+		tex = load(path)
+	_spot_tex_cache[key] = tex
+	return tex
+
+## 텍스처를 중심점에 종횡비 유지(긴 변 = target)로, 필요 시 modulate 로 흐리게 얹는다.
+static func draw_tex_center(ci: CanvasItem, tex: Texture2D, center: Vector2, target: float, mod: Color = Color.WHITE) -> void:
+	var tw: float = float(tex.get_width())
+	var th: float = float(tex.get_height())
+	if tw <= 0.0 or th <= 0.0:
+		return
+	var s: float = target / maxf(tw, th)
+	var wh: Vector2 = Vector2(tw * s, th * s)
+	ci.draw_texture_rect(tex, Rect2(center - wh * 0.5, wh), false, mod)
+
 ## 단면 배경 + 지면 + kind별 실루엣을 rect 안에 그린다. 이미지 있으면 배경 텍스처, 없으면 절차적.
 static func draw_section(ci: CanvasItem, kind: String, rect: Rect2, seed_id: String) -> void:
 	var tex: Texture2D = _section_tex(kind)
@@ -76,17 +104,27 @@ static func _draw_cover(ci: CanvasItem, tex: Texture2D, rect: Rect2) -> void:
 static func draw_spot(ci: CanvasItem, font: Font, center: Vector2, label: String, state: int, is_main: bool = false) -> void:
 	var r: float = 27.0 if is_main else 20.0
 	var faded: Color = UITheme.INK_FADE
+	var ring_tex: Texture2D = _spot_tex(is_main)
 	if state == 0:
-		# 대비 후광 — 어두운 원반(밝은 하늘·모래 대비) + 밝은 외곽 링(어두운 천막·바위 대비).
-		# 어떤 그림 위에서도 마커가 뜨게(2026-07-09 시인성 보강). 웹 안전(draw_circle/arc).
-		ci.draw_circle(center, r + 6.0, Color(0.0, 0.0, 0.0, 0.30))
-		ci.draw_arc(center, r + 4.0, 0.0, TAU, 40, Color(0.98, 0.91, 0.72, 0.6), 2.0)
-		if is_main:
-			ci.draw_arc(center, r + 9.0, 0.0, TAU, 44, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.32), 1.5)
-		ci.draw_arc(center, r, 0.0, TAU, 32, UITheme.MARKER_INK, 3.5 if is_main else 3.0)
-		ci.draw_circle(center, 5.0 if is_main else 4.0, UITheme.MARKER_INK)
+		if ring_tex != null:
+			# 손그림 잉크 고리(킷 — 크림 후광 구움) + 밝은 그림 대비용 옅은 어두운 원반 + 중심 점(탭 지점).
+			ci.draw_circle(center, r + 4.0, Color(0.0, 0.0, 0.0, 0.22))
+			draw_tex_center(ci, ring_tex, center, (r + 13.0) * 2.0)
+			ci.draw_circle(center, 5.0 if is_main else 4.0, UITheme.MARKER_INK)
+		else:
+			# fallback — 절차적 링(2026-07-09 시인성 보강판). 웹 안전(draw_circle/arc).
+			ci.draw_circle(center, r + 6.0, Color(0.0, 0.0, 0.0, 0.30))
+			ci.draw_arc(center, r + 4.0, 0.0, TAU, 40, Color(0.98, 0.91, 0.72, 0.6), 2.0)
+			if is_main:
+				ci.draw_arc(center, r + 9.0, 0.0, TAU, 44, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.32), 1.5)
+			ci.draw_arc(center, r, 0.0, TAU, 32, UITheme.MARKER_INK, 3.5 if is_main else 3.0)
+			ci.draw_circle(center, 5.0 if is_main else 4.0, UITheme.MARKER_INK)
 	else:
-		ci.draw_arc(center, r, 0.0, TAU, 32, faded, 1.5)
+		# 살핀 곳/잠김 — 같은 고리를 흐리게(다 본 자리라는 표식만 남긴다).
+		if ring_tex != null:
+			draw_tex_center(ci, ring_tex, center, r * 2.0, Color(1.0, 1.0, 1.0, 0.38))
+		else:
+			ci.draw_arc(center, r, 0.0, TAU, 32, faded, 1.5)
 		if state == 1:
 			ci.draw_polyline(PackedVector2Array([center + Vector2(-6, 0), center + Vector2(-1, 5), center + Vector2(7, -6)]), faded, 2.0)
 	if font != null and label != "":

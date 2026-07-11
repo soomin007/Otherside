@@ -61,6 +61,24 @@ const SKETCH_PATHS: Dictionary = {
 ## 화살표 손스케치 원본이 가리키는 방향(우상향) — 이만큼 빼서 목표 방향으로 회전한다. 스샷 보고 튜닝.
 const ARROW_BASE: float = -0.5
 
+## UI 킷(2026-07-12, §16 발주분) — 사람 픽토그램·지도 기호. 잉크판(양피지 위)·`_밝음`(어두운 칼럼 위).
+## 로드 실패 시 각 자리의 기존 절차적 draw 로 fallback — 에셋 없어도 깨지지 않는다.
+const KIT_PATHS: Dictionary = {
+	"leader": "res://assets/arts/transparent/60_사람_대장.png",
+	"mate_a": "res://assets/arts/transparent/58_사람_대원갑.png",
+	"mate_b": "res://assets/arts/transparent/59_사람_대원을.png",
+	"straggler": "res://assets/arts/transparent/61_사람_낙오자.png",
+	"leader_lit": "res://assets/arts/transparent/60_사람_대장_밝음.png",
+	"mate_a_lit": "res://assets/arts/transparent/58_사람_대원갑_밝음.png",
+	"mate_b_lit": "res://assets/arts/transparent/59_사람_대원을_밝음.png",
+	"straggler_lit": "res://assets/arts/transparent/61_사람_낙오자_밝음.png",
+	"mound_lit": "res://assets/arts/transparent/62_사람_스러짐_밝음.png",
+	"trace_ring": "res://assets/arts/transparent/63_기호_흔적점.png",
+	"rope_bridge": "res://assets/arts/transparent/64_기호_로프다리.png",
+	"party_tag": "res://assets/arts/transparent/65_기호_위치태그.png",
+	"overflow": "res://assets/arts/transparent/66_기호_넘침배지.png",
+}
+
 # 고지도·양피지 팔레트 — UITheme 로 승격(지도·단면 공유). alias 로 기존 참조 유지.
 const PAPER: Color = UITheme.PAPER
 const PAPER_EDGE: Color = UITheme.PAPER_EDGE
@@ -113,6 +131,7 @@ var _bg_tex: Texture2D
 var _bg_tex_land: Texture2D   ## 가로(데스크톱) 화면용 — 세로 원본을 90도 회전한 것. 없으면 세로본 fallback
 var _icon_tex: Dictionary = {}   ## 노드 id -> Texture2D (로드 성공한 것만)
 var _sketch_tex: Dictionary = {} ## 손스케치 key -> Texture2D (로드 성공한 것만). 비면 지형지물 안 그림
+var _kit_tex: Dictionary = {}    ## UI 킷 key -> Texture2D (로드 성공한 것만). 없으면 절차적 fallback
 var _reveal_id: String = ""      ## 이번에 잉크로 그려지며 나타날 노드(방금 도착/시작한 곳)
 var _reveal_t: float = 0.0       ## reveal 애니 경과 시간
 var _splashes: Array = []        ## 이동 중 걸음마다 번지는 잉크 얼룩 [{pos,t}] — _process 가 나이 먹이고 _draw 가 렌더
@@ -162,6 +181,10 @@ func _ready() -> void:
 		var spath: String = str(SKETCH_PATHS[k])
 		if ResourceLoader.exists(spath):
 			_sketch_tex[str(k)] = load(spath)
+	for k in KIT_PATHS:
+		var kpath: String = str(KIT_PATHS[k])
+		if ResourceLoader.exists(kpath):
+			_kit_tex[str(k)] = load(kpath)
 
 	# 라벨 빛 웅덩이 텍스처 — 한 번 생성해 _draw 가 재사용.
 	var pg := Gradient.new()
@@ -870,6 +893,7 @@ func _draw() -> void:
 	var run_m: ExpeditionRun = GameState.current_run
 	var at_node: bool = run_m == null or run_m.target_node_id() == ""
 	if not at_node:
+		_draw_party_trail(run_m, area)  # 행렬 — 마커(대장 자리) 뒤로 함께 걷는 이들(마커보다 먼저 = 아래에)
 		draw_circle(mp, 9.0, Color(MARKER_INK.r, MARKER_INK.g, MARKER_INK.b, 0.22))
 		draw_circle(mp, 5.5, MARKER_INK)
 		draw_arc(mp, 10.0, 0.0, TAU, 22, MARKER_INK, 1.5)
@@ -938,6 +962,43 @@ func _draw_sketch(tex: Texture2D, center: Vector2, target: float) -> void:
 	var sc: float = target / maxf(tw, th)
 	var wh: Vector2 = Vector2(tw * sc, th * sc)
 	draw_texture_rect(tex, Rect2(center - wh * 0.5, wh), false)
+
+## 손스케치를 세로 크기 기준으로, 필요 시 좌우 반전해 얹는다(행렬 — 걷는 방향 맞춤). target_h = 높이(px).
+func _draw_sketch_flip(tex: Texture2D, center: Vector2, target_h: float, flip_h: bool) -> void:
+	var tw: float = float(tex.get_width())
+	var th: float = float(tex.get_height())
+	if tw <= 0.0 or th <= 0.0:
+		return
+	var sc: float = target_h / th
+	var wh: Vector2 = Vector2(tw * sc, th * sc)
+	draw_set_transform(center, 0.0, Vector2(-1.0 if flip_h else 1.0, 1.0))
+	draw_texture_rect(tex, Rect2(-wh * 0.5, wh), false)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+## 행렬 — 길 위에서 마커(대장 자리) 뒤로 함께 걷는 이들이 지나온 곡선을 따라 줄지어 걷는다.
+## 대장(지팡이)이 맨 앞, 대원(두 걸음 변주)이 뒤따른다. 아직 출발지를 못 나온 이는 안 그린다.
+func _draw_party_trail(run: ExpeditionRun, area: Rect2) -> void:
+	var tgt: String = run.target_node_id()
+	if tgt == "" or not _kit_tex.has("leader"):
+		return  # 킷 없으면 마커 점 하나(기존 모습) 그대로
+	var ms: float = _mscale()
+	var prog: float = _edge_progress(run)
+	var elen_px: float = MapGraph.edge_length(run.current_node, tgt) * (area.size.x / MAP_W)
+	if elen_px < 1.0:
+		return
+	var gap_t: float = 16.0 * ms / elen_px      # 사람 사이 간격(화면 px → 곡선 t)
+	for i in range(run.party_left()):
+		var t: float = prog - gap_t * float(i + 1)
+		if t <= 0.02:
+			break
+		var pos: Vector2 = _edge_point(run.current_node, tgt, t, area)
+		var ahead: Vector2 = _edge_point(run.current_node, tgt, minf(t + 0.03, 1.0), area)
+		var key: String = "leader" if i == 0 else ("mate_a" if i % 2 == 1 else "mate_b")
+		var tex: Texture2D = _kit_tex.get(key, null)
+		if tex == null:
+			continue
+		var hgt: float = (23.0 if i == 0 else 20.0) * ms
+		_draw_sketch_flip(tex, pos + Vector2(0.0, -hgt * 0.35), hgt, ahead.x < pos.x)
 
 ## 손스케치를 rot 만큼 회전해 얹는다(화살표 방향 맞춤용).
 func _draw_sketch_rot(tex: Texture2D, center: Vector2, target: float, rot: float) -> void:
@@ -1060,10 +1121,18 @@ func _draw_stragglers(area: Rect2) -> void:
 		var half: float = _node_size(s) * 0.5
 		_draw_person(base + Vector2(half + 12.0 * ms, -2.0 * ms), ms)
 
-## 손그림 사람 실루엣(머리 + 웅크린 몸) — 세피아 잉크, 옅은 온기 무리(사람이 있다는 신호).
-func _draw_person(at: Vector2, ms: float) -> void:
-	var ink := Color(0.36, 0.24, 0.16, 0.92)
-	draw_circle(at, 9.5 * ms, Color(0.86, 0.66, 0.38, 0.18))
+## 손그림 사람(웅크린 낙오자) — 킷 텍스처(잉크판/밝음판), 없으면 절차적 실루엣 fallback.
+## lit=true 는 어두운 배경(좌 칼럼 범례)용 아이보리판.
+func _draw_person(at: Vector2, ms: float, lit: bool = false) -> void:
+	var tex: Texture2D = _kit_tex.get("straggler_lit" if lit else "straggler", null)
+	if tex != null:
+		if not lit:
+			draw_circle(at, 10.0 * ms, Color(0.86, 0.66, 0.38, 0.18))  # 옅은 온기 무리(사람이 있다는 신호)
+		_draw_sketch(tex, at, 17.0 * ms)
+		return
+	var ink := Color(0.36, 0.24, 0.16, 0.92) if not lit else Color(0.91, 0.87, 0.80, 0.92)
+	if not lit:
+		draw_circle(at, 9.5 * ms, Color(0.86, 0.66, 0.38, 0.18))
 	draw_circle(at + Vector2(0.0, -6.5 * ms), 2.6 * ms, ink)
 	# 웅크린 몸 — 어깨에서 바닥으로 퍼지는 획 셋(둘러쓴 천).
 	draw_line(at + Vector2(-3.2 * ms, -3.2 * ms), at + Vector2(-4.4 * ms, 4.2 * ms), ink, 1.6 * ms, true)
@@ -1148,7 +1217,11 @@ func _draw_trace_overflow(p: Vector2, count: int, ms: float) -> void:
 	var font: Font = get_theme_default_font()
 	if font == null:
 		return
-	draw_circle(p, 7.5 * ms, Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.42))
+	var bg: Texture2D = _kit_tex.get("overflow", null)
+	if bg != null:
+		_draw_sketch(bg, p, 19.0 * ms)  # 크림 얼룩 배지(구운 것) — 숫자는 폰트가 쓴다
+	else:
+		draw_circle(p, 7.5 * ms, Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.42))
 	var txt: String = "+%d" % count
 	var fs: int = maxi(8, int(11.0 * ms))
 	var tw: float = font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
@@ -1187,7 +1260,11 @@ func _draw_trace_marker(p: Vector2, kind: int, ms: float = 1.0) -> void:
 				draw_line(p + Vector2(-s, -s), p + Vector2(s, s), UITheme.DANGER, 2.0)
 				draw_line(p + Vector2(-s, s), p + Vector2(s, -s), UITheme.DANGER, 2.0)
 		TraceData.ObjectKind.ROPE:
-			draw_line(p + Vector2(-5.0 * ms, 0.0), p + Vector2(5.0 * ms, 0.0), UITheme.SAND, 2.5)  # 로프 다리
+			var rb: Texture2D = _kit_tex.get("rope_bridge", null)
+			if rb != null:
+				_draw_sketch(rb, p, 22.0 * ms)  # 로프 다리(말뚝 두 개에 걸린 밧줄, 후광 구움)
+			else:
+				draw_line(p + Vector2(-5.0 * ms, 0.0), p + Vector2(5.0 * ms, 0.0), UITheme.SAND, 2.5)
 		TraceData.ObjectKind.WATER:
 			_draw_resource_dot(p, TRACE_WATER, ms)
 		TraceData.ObjectKind.FOOD:
@@ -1199,9 +1276,14 @@ func _draw_trace_marker(p: Vector2, kind: int, ms: float = 1.0) -> void:
 		_:
 			draw_circle(p, 2.5 * ms, UITheme.MUTED)
 
-## 자원 점 — 크림 빛 웅덩이(라벨과 같은 가독 장치) 위에 안료색 점 + 잉크 테두리.
-## 후광이 바쁜 지도 위에서 시선을 잡고, 잉크 링이 "지도에 일부러 찍은 표기"로 읽히게 한다.
+## 자원 점 — 잉크 링+크림 후광(킷 텍스처, 구운 것) 위에 안료색 점(자원 색 구분은 코드가 찍는다).
+## 킷 없으면 기존 절차적(웅덩이+점+링) fallback.
 func _draw_resource_dot(p: Vector2, pigment: Color, ms: float) -> void:
+	var ring: Texture2D = _kit_tex.get("trace_ring", null)
+	if ring != null:
+		_draw_sketch(ring, p, 24.0 * ms)
+		draw_circle(p, 3.6 * ms, pigment)
+		return
 	draw_circle(p, 8.5 * ms, Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.45))
 	draw_circle(p, 4.2 * ms, pigment)
 	draw_arc(p, 4.6 * ms, 0.0, TAU, 20, Color(INK.r, INK.g, INK.b, 0.75), maxf(1.0, 1.3 * ms), true)
@@ -1247,6 +1329,19 @@ func _draw_col_left(font: Font, sc: float) -> void:
 	draw_string(EN_TITLE_FONT, Vector2(x, y), str(run.party_left()), HORIZONTAL_ALIGNMENT_LEFT, 30.0 * sc, maxi(11, int(21.0 * sc)), party_color)
 	draw_string(font, Vector2(x + 36.0 * sc, y), "행렬", HORIZONTAL_ALIGNMENT_LEFT, w - 36.0 * sc, maxi(10, int(17.0 * sc)), Color(0.910, 0.875, 0.804))
 	draw_string(font, Vector2(x, y), "함께 걷는 이들", HORIZONTAL_ALIGNMENT_RIGHT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))
+	# 행렬 얼굴 줄 — 대장 + 대원, 잃은 자리는 모래 무더기(숫자가 아니라 사람으로 보이게, 2026-07-12 킷).
+	if _kit_tex.get("leader_lit", null) != null:
+		y += 26.0 * sc
+		var slots: int = 1 + ExpeditionRun.PARTY_MATES + run.party_gained
+		var step_x: float = minf(26.0 * sc, (w - 18.0 * sc) / maxf(1.0, float(slots)))
+		var left_cnt: int = run.party_left()
+		for i in range(slots):
+			var fx: float = x + 9.0 * sc + step_x * float(i)
+			if i < left_cnt:
+				var fkey: String = "leader_lit" if i == 0 else ("mate_a_lit" if i % 2 == 1 else "mate_b_lit")
+				_draw_sketch(_kit_tex[fkey], Vector2(fx, y - 7.0 * sc), 21.0 * sc)
+			elif _kit_tex.get("mound_lit", null) != null:
+				_draw_sketch(_kit_tex["mound_lit"], Vector2(fx, y - 2.0 * sc), 22.0 * sc)
 	y += 14.0 * sc
 	_draw_hairline(x, y, w)
 	y += 24.0 * sc
@@ -1277,7 +1372,7 @@ func _draw_col_left(font: Font, sc: float) -> void:
 		draw_line(Vector2(x + 3.0 * sc, y), Vector2(x + 13.0 * sc, y - 9.0 * sc), UITheme.DANGER, 2.0, true)
 	draw_string(font, Vector2(x + sym_w, y), "죽은 자리", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
 	y += 21.0 * sc
-	_draw_person(Vector2(x + 8.0 * sc, y - 4.0 * sc), sc * 0.62)
+	_draw_person(Vector2(x + 9.0 * sc, y - 5.0 * sc), sc * 0.9, true)
 	draw_string(font, Vector2(x + sym_w, y), "뒤처진 이", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
 	var warn: Texture2D = _sketch_tex.get("warn", null)
 	if warn != null:
@@ -1384,8 +1479,12 @@ func _draw_map_label(font: Font, pos: Vector2, text: String, width: float, fs: i
 		draw_string(font, pos + off, text, HORIZONTAL_ALIGNMENT_CENTER, width, fs, halo2)
 	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, width, fs, col)
 
-## 현재 위치 태그 "원정대"(§2, 14px 상당) — 삼각형은 절차적(draw_colored_polygon), 글자는 후광 라벨. 노드 위 중앙.
+## 현재 위치 태그 "원정대"(§2, 14px 상당) — 붉은 페넌트(킷 텍스처, 없으면 절차 삼각형) + 후광 라벨. 노드 위 중앙.
 func _draw_expedition_tag(font: Font, center: Vector2, sc: float) -> void:
-	var tri: PackedVector2Array = PackedVector2Array([center + Vector2(-4.0, 0.0) * sc, center + Vector2(4.0, 0.0) * sc, center + Vector2(0.0, -5.0) * sc])
-	draw_colored_polygon(tri, LABEL_MK)
+	var pt: Texture2D = _kit_tex.get("party_tag", null)
+	if pt != null:
+		_draw_sketch(pt, center + Vector2(0.0, -17.0 * sc), 15.0 * sc)
+	else:
+		var tri: PackedVector2Array = PackedVector2Array([center + Vector2(-4.0, 0.0) * sc, center + Vector2(4.0, 0.0) * sc, center + Vector2(0.0, -5.0) * sc])
+		draw_colored_polygon(tri, LABEL_MK)
 	_draw_map_label(font, center + Vector2(-75.0 * sc, 2.0), "원정대", 150.0 * sc, maxi(9, int(14.0 * sc)), LABEL_MK)

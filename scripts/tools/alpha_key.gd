@@ -35,7 +35,8 @@ const SPECK_FRAC: float = 0.02 # 떠다니는 흰 조각 제거: 가장 큰 덩�
 
 # 부드러운 페이드가 핵심인 파일 — alpha 스냅을 끈다(단단한 아이콘엔 스냅이 좋지만
 # 소용돌이 모래처럼 바깥으로 옅게 흩어지는 그림은 스냅하면 가장자리가 거칠게 끊긴다).
-const SOFT_KEYS: Array = ["_미지"]
+# _기호_(UI 킷 — 크림 후광이 흰색으로 잦아드는 링·배지)·_스러짐(흩날리는 모래)도 soft(2026-07-12).
+const SOFT_KEYS: Array = ["_미지", "_기호_", "_스러짐"]
 
 func _init() -> void:
 	var targets: Array = _resolve_targets()
@@ -108,6 +109,15 @@ func _convert_one(src: String) -> bool:
 				if a <= 0.0:
 					cleared += 1
 
+	# soft — 눈에 안 보이는 극미량 알파(≤0.02)만 0으로 스냅. 페이드는 보존하면서
+	# get_used_rect 크롭이 배경 노이즈에 막히지 않게 한다(2026-07-12, 기호 후광 크롭 안 되던 것).
+	if soft:
+		for y in range(h):
+			for x in range(w):
+				var sc: Color = img.get_pixel(x, y)
+				if sc.a > 0.0 and sc.a <= 0.02:
+					sc.a = 0.0
+					img.set_pixel(x, y, sc)
 	# 흰 헤일로 제거 — 반투명 경계를 ERODE px 깎는다(soft 는 부드러운 페이드 보존 위해 제외).
 	if ERODE > 0 and not soft:
 		_erode_alpha(img, ERODE, false)

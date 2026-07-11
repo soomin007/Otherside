@@ -563,8 +563,15 @@ func _make_slot_empty() -> Control:
 	slot.add_theme_stylebox_override("panel", _slot_stylebox(false))
 	return slot
 
-## 슬롯 칸 — filled(밝은 가죽) / empty(움푹 어둡게).
-func _slot_stylebox(filled: bool) -> StyleBoxFlat:
+## 슬롯 칸 — 가죽 틀 텍스처(킷 70/71: 담김=밝은 안감, 빈칸=움푹 어둠). 없으면 StyleBoxFlat fallback.
+func _slot_stylebox(filled: bool) -> StyleBox:
+	var path: String = "res://assets/arts/transparent/70_소품_슬롯담김.png" if filled \
+		else "res://assets/arts/transparent/71_소품_슬롯빈.png"
+	if ResourceLoader.exists(path):
+		var tb := StyleBoxTexture.new()
+		tb.texture = load(path)   # Godot 리소스 캐시가 중복 로드를 막는다
+		tb.set_content_margin_all(7)
+		return tb
 	var sb := StyleBoxFlat.new()
 	if filled:
 		sb.bg_color = Color(0.24, 0.18, 0.11, 0.82)  # 담긴 칸(배낭이 살짝 비치게)

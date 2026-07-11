@@ -62,6 +62,9 @@ func _resolve_targets() -> Array:
 func _target_for(base: String) -> int:
 	if base.contains("_아이콘_"):
 		return MAX_ICON
+	# UI 킷(2026-07-12) — 표시가 14~54px 라 320이면 충분(@2x 여유 포함).
+	if base.contains("_사람_") or base.contains("_기호_") or base.contains("_소품_"):
+		return MAX_ICON
 	if base.contains("_초상_"):
 		return MAX_PORTRAIT
 	return MAX_BG  # 지도·단면·배경·오프닝·타이틀
