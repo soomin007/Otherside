@@ -296,7 +296,7 @@ func _build_step2() -> void:
 	# 사진 라벨(테이블 앞판, y≈600까지)과 안 겹치게 낮고 얇게. 슬롯은 아이콘만(이름은 툴팁).
 	var bagc := CenterContainer.new()
 	bagc.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	bagc.offset_top = -104.0
+	bagc.offset_top = -128.0   # 슬롯 확대(54→76, 2026-07-12 사용자)에 맞춰 줄도 키움
 	bagc.offset_bottom = -34.0
 	bagc.mouse_filter = Control.MOUSE_FILTER_IGNORE  # 빈 영역이 하단 버튼 클릭을 막지 않게(자식 버튼은 받음)
 	_step_root.add_child(bagc)
@@ -513,7 +513,7 @@ func _refresh_meta() -> void:
 ## 담긴 칸 — 아이템 아이콘만(하단 한 줄 컴팩트 — 이름은 툴팁). 탭하면 뺀다.
 func _make_slot_filled(idx: int, key: String) -> Control:
 	var slot := Button.new()
-	slot.custom_minimum_size = Vector2(54, 54)
+	slot.custom_minimum_size = Vector2(76, 76)
 	slot.add_theme_stylebox_override("normal", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("hover", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("pressed", _slot_stylebox(true))
@@ -530,7 +530,7 @@ func _make_slot_filled(idx: int, key: String) -> Control:
 ## 주머니 칸 — 집은 도구 아이콘. 탭하면 창고로 되돌린다(주머니 비움).
 func _make_pouch_slot(key: String) -> Control:
 	var slot := Button.new()
-	slot.custom_minimum_size = Vector2(54, 54)
+	slot.custom_minimum_size = Vector2(76, 76)
 	slot.add_theme_stylebox_override("normal", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("hover", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("pressed", _slot_stylebox(true))
@@ -558,7 +558,7 @@ func _clear_pouch_from(slot: Control) -> void:
 ## 빈칸 — 움푹한 자리(안 눌림).
 func _make_slot_empty() -> Control:
 	var slot := PanelContainer.new()
-	slot.custom_minimum_size = Vector2(54, 54)
+	slot.custom_minimum_size = Vector2(76, 76)
 	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	slot.add_theme_stylebox_override("panel", _slot_stylebox(false))
 	return slot
@@ -570,7 +570,7 @@ func _slot_stylebox(filled: bool) -> StyleBox:
 	if ResourceLoader.exists(path):
 		var tb := StyleBoxTexture.new()
 		tb.texture = load(path)   # Godot 리소스 캐시가 중복 로드를 막는다
-		tb.set_content_margin_all(7)
+		tb.set_content_margin_all(9)
 		return tb
 	var sb := StyleBoxFlat.new()
 	if filled:

@@ -55,8 +55,13 @@ class PageArt:
 			y += 42.0
 
 ## 책갈피 리본 — 오른쪽 끝에 V 홈이 파인 빨간 리본. length 로 삐져나온 정도를 조절(호버 애니).
-## V 홈은 오목 다각형이라 위/아래 두 볼록 조각으로 나눠 그린다.
+## 실제 리본 그림(킷 69, 사용자 생성)을 홈 캡 + 늘어나는 몸통 두 조각으로 그린다 — 길이가 변해도
+## V 홈이 안 뭉갠다. 그림이 없으면 기존 절차 폴리곤 fallback(V 홈은 위/아래 두 볼록 조각).
 class Ribbon extends Control:
+	static var _tex_l: Texture2D          ## V 홈 왼쪽판(화면 모서리 리본 flip=true 용)
+	static var _tex_r: Texture2D          ## V 홈 오른쪽판(챕터 탭용)
+	static var _tex_loaded: bool = false
+	const CAP_FRAC: float = 0.42          ## 원본에서 V 홈 캡이 차지하는 폭 비율
 	var length: float = 38.0:
 		set(v):
 			length = v
@@ -65,8 +70,55 @@ class Ribbon extends Control:
 	var ribbon_h: float = 30.0
 	var col: Color = UITheme.MARKER_INK
 	var flip: bool = false   ## true 면 오른쪽 가장자리에 걸려 왼쪽으로 삐져나온다(V 홈이 왼쪽 끝). 기본=왼쪽.
+
+	static func _load_tex() -> void:
+		if _tex_loaded:
+			return
+		_tex_loaded = true
+		var pl: String = "res://assets/arts/transparent/69_소품_책갈피리본_좌.png"
+		var pr: String = "res://assets/arts/transparent/69_소품_책갈피리본_우.png"
+		if ResourceLoader.exists(pl):
+			_tex_l = load(pl)
+		if ResourceLoader.exists(pr):
+			_tex_r = load(pr)
+
 	func _draw() -> void:
+		_load_tex()
 		var h: float = ribbon_h
+		var tex: Texture2D = _tex_l if flip else _tex_r
+		if tex != null:
+			_draw_tex_ribbon(tex, h)
+		else:
+			_draw_poly_ribbon(h)
+		if text != "":
+			var f: Font = get_theme_default_font()
+			if f != null:
+				if flip:
+					draw_string(f, Vector2(size.x - length + 7.0, h * 0.5 + 5.0), text, HORIZONTAL_ALIGNMENT_RIGHT, length - 16.0, 13, Color(0.96, 0.92, 0.86, 0.95))
+				else:
+					draw_string(f, Vector2(9.0, h * 0.5 + 5.0), text, HORIZONTAL_ALIGNMENT_LEFT, length - 16.0, 13, Color(0.96, 0.92, 0.86, 0.95))
+
+	## 그림 리본 — V 홈 캡(비율 고정) + 몸통(남은 길이만큼 늘임). 탭 흐림은 col.a 로(그림은 이미 붉다).
+	func _draw_tex_ribbon(tex: Texture2D, h: float) -> void:
+		var tw: float = float(tex.get_width())
+		var th: float = float(tex.get_height())
+		if tw <= 0.0 or th <= 0.0 or length <= 2.0:
+			return
+		var mod := Color(1.0, 1.0, 1.0, col.a)
+		var cap_src: float = tw * CAP_FRAC
+		var cap_w: float = minf(cap_src * (h / th), length * 0.6)
+		if flip:
+			var x0: float = size.x - length
+			draw_texture_rect_region(tex, Rect2(x0, 0.0, cap_w, h), Rect2(0.0, 0.0, cap_src, th), mod)
+			draw_texture_rect_region(tex, Rect2(x0 + cap_w, 0.0, length - cap_w, h), Rect2(cap_src, 0.0, tw - cap_src, th), mod)
+			draw_line(Vector2(size.x, h), Vector2(x0 + cap_w * 0.5, h), Color(0.0, 0.0, 0.0, 0.3), 1.5, true)
+		else:
+			draw_texture_rect_region(tex, Rect2(0.0, 0.0, length - cap_w, h), Rect2(0.0, 0.0, tw - cap_src, th), mod)
+			draw_texture_rect_region(tex, Rect2(length - cap_w, 0.0, cap_w, h), Rect2(tw - cap_src, 0.0, cap_src, th), mod)
+			draw_line(Vector2(0.0, h), Vector2(length - cap_w * 0.5, h), Color(0.0, 0.0, 0.0, 0.3), 1.5, true)
+
+	## 절차 폴리곤 fallback — 예전 모습 그대로.
+	func _draw_poly_ribbon(h: float) -> void:
 		var notch: float = minf(10.0, length * 0.3)
 		if flip:
 			var w: float = size.x   # 기준 = 컨트롤 오른변. x 를 좌우 대칭(w - x)으로 그린다.
@@ -75,20 +127,12 @@ class Ribbon extends Control:
 			draw_colored_polygon(PackedVector2Array([
 				Vector2(w, h * 0.5), Vector2(w - length + notch, h * 0.5), Vector2(w - length, h), Vector2(w, h)]), col)
 			draw_line(Vector2(w, h), Vector2(w - length + 2.0, h), Color(0.0, 0.0, 0.0, 0.35), 1.5, true)
-			if text != "":
-				var ff: Font = get_theme_default_font()
-				if ff != null:
-					draw_string(ff, Vector2(w - length + 7.0, h * 0.5 + 5.0), text, HORIZONTAL_ALIGNMENT_RIGHT, length - 16.0, 13, Color(0.96, 0.92, 0.86, 0.95))
 			return
 		draw_colored_polygon(PackedVector2Array([
 			Vector2(0, 0), Vector2(length, 0), Vector2(length - notch, h * 0.5), Vector2(0, h * 0.5)]), col)
 		draw_colored_polygon(PackedVector2Array([
 			Vector2(0, h * 0.5), Vector2(length - notch, h * 0.5), Vector2(length, h), Vector2(0, h)]), col)
 		draw_line(Vector2(0, h), Vector2(length - 2.0, h), Color(0.0, 0.0, 0.0, 0.35), 1.5, true)  # 아랫면 그림자(두께감)
-		if text != "":
-			var f: Font = get_theme_default_font()
-			if f != null:
-				draw_string(f, Vector2(9.0, h * 0.5 + 5.0), text, HORIZONTAL_ALIGNMENT_LEFT, length - 16.0, 13, Color(0.96, 0.92, 0.86, 0.95))
 
 ## 일지 책 — 가죽 표지 + 양피지 두 페이지 + 괘선 + 가운데 접힘(옛 장부의 렌더) + 페이지 두께 스택(§5).
 class LedgerBook extends Control:

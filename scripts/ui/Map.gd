@@ -986,7 +986,7 @@ func _draw_party_trail(run: ExpeditionRun, area: Rect2) -> void:
 	var elen_px: float = MapGraph.edge_length(run.current_node, tgt) * (area.size.x / MAP_W)
 	if elen_px < 1.0:
 		return
-	var gap_t: float = 16.0 * ms / elen_px      # 사람 사이 간격(화면 px → 곡선 t)
+	var gap_t: float = 24.0 * ms / elen_px      # 사람 사이 간격(화면 px → 곡선 t)
 	for i in range(run.party_left()):
 		var t: float = prog - gap_t * float(i + 1)
 		if t <= 0.02:
@@ -997,7 +997,7 @@ func _draw_party_trail(run: ExpeditionRun, area: Rect2) -> void:
 		var tex: Texture2D = _kit_tex.get(key, null)
 		if tex == null:
 			continue
-		var hgt: float = (23.0 if i == 0 else 20.0) * ms
+		var hgt: float = (36.0 if i == 0 else 31.0) * ms   # 사용자: 작아서 안 보임 → 확대(2026-07-12)
 		_draw_sketch_flip(tex, pos + Vector2(0.0, -hgt * 0.35), hgt, ahead.x < pos.x)
 
 ## 손스케치를 rot 만큼 회전해 얹는다(화살표 방향 맞춤용).
@@ -1127,8 +1127,8 @@ func _draw_person(at: Vector2, ms: float, lit: bool = false) -> void:
 	var tex: Texture2D = _kit_tex.get("straggler_lit" if lit else "straggler", null)
 	if tex != null:
 		if not lit:
-			draw_circle(at, 10.0 * ms, Color(0.86, 0.66, 0.38, 0.18))  # 옅은 온기 무리(사람이 있다는 신호)
-		_draw_sketch(tex, at, 17.0 * ms)
+			draw_circle(at, 14.0 * ms, Color(0.86, 0.66, 0.38, 0.18))  # 옅은 온기 무리(사람이 있다는 신호)
+		_draw_sketch(tex, at, 25.0 * ms)   # 사용자: 작아서 안 보임 → 확대(2026-07-12)
 		return
 	var ink := Color(0.36, 0.24, 0.16, 0.92) if not lit else Color(0.91, 0.87, 0.80, 0.92)
 	if not lit:
@@ -1219,7 +1219,7 @@ func _draw_trace_overflow(p: Vector2, count: int, ms: float) -> void:
 		return
 	var bg: Texture2D = _kit_tex.get("overflow", null)
 	if bg != null:
-		_draw_sketch(bg, p, 19.0 * ms)  # 크림 얼룩 배지(구운 것) — 숫자는 폰트가 쓴다
+		_draw_sketch(bg, p, 24.0 * ms)  # 크림 얼룩 배지(구운 것) — 숫자는 폰트가 쓴다. 확대(2026-07-12)
 	else:
 		draw_circle(p, 7.5 * ms, Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.42))
 	var txt: String = "+%d" % count
@@ -1262,7 +1262,7 @@ func _draw_trace_marker(p: Vector2, kind: int, ms: float = 1.0) -> void:
 		TraceData.ObjectKind.ROPE:
 			var rb: Texture2D = _kit_tex.get("rope_bridge", null)
 			if rb != null:
-				_draw_sketch(rb, p, 22.0 * ms)  # 로프 다리(말뚝 두 개에 걸린 밧줄, 후광 구움)
+				_draw_sketch(rb, p, 30.0 * ms)  # 로프 다리(말뚝 두 개에 걸린 밧줄, 후광 구움) — 확대(2026-07-12)
 			else:
 				draw_line(p + Vector2(-5.0 * ms, 0.0), p + Vector2(5.0 * ms, 0.0), UITheme.SAND, 2.5)
 		TraceData.ObjectKind.WATER:
@@ -1281,8 +1281,8 @@ func _draw_trace_marker(p: Vector2, kind: int, ms: float = 1.0) -> void:
 func _draw_resource_dot(p: Vector2, pigment: Color, ms: float) -> void:
 	var ring: Texture2D = _kit_tex.get("trace_ring", null)
 	if ring != null:
-		_draw_sketch(ring, p, 24.0 * ms)
-		draw_circle(p, 3.6 * ms, pigment)
+		_draw_sketch(ring, p, 31.0 * ms)   # 확대(2026-07-12)
+		draw_circle(p, 4.6 * ms, pigment)
 		return
 	draw_circle(p, 8.5 * ms, Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.45))
 	draw_circle(p, 4.2 * ms, pigment)
@@ -1331,17 +1331,17 @@ func _draw_col_left(font: Font, sc: float) -> void:
 	draw_string(font, Vector2(x, y), "함께 걷는 이들", HORIZONTAL_ALIGNMENT_RIGHT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))
 	# 행렬 얼굴 줄 — 대장 + 대원, 잃은 자리는 모래 무더기(숫자가 아니라 사람으로 보이게, 2026-07-12 킷).
 	if _kit_tex.get("leader_lit", null) != null:
-		y += 26.0 * sc
+		y += 32.0 * sc
 		var slots: int = 1 + ExpeditionRun.PARTY_MATES + run.party_gained
-		var step_x: float = minf(26.0 * sc, (w - 18.0 * sc) / maxf(1.0, float(slots)))
+		var step_x: float = minf(32.0 * sc, (w - 18.0 * sc) / maxf(1.0, float(slots)))
 		var left_cnt: int = run.party_left()
 		for i in range(slots):
-			var fx: float = x + 9.0 * sc + step_x * float(i)
+			var fx: float = x + 11.0 * sc + step_x * float(i)
 			if i < left_cnt:
 				var fkey: String = "leader_lit" if i == 0 else ("mate_a_lit" if i % 2 == 1 else "mate_b_lit")
-				_draw_sketch(_kit_tex[fkey], Vector2(fx, y - 7.0 * sc), 21.0 * sc)
+				_draw_sketch(_kit_tex[fkey], Vector2(fx, y - 9.0 * sc), 27.0 * sc)   # 확대(2026-07-12)
 			elif _kit_tex.get("mound_lit", null) != null:
-				_draw_sketch(_kit_tex["mound_lit"], Vector2(fx, y - 2.0 * sc), 22.0 * sc)
+				_draw_sketch(_kit_tex["mound_lit"], Vector2(fx, y - 3.0 * sc), 27.0 * sc)
 	y += 14.0 * sc
 	_draw_hairline(x, y, w)
 	y += 24.0 * sc
@@ -1372,7 +1372,7 @@ func _draw_col_left(font: Font, sc: float) -> void:
 		draw_line(Vector2(x + 3.0 * sc, y), Vector2(x + 13.0 * sc, y - 9.0 * sc), UITheme.DANGER, 2.0, true)
 	draw_string(font, Vector2(x + sym_w, y), "죽은 자리", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
 	y += 21.0 * sc
-	_draw_person(Vector2(x + 9.0 * sc, y - 5.0 * sc), sc * 0.9, true)
+	_draw_person(Vector2(x + 9.0 * sc, y - 5.0 * sc), sc * 0.8, true)
 	draw_string(font, Vector2(x + sym_w, y), "뒤처진 이", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
 	var warn: Texture2D = _sketch_tex.get("warn", null)
 	if warn != null:
