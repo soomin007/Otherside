@@ -265,7 +265,7 @@ func _on_record_pressed() -> void:
 	Bookmark.open_journal(0)  # 원정 일지(autoload) — 일대기 챕터
 
 func _on_settings_pressed() -> void:
-	Bookmark.open_journal(2)  # 원정 일지의 설정 챕터(옛 별도 장부는 일지로 흡수 통합)
+	Bookmark.open_journal(Bookmark.CH_SETTINGS)  # 원정 일지의 설정 챕터(옛 별도 장부는 일지로 흡수 통합)
 
 func _on_data_reset() -> void:
 	_stat_label.text = _stat_text()

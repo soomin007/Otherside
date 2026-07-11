@@ -30,7 +30,12 @@ const TUTORIAL_PAGES: Array = [
 	"죽기 전 단 한 번,\n물건 하나를 남길 수 있다.\n그만큼 잃지만\n다음 원정대가 그것을 줍는다.\n무엇을 남길지가 이 여정의 마음이다.",
 ]
 
-const CHAPTERS: Array = ["일대기", "조작", "설정"]
+## 챕터 순서 — 바꾸면 아래 CH_* 와 LedgerBook 두께 스택 상한도 같이.
+const CHAPTERS: Array = ["일대기", "마을", "조작", "설정"]
+const CH_CHRONICLE: int = 0
+const CH_VILLAGE: int = 1   ## 공훈 — 이룬 일이 마을에 새 직능을 부른다(2026-07-11)
+const CH_CONTROLS: int = 2
+const CH_SETTINGS: int = 3
 
 ## 양피지 낱장 그리기 — LedgerBook(펼친 두 쪽)과 FlipLeaf(넘어가는 잎)가 공유.
 class PageArt:
@@ -113,7 +118,7 @@ class LedgerBook extends Control:
 		cover_sb.draw(get_canvas_item(), book)
 		# 페이지 두께 스택(§5) — 표지 안쪽, 좌·우 바깥 모서리 세로 띠. 챕터 위치(thickness_cf)에 비례해
 		# 한쪽이 두꺼워지고 반대쪽이 얇아진다(넘기는 동안 연속 변화). 안쪽 밝고 바깥 어둡게.
-		var n_max: float = 2.0  # 챕터 3개(0..2) — 내부 클래스라 자체 상수
+		var n_max: float = 3.0  # 챕터 4개(0..3) — 내부 클래스라 자체 상수(CHAPTERS 바뀌면 같이)
 		var cfv: float = clampf(thickness_cf, 0.0, n_max)
 		var nl: int = mini(7, roundi(2.0 + cfv * 3.0))
 		var nr: int = mini(7, roundi(2.0 + (n_max - cfv) * 3.0))
@@ -600,11 +605,13 @@ func _apply_tab_state() -> void:
 
 func _render_chapter() -> void:
 	match _chapter:
-		0:
+		CH_CHRONICLE:
 			_show_chronicle()
-		1:
+		CH_VILLAGE:
+			_show_village()
+		CH_CONTROLS:
 			_show_tutorial()
-		2:
+		CH_SETTINGS:
 			_show_settings()
 
 # --- 챕터: 일대기 ---
@@ -627,6 +634,36 @@ func _show_chronicle() -> void:
 	_box_r.add_child(_ledger_row("죽은 자리", "%d" % GameState.deaths.size()))
 	_box_r.add_child(_ledger_row("기린 자리", "%d" % GameState.mourn_count()))
 	_box_r.add_child(_ledger_row("끝에 닿음", "%d번" % GameState.arrivals.size()))
+	_add_close(_box_r)
+
+# --- 챕터: 마을 (공훈 — 이룬 일이 사람을 부른다, 직능 해금. 2026-07-11 사용자 확정) ---
+
+## 왼쪽: 마을에 온(올) 사람들 — 직능별 해금 상태와 오는 조건. 오른쪽: 이룬 일 목록.
+## 조건은 세계의 말로 이미 Feats.cond 에 있다(숫자 규칙 낭독 아님).
+func _show_village() -> void:
+	_clear(_box_l)
+	_clear(_box_r)
+	_box_l.add_child(_brush_heading("마을", 40, INK))
+	_box_l.add_child(_ink_label("이룬 일이 사람을 부른다.\n새 얼굴이 오면 대장 후보가 된다.", UITheme.FS_SMALL, INK_FADE))
+	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	var opened: Array = GameState.unlocked_vocations()
+	for f in Feats.LIST:
+		var vid: String = str(f.get("unlocks", ""))
+		var nm: String = Vocations.name_of(vid)
+		if opened.has(vid):
+			_box_l.add_child(_ink_label("%s · 마을에 있다" % nm, UITheme.FS_LABEL, INK))
+		else:
+			_box_l.add_child(_ink_label("%s · 아직 오지 않았다" % nm, UITheme.FS_LABEL, INK_FADE))
+			_box_l.add_child(_ink_label(str(f.get("cond", "")), UITheme.FS_SMALL, INK_FADE))
+	_box_r.add_child(_brush_heading("이룬 일", 40, INK))
+	_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	if GameState.feats_unlocked.is_empty():
+		_box_r.add_child(_ink_label("아직 없다.\n길이 가르쳐 줄 것이다.", UITheme.FS_LABEL, INK_FADE))
+	else:
+		for fid in GameState.feats_unlocked:
+			var done: Dictionary = Feats.by_id(str(fid))
+			_box_r.add_child(_ink_label(str(done.get("name", "")), UITheme.FS_LABEL, RED))
+			_box_r.add_child(_ink_label(str(done.get("line", "")), UITheme.FS_SMALL, INK_FADE))
 	_add_close(_box_r)
 
 # --- 챕터: 조작 안내 (펼침 2장 — 안내 글 | 표식 읽기 범례, 양면 다 채움) ---

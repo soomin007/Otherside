@@ -32,6 +32,7 @@ func _init() -> void:
 	_test_weight()
 	_test_party_intact()
 	_test_stragglers()
+	_test_feats()
 	_test_run_serialization()
 
 	if _fail == 0:
@@ -99,6 +100,26 @@ func _test_party_intact() -> void:
 		worn.apply_choice({"water": -5})
 	_ok(worn.party_lost == ExpeditionRun.PARTY_MATES, "행렬: 손실은 대원 수까지만")
 	_ok(worn.party_left() == 1, "행렬: 마지막엔 대장 홀로")
+
+## 공훈(Feats) — 순수 판정: 문턱 경계·직능 매핑·정의 무결성(직능 id 실존·중복 해금 없음).
+func _test_feats() -> void:
+	var none: Dictionary = {"thirst_deaths": 0, "hunger_deaths": 0, "heavy_departures": 0, "max_row_visited": 0, "traces_left": 0}
+	_ok(Feats.achieved_ids(none).is_empty(), "공훈: 빈 통계 = 달성 없음")
+	var below: Dictionary = {"thirst_deaths": 1, "hunger_deaths": 1, "heavy_departures": 0, "max_row_visited": 3, "traces_left": 2}
+	_ok(Feats.achieved_ids(below).is_empty(), "공훈: 문턱 미만은 전부 잠김(경계 -1)")
+	var all_hit: Dictionary = {"thirst_deaths": 2, "hunger_deaths": 2, "heavy_departures": 1, "max_row_visited": 4, "traces_left": 3}
+	_ok(Feats.achieved_ids(all_hit).size() == Feats.LIST.size(), "공훈: 문턱 정확히 = 전부 달성(경계 0)")
+	var opened: Array = Feats.vocations_open(Feats.achieved_ids(all_hit))
+	_ok(opened.size() == Vocations.ids().size() - 1, "공훈: 전부 달성이면 평범 외 전 직능이 열린다")
+	var seen_voc: Dictionary = {}
+	var sound: bool = true
+	for f in Feats.LIST:
+		var vid: String = str(f.get("unlocks", ""))
+		if vid == "" or str(Vocations.by_id(vid).get("id", "x")) != vid or seen_voc.has(vid):
+			sound = false
+		seen_voc[vid] = true
+	_ok(sound, "공훈: 해금 직능 id 실존 + 한 직능 한 공훈")
+	_ok(Feats.vocations_open(["thirst_learned"]) == ["waterwise"], "공훈: 갈증 공훈 → 물지기만 연다")
 
 ## 이어하기 직렬화 — 실제 JSON 왕복 후 상태가 보존되고, rng 까지 복원돼 같은 미래를 걷는가.
 func _test_run_serialization() -> void:

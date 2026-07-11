@@ -34,6 +34,8 @@ var reunion_hints_shown: int = 0 ## 시장의 재회 옛말을 들려준 시점�
 var expedition_names: Array = [] ## 원정별 이름 (인덱스 = 회차-1, 영속). 랜덤(ExpeditionNamer) 또는 직접 입력(Loadout).
 var arrivals: Array = [] ## end 에 닿은 원정 기록 — {expedition:int, ending:"cycle"|"reunion"} (영속). 일대기(Bookmark)가 죽음만이 아니라 도달/재회도 보이게 한다.
 var seeded: bool = false ## 유령 흔적(플레이어 이전 원정대들)을 심었나 (영속, 세계당 1회). 빈 세계 회피.
+var feat_stats: Dictionary = {} ## 공훈 판정용 누적 통계 (영속) — thirst_deaths/hunger_deaths/heavy_departures. 파생 가능한 값(방문 최심 층·남긴 수)은 저장 안 함(feat_stats_snapshot 이 합성).
+var feats_unlocked: Array = []  ## 달성한 공훈 id (영속, Feats.LIST). 달성한 공훈이 직능을 마을로 부른다(직능 해금 — 2026-07-11 사용자 확정).
 
 # --- 현재 원정 한정 상태 (죽으면 리셋) ---
 ## 초기 자원 — 임시치. 자원 = 수명 (남기면 그만큼 잃는다). 밸런스는 폰 테스트로 검증 예정.
@@ -44,6 +46,7 @@ var current_run: ExpeditionRun = null  ## 진행 중인 원정의 순수 상태�
 var section_state: Dictionary = {}  ## 진행 중 단면 탐색 스냅샷(SectionRun.to_dict, 노드에 있을 때만) — 이어하기 정밀 복원용. Expedition 이 갱신, 세이브에 실린다.
 var ending_kind_pending: String = ""  ## 엔딩 슬라이드쇼(Ending 오버레이)가 읽을 결말("cycle"/"reunion"). Expedition._show_ending 이 세팅.
 var pending_expedition_name: String = ""  ## 폭풍 막간(Interlude)이 지명한 다음 원정대 이름 → Loadout 이 초기값으로 소비(비영속).
+var pending_feat_notices: Array = []  ## 방금 달성한 공훈 id — Loadout 이 "마을에 새 얼굴" 안내로 소비(비영속).
 ## blind choice — 겪어본 선택지 ("event_id#idx"→true). 그 선택지 결과를 이후 노출한다(학습).
 ## 영속(세이브 포함) — 한 번 본 결과는 다음 원정에도 보인다. requires 로 열린 새 변형 이벤트는 event_id 가 달라
 ## 자동으로 "안 본 것"(blind)이 된다 → "이전 선택으로 새로 나온 선택지만 처음처럼"이 선택지 단위 키로 공짜로 성립.
@@ -91,6 +94,49 @@ func player_trace_count() -> int:
 		if t is Dictionary and not bool(t.get("seed", false)):
 			n += 1
 	return n
+
+# --- 공훈 (업적 — 달성하면 마을에 새 직능이 온다, 2026-07-11 사용자 확정) ---
+
+## 공훈 판정용 통계 스냅샷 — 저장된 카운터 + 파생값(방문 최심 층·남긴 수). Feats.check 가 읽는다.
+func feat_stats_snapshot() -> Dictionary:
+	return {
+		"thirst_deaths": int(feat_stats.get("thirst_deaths", 0)),
+		"hunger_deaths": int(feat_stats.get("hunger_deaths", 0)),
+		"heavy_departures": int(feat_stats.get("heavy_departures", 0)),
+		"max_row_visited": _max_row_visited(),
+		"traces_left": player_trace_count(),
+	}
+
+func _bump_feat_stat(key: String) -> void:
+	feat_stats[key] = int(feat_stats.get(key, 0)) + 1
+
+## 방문한 노드의 가장 깊은 층(MapGraph row) — 길잡이 공훈의 근거.
+func _max_row_visited() -> int:
+	var m: int = 0
+	for nid in visited_nodes:
+		m = maxi(m, int(MapGraph.node(str(nid)).get("row", 0)))
+	return m
+
+## 새로 달성한 공훈이 있으면 기록하고 안내 대기열에 얹는다. 저장은 호출측이 한다(중복 save 방지 —
+## 이 함수를 부르는 자리는 전부 직후에 save_game/autosave 가 있다).
+func check_feats() -> void:
+	var stats: Dictionary = feat_stats_snapshot()
+	for fid in Feats.achieved_ids(stats):
+		if not feats_unlocked.has(fid):
+			feats_unlocked.append(fid)
+			pending_feat_notices.append(fid)
+
+## 지금 고를 수 있는 직능 id 목록 — 평범("")은 항상 + 공훈으로 마을에 온 이들.
+func unlocked_vocations() -> Array:
+	var out: Array = [""]
+	out.append_array(Feats.vocations_open(feats_unlocked))
+	return out
+
+## 방금 달성한 공훈 안내를 꺼내 간다(꺼내면 비운다) — Loadout 이 "마을에 새 얼굴"로 보여준다.
+func take_feat_notices() -> Array:
+	var out: Array = pending_feat_notices
+	pending_feat_notices = []
+	return out
 
 # --- 낙오자 (재회 축 "구조" — 뒤처진 이를 거두어 데리고 닿는다, 기획서 §3) ---
 
@@ -209,6 +255,9 @@ func begin_run_with(resources: Dictionary, name: String = "", voc_id: String = "
 		rng.randomize()
 		nm = ExpeditionNamer.random(rng)
 	expedition_names.append(nm)
+	if carry_weight > ExpeditionRun.WEIGHT_FREE:
+		_bump_feat_stat("heavy_departures")  # 무거운 짐을 지고 떠났다 — 짐꾼 공훈의 근거
+	check_feats()
 	_mark_visited(MapGraph.START_ID)
 	autosave_run()  # 출발 즉시 이어하기 슬롯에 실린다(꾸리기 결과 보존)
 
@@ -330,11 +379,13 @@ func go_to_title() -> void:
 func _mark_visited(node_id: String) -> void:
 	if node_id != "" and not visited_nodes.has(node_id):
 		visited_nodes.append(node_id)
+		check_feats()  # 깊은 층 첫 도달(길잡이 공훈) — 같은 save 에 실리게 저장 전에
 		save_game()
 
 ## 죽기 전 단 한 번 흔적을 남긴다 (기획서 §3). 남김 = 자기 수명 깎기.
 func leave_trace(trace: TraceData) -> void:
 	traces.append(trace.to_dict())
+	check_feats()  # 남긴 수 갱신(유품지기 공훈) — 같은 save 에 실리게 저장 전에
 	save_game()  # 남김은 되돌릴 수 없는 결정 — 즉시 영속(이어하기 런 상태도 함께 실린다)
 
 # --- 추모 (죽은 자리 기리기 — 재회 조건의 두 번째 축, 기획서 §3 결말) ---
@@ -383,9 +434,15 @@ func mark_reunion_hint_shown() -> void:
 	reunion_hints_shown = cycle_arrival_count()
 	save_game()
 
-func record_death(leg: int, node_id: String = "") -> void:
+func record_death(leg: int, node_id: String = "", cause: String = "") -> void:
 	deaths.append({"leg": leg, "node_id": node_id, "expedition": expedition_count})
 	_harvest_stragglers()  # 죽은 런의 손실 자리를 낙오자로 심는다(데려가던 낙오자는 런과 운명을 같이한다)
+	# 공훈 통계 — 사인별 카운트(물지기·강골 해금 근거). 저장은 호출측(Expedition._die → save_game).
+	if cause == "thirst":
+		_bump_feat_stat("thirst_deaths")
+	elif cause == "hunger":
+		_bump_feat_stat("hunger_deaths")
+	check_feats()
 
 ## 복원된 흔적을 TraceData 로 돌려준다 (지도/횡스크롤 렌더링용).
 func loaded_traces() -> Array[TraceData]:
@@ -518,6 +575,8 @@ func save_game() -> void:
 		"arrivals": arrivals,
 		"seen_choices": seen_choices,
 		"seeded": seeded,
+		"feat_stats": feat_stats,
+		"feats_unlocked": feats_unlocked,
 		# 이어하기(서스펜드) — 살아 있는 진행 중 원정만 싣는다. 죽음/도달로 런이 닫히면 다음 저장에서 비워진다.
 		# 자유 세이브/로드 아님(사용자 확정 2026-07-10): 한 슬롯, 상시 자동 저장, 시점 선택 없음.
 		"run": current_run.to_dict() if (current_run != null and current_run.alive) else {},
@@ -559,6 +618,8 @@ func load_game() -> void:
 	arrivals = data.get("arrivals", [])
 	seen_choices = data.get("seen_choices", {})
 	seeded = bool(data.get("seeded", false))
+	feat_stats = data.get("feat_stats", {})   # JSON 왕복 후 값은 float — 읽는 쪽(snapshot)이 int() 캐스팅
+	feats_unlocked = data.get("feats_unlocked", [])
 	# 이어하기 — 길 위에 원정이 있었으면 되살린다(타이틀이 "이어서 간다"를 띄운다).
 	var run_data: Dictionary = data.get("run", {})
 	if not run_data.is_empty():
@@ -584,6 +645,9 @@ func reset_save() -> void:
 	arrivals = []
 	current_run = null
 	seen_choices.clear()
+	feat_stats = {}
+	feats_unlocked = []
+	pending_feat_notices = []
 	_plant_seeds()      # 새 세계에도 유령 흔적을 다시 심는다(빈 세계 회피)
 	seeded = true
 	save_game()

@@ -73,6 +73,7 @@ var _slot_lock: bool = false       ## 빼기 바스러짐 동안 담기/빼기 �
 
 var _pending_name: String = ""     ## 이번 원정대 이름 — 랜덤 초기값, 편집·다시 뽑기 가능
 var _pending_vocation: String = "" ## 이번 대장의 직능 id (기본 "" = 평범)
+var _voc_open: Array = []          ## 지금 고를 수 있는 직능 id(공훈 해금 순서) — 드롭다운 인덱스의 진실
 var _pending_tool: String = ""     ## 주머니 도구 하나 (기본 "" = 없음). 가방 6칸과 별개
 var _voc_desc: Label               ## step1 위젯 (직능 설명 갱신)
 var _name_edit: LineEdit           ## step1 위젯
@@ -223,22 +224,29 @@ func _build_step1() -> void:
 	name_row.add_child(reroll)
 	_col.add_child(name_row)
 
-	# 이번 대장의 특기(직능) — 매 원정 다른 사람이 간다. 고른 특기가 그 원정의 결을 바꾼다.
-	# (챙길 도구는 이제 배낭 화면의 창고에서 직접 집는다 — 사진에 찍힌 도구 3종.)
-	_col.add_child(_section_label("이번 대장의 특기"))
-	var voc := OptionButton.new()
-	voc.custom_minimum_size = Vector2(340, UITheme.BTN_H_SM)
-	voc.size_flags_horizontal = Control.SIZE_SHRINK_CENTER  # 컬럼 폭 다 채우지 말고 내용 폭 + 가운데(빈 공간 축소)
-	var vids: Array = Vocations.ids()
-	for i in range(vids.size()):
-		voc.add_item(Vocations.name_of(str(vids[i])))
-		if str(vids[i]) == _pending_vocation:
-			voc.select(i)
-	voc.item_selected.connect(_on_voc_selected)
-	_style_select(voc)
-	_col.add_child(voc)
-	_voc_desc = UITheme.make_label(str(Vocations.by_id(_pending_vocation).get("desc", "")), UITheme.FS_SMALL, UITheme.SAND)
-	_col.add_child(_voc_desc)
+	# 이번 대장의 특기(직능) — 공훈으로 마을에 온 이들만 후보(2026-07-11 사용자 확정: 직능 해금).
+	# 첫 화면 인지 부하를 줄인다: 아무도 안 왔으면(평범뿐) 섹션 자체를 숨기고 평범한 대장으로 간다.
+	# (챙길 도구는 배낭 화면의 창고에서 직접 집는다 — 사진에 찍힌 도구 3종.)
+	_voc_open = GameState.unlocked_vocations()
+	if not _voc_open.has(_pending_vocation):
+		_pending_vocation = ""  # 잠긴 직능이 남아 있으면(옛 세이브 등) 평범으로
+	if _voc_open.size() > 1:
+		_col.add_child(_section_label("이번 대장의 특기"))
+		var notices: Array = GameState.take_feat_notices()
+		if not notices.is_empty():
+			_col.add_child(UITheme.make_label(_notice_line(notices), UITheme.FS_SMALL, UITheme.SAND))
+		var voc := OptionButton.new()
+		voc.custom_minimum_size = Vector2(340, UITheme.BTN_H_SM)
+		voc.size_flags_horizontal = Control.SIZE_SHRINK_CENTER  # 컬럼 폭 다 채우지 말고 내용 폭 + 가운데(빈 공간 축소)
+		for i in range(_voc_open.size()):
+			voc.add_item(Vocations.name_of(str(_voc_open[i])))
+			if str(_voc_open[i]) == _pending_vocation:
+				voc.select(i)
+		voc.item_selected.connect(_on_voc_selected)
+		_style_select(voc)
+		_col.add_child(voc)
+		_voc_desc = UITheme.make_label(str(Vocations.by_id(_pending_vocation).get("desc", "")), UITheme.FS_SMALL, UITheme.SAND)
+		_col.add_child(_voc_desc)
 
 	var nxt := UITheme.make_engraved_button("배낭 챙기기 →", 20, true)
 	nxt.pressed.connect(_show_step.bind(2))
@@ -800,14 +808,22 @@ func _reroll_name() -> void:
 	if _name_edit != null:
 		_name_edit.text = _pending_name
 
-## 직능 선택 — OptionButton 인덱스는 Vocations.ids() 순서와 같다. 설명을 갱신한다.
+## 직능 선택 — OptionButton 인덱스는 _voc_open(해금된 직능) 순서와 같다. 설명을 갱신한다.
 func _on_voc_selected(idx: int) -> void:
-	var ids: Array = Vocations.ids()
-	if idx < 0 or idx >= ids.size():
+	if idx < 0 or idx >= _voc_open.size():
 		return
-	_pending_vocation = str(ids[idx])
+	_pending_vocation = str(_voc_open[idx])
 	if _voc_desc != null:
 		_voc_desc.text = str(Vocations.by_id(_pending_vocation).get("desc", ""))
+
+## 방금 달성한 공훈 안내 한 줄 — "마을에 새 얼굴이 왔다" + 온 직능 이름들.
+func _notice_line(feat_ids: Array) -> String:
+	var names: PackedStringArray = []
+	for fid in feat_ids:
+		var nm: String = Vocations.name_of(str(Feats.by_id(str(fid)).get("unlocks", "")))
+		if nm != "":
+			names.append(nm)
+	return "마을에 새 얼굴이 왔다.\n%s" % " · ".join(names)
 
 ## (주머니 도구 선택은 단계 1 드롭다운에서 배낭 화면의 창고 집기로 이전 — 2026-07-05 사용자 확정.)
 

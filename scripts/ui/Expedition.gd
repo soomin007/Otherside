@@ -430,7 +430,7 @@ func _die(cause: String) -> void:
 		trace.to_node = _run.target_node_id()
 		trace.position = _run.edge_fraction()
 	GameState.leave_trace(trace)
-	GameState.record_death(_run.leg, node_id)
+	GameState.record_death(_run.leg, node_id, cause)  # 사인 전달 — 공훈(물지기·강골 해금) 통계
 	GameState.save_game()
 	_show_death(cause, tags)
 

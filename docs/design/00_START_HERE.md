@@ -56,6 +56,7 @@
 - `SectionRun.gd` — 도착 노드 단면 탐색(주요 지점=arrival_event + 보조 지점=node.spots, 조사 횟수 예산, `probe`→결과 디스크립터, `probed_count`). 순수(-s 검증 가능).
 - `Situations.gd` — `CATALOG`(이동 중 상황), `pick_event`(노드 events), `crossed_blockage`, `pickup_trace`, `can_choose`. **`LANDMARKS`는 폐기됨(⑤).**
 - `TraceData.gd` — 흔적(`object_kind`, **`node_id`**, tags, uses). `Threats.gd` — 위협 종류.
+- `Feats.gd` — 공훈(업적) 정의·판정(순수). **직능은 공훈 보상으로 해금**(2026-07-11 확정): 첫 원정은 평범한 대장 고정, 이룬 일이 마을에 새 직능을 부른다(갈증사 2번 → 물지기 등, 기획서 §4.5). 통계·해금은 `GameState.feat_stats`/`feats_unlocked`(영속), 표시는 일지 "마을" 챕터.
 
 **ui (`scripts/ui/`, 렌더·입력) + scenes:**
 - `Main.gd`(타이틀) → `Opening.gd`(서사 5장+제목) → `Loadout.gd`(가방·시장 NPC) → [첫 원정만] `VillageIntro.gd`(마을 단면 탐색 연습, 사장된 13_단면_마을 재활용) → `Map.gd`(양피지 지도, 마커 이동, 이동 중 상황 카드) → `Expedition.gd`(도착 단면 탐색 + 남기기 + 죽음 + **결말 엔딩**). 원정 종료(죽음/순환) 후 `Interlude.gd`(폭풍 막간 — 지도 쓸기·흔적 묻힘·다음 원정대 지명, 절차적 draw + CPUParticles2D)를 거쳐 다시 `Loadout`.
@@ -87,6 +88,7 @@
 - **선택 반영 플래그.** `sets`(런)/`sets_persist`(영속) → 이후 이벤트 `requires`. 같은 런 연쇄 + 다음 원정 변형.
 - **위협 삼각형.** 소모·차단·폭풍. 각자 다른 대비 자원 요구.
 - **지도 = 고정 노드 그래프 + 강한 미지.** 가본 노드만 정체 공개, 다음은 "?", 그 너머 안 보임.
+- **직능 = 공훈 해금.** 처음엔 평범한 대장뿐. 공훈(멀리 가기·무거운 짐·갈증사·굶주림사·세 번 남김)을 이루면 마을에 새 직능이 온다. 실패도 자산("죽음 = 정찰"과 한 몸).
 
 ## 8. 진행 규칙 (일하는 법)
 

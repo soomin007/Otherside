@@ -1,0 +1,86 @@
+class_name Feats
+extends RefCounted
+
+## 공훈(업적) — 이룬 일이 마을에 새 사람(직능 대장 후보)을 부른다. 2026-07-11 사용자 확정:
+## 직능 선택은 첫 화면에서 다 열어두지 않고, 과제의 보상으로 해금한다(첫 원정 = 평범한 대장 고정).
+## 겪은 일이 그 직능의 쓸모를 먼저 가르친다 — 해금 자체가 온보딩(예: 갈증으로 죽어 본 뒤 물지기가 온다).
+##
+## 순수 데이터·판정(GameState/ui 미참조). check 는 통계 스냅샷(stats)만 받는다 — -s 단위 테스트 가능.
+## stats 키(전부 int, GameState.feat_stats_snapshot 이 만든다):
+##  thirst_deaths     갈증으로 스러진 원정 수
+##  hunger_deaths     굶주림으로 스러진 원정 수
+##  heavy_departures  무료 무게(ExpeditionRun.WEIGHT_FREE)를 넘는 짐으로 출발한 원정 수
+##  max_row_visited   방문한 노드의 가장 깊은 층(MapGraph row)
+##  traces_left       남긴 흔적 수(유령 seed 제외 — GameState.player_trace_count)
+##
+## 문구 규칙: 보이는 글(name/cond/line)은 세계의 말·담담한 평서체, 수동 줄바꿈. 숫자 조건은 사람 말로.
+## 조건 수치는 1차안 — 폰 체감으로 튜닝(바꾸면 기획서 §직능 해금도 같이).
+
+const LIST: Array = [
+	{
+		"id": "walked_deep", "unlocks": "pathfinder",
+		"name": "멀리 가 본 이",
+		"cond": "들판 너머 깊은 데까지 가 보면 온다.",
+		"line": "먼 데서 돌아온 이가 마을에 남았다.\n\"길은 물이 마르는 순서대로 외우는 걸세.\"",
+		"stat": "max_row_visited", "at_least": 4,
+	},
+	{
+		"id": "heavy_back", "unlocks": "porter",
+		"name": "짐을 진 이",
+		"cond": "무거운 짐을 지고 떠나 보면 온다.",
+		"line": "짐꾼이 마을에 왔다.\n\"질 수 있는 만큼이 아니라,\n져야 하는 만큼 지는 거요.\"",
+		"stat": "heavy_departures", "at_least": 1,
+	},
+	{
+		"id": "thirst_learned", "unlocks": "waterwise",
+		"name": "갈증을 아는 이",
+		"cond": "갈증으로 원정 둘을 잃으면 온다.",
+		"line": "물지기가 마을에 왔다.\n\"물은 아껴 마시는 게 아니라,\n아는 만큼 담는 걸세.\"",
+		"stat": "thirst_deaths", "at_least": 2,
+	},
+	{
+		"id": "hunger_learned", "unlocks": "hardy",
+		"name": "주림을 견딘 이",
+		"cond": "굶주림으로 원정 둘을 잃으면 온다.",
+		"line": "강골이 마을에 왔다.\n\"주림은 이기는 게 아니라 늦추는 거다.\"",
+		"stat": "hunger_deaths", "at_least": 2,
+	},
+	{
+		"id": "left_three", "unlocks": "keeper",
+		"name": "세 번 남긴 이",
+		"cond": "다음 원정대에게 세 번 남기면 온다.",
+		"line": "유품지기가 마을에 왔다.\n\"두고 가는 법을 아는 사람은 드물지.\"",
+		"stat": "traces_left", "at_least": 3,
+	},
+]
+
+static func by_id(id: String) -> Dictionary:
+	for f in LIST:
+		if str(f.get("id", "")) == id:
+			return f
+	return {}
+
+## 이 공훈이 지금 통계로 달성인가.
+static func achieved(feat: Dictionary, stats: Dictionary) -> bool:
+	return int(stats.get(str(feat.get("stat", "")), 0)) >= int(feat.get("at_least", 1))
+
+## 지금 통계로 달성인 공훈 id 목록(정의 순서 유지).
+static func achieved_ids(stats: Dictionary) -> Array:
+	var out: Array = []
+	for f in LIST:
+		if achieved(f, stats):
+			out.append(str(f.get("id", "")))
+	return out
+
+## 달성한 공훈 id 목록 → 열린 직능 id 목록(Vocations.LIST 순서, 평범("")은 항상 열려 있어 제외).
+static func vocations_open(unlocked_feat_ids: Array) -> Array:
+	var opened: Dictionary = {}
+	for fid in unlocked_feat_ids:
+		var f: Dictionary = by_id(str(fid))
+		if not f.is_empty():
+			opened[str(f.get("unlocks", ""))] = true
+	var out: Array = []
+	for vid in Vocations.ids():
+		if str(vid) != "" and opened.has(str(vid)):
+			out.append(str(vid))
+	return out
