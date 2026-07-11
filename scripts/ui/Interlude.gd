@@ -2,63 +2,86 @@ extends Control
 
 ## 폭풍 막간(Interlude) — 원정과 원정 사이. 죽음/순환으로 한 원정이 끝나면
 ## GameState.go_to_interlude() 가 이 씬을 띄운다(첫 원정은 오프닝→마을 직행이라 안 뜬다).
-## 연출: 위쪽 탑뷰 지도 띠를 모래폭풍 전선이 한 번 쓸고 지나가며(흔적 일부 묻힘·안개 재차오름)
-## 시간이 흘렀음을 보이고, 그 아래 어두운 무대에 다음 원정대를 지명한 뒤 마을(Loadout)로.
+## 연출(2026-07-12 아트 교체 — 옛 절차적 지도 띠 폐기): 삽화 3장 크로스페이드
+##   ① 폭풍이 세상을 쓸어간다(자동 진행, 탭으로 건너뛰기)
+##   ② 모래가 가라앉았다 + 지난 원정이 어디서 끝났는지(실제 런 기록)
+##   ③ 다음 원정대 지명 → 탭하면 마을(Loadout)로.
+## 느린 줌(켄 번즈)으로 정지 이미지에 숨을 넣는다 — 영상 없이 컷신처럼.
 ## "매년"이 아니라 "폭풍이 지날 때마다"라는 주기 엔진을 플레이로 드러내는 막간(기획서 §2·§3).
 ## 순수 연출 — 흔적 uses·안개를 실제로 깎지 않는다(시간 기반 소멸은 별도 결정 후 후속).
-## 웹 안전: 셰이더/GPUParticles 금지 → 전부 절차적 draw_* + CPUParticles2D.
+## 웹 안전: 셰이더/GPUParticles 금지 → TextureRect + Tween + CPUParticles2D.
 
-const SWEEP_DUR: float = 2.4          ## 폭풍 전선이 지도를 가로지르는 시간(연출 세기 비례)
-const TEXT_FADE: float = 0.9
-const FOG_MAX: float = 0.8
-
-# 밴드(지도 띠) 안 고정 배치 — 결정론(매 redraw 동일, 난수 금지).
-const NODE_TS: Array = [0.10, 0.30, 0.50, 0.70, 0.90]           ## 노드 점 가로 비율(밟은 길)
-const TRACE_MARKS: Array = [                                     ## 흔적 점(일부는 폭풍에 묻힘)
-	{"t": 0.22, "dy": -0.22, "res": true,  "buries": false},
-	{"t": 0.45, "dy": 0.24,  "res": true,  "buries": true},
-	{"t": 0.64, "dy": -0.26, "res": false, "buries": true},
-	{"t": 0.81, "dy": 0.20,  "res": true,  "buries": false},
+const ART_PATHS: Array = [
+	"res://assets/arts/55_막간_폭풍.png",
+	"res://assets/arts/56_막간_고요.png",
+	"res://assets/arts/57_막간_채비.png",
 ]
+const FADE: float = 1.4        ## 장면 크로스페이드
+const TEXT_FADE: float = 0.9
+const STORM_HOLD: float = 3.4  ## 폭풍 장면이 머무는 시간(그 뒤 자동으로 고요로)
+const KB_ZOOM: float = 1.06    ## 켄 번즈 줌 배율(은은하게)
+const KB_DUR: float = 11.0     ## 켄 번즈 줌 시간 — 장면 체류보다 길어 끝까지 안 멈춘다
+const SCRIM_A: float = 0.42    ## 텍스트 가독 스크림(고요부터 텍스트와 함께 배어난다)
 
-var _front: float = 0.0    ## 폭풍 전선 위치 0(왼쪽 밖) → 1(오른쪽 밖). 흔적 묻힘·먼지벽이 이걸 따른다.
-var _fog: float = 0.0      ## 0=안개 없음 → FOG_MAX=재차오름
-var _settled: bool = false ## 폭풍이 지나가 텍스트가 뜬 상태(그다음 탭이면 마을로)
-var _sand: CPUParticles2D
+var _phase: int = -1           ## 0=폭풍 1=고요(요약) 2=채비(지명). 탭으로 전진, 2에서 탭=마을
+var _tex: Array = []           ## 장면별 Texture2D(없으면 null — 어두운 무대 fallback)
+var _art_a: TextureRect        ## 삽화 레이어 A/B — 오프닝과 같은 "위로 배어나는" 크로스페이드
+var _art_b: TextureRect
+var _art_front: TextureRect
+var _art_tw: Tween
+var _kb_tw: Tween
+var _hold_tw: Tween
+var _scrim: ColorRect
 var _center: VBoxContainer
 var _hint: Label
-var _tw: Tween
+var _sand: CPUParticles2D
+var _motion: float = 1.0
 
 func _ready() -> void:
 	AudioManager.set_wind(0.95)  # 폭풍이 분다(마을 Loadout 이 다시 0 으로 되돌린다)
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	_motion = AppSettings.load_motion()
 
-	# 모래 커튼(전경 알갱이) — 전선을 따라 흩날린다. 먼지벽(_draw)이 주 연출, 이건 디테일.
+	# 삽화 로드 — 하나라도 있으면 레이어 두 장(크로스페이드용)을 깐다. 없으면 어두운 무대 + 텍스트만.
+	for p in ART_PATHS:
+		_tex.append(load(str(p)) if ResourceLoader.exists(str(p)) else null)
+	if _tex.any(func(t): return t != null):
+		_art_a = _make_art_layer()
+		_art_b = _make_art_layer()
+		_art_front = _art_a
+
+	# 모래 커튼(전경 알갱이) — 폭풍 장면 동안 화면을 오른쪽에서 왼쪽으로 흩날린다(삽화의 폭풍 방향과 일치).
 	_sand = CPUParticles2D.new()
 	_sand.emitting = false
-	_sand.local_coords = false            # 방출된 입자는 제자리(에미터가 지나가며 흔적을 남긴다)
-	_sand.lifetime = 1.5
+	_sand.local_coords = false
+	_sand.lifetime = 2.4
 	_sand.lifetime_randomness = 0.42
 	_sand.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	_sand.direction = Vector2(1.0, 0.0)
-	_sand.spread = 16.0
-	_sand.initial_velocity_min = 90.0
-	_sand.initial_velocity_max = 260.0
+	_sand.direction = Vector2(-1.0, 0.0)
+	_sand.spread = 14.0
+	_sand.initial_velocity_min = 260.0
+	_sand.initial_velocity_max = 640.0
 	_sand.gravity = Vector2(0.0, -4.0)
-	_sand.damping_min = 14.0
-	_sand.damping_max = 48.0
 	_sand.scale_amount_min = 1.0
 	_sand.scale_amount_max = 3.0
 	_sand.color = UITheme.SAND
 	var ramp := Gradient.new()
 	ramp.offsets = PackedFloat32Array([0.0, 0.28, 1.0])
 	ramp.colors = PackedColorArray([
-		Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.8), Color(1, 1, 1, 0.0),
+		Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.7), Color(1, 1, 1, 0.0),
 	])
 	_sand.color_ramp = ramp
 	add_child(_sand)
 
-	# 텍스트(폭풍이 지나간 뒤 뜬다) — 지도 띠 아래 어두운 무대에(고대비).
+	# 글씨 가독용 어두운 스크림(삽화 위, 텍스트 아래) — 폭풍 장면엔 없다가 텍스트와 함께 배어난다.
+	_scrim = ColorRect.new()
+	_scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_scrim.color = Color(0.02, 0.02, 0.04, SCRIM_A)
+	_scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_scrim.modulate.a = 0.0
+	add_child(_scrim)
+
+	# 텍스트(고요부터 뜬다) — 화면 중하단, 삽화의 차분한 하단 위에.
 	var cc := CenterContainer.new()
 	cc.anchor_left = 0.0
 	cc.anchor_right = 1.0
@@ -78,14 +101,7 @@ func _ready() -> void:
 	_center.add_to_group(Transition.UI_GROUP)  # 마을로 넘어갈 때 모래처럼 흩어진다
 	cc.add_child(_center)
 
-	var n: int = GameState.expedition_count + 1
-	var nm: String = GameState.pending_expedition_name
-	_add_center_label("모래가 다시 가라앉았다.", UITheme.FS_H1, UITheme.FG)
-	_add_center_label("%d번째 원정대가 떠날 채비를 한다." % n, UITheme.FS_BODY, UITheme.MUTED)
-	if nm != "":
-		_add_center_label(nm, UITheme.FS_H1, UITheme.SAND)
-
-	# 하단 힌트("탭하여 계속") — 폭풍이 지나간 뒤에만 보인다.
+	# 하단 힌트("탭하여 계속") — 고요부터 보인다.
 	var bottom := CenterContainer.new()
 	bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	bottom.offset_top = -100.0
@@ -98,11 +114,94 @@ func _ready() -> void:
 	_hint.modulate.a = 0.0
 	bottom.add_child(_hint)
 
-	get_viewport().size_changed.connect(queue_redraw)
-	await get_tree().process_frame  # 레이아웃 확정 뒤 밴드 좌표로 sweep 시작
+	get_viewport().size_changed.connect(_on_resize)
+	await get_tree().process_frame  # 레이아웃 확정 뒤 피벗(줌 중심)을 잡고 시작
 	if not is_inside_tree():
 		return
-	_start()
+	_on_resize()
+	var storm_tex: Texture2D = _tex[0]
+	if _anim() and storm_tex != null:
+		_enter_phase(0)
+	else:
+		_enter_phase(1)  # 모션 줄이기 또는 폭풍 삽화 없음 — 폭풍 장면 생략
+
+func _anim() -> bool:
+	return _motion > 0.02
+
+func _enter_phase(p: int) -> void:
+	_phase = p
+	_show_art(p)
+	match p:
+		0:
+			_sand.amount = clampi(int(size.x * size.y / 4200.0), 40, 220)
+			_sand.emission_rect_extents = Vector2(40.0, size.y * 0.5)
+			_sand.position = Vector2(size.x + 60.0, size.y * 0.5)
+			_sand.emitting = true
+			_hold_tw = create_tween()
+			_hold_tw.tween_interval(STORM_HOLD)
+			_hold_tw.tween_callback(_enter_phase.bind(1))
+		1:
+			AudioManager.set_wind(0.4)  # 폭풍이 잦아든다(마을에서 완전히 0 으로)
+			_sand.emitting = false
+			_set_text_lines(_calm_lines())
+			_reveal_ui()
+		2:
+			_swap_text_lines(_muster_lines())
+
+## ② 고요 — 폭풍이 지나갔고, 지난 원정이 어떻게 끝났는지.
+func _calm_lines() -> Array:
+	var out: Array = [{"text": "모래가 다시 가라앉았다.", "fs": UITheme.FS_H1, "color": UITheme.FG}]
+	var s: String = _last_run_summary()
+	if s != "":
+		out.append({"text": s, "fs": UITheme.FS_BODY, "color": UITheme.MUTED})
+	return out
+
+## ③ 채비 — 다음 원정대 지명.
+func _muster_lines() -> Array:
+	var n: int = GameState.expedition_count + 1
+	var out: Array = [{"text": "%d번째 원정대가 떠날 채비를 한다." % n, "fs": UITheme.FS_BODY, "color": UITheme.MUTED}]
+	if GameState.pending_expedition_name != "":
+		out.append({"text": GameState.pending_expedition_name, "fs": UITheme.FS_H1, "color": UITheme.SAND})
+	return out
+
+## 방금 끝난 원정의 마지막을 세계의 말로 한두 줄. 기록이 없으면 빈 문자열(제목 줄만 뜬다).
+## 도달(순환) 기록 우선 — 재회는 타이틀로 가서 막간에 안 온다. 아니면 이번 원정의 죽음 기록.
+func _last_run_summary() -> String:
+	var n: int = GameState.expedition_count
+	if n <= 0:
+		return ""
+	for a in GameState.arrivals:
+		if a is Dictionary and int(a.get("expedition", -1)) == n:
+			return "지난 원정은 끝에 닿았다.\n그리고 돌아오지 않았다."
+	for i in range(GameState.deaths.size() - 1, -1, -1):
+		var d: Variant = GameState.deaths[i]
+		if not (d is Dictionary) or int(d.get("expedition", -1)) != n:
+			continue
+		var nid: String = str(d.get("node_id", ""))
+		var nname: String = str(MapGraph.node(nid).get("name", "")) if nid != "" else ""
+		if nname != "":
+			return "지난 원정은 %s에서 멈췄다.\n돌아온 사람은 없다." % nname
+		return "지난 원정은 길 위에서 멈췄다.\n돌아온 사람은 없다."
+	return ""
+
+## 텍스트 줄들을 즉시 교체(각 줄 = {text, fs, color}).
+func _set_text_lines(lines: Array) -> void:
+	for c in _center.get_children():
+		c.queue_free()
+	for ln in lines:
+		var d: Dictionary = ln
+		var col: Color = d["color"]
+		_add_center_label(str(d["text"]), int(d["fs"]), col)
+
+## 텍스트를 페이드아웃 → 교체 → 페이드인.
+func _swap_text_lines(lines: Array) -> void:
+	if not _anim():
+		_set_text_lines(lines)
+		return
+	var t: Tween = create_tween()
+	t.tween_property(_center, "modulate:a", 0.0, TEXT_FADE * 0.5)
+	t.tween_callback(_set_text_lines.bind(lines))
+	t.tween_property(_center, "modulate:a", 1.0, TEXT_FADE)
 
 func _add_center_label(text: String, fs: int, color: Color) -> void:
 	var lb: Label = UITheme.make_label(text, fs, color)
@@ -112,139 +211,94 @@ func _add_center_label(text: String, fs: int, color: Color) -> void:
 	lb.custom_minimum_size = Vector2(UITheme.COLUMN_W, 0)
 	_center.add_child(lb)
 
-## 지도 띠 — 화면 위쪽 가로 밴드(자기 size 기준, 리사이즈 자동 대응).
-func _band() -> Rect2:
-	var s: Vector2 = size
-	var band_h: float = clampf(s.y * 0.34, 130.0, 300.0)
-	return Rect2(s.x * 0.08, s.y * 0.15, s.x * 0.84, band_h)
-
-func _start() -> void:
-	var m: float = AppSettings.load_motion()
-	var band: Rect2 = _band()
-	var cy: float = band.position.y + band.size.y * 0.5
-	if m <= 0.02:
-		# 모션 줄이기 — 애니 생략, 최종 상태로.
-		_front = 1.0
-		_fog = FOG_MAX
-		queue_redraw()
-		_on_settled()
-		return
-	_sand.amount = maxi(60, mini(280, int(size.x * size.y / 3600.0)))
-	_sand.emission_rect_extents = Vector2(46.0, band.size.y * 0.55)
-	_sand.position = Vector2(band.position.x - 90.0, cy)
-	_sand.emitting = true
-	var sweep: float = SWEEP_DUR * m
-	_tw = create_tween()
-	_tw.set_parallel(true)
-	_tw.tween_property(_sand, "position:x", band.position.x + band.size.x + 90.0, sweep) \
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_tw.tween_method(_set_front, 0.0, 1.0, sweep).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_tw.tween_method(_set_fog, 0.0, FOG_MAX, sweep)
-	_tw.set_parallel(false)
-	_tw.tween_callback(_on_settled)
-
-func _set_front(v: float) -> void:
-	_front = v
-	queue_redraw()
-
-func _set_fog(v: float) -> void:
-	_fog = v
-	queue_redraw()
-
-func _on_settled() -> void:
-	_settled = true
-	_front = 1.0
-	if _sand != null:
-		_sand.emitting = false
-	AudioManager.set_wind(0.4)  # 폭풍이 잦아든다(마을에서 완전히 0 으로)
-	if AppSettings.load_motion() <= 0.02:
+## 텍스트·힌트·스크림을 함께 배어나게 한다(고요 진입 시 1회).
+func _reveal_ui() -> void:
+	if not _anim():
 		_center.modulate.a = 1.0
 		_hint.modulate.a = 1.0
+		_scrim.modulate.a = 1.0
 		return
 	var t: Tween = create_tween()
 	t.set_parallel(true)
 	t.tween_property(_center, "modulate:a", 1.0, TEXT_FADE)
 	t.tween_property(_hint, "modulate:a", 1.0, TEXT_FADE)
+	t.tween_property(_scrim, "modulate:a", 1.0, TEXT_FADE)
+
+## 장면 삽화를 idx 로 크로스페이드 — 옛 장은 불투명하게 남긴 채 새 장이 그 위로 배어난다
+## (동시 교차는 중간에 뒤 무대가 비친다 — 오프닝에서 검증된 방식). 새 장엔 켄 번즈 줌을 건다.
+func _show_art(idx: int) -> void:
+	if _art_front == null:
+		return
+	if _art_tw != null and _art_tw.is_valid():
+		_art_tw.kill()
+	for l in [_art_a, _art_b]:
+		l.modulate.a = 1.0 if l == _art_front else 0.0
+	var nt: Texture2D = null
+	if idx >= 0 and idx < _tex.size():
+		nt = _tex[idx]
+	if nt == null:
+		_art_front.modulate.a = 0.0  # 이 장면 삽화 없음 — 어두운 무대 위 텍스트만
+		return
+	if _art_front.texture == null or not _anim():
+		_art_front.texture = nt
+		_art_front.modulate.a = 1.0
+		_start_kenburns(_art_front)
+		return
+	var back: TextureRect = _art_front
+	var front: TextureRect = _art_b if _art_front == _art_a else _art_a
+	front.texture = nt
+	front.scale = Vector2.ONE
+	if front.get_index() < back.get_index():
+		move_child(front, back.get_index())  # 새 장을 옛 장 바로 위로(모래·스크림·글은 그대로 위)
+	_art_front = front
+	_art_tw = create_tween()
+	_art_tw.tween_property(front, "modulate:a", 1.0, FADE)
+	_art_tw.tween_callback(func() -> void: back.modulate.a = 0.0)
+	_start_kenburns(front)
+
+## 느린 줌(켄 번즈) — 정지 이미지가 살아 있는 것처럼. 화면 중심 기준(피벗은 _on_resize 가 잡는다).
+func _start_kenburns(layer: TextureRect) -> void:
+	if not _anim():
+		return
+	if _kb_tw != null and _kb_tw.is_valid():
+		_kb_tw.kill()
+	layer.scale = Vector2.ONE
+	_kb_tw = create_tween()
+	_kb_tw.tween_property(layer, "scale", Vector2(KB_ZOOM, KB_ZOOM), KB_DUR)
+
+## 삽화 레이어 한 장(풀스크린 cover, 투명 시작).
+func _make_art_layer() -> TextureRect:
+	var tr := TextureRect.new()
+	tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tr.modulate.a = 0.0
+	add_child(tr)
+	return tr
+
+## 리사이즈 — 줌 피벗을 화면 중심으로 다시 잡는다(줌이 가장자리로 쏠리지 않게).
+func _on_resize() -> void:
+	for l in [_art_a, _art_b]:
+		if l != null:
+			l.pivot_offset = l.size * 0.5
+	queue_redraw()
 
 func _gui_input(event: InputEvent) -> void:
 	var tapped: bool = (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
 		or (event is InputEventScreenTouch and event.pressed)
 	if not tapped:
 		return
-	if not _settled:
-		# 빨리 넘기기 — 폭풍을 즉시 완결하고 텍스트를 띄운다.
-		if _tw != null and _tw.is_valid():
-			_tw.kill()
-		_fog = FOG_MAX
-		queue_redraw()
-		_on_settled()
-		return
-	GameState.go_to_loadout()
+	match _phase:
+		0:
+			# 폭풍 건너뛰기 — 자동 진행 예약을 죽이고 바로 고요로.
+			if _hold_tw != null and _hold_tw.is_valid():
+				_hold_tw.kill()
+			_enter_phase(1)
+		1:
+			_enter_phase(2)
+		2:
+			GameState.go_to_loadout()
 
 func _draw() -> void:
-	var s: Vector2 = size
-	draw_rect(Rect2(Vector2.ZERO, s), UITheme.BG)  # 어두운 무대
-	var band: Rect2 = _band()
-	# 양피지 지도 띠
-	draw_rect(band, Color(UITheme.PAPER.r, UITheme.PAPER.g, UITheme.PAPER.b, 0.9))
-	draw_rect(band, UITheme.PAPER_EDGE, false, 3.0)
-
-	var left: float = band.position.x + band.size.x * 0.06
-	var right: float = band.position.x + band.size.x * 0.94
-	var midy: float = band.position.y + band.size.y * 0.5
-	var amp: float = band.size.y * 0.16
-
-	# 밟은 길(점선 사행) — 짝수 구간만 그려 점선처럼.
-	var prev: Vector2 = Vector2(left, _path_y(0.0, midy, amp))
-	var steps: int = 64
-	for i in range(1, steps + 1):
-		var f: float = float(i) / float(steps)
-		var pt := Vector2(lerpf(left, right, f), _path_y(f, midy, amp))
-		if i % 2 == 0:
-			draw_line(prev, pt, UITheme.ROUTE, 2.0)
-		prev = pt
-
-	# 노드 점(밟은 자리 — 남는다)
-	for nt in NODE_TS:
-		var ft: float = float(nt)
-		draw_circle(Vector2(lerpf(left, right, ft), _path_y(ft, midy, amp)), 6.0, UITheme.INK)
-
-	# 흔적 점 — 묻히는 것은 폭풍 전선(_front)이 그 자리를 지날 때 사라진다(전선과 동기).
-	for mk in TRACE_MARKS:
-		var mt: float = float(mk["t"])
-		var base := Vector2(lerpf(left, right, mt), _path_y(mt, midy, amp))
-		var p2 := base + Vector2(0.0, float(mk["dy"]) * band.size.y)
-		var a: float = 0.85
-		if bool(mk["buries"]):
-			a = 0.85 * clampf((mt + 0.09 - _front) / 0.18, 0.0, 1.0)  # 전선이 지나면 0
-		if a <= 0.01:
-			continue
-		var col: Color = UITheme.SAND if bool(mk["res"]) else UITheme.MARKER_INK
-		draw_circle(p2, 5.0, Color(col.r, col.g, col.b, a))
-
-	# 안개 재차오름 — 양피지 위 옅은 헤이즈 + 양끝 부드러운 그라데이션.
-	if _fog > 0.001:
-		var e := UITheme.PAPER_EDGE
-		draw_rect(band, Color(e.r, e.g, e.b, _fog * 0.26))
-		var strips: int = 6
-		var ew: float = band.size.x * 0.30
-		var sw: float = ew / float(strips)
-		for i in range(strips):
-			var frac: float = 1.0 - float(i) / float(strips)  # 바깥일수록 진하게
-			var ha: float = _fog * 0.42 * frac
-			var hc := Color(e.r, e.g, e.b, ha)
-			draw_rect(Rect2(band.position.x + sw * i, band.position.y, sw, band.size.y), hc)
-			draw_rect(Rect2(band.position.x + band.size.x - sw * (i + 1), band.position.y, sw, band.size.y), hc)
-
-	# 폭풍 전선(먼지벽) — 쓸고 지나가는 동안만. 가운데가 짙은 반투명 모래 기둥.
-	if _front > 0.02 and _front < 0.98:
-		var fx: float = lerpf(band.position.x, band.position.x + band.size.x, _front)
-		var sc := UITheme.SAND
-		var widths := PackedFloat32Array([0.15, 0.09, 0.045])
-		var alphas := PackedFloat32Array([0.14, 0.30, 0.52])
-		for i in range(widths.size()):
-			var hw: float = band.size.x * widths[i]
-			draw_rect(Rect2(fx - hw, band.position.y, hw * 2.0, band.size.y), Color(sc.r, sc.g, sc.b, alphas[i]))
-
-func _path_y(f: float, midy: float, amp: float) -> float:
-	return midy + sin(f * TAU * 1.5 + 0.6) * amp
+	draw_rect(Rect2(Vector2.ZERO, size), UITheme.BG)  # 어두운 무대(삽화 없는 장면의 fallback 겸 크로스페이드 밑판)
