@@ -32,9 +32,10 @@ const LEAVE_COST: Dictionary = {"water": 4, "food": 3, "shelter": 1, "rope": 1, 
 ##     도구(약초·부싯돌·장막·정화천·로프)로 대비했으면 안 일어난다 — 대비가 사람을 살린다.
 ##  ② 바닥 스침 — 물/식량이 처음 CLOSE_CALL_AT 이하로 떨어짐(자원별 런당 1회).
 const PARTY_MATES: int = 4      ## 대장 외 대원 수(행렬 = 1 + 4 = 5명)
-const PERIL_TOTAL: int = 4      ## 한 선택의 물+식량 손실 합 임계(도구 위기 강행·폭풍 강행이 걸린다)
-const PERIL_WATER: int = 3      ## 그중 물 손실 임계 — 신중한 우회(합은 커도 물은 적음)는 제외
-const CLOSE_CALL_AT: int = 2    ## 물/식량 바닥 스침 임계
+## 아래 셋은 static var — 밸런스 시뮬(balance_sim [8] 온전 도달률)이 스윕하고 원복한다. 게임 중엔 기본값 고정.
+static var PERIL_TOTAL: int = 4      ## 한 선택의 물+식량 손실 합 임계(도구 위기 강행·폭풍 강행이 걸린다)
+static var PERIL_WATER: int = 3     ## 그중 물 손실 임계 — 신중한 우회(합은 커도 물은 적음)는 제외
+static var CLOSE_CALL_AT: int = 2   ## 물/식량 바닥 스침 임계
 
 var resources: Dictionary = {}        ## {"water": int, "food": int, "rope": int, "shelter": int}
 var leg: int = 0                      ## 원정 전체 누적 걸음(거리 곡선)

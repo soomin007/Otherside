@@ -88,6 +88,29 @@ func _init() -> void:
 	_report("b2로프만", _batch(Policy.GREEDY, BASE_START, 93000, "", g_bridged, {}))       # 영구 효과(steady state)
 	_report("전체유령", _batch(Policy.GREEDY, BASE_START, 93000, "", g_bridged, g_pickups)) # 첫 세계 최대치(실제론 소멸)
 
+	print("\n[8] 온전 도달(재회 축 ③) — 행렬 손실 통계 + 위험 임계 스윕 (GREEDY, 기본 시작 자원)")
+	print("     임계는 런 궤적에 영향 없음(손실은 카운트만) → 같은 시드 = 같은 세계, 순수 A/B 비교")
+	var base8: Dictionary = _batch(Policy.GREEDY, BASE_START, 97000)
+	print("  ★ 기본(TOTAL %d·WATER %d·CLOSE %d) | end %.1f%% · 온전 도달 %.1f%% (end 중 %.0f%%) · 평균 손실 %.2f · 무손실 런 %.0f%%" % [
+		ExpeditionRun.PERIL_TOTAL, ExpeditionRun.PERIL_WATER, ExpeditionRun.CLOSE_CALL_AT,
+		base8["reach_pct"], base8["intact_end_pct"], base8["intact_of_end_pct"], base8["avg_loss"],
+		_loss0_pct(base8)])
+	print("     손실 분포(0~4명) = %s판 · 원인 %s" % [_dist_str(base8["loss_dist"]), _cause_str(base8["loss_causes"])])
+	var pt_orig: int = ExpeditionRun.PERIL_TOTAL
+	var pw_orig: int = ExpeditionRun.PERIL_WATER
+	var cc_orig: int = ExpeditionRun.CLOSE_CALL_AT
+	for combo in [[4, 3, 1], [4, 3, 3], [3, 2, 2], [5, 4, 2], [5, 4, 1]]:
+		ExpeditionRun.PERIL_TOTAL = combo[0]
+		ExpeditionRun.PERIL_WATER = combo[1]
+		ExpeditionRun.CLOSE_CALL_AT = combo[2]
+		var st8: Dictionary = _batch(Policy.GREEDY, BASE_START, 97000)  # 기본과 같은 시드(비교용)
+		print("  TOTAL %d·WATER %d·CLOSE %d | 온전 도달 %4.1f%% (end 중 %3.0f%%) · 평균 손실 %.2f · 무손실 런 %2.0f%% · 원인 %s" % [
+			combo[0], combo[1], combo[2], st8["intact_end_pct"], st8["intact_of_end_pct"], st8["avg_loss"],
+			_loss0_pct(st8), _cause_str(st8["loss_causes"])])
+	ExpeditionRun.PERIL_TOTAL = pt_orig
+	ExpeditionRun.PERIL_WATER = pw_orig
+	ExpeditionRun.CLOSE_CALL_AT = cc_orig
+
 	print("\n=== 끝 (수치는 정책 근사 — 최종 밸런스는 폰 플레이로) ===")
 	quit()
 
@@ -98,12 +121,23 @@ func _batch(policy: int, start: Dictionary, seed_base: int, voc_id: String = "",
 	var reached: int = 0
 	var deaths: Dictionary = {"thirst": 0, "hunger": 0, "": 0}
 	var rows: Array = []
+	var intact_end: int = 0                ## end 도달 + 행렬 손실 0 (재회 축 ③의 시뮬 지표)
+	var loss_sum: int = 0
+	var loss_dist: Dictionary = {}         ## party_lost → 판 수
+	var loss_causes: Dictionary = {}       ## "peril"/"thirst"/"hunger" → 손실 수
 	for i in range(RUNS):
 		var r: Dictionary = _run_once(policy, start, seed_base * 131 + i, voc_id, bridged, pickups)
 		legs.append(int(r["leg"]))
 		rows.append(int(r["row"]))
+		var pl: int = int(r["party_lost"])
+		loss_sum += pl
+		loss_dist[pl] = int(loss_dist.get(pl, 0)) + 1
+		for lc in r["loss_causes"]:
+			loss_causes[str(lc)] = int(loss_causes.get(str(lc), 0)) + 1
 		if bool(r["reached_end"]):
 			reached += 1
+			if pl == 0:
+				intact_end += 1
 		var dc: String = str(r["death_cause"])
 		deaths[dc] = int(deaths.get(dc, 0)) + 1
 	legs.sort()
@@ -119,12 +153,17 @@ func _batch(policy: int, start: Dictionary, seed_base: int, voc_id: String = "",
 		"thirst_pct": 100.0 * int(deaths.get("thirst", 0)) / RUNS,
 		"hunger_pct": 100.0 * int(deaths.get("hunger", 0)) / RUNS,
 		"deaths": deaths,
+		"intact_end_pct": 100.0 * intact_end / RUNS,
+		"intact_of_end_pct": 100.0 * intact_end / maxi(1, reached),
+		"avg_loss": float(loss_sum) / RUNS,
+		"loss_dist": loss_dist,
+		"loss_causes": loss_causes,
 	}
 
 func _report(label: String, st: Dictionary) -> void:
-	print("  %-9s | end 도달 %5.1f%% | leg 중앙 %2d (p10 %2d · p90 %2d · 평균 %.1f) | 갈증 %.0f%% · 배고픔 %.0f%%" % [
+	print("  %-9s | end 도달 %5.1f%% | leg 중앙 %2d (p10 %2d · p90 %2d · 평균 %.1f) | 갈증 %.0f%% · 배고픔 %.0f%% | 온전 %4.1f%%" % [
 		label, st["reach_pct"], st["median_leg"], st["p10_leg"], st["p90_leg"], st["avg_leg"],
-		st["thirst_pct"], st["hunger_pct"]])
+		st["thirst_pct"], st["hunger_pct"], st["intact_end_pct"]])
 
 # --- 한 판 ---
 
@@ -164,12 +203,17 @@ func _run_once(policy: int, start: Dictionary, seed_val: int, voc_id: String = "
 			reached_end = true
 			break
 
+	var loss_causes: Array = []  ## 손실 원인("peril"/"thirst"/"hunger") — loss_sites 기준(마을 어귀 손실 제외라 party_lost 와 미세 차이 가능)
+	for site in run.loss_sites:
+		loss_causes.append(str(site.get("cause", "")))
 	return {
 		"leg": run.leg,
 		"row": int(MapGraph.node(run.current_node).get("row", 0)),
 		"alive": run.alive,
 		"death_cause": run.death_cause,
 		"reached_end": reached_end,
+		"party_lost": run.party_lost,
+		"loss_causes": loss_causes,
 	}
 
 ## 도착 노드 단면 — 예산 소진까지 지점을 골라 조사(정책).
@@ -320,6 +364,22 @@ func _coverage_report() -> void:
 	print("             (c) 탐욕 정책이 안 고르는 선택이 켜는 체인(예: 장막 챙김→sand_wall_sheltered)")
 
 # --- util ---
+
+## 손실 0 런 비율(%) — 손실 팝업을 한 번도 안 본 판. 팝업 빈도 체감의 정량 프록시.
+func _loss0_pct(st: Dictionary) -> float:
+	return 100.0 * int(st["loss_dist"].get(0, 0)) / RUNS
+
+## party_lost 0~4명 판 수를 "a/b/c/d/e" 로.
+func _dist_str(dist: Dictionary) -> String:
+	var parts: Array = []
+	for k in range(5):
+		parts.append(str(int(dist.get(k, 0))))
+	return "/".join(parts)
+
+## 손실 원인 분해(자리 기준 — 마을 어귀 손실 제외).
+func _cause_str(causes: Dictionary) -> String:
+	return "위기 %d·갈증 %d·굶주림 %d" % [
+		int(causes.get("peril", 0)), int(causes.get("thirst", 0)), int(causes.get("hunger", 0))]
 
 func _avg(arr: Array) -> float:
 	if arr.is_empty():
