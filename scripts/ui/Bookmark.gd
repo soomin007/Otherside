@@ -402,6 +402,20 @@ class LegendMark extends Control:
 				else:
 					draw_arc(c, 9.0, 0.0, TAU, 20, Color(pig.r, pig.g, pig.b, 0.4), 1.5)
 					draw_circle(c, 5.0, pig)
+			"death":  # 죽은 자리 — 해골 낙서(지도 마커와 동일), 없으면 붉은 가위표 fallback
+				var tk: Texture2D = _tex("res://assets/arts/transparent/44_낙서_해골.png")
+				if tk != null:
+					SectionArt.draw_tex_center(self, tk, c, 30.0)
+				else:
+					draw_line(c + Vector2(-7.0, -7.0), c + Vector2(7.0, 7.0), UITheme.DANGER, 2.5)
+					draw_line(c + Vector2(-7.0, 7.0), c + Vector2(7.0, -7.0), UITheme.DANGER, 2.5)
+			"straggler":  # 뒤처진 이 — 웅크린 사람(킷 61, 지도 마커와 동일), 없으면 실루엣 fallback
+				var ts: Texture2D = _tex("res://assets/arts/transparent/61_사람_낙오자.png")
+				if ts != null:
+					SectionArt.draw_tex_center(self, ts, c, 30.0)
+				else:
+					draw_circle(c + Vector2(0.0, -8.0), 4.0, mk)
+					draw_arc(c + Vector2(0.0, 4.0), 8.0, PI, TAU, 12, mk, 3.0)
 
 var _chapter: int = 0
 var _ctrl_idx: int = 0         ## 조작 챕터 펼침(0=안내 글·1=표식 읽기) — 양면에 둘씩, 넘겨서 본다
@@ -777,7 +791,7 @@ func _ctrl_guide() -> void:
 	_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.15), 1.0))
 	_box_r.add_child(_ink_label(str(TUTORIAL_PAGES[3]), UITheme.FS_BODY, INK))
 
-## 표식 읽기 — 범례 7종을 양면에 나눠(왼 4·오 3). 지도·단면 실제 표식의 축소판.
+## 표식 읽기 — 범례 9종을 양면에 나눠(왼 4·오 5). 지도·단면 실제 표식의 축소판.
 func _ctrl_legend() -> void:
 	_box_l.add_child(_brush_heading("표식 읽기", 40, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
@@ -788,6 +802,8 @@ func _ctrl_legend() -> void:
 	_box_r.add_child(_legend_row("route", "밟은 길", "지난 원정대가 밟아 이어진 길."))
 	_box_r.add_child(_legend_row("marker", "원정대", "지금 이 원정대가 선 자리."))
 	_box_r.add_child(_legend_row("trace", "남긴 흔적", "이전 원정대가 남긴 물건. 색으로 물과 식량, 장막을 나눈다."))
+	_box_r.add_child(_legend_row("death", "죽은 자리", "원정이 끝난 자리. 지나는 이가 기릴 수 있다."))
+	_box_r.add_child(_legend_row("straggler", "뒤처진 이", "지난 원정에서 뒤처져 기다린다. 물을 나누면 거둘 수 있다."))
 
 ## 범례 한 줄 — 왼쪽 표식 그림 + 오른쪽 이름·뜻.
 func _legend_row(kind: String, title: String, meaning: String) -> HBoxContainer:

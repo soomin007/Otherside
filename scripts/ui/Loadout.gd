@@ -912,7 +912,7 @@ func _show_market_intro() -> void:
 	_market_flow = "intro"
 	_show_market_panel()
 
-## 첫 순환 도달 후 1회 — 재회의 옛말(남김+기림 암시). 끝나면 reunion_hint_seen 영속.
+## 순환 도달 후 마을에서 한 번 — 재회의 옛말(기림+구조+온전 암시). 보여준 만큼 reunion_hints_shown 영속.
 func _show_market_hint() -> void:
 	_market_pages = REUNION_HINT_PAGES
 	_market_flow = "hint"
