@@ -137,7 +137,14 @@ const NODES: Dictionary = {
 				"id": "cracked_floor", "threat": Threats.Kind.BLOCKAGE,
 				"text": "땅이 쩍 갈라졌다.\n바닥은 보이지 않는다.\n맨몸으로 내려설 깊이가 아니다.\n로프를 걸면 다음에도 건널 수 있다.",
 				"choices": [
-					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge", "sets": ["rope_spent_now"]},
+					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge", "sets": ["rope_spent_now"], "then": {
+						"id": "rope_stays", "threat": Threats.Kind.BLOCKAGE,
+						"text": "매듭이 단단히 물렸다.\n우리는 이 줄을 한 번 쓰고 가지만\n줄은 이 자리에 남는다.\n뒤에 오는 사람들은\n여기서 멈추지 않아도 된다.",
+						"choices": [
+							{"label": "매듭을 한 번 더 조인다", "effect": {}},
+							{"label": "줄을 잡고 내려선다", "effect": {}},
+						],
+					}},
 					{"label": "맨몸으로 무리해서 건넌다", "effect": {"water": -3, "food": -2}},
 				],
 			},
@@ -180,7 +187,14 @@ const NODES: Dictionary = {
 				"id": "oasis_calm", "threat": Threats.Kind.CONSUMPTION,
 				"text": "샘가에 바람이 자고,\n물낯이 거울처럼 고요하다.\n물가엔 야자 열매도 떨어져 있다.",
 				"choices": [
-					{"label": "물통만 채우고 간다", "effect": {"water": 4}},
+					{"label": "물통만 채우고 간다", "effect": {"water": 4}, "then": {
+						"id": "oasis_face", "threat": Threats.Kind.CONSUMPTION,
+						"text": "물을 뜨자 물낯이 흔들리고\n비친 얼굴이 잠시 흩어진다.\n이 샘은 지금껏 몇 사람의 얼굴을\n비추고, 지웠을까.\n물낯은 곧 다시 고요해진다.",
+						"choices": [
+							{"label": "고요해진 물낯을 잠시 본다", "effect": {}},
+							{"label": "물통을 메고 돌아선다", "effect": {}},
+						],
+					}},
 					{"label": "물을 뜨고 열매도 거둔다", "effect": {"water": 2, "food": 2}},
 				],
 			},
@@ -377,7 +391,14 @@ const NODES: Dictionary = {
 				"id": "collapsed_wall", "threat": Threats.Kind.BLOCKAGE,
 				"text": "거대한 담이 길을 막았다.\n틈은 좁고 깊다.\n맨몸으로 넘기엔 사나운 벽이다.\n로프를 걸면 다음에도 건널 수 있다.",
 				"choices": [
-					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge"},
+					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge", "then": {
+						"id": "wall_worn_hold", "threat": Threats.Kind.BLOCKAGE,
+						"text": "로프 걸 자리를 더듬다가\n반들반들 닳은 돌 턱에 손이 닿는다.\n먼저 온 손들이\n전부 같은 자리를 잡았던 것이다.\n그 위에 우리 매듭을 얹는다.",
+						"choices": [
+							{"label": "닳은 자리를 한 번 쓸어 본다", "effect": {}},
+							{"label": "매듭만 확인하고 넘는다", "effect": {}},
+						],
+					}},
 					{"label": "맨몸으로 무리해서 넘는다", "effect": {"water": -3, "food": -2}},
 				],
 			},
