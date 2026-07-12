@@ -323,7 +323,7 @@ func _guide_text() -> String:
 		return "나아가는 중..."
 	if _current_node_id() == "end":
 		return "목적지에 닿았다."
-	return "갈 곳을 고른다. 가 봐야 무엇이 있는지 안다."
+	return "길은 가 본 만큼만 보인다."
 
 func _current_node_id() -> String:
 	if GameState.current_run != null:
@@ -731,9 +731,9 @@ func _mscale() -> float:
 func _node_screen(id: String, area: Rect2) -> Vector2:
 	return area.position + MapGraph.pos(id) * (area.size.x / MAP_W)
 
-## 노드 표시 크기(화면 px) — MapGraph.NODE_SIZE(스펙 px), 밴드 확대 비례.
+## 노드 표시 크기(화면 px) — MapGraph.NODE_SIZE(스펙 px), 밴드 확대 비례. 0.85 = 아이콘이 커서 축소(2026-07-12 사용자).
 func _node_size(id: String) -> float:
-	return MapGraph.node_size(id) * _mscale()
+	return MapGraph.node_size(id) * _mscale() * 0.85
 
 ## 엣지 A→B 곡선 위의 점(t∈[0,1], 화면 px). MapGraph.edge_point(스펙 좌표, core 단일 진실)를 화면에 스케일.
 ## 경로 렌더·마커·점선·경로 길이(걸음 수)가 모두 core 곡선 공식 하나를 공유한다.
@@ -1179,13 +1179,20 @@ func _draw_traces(area: Rect2) -> void:
 			var op: Vector2 = base + Vector2(-half - 9.0 * ms, 2.0 * ms - float(shown) * 15.0 * ms)
 			_draw_trace_overflow(op, total - shown, ms)
 	# 활성 흔적의 표식 단어 — 가죽 두루마리가 아이콘 아래로 펼쳐진다(호버/탭으로만).
+	# 바닥(범례 띠) 근처에선 아래(큰 y)부터 자리를 잡고 위로 차곡차곡 — 클램프로 겹치지 않게.
 	if not active_marks.is_empty():
 		var font: Font = get_theme_default_font()
 		if font != null:
 			var open: float = clampf(_trace_open_t / 0.22, 0.0, 1.0)
 			open = 1.0 - pow(1.0 - open, 2.0)   # ease-out 펼침
+			var sfs: int = maxi(9, int(12.5 * ms))
+			var sh: float = float(sfs) * 1.95 + 6.0 * ms
+			active_marks.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["y"]) > float(b["y"]))
+			var cap: float = area.end.y - 46.0 * ms
 			for m in active_marks:
-				_draw_trace_scroll(font, Vector2(float(m["x"]), float(m["y"])), m["tags"], ms, open, area)
+				var yy: float = minf(float(m["y"]), cap)
+				cap = yy - sh
+				_draw_trace_scroll(font, Vector2(float(m["x"]), yy), m["tags"], ms, open, area)
 
 ## 흔적 스택 정렬 — 우선순위 높은(행동 가능한·최근) 것을 노드 가까이(아래) 둔다. a 가 앞(더 중요)이면 true.
 func _trace_sort(a: Dictionary, b: Dictionary) -> bool:
@@ -1227,9 +1234,8 @@ func _draw_trace_scroll(font: Font, center: Vector2, tags: Array, ms: float, ope
 	var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var full_w: float = tw + 34.0 * ms
 	var h: float = float(fs) * 1.95
-	# 지도 안으로 — 가장자리 흔적도 두루마리가 잘리지 않게 중심을 민다.
+	# 지도 안으로 — 가장자리 흔적도 두루마리가 잘리지 않게 중심을 민다(세로는 호출측이 배정).
 	center.x = clampf(center.x, area.position.x + full_w * 0.5 + 8.0, area.end.x - full_w * 0.5 - 8.0)
-	center.y = minf(center.y, area.end.y - h * 0.5 - 46.0 * ms)   # 바닥 범례 줄을 덮지 않게
 	var wgt: float = full_w * (0.22 + 0.78 * clampf(open, 0.0, 1.0))
 	var r := Rect2(center - Vector2(wgt * 0.5, h * 0.5), Vector2(wgt, h))
 	var leather := Color(0.286, 0.196, 0.118, 0.95)
@@ -1327,23 +1333,21 @@ func _draw_col_left(font: Font, sc: float) -> void:
 	y += 14.0 * sc
 	_draw_hairline(x, y, w)
 	var rows: Array = [
-		["water", "물", "걸음마다 준다"],
-		["food", "식량", "굶으면 쇠한다"],
-		["rope", "로프", "틈을 건넌다"],
-		["shelter", "장막", "폭풍을 견딘다"],
+		["water", "물"],
+		["food", "식량"],
+		["rope", "로프"],
+		["shelter", "장막"],
 	]
 	for r in rows:
 		y += 30.0 * sc
-		# 한 줄: 값(Cinzel) + 이름(왼쪽) + 효과(오른쪽 끝) — 스펙 .jres 구성.
+		# 한 줄: 값(Cinzel) + 이름 — 효과 설명 글은 뺐다(2026-07-12 사용자, 뜻은 튜토리얼·일지가 맡는다).
 		draw_string(EN_TITLE_FONT, Vector2(x, y), str(run.get_res(str(r[0]))), HORIZONTAL_ALIGNMENT_LEFT, 30.0 * sc, maxi(11, int(21.0 * sc)), UITheme.SAND)
 		draw_string(font, Vector2(x + 36.0 * sc, y), str(r[1]), HORIZONTAL_ALIGNMENT_LEFT, w - 36.0 * sc, maxi(10, int(17.0 * sc)), Color(0.910, 0.875, 0.804))
-		draw_string(font, Vector2(x, y), str(r[2]), HORIZONTAL_ALIGNMENT_RIGHT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))
 	# 행렬 — 함께 걷는 사람 수(연출 파티). 위험한 순간마다 줄어든다. 잃은 뒤엔 붉게(온전함이 깨졌다).
 	y += 30.0 * sc
 	var party_color: Color = UITheme.SAND if run.is_intact() else UITheme.DANGER
 	draw_string(EN_TITLE_FONT, Vector2(x, y), str(run.party_left()), HORIZONTAL_ALIGNMENT_LEFT, 30.0 * sc, maxi(11, int(21.0 * sc)), party_color)
 	draw_string(font, Vector2(x + 36.0 * sc, y), "행렬", HORIZONTAL_ALIGNMENT_LEFT, w - 36.0 * sc, maxi(10, int(17.0 * sc)), Color(0.910, 0.875, 0.804))
-	draw_string(font, Vector2(x, y), "함께 걷는 이들", HORIZONTAL_ALIGNMENT_RIGHT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))
 	# 행렬 줄 — 단순 실루엣(대장은 크게), 잃은 자리는 낮은 무더기. 세밀한 픽토그램 원화는
 	# 이 크기에서 뭉개져 뭘 그렸는지 안 읽혔다(2026-07-12 사용자) — 작게 보는 용은 절차 실루엣.
 	y += 30.0 * sc
@@ -1394,10 +1398,22 @@ func _draw_map_legend(font: Font, ms: float, area: Rect2) -> void:
 	if font == null:
 		return
 	var fs: int = maxi(9, int(11.0 * ms))
-	var tcol := Color(LABEL_DIM.r, LABEL_DIM.g, LABEL_DIM.b, 0.85)
+	var tcol := Color(LABEL_DIM.r, LABEL_DIM.g, LABEL_DIM.b, 0.9)
 	var lx: float = area.position.x + 34.0 * ms
 	var ly: float = area.end.y - 30.0 * ms   # 양피지 그을린 테두리·장식선 위로 올린다
 	var gap: float = 17.0 * ms
+	# 폭 측정 → 크림 배경 띠 — 지도 그림에 범례가 묻히지 않게(2026-07-12 사용자).
+	var total: float = 24.0 * ms + _legend_tw(font, "갈 수 있는 곳", fs) + gap
+	if _sketch_tex.get("skull", null) != null:
+		total += 17.0 * ms
+	total += _legend_tw(font, "죽은 자리", fs) + gap
+	total += 17.0 * ms + _legend_tw(font, "뒤처진 이", fs) + gap
+	if _sketch_tex.get("warn", null) != null:
+		total += 17.0 * ms + _legend_tw(font, "위험", fs) + gap
+	total += 42.0 * ms + _legend_tw(font, "남긴 물·식량·장막", fs)
+	var band := Rect2(lx - 12.0 * ms, ly - fs * 1.2, total + 24.0 * ms, fs * 1.2 + 10.0 * ms)
+	draw_rect(band, Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.62))
+	draw_rect(band, Color(INK.r, INK.g, INK.b, 0.28), false, 1.0)
 	# 갈 수 있는 곳 — 붉은 길 토막.
 	draw_line(Vector2(lx, ly - fs * 0.32), Vector2(lx + 18.0 * ms, ly - fs * 0.32), RED_PATH, 2.4, true)
 	lx += 24.0 * ms
@@ -1429,7 +1445,10 @@ func _draw_map_legend(font: Font, ms: float, area: Rect2) -> void:
 ## 범례 글씨 한 토막 — 그린 끝 x 를 돌려준다(다음 항목이 이어 붙게).
 func _legend_text(font: Font, x: float, y: float, text: String, fs: int, col: Color) -> float:
 	draw_string(font, Vector2(x, y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
-	return x + font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	return x + _legend_tw(font, text, fs)
+
+func _legend_tw(font: Font, text: String, fs: int) -> float:
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 
 # --- "살아있는 잉크" 헬퍼 (핸드오프 MAP_지도화면.md §2~4) ---
 

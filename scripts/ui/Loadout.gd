@@ -384,7 +384,7 @@ func _build_step2() -> void:
 	back.pressed.connect(_show_step.bind(1))
 	bl.add_child(back)
 	var preset_btn := EngravedItem.new()
-	preset_btn.init_item("늘 챙기던 대로", 16, false)
+	preset_btn.init_item("기본 채비", 16, false)
 	preset_btn.pressed.connect(_apply_preset)
 	bl.add_child(preset_btn)
 	var depart := EngravedItem.new()
@@ -490,19 +490,18 @@ func _refresh_meta() -> void:
 		int(res["water"]), int(res["food"]), Items.tools_summary(res), wgt, pen_str]
 	if _count_n != null:
 		_count_n.text = str(_bag.size())
-	# 사진 라벨 상태 — 가방 물품은 ×N 담김(가방 차면 흐리게+잠금), 주머니 도구는 항상 교체 가능.
+	# 사진 라벨 상태 — 설명 글은 고정(담을 때 글이 바뀌는 게 어색 — 2026-07-12 사용자, 담긴 수는
+	# 가방 슬롯이 보여준다). 가방이 차면 흐리게+잠금만.
 	var full: bool = _bag.size() >= BAG_SLOTS
 	for key in _item_btns:
 		var info: Dictionary = _item_btns[key]
-		var dl: Label = info["delta"]
 		var btn: Button = info["btn"]
+		var dl: Label = info["delta"]
+		dl.text = str(info["base"])
 		if bool(info.get("pouch", false)):
-			dl.text = "주머니에" if _pending_tool == str(key) else str(info["base"])
 			btn.disabled = false
 			btn.modulate.a = 1.0
 		else:
-			var cnt: int = _bag.count(key)
-			dl.text = str(info["base"]) + ("  · ×%d" % cnt if cnt > 0 else "")
 			btn.disabled = full
 			btn.modulate.a = 0.42 if full else 1.0
 	if _depart_btn != null:
@@ -521,11 +520,7 @@ func _make_slot_filled(idx: int, key: String) -> Control:
 	slot.add_theme_stylebox_override("focus", _slot_stylebox(true))
 	slot.tooltip_text = "%s  (누르면 뺀다)" % Items.label_of(key)
 	slot.pressed.connect(_remove_slot.bind(idx, slot))
-	var icon := ItemIcon.new()
-	icon.key = key
-	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	slot.add_child(icon)
+	slot.add_child(_slot_icon(key))
 	return slot
 
 ## 주머니 칸 — 집은 도구 아이콘. 탭하면 창고로 되돌린다(주머니 비움).
@@ -538,12 +533,20 @@ func _make_pouch_slot(key: String) -> Control:
 	slot.add_theme_stylebox_override("focus", _slot_stylebox(true))
 	slot.tooltip_text = "%s  (누르면 창고로 되돌린다)" % Items.label_of(key)
 	slot.pressed.connect(_clear_pouch_from.bind(slot))
+	slot.add_child(_slot_icon(key))
+	return slot
+
+## 슬롯 안 아이템 아이콘 — 가죽 틀 안감 안쪽으로 물러난다(꽉 채우면 칸보다 커 보임 — 2026-07-12 사용자).
+func _slot_icon(key: String) -> Control:
 	var icon := ItemIcon.new()
 	icon.key = key
 	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
+	icon.offset_left = 13.0
+	icon.offset_top = 13.0
+	icon.offset_right = -13.0
+	icon.offset_bottom = -13.0
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	slot.add_child(icon)
-	return slot
+	return icon
 
 ## 주머니 비우기 — 도구가 그 자리에서 모래로 바스러진 뒤 칸이 빈다(가방 빼기와 같은 흐름).
 func _clear_pouch_from(slot: Control) -> void:
