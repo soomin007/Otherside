@@ -183,7 +183,7 @@ func _build_menu() -> void:
 
 	# 길 위에 원정이 있으면 "이어서" — 서스펜드 저장(한 슬롯, 시점 선택 없음). 새 원정은 그 원정이 끝나야.
 	var start := EngravedItem.new()
-	start.init_item("가던 원정을 이어서 간다" if GameState.has_resumable_run() else "원정을 떠나보낸다", 27, true)
+	start.init_item("원정 이어가기" if GameState.has_resumable_run() else "원정을 떠나보낸다", 27, true)
 	start.pressed.connect(_on_start_pressed)
 	menu.add_child(start)
 

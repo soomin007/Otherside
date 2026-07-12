@@ -102,15 +102,15 @@ static func _draw_cover(ci: CanvasItem, tex: Texture2D, rect: Rect2) -> void:
 ## 지점 마커. state: 0=조사가능(붉은 링) 1=완료(체크·흐림) 2=잠김(예산0·흐림)
 ## is_main = 노드의 본 사건(도착 이벤트) — 채집 지점보다 크고 이중 링으로 눈에 띈다.
 static func draw_spot(ci: CanvasItem, font: Font, center: Vector2, label: String, state: int, is_main: bool = false) -> void:
-	var r: float = 27.0 if is_main else 20.0
+	var r: float = 20.0 if is_main else 15.0   # 너무 크고 강렬 → 축소(2026-07-12 사용자)
 	var faded: Color = UITheme.INK_FADE
 	var ring_tex: Texture2D = _spot_tex(is_main)
 	if state == 0:
 		if ring_tex != null:
 			# 손그림 잉크 고리(킷 — 크림 후광 구움) + 밝은 그림 대비용 옅은 어두운 원반 + 중심 점(탭 지점).
-			ci.draw_circle(center, r + 4.0, Color(0.0, 0.0, 0.0, 0.22))
-			draw_tex_center(ci, ring_tex, center, (r + 13.0) * 2.0)
-			ci.draw_circle(center, 5.0 if is_main else 4.0, UITheme.MARKER_INK)
+			ci.draw_circle(center, r + 3.0, Color(0.0, 0.0, 0.0, 0.15))
+			draw_tex_center(ci, ring_tex, center, (r + 9.0) * 2.0, Color(1.0, 1.0, 1.0, 0.88))
+			ci.draw_circle(center, 4.0 if is_main else 3.0, UITheme.MARKER_INK)
 		else:
 			# fallback — 절차적 링(2026-07-09 시인성 보강판). 웹 안전(draw_circle/arc).
 			ci.draw_circle(center, r + 6.0, Color(0.0, 0.0, 0.0, 0.30))

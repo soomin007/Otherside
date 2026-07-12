@@ -242,7 +242,7 @@ func _show_art(idx: int) -> void:
 	if _art_front.texture == null or not _anim():
 		_art_front.texture = nt
 		_art_front.modulate.a = 1.0
-		_start_kenburns(_art_front)
+		_apply_motion(_art_front, idx)
 		return
 	var back: TextureRect = _art_front
 	var front: TextureRect = _art_b if _art_front == _art_a else _art_a
@@ -254,7 +254,17 @@ func _show_art(idx: int) -> void:
 	_art_tw = create_tween()
 	_art_tw.tween_property(front, "modulate:a", 1.0, FADE)
 	_art_tw.tween_callback(func() -> void: back.modulate.a = 0.0)
-	_start_kenburns(front)
+	_apply_motion(front, idx)
+
+## 장면별 모션 — 켄 번즈는 폭풍 장면(0)에만. 고요·채비는 정지(느린 줌의 서브픽셀 미동이
+## 정지 화면에선 떨림으로 보였다 — 2026-07-12 사용자).
+func _apply_motion(layer: TextureRect, idx: int) -> void:
+	if idx == 0:
+		_start_kenburns(layer)
+		return
+	if _kb_tw != null and _kb_tw.is_valid():
+		_kb_tw.kill()
+	layer.scale = Vector2.ONE
 
 ## 느린 줌(켄 번즈) — 정지 이미지가 살아 있는 것처럼. 화면 중심 기준(피벗은 _on_resize 가 잡는다).
 func _start_kenburns(layer: TextureRect) -> void:

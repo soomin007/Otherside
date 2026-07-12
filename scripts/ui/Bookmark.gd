@@ -61,8 +61,7 @@ class Ribbon extends Control:
 	static var _tex_l: Texture2D          ## V 홈 왼쪽판(화면 모서리 리본 flip=true 용)
 	static var _tex_r: Texture2D          ## V 홈 오른쪽판(챕터 탭용)
 	static var _tex_loaded: bool = false
-	const CAP_FRAC: float = 0.42          ## 원본에서 V 홈 캡이 차지하는 폭 비율
-	var length: float = 38.0:
+	var length: float = 52.0:
 		set(v):
 			length = v
 			queue_redraw()
@@ -98,24 +97,25 @@ class Ribbon extends Control:
 				else:
 					draw_string(f, Vector2(9.0, h * 0.5 + 5.0), text, HORIZONTAL_ALIGNMENT_LEFT, length - 16.0, 13, Color(0.96, 0.92, 0.86, 0.95))
 
-	## 그림 리본 — V 홈 캡(비율 고정) + 몸통(남은 길이만큼 늘임). 탭 흐림은 col.a 로(그림은 이미 붉다).
+	## 그림 리본 — 원본 비율 그대로, 보이는 길이만큼만 잘라 그린다(늘이지 않는다 — 2026-07-12 사용자:
+	## 캡+몸통 늘임 방식이 좌우로 쪼그라져 보였다). 잘린 끝은 화면/책 모서리와 겹쳐 안 보인다.
 	func _draw_tex_ribbon(tex: Texture2D, h: float) -> void:
 		var tw: float = float(tex.get_width())
 		var th: float = float(tex.get_height())
 		if tw <= 0.0 or th <= 0.0 or length <= 2.0:
 			return
 		var mod := Color(1.0, 1.0, 1.0, col.a)
-		var cap_src: float = tw * CAP_FRAC
-		var cap_w: float = minf(cap_src * (h / th), length * 0.6)
+		var sx: float = h / th                     # 자연 배율(세로 맞춤)
+		var src_w: float = minf(tw, length / sx)   # 보이는 만큼만 원본을 자른다
+		var dst_w: float = src_w * sx
 		if flip:
-			var x0: float = size.x - length
-			draw_texture_rect_region(tex, Rect2(x0, 0.0, cap_w, h), Rect2(0.0, 0.0, cap_src, th), mod)
-			draw_texture_rect_region(tex, Rect2(x0 + cap_w, 0.0, length - cap_w, h), Rect2(cap_src, 0.0, tw - cap_src, th), mod)
-			draw_line(Vector2(size.x, h), Vector2(x0 + cap_w * 0.5, h), Color(0.0, 0.0, 0.0, 0.3), 1.5, true)
+			# V 홈(원본 왼끝)이 안쪽 — 화면 오른끝에서 왼쪽으로 삐져나온 모양.
+			draw_texture_rect_region(tex, Rect2(size.x - dst_w, 0.0, dst_w, h), Rect2(0.0, 0.0, src_w, th), mod)
+			draw_line(Vector2(size.x, h), Vector2(size.x - dst_w * 0.7, h), Color(0.0, 0.0, 0.0, 0.3), 1.5, true)
 		else:
-			draw_texture_rect_region(tex, Rect2(0.0, 0.0, length - cap_w, h), Rect2(0.0, 0.0, tw - cap_src, th), mod)
-			draw_texture_rect_region(tex, Rect2(length - cap_w, 0.0, cap_w, h), Rect2(tw - cap_src, 0.0, cap_src, th), mod)
-			draw_line(Vector2(0.0, h), Vector2(length - cap_w * 0.5, h), Color(0.0, 0.0, 0.0, 0.3), 1.5, true)
+			# V 홈(원본 오른끝)이 리본 끝 — 왼쪽 잘린 면은 책 모서리에 겹친다.
+			draw_texture_rect_region(tex, Rect2(0.0, 0.0, dst_w, h), Rect2(tw - src_w, 0.0, src_w, th), mod)
+			draw_line(Vector2(0.0, h), Vector2(dst_w * 0.7, h), Color(0.0, 0.0, 0.0, 0.3), 1.5, true)
 
 	## 절차 폴리곤 fallback — 예전 모습 그대로.
 	func _draw_poly_ribbon(h: float) -> void:
@@ -538,7 +538,7 @@ func _ribbon_hover(on: bool) -> void:
 	if _rib_tw != null and _rib_tw.is_valid():
 		_rib_tw.kill()
 	_rib_tw = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	_rib_tw.tween_property(_ribbon, "length", 72.0 if on else 38.0, 0.3)
+	_rib_tw.tween_property(_ribbon, "length", 88.0 if on else 52.0, 0.3)
 
 func _on_ribbon_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed) \
@@ -688,7 +688,7 @@ func _apply_tab_state() -> void:
 	for i in range(_tabs.size()):
 		var tab: Ribbon = _tabs[i]
 		tab.col = RED if i == _chapter else Color(RED.r, RED.g, RED.b, 0.62)
-		tab.length = 78.0 if i == _chapter else 58.0
+		tab.length = 86.0 if i == _chapter else 62.0
 
 func _render_chapter() -> void:
 	match _chapter:

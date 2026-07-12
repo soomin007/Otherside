@@ -18,7 +18,7 @@ const REVEAL_DUR: float = 0.55     ## 방문 시 잉크 reveal 애니 길이(초
 ## "지도를 좀 더 크게"). 노드 좌표(NODE_PX)는 스펙 MAP 공간(820×461) 그대로 두고 밴드에 비례 매핑.
 const STAGE_W: float = 1280.0
 const STAGE_H: float = 720.0
-const BAND: Rect2 = Rect2(230.0, 112.0, 1016.0, 571.0)  # 1016/571 = 양피지 비율(1.779) 유지
+const BAND: Rect2 = Rect2(216.0, 100.0, 1040.0, 585.0)  # 1040/585 = 양피지 비율(1.778) 유지 — 지도가 좁아 확대(2026-07-12 사용자)
 const MAP_W: float = 820.0   ## 스펙 MAP 좌표 공간(= MapGraph.MAP_W, LAYOUT 기준) — 밴드 크기와 무관
 ## 노드 절대 배치(§1) — MAP 좌표 x·y = 중심, z = 정사각 표시 크기(px). 시각 데이터라 core(MapGraph)가 아닌 여기에.
 ## 노드 좌표·크기는 MapGraph.LAYOUT/NODE_SIZE 로 이전(core 단일 진실 — 경로 길이 계산과 렌더가 같은 값 공유).
@@ -137,6 +137,7 @@ var _reveal_t: float = 0.0       ## reveal 애니 경과 시간
 var _splashes: Array = []        ## 이동 중 걸음마다 번지는 잉크 얼룩 [{pos,t}] — _process 가 나이 먹이고 _draw 가 렌더
 var _hovered_node: String = ""   ## 마우스가 올라간 도달 가능 노드(호버 시 클릭 원 확대). 터치엔 없음
 var _active_trace: String = ""    ## 표식 단어가 펼쳐진 노드(흔적 아이콘 호버/탭). 평소엔 아이콘만
+var _trace_open_t: float = 0.0    ## 두루마리 펼침 경과(초) — _active_trace 가 바뀔 때 0 으로
 var _trace_hitboxes: Array = []   ## [{pos, nid}] — 흔적 아이콘 호버·탭 히트박스(_draw_traces 가 갱신)
 var _edge_pickup: Dictionary = {} ## 지금 뜬 이동 중 엣지 줍기 카드의 흔적({from,to,kind,tags}) — 비면 일반 상황
 var _edge_offered: Dictionary = {} ## 이번 이동에서 이미 제안한 엣지 흔적 키(재제안 방지) — 이동 시작 시 비움
@@ -402,6 +403,10 @@ func _process(delta: float) -> void:
 	if _reveal_t < REVEAL_DUR:
 		_reveal_t += delta
 		queue_redraw()
+	# 흔적 두루마리 펼침 애니 — 다 펼쳐질 때까지만 다시 그린다.
+	if _active_trace != "" and _trace_open_t < 0.3:
+		_trace_open_t += delta
+		queue_redraw()
 	if not _moving:
 		# 정지 시 — 현재 채점 원이 그려진 뒤 점멸(살아있는 잉크). hover 원 그려짐도 진행.
 		# 점멸이 무한이라 지도가 계속 다시 그려진다(정지 중). 2D 벡터 렌더라 데스크톱은 가벼움 — 폰 배터리는 플레이테스트에서 확인.
@@ -469,6 +474,7 @@ func _gui_input(event: InputEvent) -> void:
 			var trh: String = _trace_at(event.position)
 			if trh != "":
 				_active_trace = "" if _active_trace == trh else trh
+				_trace_open_t = 0.0
 				queue_redraw()
 				return
 			var hit: String = _reachable_at(event.position, area)
@@ -492,6 +498,7 @@ func _gui_input(event: InputEvent) -> void:
 		var trh: String = _trace_at(mpos)   # 데스크톱: 흔적 아이콘 호버 시 표식 펼침
 		if trh != _active_trace:
 			_active_trace = trh
+			_trace_open_t = 0.0
 			queue_redraw()
 		var hov: String = _reachable_at(mpos, area)
 		if hov != _hovered_node:
@@ -860,9 +867,9 @@ func _draw() -> void:
 			if warn_tex != null and (knd == "blockage" or knd == "storm"):
 				_draw_sketch(warn_tex, p + Vector2(ns * 0.42, -ns * 0.42), ns * 0.42)
 			if font != null:
-				# 이름은 아이콘 아래(스펙 §2: 17px·???는 19px 상당, 밴드 확대 비례). 크림 후광 + 상태색.
+				# 이름은 아이콘 아래. 옛 스펙 17px 은 너무 컸다(2026-07-12 사용자 — 범례 글씨 크기 수준으로). 크림 후광 + 상태색.
 				var lcol: Color = LABEL_MK if (str(id) == cur or id in nexts) else LABEL_DIM
-				var lfs: int = maxi(9, int((19.0 if str(id) == "end" else 17.0) * ms))
+				var lfs: int = maxi(9, int((13.0 if str(id) == "end" else 11.0) * ms))
 				_draw_map_label(font, p + Vector2(-75.0 * ms, ns * 0.5 + 10.0 * ms), str(MapGraph.NODES[id].get("name", "")), 150.0 * ms, lfs, lcol)
 				if str(id) == cur:
 					# 현재 위치 태그 "원정대" — 노드 위. 삼각형은 절차적으로(장식 유니코드 두부 방지, known_issues §38).
@@ -878,6 +885,7 @@ func _draw() -> void:
 	_draw_traces(area)
 	_draw_stragglers(area)  # 뒤처진 이가 기다리는 자리(재회 축 "구조") — 재회 런의 동선 계획 근거
 	_draw_arrows(area)  # 갈림에서 원정대가 실제 간 방향 화살표(선택의 자취)
+	_draw_map_legend(font, ms, area)  # 범례 — 지도 위 바닥 한 줄(좌 칼럼에서 이사, 2026-07-12 사용자)
 
 	# 이동 중 — 지금 걷는 엣지(미방문 노드로 향함)에 마커가 지나온 만큼만 발자국이 실시간으로 남는다.
 	if _moving and GameState.current_run != null and GameState.current_run.target_node_id() != "":
@@ -893,10 +901,16 @@ func _draw() -> void:
 	var run_m: ExpeditionRun = GameState.current_run
 	var at_node: bool = run_m == null or run_m.target_node_id() == ""
 	if not at_node:
-		_draw_party_trail(run_m, area)  # 행렬 — 마커(대장 자리) 뒤로 함께 걷는 이들(마커보다 먼저 = 아래에)
-		draw_circle(mp, 9.0, Color(MARKER_INK.r, MARKER_INK.g, MARKER_INK.b, 0.22))
-		draw_circle(mp, 5.5, MARKER_INK)
-		draw_arc(mp, 10.0, 0.0, TAU, 22, MARKER_INK, 1.5)
+		# 원정대 — 길 위에선 대장 한 사람만 걷는다(줄줄이 행렬은 경로 대비 크고 조잡 — 2026-07-12 사용자 폐지).
+		var walker: Texture2D = _kit_tex.get("leader", null)
+		if walker != null and run_m != null:
+			var ahead: Vector2 = _edge_point(run_m.current_node, run_m.target_node_id(), minf(_edge_progress(run_m) + 0.04, 1.0), area)
+			draw_circle(mp, 5.0 * ms, Color(MARKER_INK.r, MARKER_INK.g, MARKER_INK.b, 0.16))  # 발밑 잉크 얼룩(위치 표시)
+			_draw_sketch_flip(walker, mp + Vector2(0.0, -11.0 * ms), 26.0 * ms, ahead.x < mp.x)
+		else:
+			draw_circle(mp, 9.0, Color(MARKER_INK.r, MARKER_INK.g, MARKER_INK.b, 0.22))
+			draw_circle(mp, 5.5, MARKER_INK)
+			draw_arc(mp, 10.0, 0.0, TAU, 22, MARKER_INK, 1.5)
 	else:
 		if _circle_cur_id != cur:
 			# 서 있는 노드가 바뀌었다(도착 후 재진입 등) — 그 노드의 채점 원을 새로 긋는다.
@@ -974,31 +988,6 @@ func _draw_sketch_flip(tex: Texture2D, center: Vector2, target_h: float, flip_h:
 	draw_set_transform(center, 0.0, Vector2(-1.0 if flip_h else 1.0, 1.0))
 	draw_texture_rect(tex, Rect2(-wh * 0.5, wh), false)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-## 행렬 — 길 위에서 마커(대장 자리) 뒤로 함께 걷는 이들이 지나온 곡선을 따라 줄지어 걷는다.
-## 대장(지팡이)이 맨 앞, 대원(두 걸음 변주)이 뒤따른다. 아직 출발지를 못 나온 이는 안 그린다.
-func _draw_party_trail(run: ExpeditionRun, area: Rect2) -> void:
-	var tgt: String = run.target_node_id()
-	if tgt == "" or not _kit_tex.has("leader"):
-		return  # 킷 없으면 마커 점 하나(기존 모습) 그대로
-	var ms: float = _mscale()
-	var prog: float = _edge_progress(run)
-	var elen_px: float = MapGraph.edge_length(run.current_node, tgt) * (area.size.x / MAP_W)
-	if elen_px < 1.0:
-		return
-	var gap_t: float = 24.0 * ms / elen_px      # 사람 사이 간격(화면 px → 곡선 t)
-	for i in range(run.party_left()):
-		var t: float = prog - gap_t * float(i + 1)
-		if t <= 0.02:
-			break
-		var pos: Vector2 = _edge_point(run.current_node, tgt, t, area)
-		var ahead: Vector2 = _edge_point(run.current_node, tgt, minf(t + 0.03, 1.0), area)
-		var key: String = "leader" if i == 0 else ("mate_a" if i % 2 == 1 else "mate_b")
-		var tex: Texture2D = _kit_tex.get(key, null)
-		if tex == null:
-			continue
-		var hgt: float = (36.0 if i == 0 else 31.0) * ms   # 사용자: 작아서 안 보임 → 확대(2026-07-12)
-		_draw_sketch_flip(tex, pos + Vector2(0.0, -hgt * 0.35), hgt, ahead.x < pos.x)
 
 ## 손스케치를 rot 만큼 회전해 얹는다(화살표 방향 맞춤용).
 func _draw_sketch_rot(tex: Texture2D, center: Vector2, target: float, rot: float) -> void:
@@ -1162,7 +1151,7 @@ func _draw_traces(area: Rect2) -> void:
 			_draw_trace_marker(ep, tr.object_kind, ms)
 			_trace_hitboxes.append({"pos": ep, "nid": nid})
 			if nid == _active_trace and not tr.tags.is_empty():
-				active_marks.append({"x": ep.x, "y": ep.y + 22.0 * ms, "tags": tr.tags})
+				active_marks.append({"x": ep.x, "y": ep.y + 26.0 * ms, "tags": tr.tags})
 		else:
 			if not node_groups.has(nid):
 				node_groups[nid] = []
@@ -1184,17 +1173,19 @@ func _draw_traces(area: Rect2) -> void:
 			_draw_trace_marker(rp, tr.object_kind, ms)
 			_trace_hitboxes.append({"pos": rp, "nid": nid})   # 호버·탭 히트박스
 			if nid == _active_trace and not tr.tags.is_empty():
-				var rv: Vector2 = Vector2(base.x, base.y + half + 31.0 * ms + float(i) * 18.0 * ms)
-				active_marks.append({"x": rv.x, "y": rv.y, "tags": tr.tags})
+				# 아이콘 스택 바로 아래 — 두루마리가 차례로 펼쳐진다(2026-07-12 사용자: 노드 이름 밑 흐린 글씨 폐지).
+				active_marks.append({"x": rp.x, "y": base.y + (28.0 + float(i) * 30.0) * ms, "tags": tr.tags})
 		if total > shown:   # 넘친 것 — "+K" 로 요약(그 자리에 더 있다는 표시)
 			var op: Vector2 = base + Vector2(-half - 9.0 * ms, 2.0 * ms - float(shown) * 15.0 * ms)
 			_draw_trace_overflow(op, total - shown, ms)
-	# 활성 흔적의 표식 단어를 펼친다(호버/탭으로만 — 평소엔 아이콘만 보인다).
+	# 활성 흔적의 표식 단어 — 가죽 두루마리가 아이콘 아래로 펼쳐진다(호버/탭으로만).
 	if not active_marks.is_empty():
 		var font: Font = get_theme_default_font()
 		if font != null:
+			var open: float = clampf(_trace_open_t / 0.22, 0.0, 1.0)
+			open = 1.0 - pow(1.0 - open, 2.0)   # ease-out 펼침
 			for m in active_marks:
-				_draw_trace_words(font, Vector2(float(m["x"]) - 80.0 * ms, float(m["y"])), m["tags"], 160.0 * ms, ms)
+				_draw_trace_scroll(font, Vector2(float(m["x"]), float(m["y"])), m["tags"], ms, open, area)
 
 ## 흔적 스택 정렬 — 우선순위 높은(행동 가능한·최근) 것을 노드 가까이(아래) 둔다. a 가 앞(더 중요)이면 true.
 func _trace_sort(a: Dictionary, b: Dictionary) -> bool:
@@ -1227,15 +1218,39 @@ func _draw_trace_overflow(p: Vector2, count: int, ms: float) -> void:
 	var tw: float = font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	draw_string(font, p + Vector2(-tw * 0.5, float(fs) * 0.34), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, TRACE_MARK_INK)
 
-## 흔적 표식 단어(WordPool 태그)를 낡은 잉크로 그린다(크림 후광, 양피지 위 가독).
+## 흔적 표식 단어(WordPool 태그) — 갈색 가죽 두루마리가 펼쳐지고 그 위에 크림 글씨(2026-07-12 사용자).
 ## 이 게임의 심장(기획서 §3): 태그 = 다음 원정대와의 소통. 평소엔 아이콘만, 호버/탭 때만 펼친다.
-func _draw_trace_words(font: Font, pos: Vector2, tags: Array, width: float, ms: float) -> void:
+## open = 펼침 진행(0~1, 가운데서 양옆으로). 지도 밖으로 삐지지 않게 area 안으로 민다.
+func _draw_trace_scroll(font: Font, center: Vector2, tags: Array, ms: float, open: float, area: Rect2) -> void:
 	var text: String = "[ %s ]" % " · ".join(PackedStringArray(tags))
-	var fs: int = maxi(9, int(13.0 * ms))
-	var halo: Color = Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.6)
-	for off in [Vector2(-1.5, 0), Vector2(1.5, 0), Vector2(0, -1.5), Vector2(0, 1.5)]:
-		draw_string(font, pos + off, text, HORIZONTAL_ALIGNMENT_CENTER, width, fs, halo)
-	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, width, fs, TRACE_MARK_INK)
+	var fs: int = maxi(9, int(12.5 * ms))
+	var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	var full_w: float = tw + 34.0 * ms
+	var h: float = float(fs) * 1.95
+	# 지도 안으로 — 가장자리 흔적도 두루마리가 잘리지 않게 중심을 민다.
+	center.x = clampf(center.x, area.position.x + full_w * 0.5 + 8.0, area.end.x - full_w * 0.5 - 8.0)
+	center.y = minf(center.y, area.end.y - h * 0.5 - 46.0 * ms)   # 바닥 범례 줄을 덮지 않게
+	var wgt: float = full_w * (0.22 + 0.78 * clampf(open, 0.0, 1.0))
+	var r := Rect2(center - Vector2(wgt * 0.5, h * 0.5), Vector2(wgt, h))
+	var leather := Color(0.286, 0.196, 0.118, 0.95)
+	var edge := Color(0.173, 0.110, 0.063, 0.95)
+	draw_rect(Rect2(r.position + Vector2(1.5, 2.5), r.size), Color(0.0, 0.0, 0.0, 0.22))  # 낙하 그림자
+	draw_rect(r, leather)
+	draw_rect(Rect2(r.position, Vector2(r.size.x, h * 0.18)), Color(1.0, 1.0, 1.0, 0.05))  # 윗면 하이라이트(가죽 결)
+	draw_rect(r, edge, false, maxf(1.0, 1.3 * ms))
+	# 양끝 말림(롤) — 세로로 도톰한 축.
+	var roll := Color(0.357, 0.247, 0.149, 0.98)
+	var roll_w: float = 6.5 * ms
+	var rl := Rect2(Vector2(r.position.x - roll_w * 0.5, r.position.y - h * 0.07), Vector2(roll_w, h * 1.14))
+	var rr := Rect2(Vector2(r.end.x - roll_w * 0.5, r.position.y - h * 0.07), Vector2(roll_w, h * 1.14))
+	draw_rect(rl, roll)
+	draw_rect(rr, roll)
+	draw_rect(rl, edge, false, 1.0)
+	draw_rect(rr, edge, false, 1.0)
+	if open > 0.5:
+		var ta: float = clampf((open - 0.5) / 0.5, 0.0, 1.0)
+		draw_string(font, Vector2(center.x - tw * 0.5, center.y + float(fs) * 0.36), text,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.918, 0.855, 0.729, ta))
 
 ## 흔적 아이콘 히트테스트 — 위치에 흔적 아이콘이 있으면 그 노드 id(호버·탭 판정 공용).
 func _trace_at(pos: Vector2) -> String:
@@ -1329,19 +1344,20 @@ func _draw_col_left(font: Font, sc: float) -> void:
 	draw_string(EN_TITLE_FONT, Vector2(x, y), str(run.party_left()), HORIZONTAL_ALIGNMENT_LEFT, 30.0 * sc, maxi(11, int(21.0 * sc)), party_color)
 	draw_string(font, Vector2(x + 36.0 * sc, y), "행렬", HORIZONTAL_ALIGNMENT_LEFT, w - 36.0 * sc, maxi(10, int(17.0 * sc)), Color(0.910, 0.875, 0.804))
 	draw_string(font, Vector2(x, y), "함께 걷는 이들", HORIZONTAL_ALIGNMENT_RIGHT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))
-	# 행렬 얼굴 줄 — 대장 + 대원, 잃은 자리는 모래 무더기(숫자가 아니라 사람으로 보이게, 2026-07-12 킷).
-	if _kit_tex.get("leader_lit", null) != null:
-		y += 32.0 * sc
-		var slots: int = 1 + ExpeditionRun.PARTY_MATES + run.party_gained
-		var step_x: float = minf(32.0 * sc, (w - 18.0 * sc) / maxf(1.0, float(slots)))
-		var left_cnt: int = run.party_left()
-		for i in range(slots):
-			var fx: float = x + 11.0 * sc + step_x * float(i)
-			if i < left_cnt:
-				var fkey: String = "leader_lit" if i == 0 else ("mate_a_lit" if i % 2 == 1 else "mate_b_lit")
-				_draw_sketch(_kit_tex[fkey], Vector2(fx, y - 9.0 * sc), 27.0 * sc)   # 확대(2026-07-12)
-			elif _kit_tex.get("mound_lit", null) != null:
-				_draw_sketch(_kit_tex["mound_lit"], Vector2(fx, y - 3.0 * sc), 27.0 * sc)
+	# 행렬 줄 — 단순 실루엣(대장은 크게), 잃은 자리는 낮은 무더기. 세밀한 픽토그램 원화는
+	# 이 크기에서 뭉개져 뭘 그렸는지 안 읽혔다(2026-07-12 사용자) — 작게 보는 용은 절차 실루엣.
+	y += 30.0 * sc
+	var slots: int = 1 + ExpeditionRun.PARTY_MATES + run.party_gained
+	var step_x: float = minf(26.0 * sc, (w - 18.0 * sc) / maxf(1.0, float(slots)))
+	var left_cnt: int = run.party_left()
+	var ivory := Color(0.910, 0.875, 0.804, 0.95)
+	for i in range(slots):
+		var fx: float = x + 9.0 * sc + step_x * float(i)
+		if i < left_cnt:
+			var pc: Color = ivory if i == 0 else Color(ivory.r, ivory.g, ivory.b, 0.7)
+			_draw_person_glyph(Vector2(fx, y - 8.0 * sc), (22.0 if i == 0 else 17.0) * sc, pc)
+		else:
+			_draw_mound_glyph(Vector2(fx, y - 8.0 * sc), 16.0 * sc, Color(0.60, 0.53, 0.42, 0.8))
 	y += 14.0 * sc
 	_draw_hairline(x, y, w)
 	y += 24.0 * sc
@@ -1354,41 +1370,66 @@ func _draw_col_left(font: Font, sc: float) -> void:
 	y += 21.0 * sc
 	draw_string(font, Vector2(x, y), tl, HORIZONTAL_ALIGNMENT_LEFT, w, maxi(9, int(15.0 * sc)), Color(0.788, 0.718, 0.565))
 
-	# 미니 범례 — 꼭 필요한 것만(우 칼럼 폐지, 사용자 지시): 갈 수 있는 곳·죽은 자리·위험.
+	# 통계 한 줄(컴팩트). 범례는 지도 위 바닥 한 줄로 이사(2026-07-12 사용자 — _draw_map_legend).
 	y += 18.0 * sc
 	_draw_hairline(x, y, w)
-	var fs: int = maxi(9, int(13.0 * sc))
-	var tcol := Color(0.75, 0.70, 0.62)
-	var sym_w: float = 26.0 * sc
 	y += 24.0 * sc
-	draw_line(Vector2(x, y - 4.0 * sc), Vector2(x + 20.0 * sc, y - 4.0 * sc), RED_PATH, 2.4, true)
-	draw_string(font, Vector2(x + sym_w, y), "갈 수 있는 곳", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
-	y += 21.0 * sc
+	draw_string(font, Vector2(x, y), "원정 %d · 흔적 %d · 죽음 %d" % [GameState.expedition_count, GameState.traces.size(), GameState.deaths.size()], HORIZONTAL_ALIGNMENT_LEFT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))
+
+## 작은 사람 실루엣(머리 + 몸 캡슐) — 좌 칼럼 행렬 줄. 작은 크기에서도 사람으로 읽힌다.
+func _draw_person_glyph(at: Vector2, h: float, col: Color) -> void:
+	draw_circle(at + Vector2(0.0, -h * 0.30), h * 0.17, col)
+	draw_line(at + Vector2(0.0, -h * 0.06), at + Vector2(0.0, h * 0.40), col, h * 0.36, true)
+
+## 스러진 자리 — 낮은 모래 무더기(반원).
+func _draw_mound_glyph(at: Vector2, h: float, col: Color) -> void:
+	var pts: PackedVector2Array = PackedVector2Array()
+	for k in range(9):
+		var a: float = PI + PI * float(k) / 8.0
+		pts.append(at + Vector2(cos(a) * h * 0.42, h * 0.40 + sin(a) * h * 0.34))
+	draw_colored_polygon(pts, col)
+
+## 지도 위 범례 — 양피지 바닥 왼쪽 한 줄(잉크 톤). 좌 칼럼에서 이사(2026-07-12 사용자 — 지도 확대와 한 몸).
+func _draw_map_legend(font: Font, ms: float, area: Rect2) -> void:
+	if font == null:
+		return
+	var fs: int = maxi(9, int(11.0 * ms))
+	var tcol := Color(LABEL_DIM.r, LABEL_DIM.g, LABEL_DIM.b, 0.85)
+	var lx: float = area.position.x + 34.0 * ms
+	var ly: float = area.end.y - 30.0 * ms   # 양피지 그을린 테두리·장식선 위로 올린다
+	var gap: float = 17.0 * ms
+	# 갈 수 있는 곳 — 붉은 길 토막.
+	draw_line(Vector2(lx, ly - fs * 0.32), Vector2(lx + 18.0 * ms, ly - fs * 0.32), RED_PATH, 2.4, true)
+	lx += 24.0 * ms
+	lx = _legend_text(font, lx, ly, "갈 수 있는 곳", fs, tcol) + gap
+	# 죽은 자리 — 해골 낙서.
 	var skull: Texture2D = _sketch_tex.get("skull", null)
 	if skull != null:
-		_draw_sketch(skull, Vector2(x + 9.0 * sc, y - 5.0 * sc), 17.0 * sc)
-	else:
-		draw_line(Vector2(x + 3.0 * sc, y - 9.0 * sc), Vector2(x + 13.0 * sc, y), UITheme.DANGER, 2.0, true)
-		draw_line(Vector2(x + 3.0 * sc, y), Vector2(x + 13.0 * sc, y - 9.0 * sc), UITheme.DANGER, 2.0, true)
-	draw_string(font, Vector2(x + sym_w, y), "죽은 자리", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
-	y += 21.0 * sc
-	_draw_person(Vector2(x + 9.0 * sc, y - 5.0 * sc), sc * 0.8, true)
-	draw_string(font, Vector2(x + sym_w, y), "뒤처진 이", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
+		_draw_sketch(skull, Vector2(lx + 7.0 * ms, ly - fs * 0.32), 15.0 * ms)
+		lx += 17.0 * ms
+	lx = _legend_text(font, lx, ly, "죽은 자리", fs, tcol) + gap
+	# 뒤처진 이 — 웅크린 사람.
+	_draw_person(Vector2(lx + 7.0 * ms, ly - fs * 0.32), ms * 0.62)
+	lx += 17.0 * ms
+	lx = _legend_text(font, lx, ly, "뒤처진 이", fs, tcol) + gap
+	# 위험 표식.
 	var warn: Texture2D = _sketch_tex.get("warn", null)
 	if warn != null:
-		y += 21.0 * sc
-		_draw_sketch(warn, Vector2(x + 9.0 * sc, y - 5.0 * sc), 17.0 * sc)
-		draw_string(font, Vector2(x + sym_w, y), "위험", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w, fs, tcol)
-	# 남긴 자원 점 — 점 셋을 글 순서대로(물·식량·장막) 찍어 색↔자원 대응을 보여준다(2026-07-06 사용자 지시).
-	y += 21.0 * sc
+		_draw_sketch(warn, Vector2(lx + 7.0 * ms, ly - fs * 0.32), 15.0 * ms)
+		lx += 17.0 * ms
+		lx = _legend_text(font, lx, ly, "위험", fs, tcol) + gap
+	# 남긴 자원 점 셋 — 글 순서대로 물·식량·장막(색↔자원 대응).
 	var trace_cols: Array = [TRACE_WATER, TRACE_FOOD, TRACE_SHELTER]
 	for i in trace_cols.size():
 		var tc: Color = trace_cols[i]
-		_draw_resource_dot(Vector2(x + (5.0 + 12.0 * float(i)) * sc, y - 4.0 * sc), tc, sc * 0.75)
-	draw_string(font, Vector2(x + sym_w + 16.0 * sc, y), "남긴 물·식량·장막", HORIZONTAL_ALIGNMENT_LEFT, w - sym_w - 16.0 * sc, fs, tcol)
-	# 통계 한 줄(컴팩트).
-	y += 24.0 * sc
-	draw_string(font, Vector2(x, y), "원정 %d · 흔적 %d · 죽음 %d" % [GameState.expedition_count, GameState.traces.size(), GameState.deaths.size()], HORIZONTAL_ALIGNMENT_LEFT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))
+		_draw_resource_dot(Vector2(lx + (6.0 + 13.0 * float(i)) * ms, ly - fs * 0.32), tc, ms * 0.62)
+	lx += 42.0 * ms
+	_legend_text(font, lx, ly, "남긴 물·식량·장막", fs, tcol)
+
+## 범례 글씨 한 토막 — 그린 끝 x 를 돌려준다(다음 항목이 이어 붙게).
+func _legend_text(font: Font, x: float, y: float, text: String, fs: int, col: Color) -> float:
+	draw_string(font, Vector2(x, y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+	return x + font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 
 # --- "살아있는 잉크" 헬퍼 (핸드오프 MAP_지도화면.md §2~4) ---
 
@@ -1483,7 +1524,22 @@ func _draw_map_label(font: Font, pos: Vector2, text: String, width: float, fs: i
 func _draw_expedition_tag(font: Font, center: Vector2, sc: float) -> void:
 	var pt: Texture2D = _kit_tex.get("party_tag", null)
 	if pt != null:
-		_draw_sketch(pt, center + Vector2(0.0, -17.0 * sc), 15.0 * sc)
+		# 깃발 안 채움(2026-07-12 사용자) — 테두리 그림 뒤에 같은 잉크의 면(위 사각 + 아래 V 홈).
+		var tc: Vector2 = center + Vector2(0.0, -17.0 * sc)
+		var tw: float = float(pt.get_width())
+		var th: float = float(pt.get_height())
+		if tw > 0.0 and th > 0.0:
+			var s: float = (15.0 * sc) / maxf(tw, th)
+			var wh: Vector2 = Vector2(tw * s, th * s)
+			var tl: Vector2 = tc - wh * 0.5
+			draw_colored_polygon(PackedVector2Array([
+				tl + Vector2(wh.x * 0.16, wh.y * 0.08),
+				tl + Vector2(wh.x * 0.84, wh.y * 0.08),
+				tl + Vector2(wh.x * 0.86, wh.y * 0.92),
+				tl + Vector2(wh.x * 0.50, wh.y * 0.58),
+				tl + Vector2(wh.x * 0.14, wh.y * 0.92),
+			]), Color(LABEL_MK.r, LABEL_MK.g, LABEL_MK.b, 0.72))
+		_draw_sketch(pt, tc, 15.0 * sc)
 	else:
 		var tri: PackedVector2Array = PackedVector2Array([center + Vector2(-4.0, 0.0) * sc, center + Vector2(4.0, 0.0) * sc, center + Vector2(0.0, -5.0) * sc])
 		draw_colored_polygon(tri, LABEL_MK)

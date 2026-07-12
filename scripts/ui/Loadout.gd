@@ -190,6 +190,7 @@ func _build_step1() -> void:
 	_step_root.add_child(margin)
 	var scroll := SmoothScroll.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER  # 막대 숨김(끌기·휠 스크롤은 유지) — 2026-07-12 사용자
 	margin.add_child(scroll)
 	var center := CenterContainer.new()
 	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
