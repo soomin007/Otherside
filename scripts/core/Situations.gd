@@ -29,9 +29,11 @@ extends RefCounted
 ## 대가 문법(2026-07-12 사용자 확정 — 선택 결과의 방향·크기를 서사에서 예측할 수 있어야 한다).
 ## 문구를 새로 쓰거나 고칠 때 지킨다(MapGraph 노드 이벤트·spots 도 동일):
 ##  - 방향: 물 = 더위·강행·땀·성치 않은 몸. 식량 = 시간·우회·기다림·노동. 도구 = 해당 위기 무효(소모 1).
-##  - 크기: ±1~2 = "조금·잠시·몇 모금", 3 = "축난다·목이 탄다", 4 이상 = "크게 축난다"를 본문에 명시.
+##  - 크기: ±1~2 = "조금·잠시·몇 모금", 3 = "축난다·목이 탄다", 4 이상 = 심각함을 본문이 예고.
 ##  - 결과가 확정이면 도박처럼 쓰지 않는다("나올지도" 금지 — 무엇이 나오는지 암시한다).
 ##  - 오인·거짓 암시 금지 — 흔적 정직 원칙(기획서)과 같은 축. 예고한 대가와 딴판인 결과를 주지 않는다.
+##  - 예고를 조건문 나열("~하면 ~한다")로 쓰지 않는다(2026-07-12 사용자 — 반복이 규칙서처럼 읽힘).
+##    감각 묘사·명사문·대구로 변주: "약 없이 버틸 열이 아니다", "지름길엔 그늘 한 점 없고".
 
 ## 지형 개연성 — 이벤트 biome 태그가 현재 지형과 일치하면 이 배수만큼 자주 뜬다(가중, 완전 고정은 아님).
 const BIOME_MATCH_MULT: int = 3
@@ -40,7 +42,7 @@ const CATALOG: Array = [
 	{
 		"id": "dry_stretch", "biome": ["flats"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "앞이 바싹 메말랐다.\n한참 물 한 방울 없을 듯하다.\n가로지르면 목이 크게 탈 테고,\n돌아가면 한나절이 더 든다.",
+		"text": "앞이 바싹 메말랐다.\n한참 물 한 방울 없을 듯하다.\n지름길엔 그늘 한 점 없고,\n돌아가는 길은 한나절이 멀다.",
 		"choices": [
 			{"label": "곧장 가로지른다", "effect": {"water": -3}},
 			{"label": "멀리 돌아 우회한다", "effect": {"water": -1, "food": -1}},
@@ -76,7 +78,7 @@ const CATALOG: Array = [
 	{
 		"id": "scavenge_wreck", "biome": ["river"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "부서진 수레가 모래에 처박혀 있다.\n짐칸에 먹을 것이 남았을 듯한데,\n뒤지는 동안 땡볕을 견뎌야 한다.",
+		"text": "부서진 수레가 모래에 처박혀 있다.\n짐칸에 먹을 것이 남은 눈치다.\n그늘 한 점 없는 땡볕 아래서다.",
 		"choices": [
 			{"label": "뒤져 본다", "effect": {"food": 2, "water": -1}},
 			{"label": "지나친다", "effect": {}},
@@ -109,20 +111,22 @@ const CATALOG: Array = [
 			{"label": "속지 않고 길을 지킨다", "effect": {}},
 		],
 	},
-	# --- 도구 위기(60초식): 드물게 뜨지만(weight 1) 맞는 도구가 없으면 큰 대가. 도구가 곧 그 위기의 보험 ---
+	# --- 도구 위기(60초식): 맞는 도구가 없으면 큰 대가. 도구가 곧 그 위기의 보험.
+	#     crisis=true 는 일반 회전(pick)에서 빠지고 "위기 순간"(pick_crisis, ExpeditionRun 이 엣지마다
+	#     정함)에만 나온다 — 위기는 위기끼리 몰려서 온다(2026-07-12 사용자 확정). ---
 	{
-		"id": "fever", "weight": 1,
+		"id": "fever", "crisis": true,
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "몸이 불덩이 같다.\n열이 오르고 다리가 풀린다.\n이대로 버티며 걸으면\n몸이 크게 축나겠다.",
+		"text": "몸이 불덩이 같다.\n열이 오르고 다리가 풀린다.\n약 없이 버틸 열이 아니다.",
 		"choices": [
 			{"label": "약초로 열을 다스린다", "effect": {"medicine": -1}, "needs": {"medicine": 1}},
 			{"label": "이 악물고 버틴다", "effect": {"water": -5}},
 		],
 	},
 	{
-		"id": "frozen_night", "weight": 1, "biome": ["storm"],
+		"id": "frozen_night", "crisis": true, "biome": ["storm"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "해가 지자 모래가 얼어붙는다.\n이가 딱딱 부딪히고 손끝이 곱는다.\n불 없이 새우는 밤은\n몸을 크게 축낸다.",
+		"text": "해가 지자 모래가 얼어붙는다.\n이가 딱딱 부딪히고 손끝이 곱는다.\n불 없이는 뼛속까지 갉히는 밤이다.",
 		"choices": [
 			{"label": "부싯돌로 불을 피운다", "effect": {"flint": -1}, "needs": {"flint": 1}},
 			{"label": "떨며 밤을 버틴다", "effect": {"water": -4, "food": -2}},
@@ -139,18 +143,18 @@ const CATALOG: Array = [
 		],
 	},
 	{
-		"id": "twisted_ankle", "weight": 1, "biome": ["rock"],
+		"id": "twisted_ankle", "crisis": true, "biome": ["rock"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "무너진 비탈에서 발을 헛디뎠다.\n발목이 시큰거린다.\n싸매지 않고 절뚝이면\n땡볕 길이 갑절로 길어진다.",
+		"text": "무너진 비탈에서 발을 헛디뎠다.\n발목이 시큰거린다.\n절뚝이는 걸음엔\n땡볕 길이 갑절이다.",
 		"choices": [
 			{"label": "약초로 싸매고 간다", "effect": {"medicine": -1}, "needs": {"medicine": 1}},
 			{"label": "절뚝이며 계속 간다", "effect": {"water": -4}},
 		],
 	},
 	{
-		"id": "sand_squall", "weight": 1, "biome": ["storm"],
+		"id": "sand_squall", "crisis": true, "biome": ["storm"],
 		"threat": Threats.Kind.STORM,
-		"text": "느닷없이 모래바람이 몰아친다.\n짧지만 살을 베고,\n맨몸으로 맞으면 목이 크게 탄다.",
+		"text": "느닷없이 모래바람이 몰아친다.\n짧지만 살을 벤다.\n맨몸으로 맞을 바람이 아니다.",
 		"choices": [
 			{"label": "장막을 펴 버틴다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
 			{"label": "몸을 낮추고 견딘다", "effect": {"water": -4}},
@@ -209,9 +213,9 @@ const CATALOG: Array = [
 		],
 	},
 	{
-		"id": "cut_rock", "weight": 1, "biome": ["rock"],
+		"id": "cut_rock", "crisis": true, "biome": ["rock"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "날 선 바위에 손과 정강이가 쓸렸다.\n상처가 벌겋게 부어오른다.\n약초 없이 대충 묶어서는\n크게 축나겠다.",
+		"text": "날 선 바위에 손과 정강이가 쓸렸다.\n상처가 벌겋게 부어오른다.\n천 쪼가리로 덮을 상처가 아니다.",
 		"choices": [
 			{"label": "약초로 상처를 싸맨다", "effect": {"medicine": -1}, "needs": {"medicine": 1}},
 			{"label": "천으로 대충 묶고 간다", "effect": {"water": -4}},
@@ -270,7 +274,7 @@ const CATALOG: Array = [
 	{
 		"id": "dry_riverbed", "min_prog": 0.55, "biome": ["river"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "물길인 줄 알았던 자리가\n바싹 말라 갈라졌다.\n그래도 파면 물기가 좀 나올 테고,\n그냥 가면 이 마른 구간을\n목마른 채 걸어야 한다.",
+		"text": "물길인 줄 알았던 자리가\n바싹 말라 갈라졌다.\n틈 아래엔 아직 물기가 비치고,\n앞은 한참 마른 구간이다.",
 		"choices": [
 			{"label": "품을 들여 바닥을 판다", "effect": {"water": -1, "food": -1}},
 			{"label": "목마른 채 계속 간다", "effect": {"water": -3}},
@@ -279,7 +283,7 @@ const CATALOG: Array = [
 	{
 		"id": "collapsing_gorge", "min_prog": 0.6, "biome": ["rock"],
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "협곡 벽이 삭아 내린다.\n발밑에서 돌이 쏟아지고,\n길이 무너지는 소리가 뒤를 쫓는다.\n내달리면 숨이 타고,\n골라 디디면 해가 진다.",
+		"text": "협곡 벽이 삭아 내린다.\n발밑에서 돌이 쏟아지고,\n길이 무너지는 소리가 뒤를 쫓는다.\n내달리는 쪽은 숨이 타고,\n고르는 쪽은 해가 진다.",
 		"choices": [
 			{"label": "무너지기 전에 내달린다", "effect": {"water": -3, "food": -1}},
 			{"label": "단단한 바위만 골라 신중히 간다", "effect": {"food": -3}},
@@ -298,6 +302,8 @@ const CATALOG: Array = [
 static func pick(rng: RandomNumberGenerator, last_id: String = "", flags: Dictionary = {}, early: bool = false, biome: String = "", progress: float = 0.0) -> Dictionary:
 	var pool: Array = []
 	for s in CATALOG:
+		if bool(s.get("crisis", false)):
+			continue  # 위기는 일반 회전에 안 섞인다 — 위기 순간(pick_crisis)에만(2026-07-12 사용자)
 		if str(s.get("id", "")) == last_id:
 			continue
 		var req: String = str(s.get("requires", ""))
@@ -328,6 +334,26 @@ static func pick(rng: RandomNumberGenerator, last_id: String = "", flags: Dictio
 		pool = CATALOG
 	var picked: Dictionary = pool[rng.randi_range(0, pool.size() - 1)]
 	return picked
+
+## 위기 카드 하나 — "위기 순간"(ExpeditionRun 이 엣지마다 정함)에만 호출된다. 위기는 위기끼리
+## 몰려서 오고(2026-07-12 사용자 확정), 일반 회전(pick)에는 절대 안 섞인다.
+## 지형 일관성은 엄격(biome 전용 위기는 그 지형에서만, fever 는 어디서나): rock=발목/베임,
+## storm=언 밤/돌풍, flats/river=열병. last_id = 직전 위기(2연속일 때 같은 위기 반복 방지).
+## 후보가 없으면 빈 Dictionary(호출측이 위기 순간을 건너뛴다 — 지형을 깨면서까지 안 낸다).
+static func pick_crisis(rng: RandomNumberGenerator, biome: String = "", last_id: String = "") -> Dictionary:
+	var pool: Array = []
+	for s in CATALOG:
+		if not bool(s.get("crisis", false)):
+			continue
+		if str(s.get("id", "")) == last_id:
+			continue
+		var tags: Array = s.get("biome", [])
+		if not tags.is_empty() and biome != "" and not (biome in tags):
+			continue
+		pool.append(s)
+	if pool.is_empty():
+		return {}
+	return pool[rng.randi_range(0, pool.size() - 1)]
 
 ## 랜드마크 이벤트 풀에서 하나를 고른다. 켜진 플래그(flags = run ∪ persist)에 맞는
 ## 변형 이벤트(requires in flags)가 있으면 그것을 우선, 없으면 requires 없는 일반 풀에서 랜덤.

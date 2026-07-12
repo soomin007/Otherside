@@ -34,7 +34,7 @@ const NODES: Dictionary = {
 		"events": [
 			{
 				"id": "river_dig", "threat": Threats.Kind.CONSUMPTION,
-				"text": "한때 강이 흐르던 자리.\n바닥이 쩍쩍 갈라졌다.\n깊이 파면 물이 나올 자리다.\n파는 데 품이 든다.",
+				"text": "한때 강이 흐르던 자리.\n바닥이 쩍쩍 갈라졌다.\n물이 숨어 있을 자리다.\n파 올리는 데 품이 든다.",
 				"choices": [
 					{"label": "바닥을 판다", "effect": {"water": 4, "food": -1}, "sets_persist": ["river_dug"]},
 					{"label": "그냥 지나친다", "effect": {}},
@@ -69,7 +69,7 @@ const NODES: Dictionary = {
 			{"id": "river_puddle", "label": "갈라진 바닥", "at": Vector2(0.30, 0.80), "source": "cache", "effect": {"water": 2}, "text": "금 간 바닥 틈에\n흙탕물이 조금 고였다.\n걸러서 담는다."},
 			{"id": "river_wreck", "label": "부서진 수레", "at": Vector2(0.86, 0.82), "source": "empty", "text": "수레는 오래전에 부서졌다.\n쓸 만한 건 이미 누가 가져갔다."},
 			{"id": "river_reeds", "label": "마른 갈대", "at": Vector2(0.10, 0.82), "source": "event", "event": {"id": "river_chew", "threat": Threats.Kind.CONSUMPTION, "text": "갈라진 바닥에\n마른 갈대 뿌리가 얽혀 있다.\n씹으면 요기는 되지만 물기가 빠진다.", "choices": [{"label": "씹어 넘긴다", "effect": {"food": 1, "water": -1}}, {"label": "뱉고 간다", "effect": {}}]}},
-			{"id": "river_arrow", "label": "새긴 화살표", "at": Vector2(0.57, 0.58), "source": "event", "event": {"id": "river_arrow", "threat": Threats.Kind.CONSUMPTION, "text": "강바닥 바위에 이전 원정대가\n화살표를 새겼다.\n물길 반대편 마른 둔덕을 가리킨다.\n가서 파 보려면 한나절 품이 든다.", "choices": [{"label": "가리킨 자리를 파 본다", "effect": {"water": 2, "food": -2}}, {"label": "품이 아깝다, 곧장 간다", "effect": {}}]}},
+			{"id": "river_arrow", "label": "새긴 화살표", "at": Vector2(0.57, 0.58), "source": "event", "event": {"id": "river_arrow", "threat": Threats.Kind.CONSUMPTION, "text": "강바닥 바위에 이전 원정대가\n화살표를 새겼다.\n물길 반대편 마른 둔덕을 가리킨다.\n오가는 데만 한나절 품이다.", "choices": [{"label": "가리킨 자리를 파 본다", "effect": {"water": 2, "food": -2}}, {"label": "품이 아깝다, 곧장 간다", "effect": {}}]}},
 		],
 	},
 	"b1": {
@@ -121,7 +121,7 @@ const NODES: Dictionary = {
 		"events": [
 			{
 				"id": "cracked_floor", "threat": Threats.Kind.BLOCKAGE,
-				"text": "땅이 쩍 갈라졌다.\n바닥은 보이지 않는다.\n맨몸으로 건너면 크게 축나겠지만,\n로프를 걸면 다음에도 건널 수 있다.",
+				"text": "땅이 쩍 갈라졌다.\n바닥은 보이지 않는다.\n맨몸으로 내려설 깊이가 아니다.\n로프를 걸면 다음에도 건널 수 있다.",
 				"choices": [
 					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge", "sets": ["rope_spent_now"]},
 					{"label": "맨몸으로 무리해서 건넌다", "effect": {"water": -3, "food": -2}},
@@ -201,7 +201,7 @@ const NODES: Dictionary = {
 		"events": [
 			{
 				"id": "sand_wall", "threat": Threats.Kind.STORM,
-				"text": "앞이 온통 모래바람이다.\n폭풍 구간이 길게 이어진다.\n장막 없이 뚫으면 크게 축나겠다.",
+				"text": "앞이 온통 모래바람이다.\n폭풍 구간이 길게 이어진다.\n장막 없이 뚫기엔 너무 긴 벽이다.",
 				"choices": [
 					{"label": "장막을 치고 버틴다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
 					{"label": "강행 돌파한다", "effect": {"water": -4, "food": -2}},
@@ -289,7 +289,7 @@ const NODES: Dictionary = {
 			{"id": "bones_flask", "label": "흩어진 물통", "at": Vector2(0.30, 0.80), "source": "cache", "effect": {"water": 3}, "text": "뼈 사이에 굴러다니는 물통들.\n아직 몇 모금 남았다."},
 			{"id": "bones_pile", "label": "뼈 무더기", "at": Vector2(0.86, 0.82), "source": "empty", "text": "모래에 반쯤 묻힌 뼈들.\n두 손을 모으고 지나친다."},
 			{"id": "bones_offer", "label": "돌 표식", "at": Vector2(0.24, 0.70), "source": "cache", "effect": {}, "sets": ["bones_mourned"], "sets_persist": ["bones_mourned"], "text": "뼈 사이 돌 표식에\n돌 하나를 얹어 애도한다.\n이름 모를 원정대에게."},
-			{"id": "bones_pick", "label": "눌린 배낭", "at": Vector2(0.58, 0.60), "source": "event", "event": {"id": "bones_pick_through", "threat": Threats.Kind.CONSUMPTION, "text": "뼈 무더기 아래\n가죽 배낭이 눌려 있다.\n마른 먹을거리가 남은 듯한데,\n들어내자면 땡볕에 한참 씨름이다.", "choices": [{"label": "땡볕에 씨름해 꺼낸다", "effect": {"food": 2, "water": -2}}, {"label": "고이 지나친다", "effect": {}}]}},
+			{"id": "bones_pick", "label": "눌린 배낭", "at": Vector2(0.58, 0.60), "source": "event", "event": {"id": "bones_pick_through", "threat": Threats.Kind.CONSUMPTION, "text": "뼈 무더기 아래\n가죽 배낭이 눌려 있다.\n마른 먹을거리가 남은 눈치다.\n들어내는 데만 땡볕에 한참이다.", "choices": [{"label": "땡볕에 씨름해 꺼낸다", "effect": {"food": 2, "water": -2}}, {"label": "고이 지나친다", "effect": {}}]}},
 		],
 	},
 	"d2": {
@@ -333,7 +333,7 @@ const NODES: Dictionary = {
 		"events": [
 			{
 				"id": "collapsed_wall", "threat": Threats.Kind.BLOCKAGE,
-				"text": "거대한 담이 길을 막았다.\n틈은 좁고 깊다.\n맨몸으로 넘자면 크게 축나겠지만,\n로프를 걸면 다음에도 건널 수 있다.",
+				"text": "거대한 담이 길을 막았다.\n틈은 좁고 깊다.\n맨몸으로 넘기엔 사나운 벽이다.\n로프를 걸면 다음에도 건널 수 있다.",
 				"choices": [
 					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge"},
 					{"label": "맨몸으로 무리해서 넘는다", "effect": {"water": -3, "food": -2}},
@@ -376,7 +376,7 @@ const NODES: Dictionary = {
 			},
 			{
 				"id": "storm_gate_eye", "threat": Threats.Kind.STORM,
-				"text": "폭풍 한가운데\n바람이 잠깐 멎는 눈이 보인다.\n지금 달리면 대가를 덜 치르고\n빠져나가겠다.",
+				"text": "폭풍 한가운데\n바람이 잠깐 멎는 눈이 보인다.\n지금뿐인 틈, 그나마 헐한 값이다.",
 				"choices": [
 					{"label": "장막 치고 안전하게 간다", "effect": {"shelter": -1}, "needs": {"shelter": 1}},
 					{"label": "폭풍의 눈으로 달린다", "effect": {"water": -3, "food": -1}},
@@ -405,7 +405,7 @@ const NODES: Dictionary = {
 			{"id": "gate_relic", "label": "앞선 이의 유품", "at": Vector2(0.14, 0.80), "source": "cache", "effect": {"water": 4}, "text": "협곡 입구에 여럿의 물통이\n반쯤 묻혀 있다.\n여기까지 온 원정대가 있었다."},
 			{"id": "gate_mouth", "label": "협곡 입구", "at": Vector2(0.72, 0.56), "source": "empty", "text": "폭풍이 입구를 삼켰다.\n그 너머는 아무도 모른다."},
 			{"id": "gate_cairn", "label": "돌무더기", "at": Vector2(0.32, 0.78), "source": "empty", "text": "문 앞에 돌무더기. 여기까지 온\n원정대들이 하나씩 쌓았다.\n곁에 긁힌 표식: [ 마지막 · 또 ]"},
-			{"id": "gate_stock", "label": "마지막 물", "at": Vector2(0.82, 0.78), "source": "event", "event": {"id": "gate_last_water", "threat": Threats.Kind.STORM, "text": "폭풍에 들기 전 마지막 물.\n지금 마셔 힘을 낼지,\n한 모금 아껴 담아 둘지.\n아껴 두면 폭풍을 지날 때\n힘이 될 것이다.", "choices": [{"label": "지금 마셔 힘을 낸다", "effect": {}}, {"label": "한 모금 아껴 담아 둔다", "effect": {}, "sets": ["water_stocked"], "sets_persist": ["water_stocked"]}]}},
+			{"id": "gate_stock", "label": "마지막 물", "at": Vector2(0.82, 0.78), "source": "event", "event": {"id": "gate_last_water", "threat": Threats.Kind.STORM, "text": "폭풍에 들기 전 마지막 물.\n지금 마셔 힘을 낼지,\n한 모금 아껴 담아 둘지.\n아껴 둔 한 모금은\n폭풍 너머까지 간다.", "choices": [{"label": "지금 마셔 힘을 낸다", "effect": {}}, {"label": "한 모금 아껴 담아 둔다", "effect": {}, "sets": ["water_stocked"], "sets_persist": ["water_stocked"]}]}},
 		],
 	},
 	"end": {

@@ -13,12 +13,18 @@ extends RefCounted
 ## end 도달률·거리 곡선을 정량 비교할 수 있게 하기 위함. 시뮬은 스윕 후 반드시 기본값으로 원복한다.
 ## 수치를 바꾸면 docs/design/balance_notes.md·기획서 §4.3(거리 곡선)도 같은 커밋에서 갱신.
 static var WATER_PER_STEP: int = 1     ## 물 기본 소모 (출발지 근처). 거리에 따라 늘어난다(water_cost).
-static var DESOLATION_EVERY: int = 30  ## 이 걸음마다 물 소모 +1 (멀수록 척박 — 거리 곡선)
+static var DESOLATION_EVERY: int = 32  ## 이 걸음마다 물 소모 +1 (멀수록 척박 — 거리 곡선). 30→32(2026-07-12 위기 순간 도입분 상쇄)
 static var FOOD_EVERY: int = 2         ## 식량은 이 걸음 수마다 1 소모 (느린 배고픔)
 static var GAP_MIN: int = 2            ## 엣지 안 일반 상황 최소 간격 (걸음)
 static var GAP_MAX: int = 4            ## 엣지 안 일반 상황 최대 간격 (걸음)
 ## 엣지 걸음 수는 이제 고정이 아니라 곡선 반영 경로 길이 비례(MapGraph.edge_steps). 손잡이는 MapGraph.STEPS_PER_UNIT.
 static var EARLY_SAFE_LEG: int = 6     ## 이 걸음 전(마을 근처 첫 엣지)엔 도구 위기(큰 대가) 억제 — 거리 곡선(가까울수록 평화, 기획 §1)
+## 위기 순간(2026-07-12 사용자 확정 — "위기는 위기끼리만 모여서"): 도구 위기는 일반 상황 회전에
+## 섞이지 않고, 엣지마다 있을지 없을지 정해지는 "위기 순간"에만 나온다. 멀수록 잦고(거리 곡선),
+## 깊은 구간(CRISIS_PAIR_PROG 이상)에선 두 위기가 연달아 온다(엎친 데 덮침 — 몰려오는 위기).
+static var CRISIS_BASE: float = 0.04   ## 엣지에 위기 순간이 있을 기본 확률(마을 근처)
+static var CRISIS_RAMP: float = 0.14   ## 진행도(0~1)에 비례해 더해지는 확률 — 멀수록 위기가 잦다
+static var CRISIS_PAIR_PROG: float = 0.75 ## 이 진행도부터 위기 순간이 2연속
 static var WEIGHT_FREE: int = 12       ## 이 무게까지는 무료(물 소모 안 늘어남)
 static var WEIGHT_STEP: int = 4        ## 초과 무게 이만큼마다 걸음당 물 +1 (무거운 짐 = 목마름)
 
@@ -35,7 +41,7 @@ const PARTY_MATES: int = 4      ## 대장 외 대원 수(행렬 = 1 + 4 = 5명)
 ## 아래 셋은 static var — 밸런스 시뮬(balance_sim [8] 온전 도달률)이 스윕하고 원복한다. 게임 중엔 기본값 고정.
 static var PERIL_TOTAL: int = 4      ## 한 선택의 물+식량 손실 합 임계(도구 위기 강행·폭풍 강행이 걸린다)
 static var PERIL_WATER: int = 3     ## 그중 물 손실 임계 — 신중한 우회(합은 커도 물은 적음)는 제외
-static var CLOSE_CALL_AT: int = 2   ## 물/식량 바닥 스침 임계
+static var CLOSE_CALL_AT: int = 1   ## 물/식량 바닥 스침 임계 — 2→1(2026-07-12 시뮬: 무손실 런 4%→16%, 손실 팝업 피로 완화. 진짜 바닥을 스칠 때만 사람이 스러진다)
 
 var resources: Dictionary = {}        ## {"water": int, "food": int, "rope": int, "shelter": int}
 var leg: int = 0                      ## 원정 전체 누적 걸음(거리 곡선)
@@ -58,6 +64,8 @@ var _food_scare: bool = false
 var _straggler_nodes: Dictionary = {} ## 낙오자가 기다리는 노드(node_id→true, GameState 주입) — 도착 시 거두기 카드
 var _last_situation_id: String = ""
 var _next_situation_leg: int = 0      ## 다음 일반 상황이 뜰 걸음
+var _crisis_steps: Array = []         ## 이번 엣지의 위기 순간(edge_step 값들) — begin_edge 가 정한다
+var _crisis_last: String = ""         ## 직전 위기 id(2연속 때 같은 위기 반복 방지)
 var _bridged: Dictionary = {}         ## 로프가 걸린 차단 노드(node_id→true) — 그 노드 도착 시 무료 통과
 var _flags: Dictionary = {}           ## 켜진 플래그(run ∪ persist). 런 시작 시 영속 플래그 로드, 런 중 sets 로 추가.
 var _traces: Dictionary = {}          ## 줍을 수 있는 과거 흔적(node_id→{kind,tags}) — 그 노드 도착 시 줍기 카드
@@ -138,6 +146,8 @@ func to_dict() -> Dictionary:
 		"edge_len": _edge_len,
 		"next_situation_leg": _next_situation_leg,
 		"last_situation_id": _last_situation_id,
+		"crisis_steps": _crisis_steps,
+		"crisis_last": _crisis_last,
 		"rng_seed": str(rng.seed),
 		"rng_state": str(rng.state),
 	}
@@ -168,6 +178,10 @@ static func from_dict(d: Dictionary) -> ExpeditionRun:
 	run._edge_len = int(d.get("edge_len", 0))
 	run._next_situation_leg = int(d.get("next_situation_leg", 0))
 	run._last_situation_id = str(d.get("last_situation_id", ""))
+	run._crisis_steps = []
+	for v in d.get("crisis_steps", []):
+		run._crisis_steps.append(int(v))   # JSON 왕복 후 float — int 로(has() 매칭이 타입에 민감)
+	run._crisis_last = str(d.get("crisis_last", ""))
 	run.rng.seed = str(d.get("rng_seed", "0")).to_int()
 	run.rng.state = str(d.get("rng_state", "0")).to_int()
 	return run
@@ -265,6 +279,21 @@ func begin_edge(target_id: String) -> void:
 	_edge_len = MapGraph.edge_steps(current_node, target_id)
 	_edge_step = 0
 	_schedule_next()
+	_schedule_crisis()
+
+## 이번 엣지의 위기 순간을 정한다 — 있을지 없을지(확률 = BASE + RAMP×진행도), 있으면 어느 걸음인지.
+## 깊은 구간(진행도 ≥ PAIR_PROG)이면 두 위기가 연달아(엎친 데 덮침). 위기는 여기서만 나온다(일반 회전 분리).
+func _schedule_crisis() -> void:
+	_crisis_steps = []
+	if _edge_len < 3:
+		return  # 너무 짧은 엣지엔 위기 순간 없음(도착 카드가 코앞)
+	var prog: float = MapGraph.progress(_target_node)
+	if rng.randf() > clampf(CRISIS_BASE + CRISIS_RAMP * prog, 0.0, 0.95):
+		return
+	var at: int = rng.randi_range(2, maxi(2, _edge_len - 1))
+	_crisis_steps.append(at)
+	if prog >= CRISIS_PAIR_PROG and at + 1 <= _edge_len - 1:
+		_crisis_steps.append(at + 1)
 
 ## 이번 엣지의 총 걸음 수(마커 보간·진행률 렌더가 공유). 엣지 진행 중이 아니면 0.
 func edge_len() -> int:
@@ -326,11 +355,18 @@ func step() -> void:
 	if not alive:
 		return
 	_check_close_call()  # 걸음 소모로 물/식량이 바닥을 스쳤나 — 행렬 손실(위험한 순간 ②)
-	if _edge_step < _edge_len and leg >= _next_situation_leg:
-		# 엣지 중(도착 전) 일반 상황 — 이동 중 자잘한 결정(맵 카드로 뜬다). 직전과 같은 id 는 피한다.
-		var sit: Dictionary = Situations.pick(rng, _last_situation_id, _flags, leg < EARLY_SAFE_LEG, MapGraph.biome_of(_target_node), MapGraph.progress(_target_node))
-		if not sit.is_empty():
-			_set_pending(sit)
+	if _edge_step < _edge_len:
+		if _crisis_steps.has(_edge_step) and leg >= EARLY_SAFE_LEG:
+			# 위기 순간 — 위기 풀에서만 뽑는다(일반 회전과 분리, 지형 일관). 2연속이면 다음 걸음에 또 온다.
+			var cr: Dictionary = Situations.pick_crisis(rng, MapGraph.biome_of(_target_node), _crisis_last)
+			if not cr.is_empty():
+				_crisis_last = str(cr.get("id", ""))
+				_set_pending(cr)
+		elif leg >= _next_situation_leg:
+			# 엣지 중(도착 전) 일반 상황 — 이동 중 자잘한 결정(맵 카드로 뜬다). 직전과 같은 id 는 피한다.
+			var sit: Dictionary = Situations.pick(rng, _last_situation_id, _flags, leg < EARLY_SAFE_LEG, MapGraph.biome_of(_target_node), MapGraph.progress(_target_node))
+			if not sit.is_empty():
+				_set_pending(sit)
 	# 도착(_edge_step >= _edge_len)이면 카드를 자동으로 안 띄운다 — 그 노드 단면(SectionRun)이 지점으로 낸다.
 
 ## 도착 노드의 "주요 지점" 카드를 계산해 반환한다 (부작용 없음 — 단면 SectionRun 이 쓴다).

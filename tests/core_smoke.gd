@@ -22,6 +22,7 @@ func _init() -> void:
 	_test_catalog_requires_filter()
 	_test_biome_weighting()
 	_test_progress_gating()
+	_test_crisis_moments()
 	_test_section_budget()
 	_test_section_mandatory_threat()
 	_test_section_bridged_gate()
@@ -82,10 +83,11 @@ func _test_party_intact() -> void:
 	# 물이 안 끼면(식량만 커도) 아니다.
 	run.apply_choice({"food": -4})
 	_ok(run.party_lost == 1, "행렬: 식량만 큰 손실은 위험한 순간 아님")
-	# ② 바닥 스침 — 물이 처음 ≤2 로 떨어지면 1회만.
-	var low: ExpeditionRun = _fresh({"water": 4, "food": 99, "rope": 0, "shelter": 0})
-	low.apply_choice({"water": -2})
-	_ok(low.party_lost == 1, "행렬: 물 첫 바닥 스침(≤2) → 대원 1 손실")
+	# ② 바닥 스침 — 물이 처음 임계(CLOSE_CALL_AT) 이하로 떨어지면 1회만. 임계를 하드코딩하지 않는다(손잡이).
+	var cc: int = ExpeditionRun.CLOSE_CALL_AT
+	var low: ExpeditionRun = _fresh({"water": cc + 3, "food": 99, "rope": 0, "shelter": 0})
+	low.apply_choice({"water": -3})
+	_ok(low.party_lost == 1, "행렬: 물 첫 바닥 스침(임계 이하) → 대원 1 손실")
 	low.apply_choice({"water": 3})
 	low.apply_choice({"water": -3})
 	_ok(low.party_lost == 1, "행렬: 물 바닥 스침은 런당 1회만")
@@ -373,6 +375,36 @@ func _test_progress_gating() -> void:
 			break
 	_ok(late_seen, "진행도 게이트: 후반(0.7)엔 후반 전용(scorched_waste) 등장")
 
+## 위기 순간(2026-07-12 사용자 확정) — 위기는 일반 회전에 안 섞이고(위기끼리 몰려서),
+## 위기 풀은 지형 일관을 엄격히 지키며, 스케줄은 이어하기 저장에 실린다.
+func _test_crisis_moments() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 31
+	var crisis_ids: Dictionary = {"fever": true, "frozen_night": true, "twisted_ankle": true, "sand_squall": true, "cut_rock": true}
+	var leaked: bool = false
+	for i in range(600):
+		if crisis_ids.has(str(Situations.pick(rng, "", {}, false, "", 1.0).get("id", ""))):
+			leaked = true
+			break
+	_ok(not leaked, "위기 분리: 일반 회전(pick)에 위기 안 섞임(600회)")
+	var ok_rock: bool = true
+	for i in range(60):
+		var cid: String = str(Situations.pick_crisis(rng, "rock").get("id", ""))
+		if not (cid == "fever" or cid == "twisted_ankle" or cid == "cut_rock"):
+			ok_rock = false
+			break
+	_ok(ok_rock, "위기 풀: rock 지형엔 rock 위기(발목·베임)+열병만(60회)")
+	_ok(str(Situations.pick_crisis(rng, "flats").get("id", "")) == "fever", "위기 풀: flats 는 열병뿐")
+	_ok(Situations.pick_crisis(rng, "flats", "fever").is_empty(), "위기 풀: 후보 없으면 빈손(지형을 깨지 않는다)")
+	# 직렬화 — 위기 스케줄이 이어하기(JSON 왕복)에 실린다. int 캐스팅(has 는 타입 민감).
+	var run: ExpeditionRun = _fresh()
+	run.begin_edge("b2")
+	run._crisis_steps = [3, 4]
+	run._crisis_last = "fever"
+	var back: ExpeditionRun = ExpeditionRun.from_dict(JSON.parse_string(JSON.stringify(run.to_dict())))
+	_ok(back._crisis_steps.has(3) and back._crisis_steps.has(4), "이어하기: 위기 순간 스케줄 왕복(int)")
+	_ok(back._crisis_last == "fever", "이어하기: 직전 위기 id 왕복")
+
 func _test_section_budget() -> void:
 	# b1(야영지): 주요 지점(도착 이벤트, 있으면 1) + requires 안 걸린 정적 spots.
 	# 콘텐츠(spots)가 늘어도 안 깨지게 노드에서 기대값을 계산한다.
@@ -495,9 +527,10 @@ func _test_vocations() -> void:
 	var porter: ExpeditionRun = ExpeditionRun.new({"water": 20, "food": 13}, [], [], {}, "porter")
 	_ok(porter.get_res("water") == 26 and porter.get_res("food") == 18, "직능 짐꾼: 시작 물+6·식+5")
 	var plain: ExpeditionRun = ExpeditionRun.new({"water": 20, "food": 13})
-	porter.leg = 24
-	plain.leg = 24
-	_ok(porter.water_cost() > plain.water_cost(), "직능 짐꾼: 먼 거리(leg24) 물 소모 더 큼(무거운 짐)")
+	var deep: int = ExpeditionRun.DESOLATION_EVERY - 6  # 짐꾼 가속 구간 시작(짐꾼 deso = 기본-6) — 기본값 하드코딩 금지
+	porter.leg = deep
+	plain.leg = deep
+	_ok(porter.water_cost() > plain.water_cost(), "직능 짐꾼: 먼 거리(짐꾼 가속 구간) 물 소모 더 큼(무거운 짐)")
 	# 길잡이 — 먼 거리서 물 소모 곡선 완화
 	var path: ExpeditionRun = ExpeditionRun.new({"water": 20, "food": 13}, [], [], {}, "pathfinder")
 	path.leg = 36
