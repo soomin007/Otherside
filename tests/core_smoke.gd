@@ -431,7 +431,7 @@ func _test_then_chains() -> void:
 			_ok(tid != "" and tid != str(s.get("id", "")), "then: 별개 id (%s)" % tid)
 			var tc: Array = t.get("choices", [])
 			_ok(not tc.is_empty(), "then: 선택지 보유 (%s)" % tid)
-	_ok(found >= 5, "then: 체인 콘텐츠 5곳 이상(이동 3 + 지점 2)")
+	_ok(found >= 10, "then: 체인 콘텐츠 10곳 이상(이동 3 + 지점 2 + 노드 7)")
 
 func _test_section_budget() -> void:
 	# b1(야영지): 주요 지점(도착 이벤트, 있으면 1) + requires 안 걸린 정적 spots.
