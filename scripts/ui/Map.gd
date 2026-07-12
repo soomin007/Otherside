@@ -153,6 +153,7 @@ var _circle_cache: Dictionary = {}   ## key(노드 id 또는 "__hover") -> Packe
 var _circle_cur_id: String = ""      ## 현재 채점 원이 걸린 노드
 var _circle_cur_t: float = 0.0       ## current 원 경과(그려짐→점멸)
 var _hover_t: float = 0.0            ## hover 원 그려짐 경과(호버 바뀔 때 0 으로)
+var _view: Rect2 = Rect2(0.0, 0.0, 820.0, 461.25)  ## 지도 뷰 창(MAP 좌표) — 가본 만큼 조여진다(_map_view_target 추종)
 
 func _ready() -> void:
 	if GameState.current_run == null or not GameState.current_run.alive:
@@ -315,6 +316,7 @@ func _after_ready_setup() -> void:
 	_circle_cur_id = _current_node_id()
 	_circle_cache[_circle_cur_id] = _gen_grading_circle()
 	_circle_cur_t = 0.0
+	_view = _map_view_target()  # 지도 진입 시엔 글라이드 없이 곧장 — 새 노드가 열릴 때만 넓어진다
 	_refresh_hud()
 	queue_redraw()
 
@@ -407,6 +409,17 @@ func _process(delta: float) -> void:
 	if _active_trace != "" and _trace_open_t < 0.3:
 		_trace_open_t += delta
 		queue_redraw()
+	# 지도 뷰 — 가본 만큼 조여진 창을 부드럽게 따라간다(새 노드가 열리면 지도가 넓어지는 감각).
+	var tv: Rect2 = _map_view_target()
+	if not (_view.position.is_equal_approx(tv.position) and _view.size.is_equal_approx(tv.size)):
+		if AppSettings.load_motion() <= 0.02:
+			_view = tv
+		else:
+			var k: float = clampf(delta * 3.0, 0.0, 1.0)
+			_view = Rect2(_view.position.lerp(tv.position, k), _view.size.lerp(tv.size, k))
+			if _view.position.distance_to(tv.position) < 0.5 and absf(_view.size.x - tv.size.x) < 0.5:
+				_view = tv
+		queue_redraw()
 	if not _moving:
 		# 정지 시 — 현재 채점 원이 그려진 뒤 점멸(살아있는 잉크). hover 원 그려짐도 진행.
 		# 점멸이 무한이라 지도가 계속 다시 그려진다(정지 중). 2D 벡터 렌더라 데스크톱은 가벼움 — 폰 배터리는 플레이테스트에서 확인.
@@ -453,6 +466,10 @@ func _process(delta: float) -> void:
 			_show_situation_card()  # 이동 중 마주친 상황/줍기 — 결정하면 이동을 잇는다
 
 func _gui_input(event: InputEvent) -> void:
+	# 터치 기기에선 에뮬레이트된 마우스 이벤트를 무시 — 탭 한 번에 ScreenTouch 와 MouseButton 이
+	# 둘 다 들어와 흔적 두루마리 토글이 2번 실행(열리자마자 닫힘)되던 원인(2026-07-12 폰 제보).
+	if DisplayServer.is_touchscreen_available() and (event is InputEventMouseButton or event is InputEventMouseMotion):
+		return
 	if _moving or (_sit_panel != null and _sit_panel.visible) or (_bequeath != null and _bequeath.is_open()) or (_result_popup != null and _result_popup.is_open()) or (_inventory != null and _inventory.is_open()):
 		if _hovered_node != "" or _active_trace != "":
 			_hovered_node = ""
@@ -731,13 +748,51 @@ func tutorial_highlight_rect(idx: int) -> Rect2:
 		return _leave_btn.get_global_rect().grow(10.0)
 	return _map_area()  # idx 0(과 기타) = 지도(배경+노드) 영역
 
-## MAP 좌표(820×461) → 화면 배율 — 밴드 확대분(1.24)까지 포함.
+## MAP 좌표(820×461) → 화면 배율 — 밴드 확대분 + 뷰 줌(가본 만큼 확대) 포함.
 func _mscale() -> float:
-	return _sscale() * BAND.size.x / MAP_W
+	return _sscale() * BAND.size.x / maxf(60.0, _view.size.x)
 
-## 노드 중심(화면 px) — 스펙 절대좌표(§1)를 밴드에 비례 매핑.
+## 지도 뷰(MAP 좌표의 보이는 창) — "가본 곳들만 나오는 크기"로 조여서, 새 노드가 드러날 때마다
+## 지도가 넓어지는 것처럼 느껴지게 한다(2026-07-12 사용자 확정 — 자유 핀치 줌 대신 자동 확장).
+## 줌 상한 VIEW_ZOOM_MAX(아이콘 과대 방지), 전체 지도 밖으로는 안 나간다. _process 가 부드럽게 따라간다.
+const VIEW_ZOOM_MAX: float = 1.6
+func _map_view_target() -> Rect2:
+	var aspect: float = BAND.size.y / BAND.size.x
+	var cur: String = _current_node_id()
+	var nexts: Array = MapGraph.node(cur).get("next", [])
+	var mn := Vector2(1e9, 1e9)
+	var mx := Vector2(-1e9, -1e9)
+	var n: int = 0
+	for id in MapGraph.NODES:
+		var s: String = str(id)
+		if not (_is_revealed(s) or s in nexts):
+			continue
+		var p: Vector2 = MapGraph.pos(s)
+		mn = mn.min(p)
+		mx = mx.max(p)
+		n += 1
+	var full := Rect2(0.0, 0.0, MAP_W, MAP_W * aspect)
+	if n < 2:
+		return full
+	mn -= Vector2(100.0, 85.0)   # 노드 아이콘·흔적 스택·라벨 여유(맵 단위)
+	mx += Vector2(100.0, 100.0)
+	var w: float = mx.x - mn.x
+	var h: float = mx.y - mn.y
+	if h / w > aspect:
+		w = h / aspect
+	else:
+		h = w * aspect
+	w = clampf(w, MAP_W / VIEW_ZOOM_MAX, MAP_W)
+	h = w * aspect
+	var c: Vector2 = (mn + mx) * 0.5
+	var origin: Vector2 = c - Vector2(w, h) * 0.5
+	origin.x = clampf(origin.x, 0.0, MAP_W - w)
+	origin.y = clampf(origin.y, 0.0, MAP_W * aspect - h)
+	return Rect2(origin, Vector2(w, h))
+
+## 노드 중심(화면 px) — 스펙 절대좌표(§1)를 뷰 창 기준으로 밴드에 매핑.
 func _node_screen(id: String, area: Rect2) -> Vector2:
-	return area.position + MapGraph.pos(id) * (area.size.x / MAP_W)
+	return area.position + (MapGraph.pos(id) - _view.position) * (area.size.x / _view.size.x)
 
 ## 노드 표시 크기(화면 px) — MapGraph.NODE_SIZE(스펙 px), 밴드 확대 비례. 0.85 = 아이콘이 커서 축소(2026-07-12 사용자).
 func _node_size(id: String) -> float:
@@ -746,7 +801,7 @@ func _node_size(id: String) -> float:
 ## 엣지 A→B 곡선 위의 점(t∈[0,1], 화면 px). MapGraph.edge_point(스펙 좌표, core 단일 진실)를 화면에 스케일.
 ## 경로 렌더·마커·점선·경로 길이(걸음 수)가 모두 core 곡선 공식 하나를 공유한다.
 func _edge_point(from_id: String, to_id: String, t: float, area: Rect2) -> Vector2:
-	return area.position + MapGraph.edge_point(from_id, to_id, t) * (area.size.x / MAP_W)
+	return area.position + (MapGraph.edge_point(from_id, to_id, t) - _view.position) * (area.size.x / _view.size.x)
 
 ## 엣지 곡선을 EDGE_SAMPLES 로 나눈 폴리라인(경로 실선/점선 렌더용).
 func _edge_polyline(from_id: String, to_id: String, area: Rect2) -> PackedVector2Array:
@@ -893,7 +948,8 @@ func _draw() -> void:
 	_draw_traces(area)
 	_draw_stragglers(area)  # 뒤처진 이가 기다리는 자리(재회 축 "구조") — 재회 런의 동선 계획 근거
 	_draw_arrows(area)  # 갈림에서 원정대가 실제 간 방향 화살표(선택의 자취)
-	_draw_map_legend(font, ms, area)  # 범례 — 지도 위 바닥 한 줄(좌 칼럼에서 이사, 2026-07-12 사용자)
+	# 범례 — 지도 위 바닥 한 줄(좌 칼럼에서 이사). 뷰 줌과 무관하게 고정 크기(화면 요소지 지도 요소가 아님).
+	_draw_map_legend(font, _sscale() * BAND.size.x / MAP_W, area)
 
 	# 이동 중 — 지금 걷는 엣지(미방문 노드로 향함)에 마커가 지나온 만큼만 발자국이 실시간으로 남는다.
 	if _moving and GameState.current_run != null and GameState.current_run.target_node_id() != "":

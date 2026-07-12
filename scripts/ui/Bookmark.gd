@@ -484,10 +484,13 @@ func _build() -> void:
 	_ribbon.flip = true
 	_ribbon.anchor_left = 1.0
 	_ribbon.anchor_right = 1.0
-	_ribbon.offset_left = -96.0   # 히트 영역 96px(그리기는 length 만큼)
+	_ribbon.offset_left = -128.0 if _touch_ui() else -96.0   # 히트 영역(그리기는 length 만큼) — 터치는 넉넉히
 	_ribbon.offset_right = 0.0
 	_ribbon.offset_top = 50.0
-	_ribbon.offset_bottom = 80.0
+	_ribbon.offset_bottom = 96.0 if _touch_ui() else 80.0
+	if _touch_ui():
+		_ribbon.ribbon_h = 38.0
+		_ribbon.length = 66.0
 	_ribbon.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_ribbon.mouse_entered.connect(_ribbon_hover.bind(true))
 	_ribbon.mouse_exited.connect(_ribbon_hover.bind(false))
@@ -526,13 +529,13 @@ func _build() -> void:
 
 	# 챕터 책갈피 — 책 오른쪽 가장자리에서 삐져나온 작은 리본들(현재 챕터가 가장 김).
 	# 터치 기기(폰)에선 손가락 표적으로 한 단계 크게(2026-07-12 사용자 — 폰·데스크톱을 똑같이 맞출 필요 없음).
-	var th: float = 42.0 if _touch_ui() else 28.0
+	var th: float = 46.0 if _touch_ui() else 28.0
 	for i in range(CHAPTERS.size()):
 		var tab := Ribbon.new()
 		tab.text = str(CHAPTERS[i])
 		tab.ribbon_h = th
 		tab.col = RED if i == 0 else Color(RED.r, RED.g, RED.b, 0.62)
-		tab.size = Vector2(128.0 if _touch_ui() else 96.0, th)
+		tab.size = Vector2(170.0 if _touch_ui() else 120.0, th)  # 히트 영역(그리기는 length 만큼) — 터치 여유
 		tab.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		tab.gui_input.connect(_on_tab_input.bind(i))
 		_book.add_child(tab)
@@ -623,7 +626,7 @@ func _layout_book() -> void:
 	_box_r.size = _book.rect_r.size - Vector2(PAGE_PAD * 2.0, PAGE_PAD * 2.0 + footer_h)
 	_footer_r.position = _book.rect_r.position + Vector2(PAGE_PAD, _book.rect_r.size.y - PAGE_PAD - footer_h)
 	_footer_r.size = Vector2(_book.rect_r.size.x - PAGE_PAD * 2.0, footer_h)
-	var tab_gap: float = 58.0 if _touch_ui() else 44.0
+	var tab_gap: float = 64.0 if _touch_ui() else 44.0
 	for i in range(_tabs.size()):
 		var tab: Ribbon = _tabs[i]
 		tab.position = Vector2(w - 4.0, 36.0 + float(i) * tab_gap)
@@ -694,11 +697,20 @@ func _capture_page(r_local: Rect2) -> ImageTexture:
 	return ImageTexture.create_from_image(img.get_region(rect))
 
 ## 현재 챕터 책갈피는 진하고 길게, 나머지는 옅고 짧게.
+## 탭 길이 = 글자 폭 기준 재단 — "일대기"(3자)도 "조작"(2자)과 같은 오른쪽 여백을 갖는다
+## (2026-07-12 사용자: 고정 길이에선 긴 글자가 V 홈을 침범). 펼침(현재 챕터)은 여백을 더 준다.
 func _apply_tab_state() -> void:
+	var f: Font = _book.get_theme_default_font() if _book != null else null
 	for i in range(_tabs.size()):
 		var tab: Ribbon = _tabs[i]
 		tab.col = RED if i == _chapter else Color(RED.r, RED.g, RED.b, 0.62)
-		tab.length = (110.0 if i == _chapter else 82.0) if _touch_ui() else (86.0 if i == _chapter else 62.0)
+		var slack: float = 30.0 if i == _chapter else 10.0
+		if f != null:
+			var tfs: int = clampi(int(tab.ribbon_h * 0.48), 12, 19)
+			var tw: float = f.get_string_size(tab.text, HORIZONTAL_ALIGNMENT_LEFT, -1, tfs).x
+			tab.length = 9.0 + tw + tab.ribbon_h * 0.85 + slack  # 글자 + V 홈 자리 + 상태별 여백
+		else:
+			tab.length = (120.0 if i == _chapter else 92.0) if _touch_ui() else (86.0 if i == _chapter else 62.0)
 
 func _render_chapter() -> void:
 	match _chapter:
