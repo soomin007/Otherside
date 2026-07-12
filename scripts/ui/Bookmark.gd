@@ -50,11 +50,7 @@ class PageArt:
 		page_sb.draw(c.get_canvas_item(), r)
 		c.draw_rect(r.grow(-3.0), Color(UITheme.PAPER_EDGE.r, UITheme.PAPER_EDGE.g, UITheme.PAPER_EDGE.b, 0.28), false, 1.5)
 		c.draw_rect(r.grow(-7.0), Color(UITheme.PAPER_EDGE.r, UITheme.PAPER_EDGE.g, UITheme.PAPER_EDGE.b, 0.12), false, 1.0)
-		var y: float = r.position.y + 92.0
-		while y < r.end.y - 34.0:
-			c.draw_line(Vector2(r.position.x + 20.0, y), Vector2(r.end.x - 20.0, y),
-				Color(UITheme.INK_FADE.r, UITheme.INK_FADE.g, UITheme.INK_FADE.b, 0.13), 1.0)
-			y += 42.0
+		# 괘선은 폐지(2026-07-12 사용자) — 실제 글줄과 안 맞아 어긋나 보였다. 민무늬 양피지가 낫다.
 
 ## 책갈피 리본 — 오른쪽 끝에 V 홈이 파인 빨간 리본. length 로 삐져나온 정도를 조절(호버 애니).
 ## 실제 리본 그림(킷 69, 사용자 생성)을 홈 캡 + 늘어나는 몸통 두 조각으로 그린다 — 길이가 변해도
@@ -605,8 +601,16 @@ func _close() -> void:
 func _on_scrim_input(event: InputEvent) -> void:
 	var tap: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed)
 	# 연 직후 250ms 는 무시 — 여는 클릭의 잔여 이벤트(합성 터치 등)가 바로 닫는 것 방지.
-	if tap and Time.get_ticks_msec() - _opened_ms > 250:
-		_close()
+	if not tap or Time.get_ticks_msec() - _opened_ms <= 250:
+		return
+	# 책·챕터 탭 둘레의 여유 띠에선 닫지 않는다 — 탭을 노리다 살짝 빗나간 터치가
+	# 일지를 닫아 버리던 것 방지(2026-07-12 사용자). 진짜 바깥(먼 검은 영역)만 닫는다.
+	if _book != null:
+		var guard := Rect2(_book.global_position, _book.size).grow(36.0)
+		guard.size.x += 190.0   # 오른쪽 챕터 탭 기둥까지 감싼다
+		if guard.has_point(event.position):
+			return
+	_close()
 
 ## 일지 크기 — 화면 90%·상한 1080×640(옛 장부와 동일 비율).
 func _layout_book() -> void:
@@ -697,20 +701,22 @@ func _capture_page(r_local: Rect2) -> ImageTexture:
 	return ImageTexture.create_from_image(img.get_region(rect))
 
 ## 현재 챕터 책갈피는 진하고 길게, 나머지는 옅고 짧게.
-## 탭 길이 = 글자 폭 기준 재단 — "일대기"(3자)도 "조작"(2자)과 같은 오른쪽 여백을 갖는다
-## (2026-07-12 사용자: 고정 길이에선 긴 글자가 V 홈을 침범). 펼침(현재 챕터)은 여백을 더 준다.
+## 탭 길이 — 모든 탭이 같은 길이(글자별 재단은 열림/닫힘과 헷갈린다 — 2026-07-12 사용자).
+## 가장 긴 챕터명("일대기")이 V 홈을 침범하지 않는 길이를 기준으로, 펼침(현재 챕터)만 더 길다.
 func _apply_tab_state() -> void:
 	var f: Font = _book.get_theme_default_font() if _book != null else null
+	var base_len: float = 96.0 if _touch_ui() else 72.0
+	if f != null and not _tabs.is_empty():
+		var h: float = (_tabs[0] as Ribbon).ribbon_h
+		var tfs: int = clampi(int(h * 0.48), 12, 19)
+		var wmax: float = 0.0
+		for ch in CHAPTERS:
+			wmax = maxf(wmax, f.get_string_size(str(ch), HORIZONTAL_ALIGNMENT_LEFT, -1, tfs).x)
+		base_len = maxf(base_len, 9.0 + wmax + h * 0.85 + 10.0)
 	for i in range(_tabs.size()):
 		var tab: Ribbon = _tabs[i]
 		tab.col = RED if i == _chapter else Color(RED.r, RED.g, RED.b, 0.62)
-		var slack: float = 30.0 if i == _chapter else 10.0
-		if f != null:
-			var tfs: int = clampi(int(tab.ribbon_h * 0.48), 12, 19)
-			var tw: float = f.get_string_size(tab.text, HORIZONTAL_ALIGNMENT_LEFT, -1, tfs).x
-			tab.length = 9.0 + tw + tab.ribbon_h * 0.85 + slack  # 글자 + V 홈 자리 + 상태별 여백
-		else:
-			tab.length = (120.0 if i == _chapter else 92.0) if _touch_ui() else (86.0 if i == _chapter else 62.0)
+		tab.length = base_len + (26.0 if i == _chapter else 0.0)
 
 func _render_chapter() -> void:
 	match _chapter:

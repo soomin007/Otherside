@@ -328,7 +328,7 @@ func _show_situation() -> void:
 		if enabled:
 			var sets: Array = choice.get("sets", [])
 			var sets_p: Array = choice.get("sets_persist", [])
-			btn.pressed.connect(_on_choice.bind(event_id, i, str(choice.get("label", "")), effect, str(choice.get("action", "")), sets, sets_p, int(choice.get("trace_kind", -1))))
+			btn.pressed.connect(_on_choice.bind(event_id, i, str(choice.get("label", "")), effect, str(choice.get("action", "")), sets, sets_p, int(choice.get("trace_kind", -1)), choice.get("then", {})))
 		else:
 			btn.disabled = true
 		_choice_box.add_child(btn)
@@ -339,7 +339,7 @@ func _show_situation() -> void:
 	_sit_panel.visible = true
 	UITheme.recenter_modal.call_deferred(_sit_panel)  # 웹 하단 치우침 방어(레이아웃 레이스)
 
-func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, action: String = "", sets: Array = [], sets_persist: Array = [], trace_kind: int = -1) -> void:
+func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, action: String = "", sets: Array = [], sets_persist: Array = [], trace_kind: int = -1, then: Dictionary = {}) -> void:
 	GameState.mark_choice_seen(event_id, idx)  # 이 선택지를 겪었다 — 다음 대면 때 결과가 보인다(런 한정)
 	var here_leg: int = _run.leg
 	var here_node: String = _run.target_node_id()  # 지금 결정 중인 도착 노드
@@ -363,6 +363,9 @@ func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, a
 		_run.set_flag(str(f))
 	if not sets_persist.is_empty():
 		GameState.add_persist_flags(sets_persist)
+	# 후속 장면(then) — 같은 자리에서 이야기 한 박자 더. autosave 앞에 raise(이어하기가 후속부터 잇는다).
+	if _run.alive and not then.is_empty():
+		_run.raise_situation(then)
 	_sit_panel.visible = false
 	GameState.autosave_run(_section.to_dict() if _section != null else {})  # 결정 확정 — 즉시 이어하기 저장
 	_refresh()
@@ -375,11 +378,14 @@ func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, a
 		note_color = UITheme.SAND
 	_result_popup.show_result(label, effect, _after_choice, note, note_color)
 
-## 결과 팝업을 닫은 뒤 — 계속 전진(또는 결정이 곧 죽음이었으면 죽음 화면).
+## 결과 팝업을 닫은 뒤 — 후속 장면(then)이 걸려 있으면 그 카드부터, 죽었으면 죽음 화면, 아니면 계속.
 func _after_choice() -> void:
 	_sync_advance_gate()  # 위협 카드를 방금 해결했으면 잠금이 풀린다. 보조 이벤트면 위협이 남아 계속 잠긴다.
 	if not _run.alive:
 		_die(_run.death_cause)
+		return
+	if not _run.pending_situation.is_empty():
+		_show_situation()  # 후속 장면 — 같은 자리에서 이야기 한 박자 더
 
 ## 지금 선 차단 노드에 로프를 건다 - core 에 표시(같은 런 즉시 반영) + ROPE 흔적(node_id)을 남기고 저장(다음 원정에 영속).
 ## "남김 한 번"과 별개의 부산물 흔적이다(통과의 결과로 길이 영구히 바뀐다).

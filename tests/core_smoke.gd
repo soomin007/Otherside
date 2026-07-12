@@ -407,9 +407,21 @@ func _test_crisis_moments() -> void:
 	_ok(back._crisis_last == "fever", "이어하기: 직전 위기 id 왕복")
 
 ## 후속 장면(then, 2026-07-12) — 데이터 무결성: then 은 별개 id 와 선택지를 가진 온전한 이벤트다.
+## 이동 카드(CATALOG)와 노드 콘텐츠(MapGraph events·spots) 양쪽을 훑는다.
 func _test_then_chains() -> void:
 	var found: int = 0
+	var pool: Array = []
 	for s in Situations.CATALOG:
+		pool.append(s)
+	for nid in MapGraph.NODES:
+		var node: Dictionary = MapGraph.NODES[nid]
+		for ev in node.get("events", []):
+			pool.append(ev)
+		for sp in node.get("spots", []):
+			var sev: Dictionary = sp.get("event", {})
+			if not sev.is_empty():
+				pool.append(sev)
+	for s in pool:
 		for c in s.get("choices", []):
 			var t: Dictionary = c.get("then", {})
 			if t.is_empty():
@@ -419,7 +431,7 @@ func _test_then_chains() -> void:
 			_ok(tid != "" and tid != str(s.get("id", "")), "then: 별개 id (%s)" % tid)
 			var tc: Array = t.get("choices", [])
 			_ok(not tc.is_empty(), "then: 선택지 보유 (%s)" % tid)
-	_ok(found >= 3, "then: 체인 콘텐츠 3곳 이상")
+	_ok(found >= 5, "then: 체인 콘텐츠 5곳 이상(이동 3 + 지점 2)")
 
 func _test_section_budget() -> void:
 	# b1(야영지): 주요 지점(도착 이벤트, 있으면 1) + requires 안 걸린 정적 spots.
