@@ -19,11 +19,14 @@ extends RefCounted
 ##  - requires: 그 플래그(run 또는 persist)가 켜져 있을 때만 뜨는 변형 이벤트/상황.
 ##
 ## 이벤트 = {id, threat, text, choices, requires?}.
-## choice = {label, effect, needs?, action?, sets?, sets_persist?}.
+## choice = {label, effect, needs?, action?, sets?, sets_persist?, then?}.
 ##  - effect: 자원 델타 {water/food/rope/shelter: int}.
 ##  - needs: 그 자원이 모자라면 못 고름(대비 자원의 희소성 -> 결정의 무게).
 ##  - action: 자원 델타를 넘는 부수효과("bridge" = 차단에 로프 고정 -> UI 가 그 노드에 ROPE 흔적, "pickup" = 흔적 줍기).
 ##  - sets / sets_persist: 켤 플래그 목록(런 / 영속).
+##  - then: 후속 장면(이벤트 dict) — 이 선택 직후 같은 걸음에서 바로 이어지는 두 번째 카드
+##    (2026-07-12 사용자: 이벤트를 한 턴짜리로 끝내지 말고 이야기를 이어가라). 체인의 순 대가는
+##    기존 단일 카드와 같게 저작한다(밸런스 중립). 후속 장면의 id 는 별개 → blind choice 도 새로 시작.
 ## 단일 진실: docs/design/SYOTOS_기획서_v0.1.md §4 위협 삼각형.
 ##
 ## 대가 문법(2026-07-12 사용자 확정 — 선택 결과의 방향·크기를 서사에서 예측할 수 있어야 한다).
@@ -53,7 +56,14 @@ const CATALOG: Array = [
 		"threat": Threats.Kind.CONSUMPTION,
 		"text": "길이 둘로 갈린다.\n메마른 지름길과,\n반나절을 더 도는 먼 길.",
 		"choices": [
-			{"label": "지름길로 간다", "effect": {"water": -2}},
+			{"label": "지름길로 간다", "effect": {"water": -1}, "then": {
+				"id": "shortcut_dune", "threat": Threats.Kind.CONSUMPTION,
+				"text": "지름길 한가운데,\n바람이 쌓아 올린 모래 둔덕이\n길을 통째로 삼켰다.\n지름길은 공짜가 아니었다.",
+				"choices": [
+					{"label": "둔덕을 타 넘는다", "effect": {"water": -1}},
+					{"label": "가장자리로 비켜 돌아간다", "effect": {"food": -1}},
+				],
+			}},
 			{"label": "둘러 간다", "effect": {"food": -2}},
 		],
 	},
@@ -71,7 +81,14 @@ const CATALOG: Array = [
 		"threat": Threats.Kind.CONSUMPTION,
 		"text": "모래에 반쯤 지워진 발자국.\n이전 원정대도\n여기까지는 왔던 모양이다.\n자국은 내 길에서 벗어나\n한쪽으로 휘어 사라진다.",
 		"choices": [
-			{"label": "잠시 벗어나 따라가 본다", "effect": {"water": -1}},
+			{"label": "잠시 벗어나 따라가 본다", "effect": {"water": -1}, "then": {
+				"id": "old_tracks_end", "threat": Threats.Kind.CONSUMPTION,
+				"text": "발자국은 낮은 바위 그늘에서 끊긴다.\n먼저 간 이가 쉬어 간 자리다.\n재도 뼈도 없다.\n다시 일어나 걸었다는 뜻이다.",
+				"choices": [
+					{"label": "같은 그늘에서 잠시 숨을 고른다", "effect": {}},
+					{"label": "그가 간 방향으로 마저 걷는다", "effect": {}},
+				],
+			}},
 			{"label": "곧장 내 길로 간다", "effect": {}},
 		],
 	},
@@ -107,7 +124,14 @@ const CATALOG: Array = [
 		"threat": Threats.Kind.CONSUMPTION,
 		"text": "멀리 물빛이 어른거린다.\n아지랑이인지 진짜인지 알 수 없다.",
 		"choices": [
-			{"label": "혹시 몰라 다가가 본다", "effect": {"water": -2}},
+			{"label": "혹시 몰라 다가가 본다", "effect": {"water": -1}, "then": {
+				"id": "mirage_shore", "threat": Threats.Kind.CONSUMPTION,
+				"text": "물빛이 있던 자리엔\n소금기만 허옇게 낀 바닥뿐이다.\n어느새 길에서 꽤 벗어났다.",
+				"choices": [
+					{"label": "서둘러 길을 되짚는다", "effect": {"water": -1}},
+					{"label": "그늘을 골라 천천히 되짚는다", "effect": {"food": -1}},
+				],
+			}},
 			{"label": "속지 않고 길을 지킨다", "effect": {}},
 		],
 	},

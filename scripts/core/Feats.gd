@@ -14,41 +14,43 @@ extends RefCounted
 ##  traces_left       남긴 흔적 수(유령 seed 제외 — GameState.player_trace_count)
 ##
 ## 문구 규칙: 보이는 글(name/cond/line)은 세계의 말·담담한 평서체, 수동 줄바꿈. 숫자 조건은 사람 말로.
+## cond = 아직 안 온 사람 소개 + 무엇이 그를 움직이는지. "~하면 온다" 같은 규칙 낭독 금지
+## (2026-07-12 사용자 — 번역투). 문장 꼴은 서로 다르게(같은 틀 반복 금지).
 ## 조건 수치는 1차안 — 폰 체감으로 튜닝(바꾸면 기획서 §직능 해금도 같이).
 
 const LIST: Array = [
 	{
 		"id": "walked_deep", "unlocks": "pathfinder",
 		"name": "멀리 가 본 이",
-		"cond": "들판 너머 깊은 데까지 가 보면 온다.",
+		"cond": "길눈 밝은 떠돌이가 있다.\n들판 너머 소식이 닿아야 움직인단다.",
 		"line": "먼 데서 돌아온 이가 마을에 남았다.\n\"길은 물이 마르는 순서대로 외우는 걸세.\"",
 		"stat": "max_row_visited", "at_least": 4,
 	},
 	{
 		"id": "heavy_back", "unlocks": "porter",
 		"name": "짐을 진 이",
-		"cond": "무거운 짐을 지고 떠나 보면 온다.",
+		"cond": "힘 좋은 젊은이가 있다.\n무겁게 진 원정을 보면 어깨가 근질거린단다.",
 		"line": "짐꾼이 마을에 왔다.\n\"질 수 있는 만큼이 아니라,\n져야 하는 만큼 지는 거요.\"",
 		"stat": "heavy_departures", "at_least": 1,
 	},
 	{
 		"id": "thirst_learned", "unlocks": "waterwise",
 		"name": "갈증을 아는 이",
-		"cond": "갈증으로 원정 둘을 잃으면 온다.",
+		"cond": "물길을 읽는 노인이 있다.\n갈증에 스러진 원정이 거듭되는 걸\n못 본 체하지 못하는 사람이다.",
 		"line": "물지기가 마을에 왔다.\n\"물은 아껴 마시는 게 아니라,\n아는 만큼 담는 걸세.\"",
 		"stat": "thirst_deaths", "at_least": 2,
 	},
 	{
 		"id": "hunger_learned", "unlocks": "hardy",
 		"name": "주림을 견딘 이",
-		"cond": "굶주림으로 원정 둘을 잃으면 온다.",
+		"cond": "굶는 법을 아는 사내가 있다.\n주림에 쓰러진 원정 소식이 거듭되면\n그제야 짐을 꾸린단다.",
 		"line": "강골이 마을에 왔다.\n\"주림은 이기는 게 아니라 늦추는 거다.\"",
 		"stat": "hunger_deaths", "at_least": 2,
 	},
 	{
 		"id": "left_three", "unlocks": "keeper",
 		"name": "세 번 남긴 이",
-		"cond": "다음 원정대에게 세 번 남기면 온다.",
+		"cond": "죽은 이들의 짐을 지켜 온 사람이 있다.\n세 번을 남긴 원정대라야\n제 일을 맡길 만하다 여긴단다.",
 		"line": "유품지기가 마을에 왔다.\n\"두고 가는 법을 아는 사람은 드물지.\"",
 		"stat": "traces_left", "at_least": 3,
 	},

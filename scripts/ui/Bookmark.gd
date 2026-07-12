@@ -23,11 +23,13 @@ const PAGE_SFX: Array = [
 
 ## 조작 안내 장(정적). 페이지 폭 ~450px·FS_BODY = 한 줄 ~19자 — 수동 \n(autowrap 은 음절 중간을 끊는다).
 ## 말투 = 담담한 평서(기록지에 적힌 글) — 합쇼체 금지, 게임 공통 목소리.
+## 중요한 단어는 BBCode 색 강조(2026-07-12 사용자 — 내용이 다 똑같이 생겨 집중이 안 됨).
+## 색: 물 #35667f · 식량 #8c5f16 · 로프 #7a4a1e · 장막 #4d5a26 · 핵심 행동 #8a2f1b(붉은 잉크).
 const TUTORIAL_PAGES: Array = [
-	"지도에서 갈 곳을 누르면\n원정대가 나아간다.\n가 봐야 무엇이 있는지 알고,\n걸음마다 물과 식량이 닳는다.",
-	"닿은 곳에선 단면이 펼쳐진다.\n표시된 곳을 눌러 살핀다.\n살필 횟수는 정해져 있고,\n살핀다고 물이 줄지는 않는다.",
-	"물은 걸음마다,\n식량은 두 걸음마다 줄어든다.\n로프는 갈라진 틈을 건너게 하고,\n장막은 폭풍을 버티게 한다.",
-	"죽기 전 단 한 번,\n물건 하나를 남길 수 있다.\n그만큼 잃지만\n다음 원정대가 그것을 줍는다.\n무엇을 남길지가 이 여정의 마음이다.",
+	"지도에서 갈 곳을 누르면\n원정대가 나아간다.\n가 봐야 무엇이 있는지 알고,\n걸음마다 [color=#35667f]물[/color]과 [color=#8c5f16]식량[/color]이 닳는다.",
+	"닿은 곳에선 단면이 펼쳐진다.\n표시된 곳을 눌러 살핀다.\n[color=#8a2f1b]살필 횟수[/color]는 정해져 있고,\n살핀다고 물이 줄지는 않는다.",
+	"[color=#35667f]물[/color]은 걸음마다,\n[color=#8c5f16]식량[/color]은 두 걸음마다 줄어든다.\n[color=#7a4a1e]로프[/color]는 갈라진 틈을 건너게 하고,\n[color=#4d5a26]장막[/color]은 폭풍을 버티게 한다.",
+	"죽기 전 단 한 번,\n[color=#8a2f1b]물건 하나를 남길 수 있다.[/color]\n그만큼 잃지만\n다음 원정대가 그것을 줍는다.\n무엇을 남길지가 이 여정의 마음이다.",
 ]
 
 ## 챕터 순서 — 바꾸면 아래 CH_* 와 LedgerBook 두께 스택 상한도 같이.
@@ -92,10 +94,11 @@ class Ribbon extends Control:
 		if text != "":
 			var f: Font = get_theme_default_font()
 			if f != null:
+				var tfs: int = clampi(int(h * 0.48), 12, 19)  # 리본 높이에 비례(모바일 확대 탭도 글씨가 따라 큼)
 				if flip:
-					draw_string(f, Vector2(size.x - length + 7.0, h * 0.5 + 5.0), text, HORIZONTAL_ALIGNMENT_RIGHT, length - 16.0, 13, Color(0.96, 0.92, 0.86, 0.95))
+					draw_string(f, Vector2(size.x - length + 7.0, h * 0.5 + tfs * 0.38), text, HORIZONTAL_ALIGNMENT_RIGHT, length - 16.0, tfs, Color(0.96, 0.92, 0.86, 0.95))
 				else:
-					draw_string(f, Vector2(9.0, h * 0.5 + 5.0), text, HORIZONTAL_ALIGNMENT_LEFT, length - 16.0, 13, Color(0.96, 0.92, 0.86, 0.95))
+					draw_string(f, Vector2(9.0, h * 0.5 + tfs * 0.38), text, HORIZONTAL_ALIGNMENT_LEFT, length - 16.0, tfs, Color(0.96, 0.92, 0.86, 0.95))
 
 	## 그림 리본 — 원본 비율 그대로, 보이는 길이만큼만 잘라 그린다(늘이지 않는다 — 2026-07-12 사용자:
 	## 캡+몸통 늘임 방식이 좌우로 쪼그라져 보였다). 잘린 끝은 화면/책 모서리와 겹쳐 안 보인다.
@@ -522,16 +525,22 @@ func _build() -> void:
 	_book.add_child(_footer_r)
 
 	# 챕터 책갈피 — 책 오른쪽 가장자리에서 삐져나온 작은 리본들(현재 챕터가 가장 김).
+	# 터치 기기(폰)에선 손가락 표적으로 한 단계 크게(2026-07-12 사용자 — 폰·데스크톱을 똑같이 맞출 필요 없음).
+	var th: float = 42.0 if _touch_ui() else 28.0
 	for i in range(CHAPTERS.size()):
 		var tab := Ribbon.new()
 		tab.text = str(CHAPTERS[i])
-		tab.ribbon_h = 28.0
+		tab.ribbon_h = th
 		tab.col = RED if i == 0 else Color(RED.r, RED.g, RED.b, 0.62)
-		tab.size = Vector2(96.0, 28.0)
+		tab.size = Vector2(128.0 if _touch_ui() else 96.0, th)
 		tab.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		tab.gui_input.connect(_on_tab_input.bind(i))
 		_book.add_child(tab)
 		_tabs.append(tab)
+
+## 터치 기기(폰)인가 — 탭 크기 등 손가락 표적 분기.
+func _touch_ui() -> bool:
+	return DisplayServer.is_touchscreen_available()
 
 ## 리본 호버 — 좀 더 길게 삐져나온다(잡아당길 수 있다는 신호).
 func _ribbon_hover(on: bool) -> void:
@@ -614,9 +623,10 @@ func _layout_book() -> void:
 	_box_r.size = _book.rect_r.size - Vector2(PAGE_PAD * 2.0, PAGE_PAD * 2.0 + footer_h)
 	_footer_r.position = _book.rect_r.position + Vector2(PAGE_PAD, _book.rect_r.size.y - PAGE_PAD - footer_h)
 	_footer_r.size = Vector2(_book.rect_r.size.x - PAGE_PAD * 2.0, footer_h)
+	var tab_gap: float = 58.0 if _touch_ui() else 44.0
 	for i in range(_tabs.size()):
 		var tab: Ribbon = _tabs[i]
-		tab.position = Vector2(w - 4.0, 36.0 + float(i) * 44.0)
+		tab.position = Vector2(w - 4.0, 36.0 + float(i) * tab_gap)
 
 # --- 챕터 (낱장 넘김) ---
 
@@ -688,7 +698,7 @@ func _apply_tab_state() -> void:
 	for i in range(_tabs.size()):
 		var tab: Ribbon = _tabs[i]
 		tab.col = RED if i == _chapter else Color(RED.r, RED.g, RED.b, 0.62)
-		tab.length = 86.0 if i == _chapter else 62.0
+		tab.length = (110.0 if i == _chapter else 82.0) if _touch_ui() else (86.0 if i == _chapter else 62.0)
 
 func _render_chapter() -> void:
 	match _chapter:
@@ -731,21 +741,22 @@ func _show_village() -> void:
 	_clear(_box_l)
 	_clear(_box_r)
 	_box_l.add_child(_brush_heading("마을", 40, INK))
-	_box_l.add_child(_ink_label("이룬 일이 사람을 부른다.\n새 얼굴이 오면 대장 후보가 된다.", UITheme.FS_SMALL, INK_FADE))
+	_box_l.add_child(_ink_label("원정 이야기는 마을에 금방 퍼진다.\n소문을 듣고, 하나둘 찾아온다.", UITheme.FS_SMALL, INK_FADE))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	var opened: Array = GameState.unlocked_vocations()
 	for f in Feats.LIST:
 		var vid: String = str(f.get("unlocks", ""))
 		var nm: String = Vocations.name_of(vid)
 		if opened.has(vid):
-			_box_l.add_child(_ink_label("%s · 마을에 있다" % nm, UITheme.FS_LABEL, INK))
+			# 온 사람은 이름을 붉은 잉크로 — 잠긴 회색 줄들 사이에서 한눈에 띈다.
+			_box_l.add_child(_rich_label("[color=#8a2f1b]%s[/color] · 마을에 있다" % nm, UITheme.FS_LABEL, INK))
 		else:
-			_box_l.add_child(_ink_label("%s · 아직 오지 않았다" % nm, UITheme.FS_LABEL, INK_FADE))
+			_box_l.add_child(_ink_label("%s · 아직 소식이 없다" % nm, UITheme.FS_LABEL, INK_FADE))
 			_box_l.add_child(_ink_label(str(f.get("cond", "")), UITheme.FS_SMALL, INK_FADE))
 	_box_r.add_child(_brush_heading("이룬 일", 40, INK))
 	_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	if GameState.feats_unlocked.is_empty():
-		_box_r.add_child(_ink_label("아직 없다.\n길이 가르쳐 줄 것이다.", UITheme.FS_LABEL, INK_FADE))
+		_box_r.add_child(_ink_label("아직 적을 것이 없다.\n길이 하나씩 가르쳐 줄 것이다.", UITheme.FS_LABEL, INK_FADE))
 	else:
 		for fid in GameState.feats_unlocked:
 			var done: Dictionary = Feats.by_id(str(fid))
@@ -784,12 +795,12 @@ func _ctrl_next() -> void:
 func _ctrl_guide() -> void:
 	_box_l.add_child(_brush_heading("조작 안내", 40, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
-	_box_l.add_child(_ink_label(str(TUTORIAL_PAGES[0]), UITheme.FS_BODY, INK))
+	_box_l.add_child(_rich_label(str(TUTORIAL_PAGES[0]), UITheme.FS_BODY, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.15), 1.0))
-	_box_l.add_child(_ink_label(str(TUTORIAL_PAGES[1]), UITheme.FS_BODY, INK))
-	_box_r.add_child(_ink_label(str(TUTORIAL_PAGES[2]), UITheme.FS_BODY, INK))
+	_box_l.add_child(_rich_label(str(TUTORIAL_PAGES[1]), UITheme.FS_BODY, INK))
+	_box_r.add_child(_rich_label(str(TUTORIAL_PAGES[2]), UITheme.FS_BODY, INK))
 	_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.15), 1.0))
-	_box_r.add_child(_ink_label(str(TUTORIAL_PAGES[3]), UITheme.FS_BODY, INK))
+	_box_r.add_child(_rich_label(str(TUTORIAL_PAGES[3]), UITheme.FS_BODY, INK))
 
 ## 표식 읽기 — 범례 9종을 양면에 나눠(왼 4·오 5). 지도·단면 실제 표식의 축소판.
 func _ctrl_legend() -> void:
@@ -1147,6 +1158,21 @@ func _ledger_row(name_txt: String, value_txt: String) -> HBoxContainer:
 ## 양피지 위 잉크 라벨.
 func _ink_label(txt: String, fs: int, col: Color, center: bool = false) -> Label:
 	return UITheme.make_label(txt, fs, col, center)
+
+## 색 강조 잉크 글 — BBCode([color=...]) 지원 RichTextLabel. 중요한 단어에 색을 얹어
+## 문단들이 똑같이 보이지 않게 한다(2026-07-12 사용자). 폰트·자간은 기본 테마를 따른다.
+func _rich_label(bb: String, fs: int, col: Color) -> RichTextLabel:
+	var r := RichTextLabel.new()
+	r.bbcode_enabled = true
+	r.fit_content = true
+	r.scroll_active = false
+	r.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r.add_theme_font_size_override("normal_font_size", fs)
+	r.add_theme_color_override("default_color", col)
+	r.text = bb
+	return r
 
 ## 잉크 각인 버튼 — 상자 없이 글자만, hover 시 붉은 잉크.
 func _ink_btn(txt: String, cb: Callable, size: int = UITheme.FS_LABEL) -> Button:

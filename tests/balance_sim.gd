@@ -289,6 +289,10 @@ func _decide(run: ExpeditionRun, ev: Dictionary, policy: int, brng: RandomNumber
 	var pick: Dictionary = _choose(opts, policy, brng)
 	run.apply_choice(pick.get("effect", {}))
 	_set_flags(run, pick)
+	# 후속 장면(then) — 게임과 같은 걸음에서 이어 결정한다(중첩 체인도 재귀로).
+	var then: Dictionary = pick.get("then", {})
+	if not then.is_empty() and run.alive:
+		_decide(run, then, policy, brng)
 
 func _choose(opts: Array, policy: int, brng: RandomNumberGenerator) -> Dictionary:
 	match policy:

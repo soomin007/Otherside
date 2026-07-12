@@ -596,14 +596,14 @@ func _show_situation_card() -> void:
 		var seen: bool = GameState.has_seen_choice(event_id, i)  # 겪어본 선택지만 결과 노출
 		var btn := UITheme.make_engraved_button(UITheme.choice_text(choice, enabled, seen), 17, false)
 		if enabled:
-			btn.pressed.connect(_on_situation_choice.bind(event_id, i, str(choice.get("label", "")), effect, choice.get("sets", []), choice.get("sets_persist", [])))
+			btn.pressed.connect(_on_situation_choice.bind(event_id, i, str(choice.get("label", "")), effect, choice.get("sets", []), choice.get("sets_persist", []), choice.get("then", {})))
 		else:
 			btn.disabled = true
 		_sit_box.add_child(btn)
 	_sit_panel.visible = true
 	UITheme.recenter_modal.call_deferred(_sit_panel)  # 웹 하단 치우침 방어(레이아웃 레이스)
 
-func _on_situation_choice(event_id: String, idx: int, label: String, effect: Dictionary, sets: Array, sets_persist: Array) -> void:
+func _on_situation_choice(event_id: String, idx: int, label: String, effect: Dictionary, sets: Array, sets_persist: Array, then: Dictionary = {}) -> void:
 	var run: ExpeditionRun = GameState.current_run
 	if run == null:
 		return
@@ -615,6 +615,10 @@ func _on_situation_choice(event_id: String, idx: int, label: String, effect: Dic
 		run.set_flag(str(f))
 	if not sets_persist.is_empty():
 		GameState.add_persist_flags(sets_persist)
+	# 후속 장면(then) — 이야기가 같은 걸음에서 한 박자 더 이어진다(2026-07-12 사용자: 한 턴짜리 금지).
+	# raise 를 autosave 앞에 — 여기서 끊겨도 이어하기가 후속 장면부터 잇는다(_resume_mid_edge).
+	if run.alive and not then.is_empty():
+		run.raise_situation(then)
 	# 이동 중 엣지 줍기였으면 — 집었으면(효과=+자원) 그 흔적 uses 소진, 남겨뒀으면 그대로(이번 이동엔 재제안 안 함).
 	if not _edge_pickup.is_empty():
 		if not effect.is_empty():
@@ -684,13 +688,17 @@ func _raise_edge_pickup(run: ExpeditionRun, ep: Dictionary) -> void:
 func _edge_key(from_id: String, to_id: String, kind: int) -> String:
 	return "%s>%s:%d" % [from_id, to_id, kind]
 
-## 이동 중 상황의 결과 팝업을 닫은 뒤 — 죽었으면 그 자리 노드 화면, 아니면 이동 재개.
+## 이동 중 상황의 결과 팝업을 닫은 뒤 — 죽었으면 그 자리 노드 화면, 후속 장면이 걸려 있으면
+## 그 카드부터(이야기가 이어진다), 아니면 이동 재개.
 func _after_situation() -> void:
 	var run: ExpeditionRun = GameState.current_run
 	if run == null:
 		return
 	if not run.alive:
 		GameState.go_to_expedition()  # 결정이 곧 죽음 → 그 자리 노드 화면
+		return
+	if not run.pending_situation.is_empty():
+		_show_situation_card()  # 후속 장면(then) — 같은 걸음에서 이야기 한 박자 더
 		return
 	_moving = true   # 아직 도착 전 — 이동을 잇는다
 	_move_timer = 0.0
@@ -1261,7 +1269,8 @@ func _draw_trace_scroll(font: Font, center: Vector2, tags: Array, ms: float, ope
 ## 흔적 아이콘 히트테스트 — 위치에 흔적 아이콘이 있으면 그 노드 id(호버·탭 판정 공용).
 func _trace_at(pos: Vector2) -> String:
 	var best: String = ""
-	var best_d: float = 28.0 * _mscale()
+	# 터치(폰)는 손가락 오차만큼 판정을 넉넉히(2026-07-12 — 흔적 표식이 안 열린다는 제보 방어).
+	var best_d: float = (38.0 if DisplayServer.is_touchscreen_available() else 28.0) * _mscale()
 	for hb in _trace_hitboxes:
 		var d: float = pos.distance_to(hb["pos"])
 		if d <= best_d:

@@ -23,6 +23,7 @@ func _init() -> void:
 	_test_biome_weighting()
 	_test_progress_gating()
 	_test_crisis_moments()
+	_test_then_chains()
 	_test_section_budget()
 	_test_section_mandatory_threat()
 	_test_section_bridged_gate()
@@ -404,6 +405,21 @@ func _test_crisis_moments() -> void:
 	var back: ExpeditionRun = ExpeditionRun.from_dict(JSON.parse_string(JSON.stringify(run.to_dict())))
 	_ok(back._crisis_steps.has(3) and back._crisis_steps.has(4), "이어하기: 위기 순간 스케줄 왕복(int)")
 	_ok(back._crisis_last == "fever", "이어하기: 직전 위기 id 왕복")
+
+## 후속 장면(then, 2026-07-12) — 데이터 무결성: then 은 별개 id 와 선택지를 가진 온전한 이벤트다.
+func _test_then_chains() -> void:
+	var found: int = 0
+	for s in Situations.CATALOG:
+		for c in s.get("choices", []):
+			var t: Dictionary = c.get("then", {})
+			if t.is_empty():
+				continue
+			found += 1
+			var tid: String = str(t.get("id", ""))
+			_ok(tid != "" and tid != str(s.get("id", "")), "then: 별개 id (%s)" % tid)
+			var tc: Array = t.get("choices", [])
+			_ok(not tc.is_empty(), "then: 선택지 보유 (%s)" % tid)
+	_ok(found >= 3, "then: 체인 콘텐츠 3곳 이상")
 
 func _test_section_budget() -> void:
 	# b1(야영지): 주요 지점(도착 이벤트, 있으면 1) + requires 안 걸린 정적 spots.

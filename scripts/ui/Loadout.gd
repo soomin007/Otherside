@@ -52,6 +52,13 @@ const PHOTO_ITEMS: Array = [
 	{"key": "filter",   "u": 0.930, "w": 152.0, "h": 180.0, "pouch": true, "delta": "탁한 물 거름"},
 ]
 const PHOTO_LABEL_V: float = 0.775   ## 라벨 세로 위치(사진 정규화) — 테이블 앞판
+
+## 사진 라벨 이름의 자원색 틴트(밝은 판) — 슬롯 색 점(SLOT_CHIP)과 같은 색 언어.
+const PHOTO_NAME_TINT: Dictionary = {
+	"water": Color(0.62, 0.80, 0.90), "food": Color(0.90, 0.76, 0.48), "jerky": Color(0.85, 0.62, 0.38),
+	"rope": Color(0.88, 0.78, 0.58), "shelter": Color(0.78, 0.82, 0.58),
+	"medicine": Color(0.70, 0.86, 0.62), "flint": Color(0.80, 0.80, 0.84), "filter": Color(0.80, 0.72, 0.88),
+}
 const FLY_DUR: float = 0.42          ## 담기 비행 시간(스펙 420ms)
 const FLY_APEX: float = 110.0        ## 포물선 정점 = 목표보다 이만큼 위(스펙)
 const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")  ## 에이브로우 영문 전용
@@ -536,8 +543,27 @@ func _make_pouch_slot(key: String) -> Control:
 	slot.add_child(_slot_icon(key))
 	return slot
 
-## 슬롯 안 아이템 아이콘 — 가죽 틀 안감 안쪽으로 물러난다(꽉 채우면 칸보다 커 보임 — 2026-07-12 사용자).
+## 슬롯 색 점 — 세피아 톤이 다 비슷해 물통/자루가 안 갈리던 것을 색으로 가른다(2026-07-12 사용자).
+## 색은 지도 흔적 점(물=청록·식량=황토·장막=올리브)과 같은 언어.
+const SLOT_CHIP: Dictionary = {
+	"water": Color(0.33, 0.58, 0.70), "food": Color(0.76, 0.55, 0.22), "jerky": Color(0.66, 0.42, 0.20),
+	"rope": Color(0.80, 0.68, 0.44), "shelter": Color(0.58, 0.64, 0.36),
+	"medicine": Color(0.52, 0.66, 0.42), "flint": Color(0.62, 0.62, 0.66), "filter": Color(0.63, 0.52, 0.70),
+}
+
+class SlotChip extends Control:
+	var chip: Color = Color.WHITE
+	func _draw() -> void:
+		var c: Vector2 = size * 0.5
+		draw_circle(c, size.x * 0.5, Color(0.12, 0.09, 0.06, 0.9))
+		draw_circle(c, size.x * 0.5 - 1.6, chip)
+
+## 슬롯 안 아이템 아이콘 — 가죽 틀 안감 안쪽으로 물러난다(꽉 채우면 칸보다 커 보임 — 2026-07-12 사용자)
+## + 오른아래 자원색 점(한눈에 무엇이 담겼는지).
 func _slot_icon(key: String) -> Control:
+	var holder := Control.new()
+	holder.set_anchors_preset(Control.PRESET_FULL_RECT)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var icon := ItemIcon.new()
 	icon.key = key
 	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -546,7 +572,17 @@ func _slot_icon(key: String) -> Control:
 	icon.offset_right = -13.0
 	icon.offset_bottom = -13.0
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	return icon
+	holder.add_child(icon)
+	var chip := SlotChip.new()
+	chip.chip = SLOT_CHIP.get(key, Color(0.7, 0.7, 0.7))
+	chip.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	chip.offset_left = -25.0
+	chip.offset_top = -25.0
+	chip.offset_right = -11.0
+	chip.offset_bottom = -11.0
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.add_child(chip)
+	return holder
 
 ## 주머니 비우기 — 도구가 그 자리에서 모래로 바스러진 뒤 칸이 빈다(가방 빼기와 같은 흐름).
 func _clear_pouch_from(slot: Control) -> void:
@@ -618,7 +654,9 @@ func _make_photo_label(entry: Dictionary) -> Control:
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.alignment = BoxContainer.ALIGNMENT_END  # 텍스트는 하단(테이블 앞판) — 위는 그림 히트 영역
 	v.add_theme_constant_override("separation", 0)
-	var nm := UITheme.make_label(str(entry.get("name", item.get("label", ""))), 18 if pouch else 20, UITheme.FG)
+	# 이름 라벨 = 자원색 틴트(밝은 판) — 어두운 사진 위에서 물/식량/도구가 색으로 갈린다(2026-07-12 사용자).
+	var tint: Color = PHOTO_NAME_TINT.get(key, UITheme.FG)
+	var nm := UITheme.make_label(str(entry.get("name", item.get("label", ""))), 18 if pouch else 20, tint)
 	nm.autowrap_mode = TextServer.AUTOWRAP_OFF  # 좁은 버튼에서 세로 줄바꿈 방지(넘치면 좌우로 삐져나옴 — 한 줄 유지)
 	_shadow(nm)
 	v.add_child(nm)
@@ -643,7 +681,7 @@ func _hover_label(key: String, on: bool) -> void:
 	if btn.disabled:
 		return
 	var nm: Label = info["name"]
-	nm.add_theme_color_override("font_color", UITheme.SAND if on else UITheme.FG)
+	nm.add_theme_color_override("font_color", UITheme.SAND if on else Color(PHOTO_NAME_TINT.get(key, UITheme.FG)))
 
 ## 사진 라벨 재배치 — 배경 cover(화면 채움·넘침 크롭) 매핑으로 사진 좌표(u,v)→화면 px. 단계 2 아닐 땐 no-op.
 func _layout_photo_labels() -> void:
@@ -658,6 +696,8 @@ func _layout_photo_labels() -> void:
 		var info: Dictionary = _item_btns[key]
 		var btn: Control = info["btn"]
 		var c: Vector2 = r.position + Vector2(float(entry.get("u", 0.5)), PHOTO_LABEL_V) * r.size
+		# 가방 줄(하단 128px 띠)이 라벨을 덮지 않게 위로 민다(2026-07-12 사용자 — 슬롯 확대 후 겹침).
+		c.y = minf(c.y, size.y - 158.0)
 		# 텍스트 블록(버튼 하단)이 사진 좌표 c 에 오도록 — 버튼 몸통은 위로 뻗어 물건 그림을 덮는다.
 		btn.position = Vector2(c.x - btn.size.x * 0.5, c.y + 30.0 - btn.size.y)
 
