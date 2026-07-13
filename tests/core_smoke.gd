@@ -128,8 +128,10 @@ func _test_feats() -> void:
 			continue
 		if str(Vocations.by_id(vid).get("id", "x")) != vid or seen_voc.has(vid):
 			sound = false
+		if str(f.get("done", "")) == "":
+			sound = false  # 직능 공훈은 얻은 내력 한 줄(done)을 가진다(마을 챕터 표기, 2026-07-13)
 		seen_voc[vid] = true
-	_ok(sound, "공훈: 해금 직능 id 실존 + 한 직능 한 공훈 + 기록형 정의 무결")
+	_ok(sound, "공훈: 해금 직능 id 실존 + 한 직능 한 공훈 + done 보유 + 기록형 정의 무결")
 	_ok(records >= 4, "공훈: 기록형(명예 기록) 4종 이상")
 	_ok(Feats.vocations_open(["thirst_learned"]) == ["waterwise"], "공훈: 갈증 공훈 → 물지기만 연다")
 	_ok(Feats.vocations_open(["rec_reached", "rec_intact"]).is_empty(), "공훈: 기록형은 직능을 열지 않는다")
@@ -222,6 +224,15 @@ func _test_stragglers() -> void:
 	_ok(briefed.arrival_event()["text"].contains("먼동"), "낙오자: brief 주입 → 도착 카드에 출처")
 	var back_run: ExpeditionRun = ExpeditionRun.from_dict(JSON.parse_string(JSON.stringify(briefed.to_dict())))
 	_ok(back_run.arrival_event()["text"].contains("먼동"), "이어하기: 낙오자 brief 왕복 보존")
+	# 거둔 이를 잃는 손실(대원 넷 초과) — 전용 문구가 뜬다(2026-07-13).
+	var deep: ExpeditionRun = ExpeditionRun.new({"water": 99, "food": 99})
+	deep.current_node = "a1"
+	deep.rescue_straggler("x")  # 행렬 +1(테스트용 — 자리 등록 없이도 카운트만 는다)
+	for i in range(ExpeditionRun.PARTY_MATES + 1):
+		deep.apply_choice({"water": -3, "food": -1})  # 위기 판정(합 4·물 3) — 한 번에 한 사람
+	var deep_notes: Array = deep.take_loss_notes()
+	_ok(deep.party_lost == ExpeditionRun.PARTY_MATES + 1, "낙오자: 손실 상한 = 대원 + 거둔 이")
+	_ok(str(deep_notes.back()).contains("거두어 온 이"), "낙오자: 대원 넷을 넘어선 손실 = 거둔 이 전용 문구")
 
 func _test_mapgraph_integrity() -> void:
 	var nodes: Dictionary = MapGraph.NODES

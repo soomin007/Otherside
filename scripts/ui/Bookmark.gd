@@ -810,6 +810,7 @@ func _village_people() -> void:
 		box.add_child(_person_entry(people[i], opened))
 
 ## 사람 한 항목 — 이름 줄 + 들여 쓴 소개를 한 덩이로(항목 경계가 눈에 잡히게).
+## 온 사람에겐 얻은 내력 한 줄(Feats.done) — 무엇을 해서 그가 왔는지 잊지 않게(2026-07-13 사용자).
 func _person_entry(f: Dictionary, opened: Array) -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
@@ -818,13 +819,19 @@ func _person_entry(f: Dictionary, opened: Array) -> Control:
 	if opened.has(vid):
 		# 온 사람은 이름을 붉은 잉크로 — 잠긴 줄들 사이에서 한눈에 띈다.
 		v.add_child(_rich_label("[color=#8a2f1b]%s[/color] · 마을에 있다" % nm, UITheme.FS_LABEL, INK))
+		if str(f.get("done", "")) != "":
+			v.add_child(_indent_small(str(f.get("done", ""))))
 	else:
 		v.add_child(_ink_label("%s · 아직 소식이 없다" % nm, UITheme.FS_LABEL, INK))
-		var m := MarginContainer.new()
-		m.add_theme_constant_override("margin_left", 18)
-		m.add_child(_ink_label(str(f.get("cond", "")), UITheme.FS_SMALL, INK_FADE))
-		v.add_child(m)
+		v.add_child(_indent_small(str(f.get("cond", ""))))
 	return v
+
+## 항목 본문 들여쓰기(이름 줄 아래 작은 글) — 사람 소개·얻은 내력이 공유.
+func _indent_small(txt: String) -> Control:
+	var m := MarginContainer.new()
+	m.add_theme_constant_override("margin_left", 18)
+	m.add_child(_ink_label(txt, UITheme.FS_SMALL, INK_FADE))
+	return m
 
 ## 펼침 1.. — 이룬 일(달성한 공훈·기록, 달성 순서). pair = 이룬 일 몇 번째 펼침인가(0부터).
 func _village_records(pair: int) -> void:

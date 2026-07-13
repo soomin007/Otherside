@@ -79,7 +79,7 @@ func _ready() -> void:
 		# 도착하는 마지막 걸음이 행렬에서 사람을 앗아갔으면(지도가 못 보여주고 넘어온 손실) 여기서 알린다.
 		var carried_loss: String = _take_loss_note()
 		if carried_loss != "":
-			_result_popup.show_result("", {}, _after_carried_loss, carried_loss)
+			_result_popup.show_result("", {}, _after_carried_loss, carried_loss, UITheme.DANGER, ResultPopup.party_state(_run, "lose"))
 		elif not _run.pending_situation.is_empty():
 			# 이어하기 복귀 — 카드가 열린 채 끊겼다. 결정부터 다시 마주한다.
 			_show_situation.call_deferred()
@@ -373,10 +373,14 @@ func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, a
 	# 구조(따뜻한 모래색)와 손실(붉은색)이 겹치면 손실이 우선 — 잃은 쪽이 더 무겁다.
 	var note: String = _take_loss_note()
 	var note_color: Color = UITheme.DANGER
-	if rescued and note == "" and _run.alive:
+	var party: Dictionary = {}
+	if note != "":
+		party = ResultPopup.party_state(_run, "lose")
+	elif rescued and _run.alive:
 		note = "한 사람이 행렬에 들어선다.\n행렬은 %d명이 되었다." % _run.party_left()
 		note_color = UITheme.SAND
-	_result_popup.show_result(label, effect, _after_choice, note, note_color)
+		party = ResultPopup.party_state(_run, "gain")
+	_result_popup.show_result(label, effect, _after_choice, note, note_color, party)
 
 ## 결과 팝업을 닫은 뒤 — 후속 장면(then)이 걸려 있으면 그 카드부터, 죽었으면 죽음 화면, 아니면 계속.
 func _after_choice() -> void:
@@ -466,6 +470,11 @@ func _show_death(cause: String, tags: Array[String], kind: int = TraceData.Objec
 		_death_label.text = "%s\n\n남긴 것: %s" % [_death_message(cause), left]
 	else:
 		_death_label.text = "%s\n\n남긴 것: %s  [ %s ]" % [_death_message(cause), left, " · ".join(PackedStringArray(tags))]
+	# 거두어 데려가던 낙오자는 런과 운명을 같이한다(기획서 §3 ②) — 잃었음을 여기서 말한다.
+	if _run.party_gained == 1:
+		_death_label.text += "\n\n거두어 함께 걷던 한 사람도\n여기서 걸음을 멈췄다."
+	elif _run.party_gained >= 2:
+		_death_label.text += "\n\n거두어 함께 걷던 %d명도\n여기서 걸음을 멈췄다." % _run.party_gained
 	_death_panel.move_to_front()  # 죽음은 항상 최상단(팝업·카드 위)
 	_death_panel.visible = true
 	queue_redraw()
@@ -518,7 +527,9 @@ func _probe_spot(i: int) -> void:
 		GameState.autosave_run(_section.to_dict())
 		_refresh()
 		queue_redraw()
-		_result_popup.show_result(str(res.get("text", "")), effect, _after_delta, _take_loss_note())
+		var probe_loss: String = _take_loss_note()
+		_result_popup.show_result(str(res.get("text", "")), effect, _after_delta, probe_loss, UITheme.DANGER,
+			ResultPopup.party_state(_run, "lose") if probe_loss != "" else {})
 		return
 	# empty — 빈손도 팝업으로(하단 배너 폐기, 결과는 전부 모달로 통일).
 	GameState.autosave_run(_section.to_dict())

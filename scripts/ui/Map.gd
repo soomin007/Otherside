@@ -454,7 +454,7 @@ func _process(delta: float) -> void:
 		var loss_note: String = _take_loss_note(run)
 		if loss_note != "":
 			_moving = false
-			_result_popup.show_result("", {}, _after_loss_note, loss_note)
+			_result_popup.show_result("", {}, _after_loss_note, loss_note, UITheme.DANGER, ResultPopup.party_state(run, "lose"))
 			return
 		# 이동 중 엣지 위 자원 흔적을 지나면 줍기 카드(자연 상황이 없을 때만 — 상황을 덮지 않게).
 		if run.pending_situation.is_empty():
@@ -647,7 +647,9 @@ func _on_situation_choice(event_id: String, idx: int, label: String, effect: Dic
 	GameState.autosave_run()  # 결정은 되돌릴 수 없다 — 즉시 이어하기 저장
 	_refresh_hud()
 	# blind choice 뒷면 — 결과(자원 변화)를 팝업으로 공개하고, 닫으면 이동을 잇는다.
-	_result_popup.show_result(label, effect, _after_situation, _take_loss_note(run))
+	var sit_loss: String = _take_loss_note(run)
+	_result_popup.show_result(label, effect, _after_situation, sit_loss, UITheme.DANGER,
+		ResultPopup.party_state(run, "lose") if sit_loss != "" else {})
 
 ## 이어하기 복귀(지도 진입 한 프레임 뒤) — 엣지 위에서 끊긴 원정을 잇는다.
 ## 평소 지도 진입(노드에서 복귀·출발 전)엔 is_mid_edge 가 false 라 아무것도 안 한다.
