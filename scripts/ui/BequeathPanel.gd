@@ -321,20 +321,38 @@ func _pick_object(kind: int, btn: Control) -> void:
 	t2.tween_callback(_step_tags)
 
 ## 2단계 — 어떤 표식(태그)을 얹을까. WordPool 에서 최대 2개. 없이 남겨도 된다.
+## 이 화면의 주인공은 새길 말이다(2026-07-13 사용자 — 왼쪽 정렬 칩 무더기가 이상했다):
+## 1단계와 같은 표제 구조 + 고른 말을 붓글씨로 크게(돌에 새겨질 모습 그대로) + 단어는 가운데 정렬.
 func _step_tags() -> void:
 	_clear()
+	var eye := UITheme.make_label("ENGRAVE", 11, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.9))
+	var efv := FontVariation.new()
+	efv.base_font = EN_TITLE_FONT
+	efv.set_spacing(TextServer.SPACING_GLYPH, 4)
+	eye.add_theme_font_override("font", efv)
+	_box.add_child(eye)
+	_box.add_child(UITheme.make_label("어떤 말을 새길까", UITheme.FS_H1))
 	if _mourning:
-		_box.add_child(UITheme.make_label("여기 잠든 이를 기린다", UITheme.FS_BODY, UITheme.SAND))
+		_box.add_child(UITheme.make_label("여기 잠든 이를 기린다. 돌 위의 말은 다음 원정대도 읽는다.", 13, NOTE_COL))
 	else:
-		_box.add_child(UITheme.make_label("남길 것: %s" % _obj_name(_picked_kind), UITheme.FS_BODY, UITheme.SAND))
-	var picked_str: String = (" · ".join(PackedStringArray(_picked_tags))) if not _picked_tags.is_empty() else "(없음)"
-	_box.add_child(UITheme.make_label("표식: %s" % picked_str, UITheme.FS_SMALL, UITheme.MUTED))
-	if _mourning:
-		_box.add_child(UITheme.make_label("돌 위에 한두 마디를 새긴다. 다음 원정대도 읽는다.", UITheme.FS_SMALL, UITheme.MUTED))
+		_box.add_child(UITheme.make_label("%s 곁에 한두 마디. 다음 원정대가 읽는다." % _obj_name(_picked_kind), 13, NOTE_COL))
+	# 새길 말 미리보기 — 붓글씨 크게, 지도 두루마리에 펼쳐질 모습 그대로. 비었으면 말 없이 두는 것도 답.
+	var prev := Label.new()
+	prev.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	prev.add_theme_font_override("font", UITheme.BRUSH_FONT)
+	if _picked_tags.is_empty():
+		prev.text = "말 없이 기린다" if _mourning else "말 없이 남긴다"
+		prev.add_theme_font_size_override("font_size", 30)
+		prev.add_theme_color_override("font_color", Color(NOTE_COL.r, NOTE_COL.g, NOTE_COL.b, 0.85))
 	else:
-		_box.add_child(UITheme.make_label("한두 마디. 다음 원정대가 읽는다.", UITheme.FS_SMALL, UITheme.MUTED))
+		prev.text = " · ".join(PackedStringArray(_picked_tags))
+		prev.add_theme_font_size_override("font_size", 42)
+		prev.add_theme_color_override("font_color", UITheme.SAND)
+	_box.add_child(prev)
+	_box.add_child(_hairline())
 	for cat in [WordPool.DIRECTION, WordPool.WARNING, WordPool.TIME, WordPool.GREETING]:
 		var flow := HFlowContainer.new()
+		flow.alignment = FlowContainer.ALIGNMENT_CENTER  # 단어들이 가운데로 모인다(왼쪽 쏠림 해소)
 		flow.add_theme_constant_override("h_separation", 8)
 		flow.add_theme_constant_override("v_separation", 8)
 		for w in cat:
@@ -343,7 +361,7 @@ func _step_tags() -> void:
 			tb.text = word
 			tb.toggle_mode = true
 			tb.button_pressed = _picked_tags.has(word)
-			tb.custom_minimum_size = Vector2(0, 44)
+			tb.custom_minimum_size = Vector2(0, 46)
 			tb.add_theme_font_size_override("font_size", UITheme.FS_LABEL)
 			tb.focus_mode = Control.FOCUS_NONE
 			# 각인 톤 칩 — 어두운 몸통+모래 밑선, 고른 것은 모래빛으로 배어난다(기본 회색 상자 탈피).

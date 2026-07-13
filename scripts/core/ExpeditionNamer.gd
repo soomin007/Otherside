@@ -21,19 +21,21 @@ const NOUNS: Array = [
 ]
 
 ## 랜덤 원정대 이름 하나. rng 는 호출부가 소유(결정론·테스트 가능).
+## 옛 "{명사}의 {명사}" 꼴은 "{수식어} {명사}의 {명사}"로 교체(2026-07-13 사용자 —
+## "~한 ~의 ~"는 좋고, 관형어만 겹치는 꼴은 별로). 어떤 패턴도 "~의 ~의"를 만들지 않는다.
 static func random(rng: RandomNumberGenerator) -> String:
 	match rng.randi_range(0, 2):
 		0:
 			return "%s %s 원정대" % [_pick(MODS, rng), _pick(NOUNS, rng)]
 		1:
-			# "{명사}의 {명사2}" — 두 명사는 되도록 다르게.
+			# "{수식어} {명사}의 {명사2}" — 두 명사는 되도록 다르게.
 			var a: String = _pick(NOUNS, rng)
 			var b: String = _pick(NOUNS, rng)
 			var guard: int = 0
 			while b == a and guard < 8:
 				b = _pick(NOUNS, rng)
 				guard += 1
-			return "%s의 %s" % [a, b]
+			return "%s %s의 %s" % [_pick(MODS, rng), a, b]
 		_:
 			return "%s %s" % [_pick(MODS, rng), _pick(NOUNS, rng)]
 
