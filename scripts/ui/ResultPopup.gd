@@ -8,10 +8,14 @@ extends Control
 
 var _body_label: Label
 var _delta_label: Label
+var _loss_art: TextureRect  ## 손실의 순간 원화(62_사람_스러짐 밝음판) — note 위에 크게(2026-07-13 사용자)
 var _note_label: Label   ## 행렬 손실 등 무거운 한 줄 — 델타 아래 붉게(비어 있으면 숨김)
 var _party_strip: PartyStrip  ## 행렬 실루엣 줄(손실·구조의 순간) — note 아래(없으면 숨김)
 var _cb: Callable
 var _closing: bool = false  ## "계속" 연타 방지 — 첫 탭의 닫힘 콜백이 유실되지 않게
+
+## 스러진 자리 원화 — 세밀한 잉크 원화는 큰 자리에만 쓴다는 규칙에 맞는 크기(폭 전체·높이 ~110).
+const LOSS_ART_PATH: String = "res://assets/arts/transparent/62_사람_스러짐_밝음.png"
 
 ## 행렬 실루엣 줄 — 손실/구조의 순간을 사람으로 보여준다(지도 좌 칼럼 행렬 줄과 같은 그림 언어).
 ## mode "lose" = 방금 스러진 자리가 무너져 모래 무더기가 된다, "gain" = 새 사람이 행렬 끝에 배어 들어온다.
@@ -96,6 +100,17 @@ func _init() -> void:
 	_delta_label = UITheme.make_label("", UITheme.FS_H2, UITheme.SAND)
 	box.add_child(_delta_label)
 
+	# 손실 원화 — 바람에 흩어지는 모래 무더기(스러진 자리). 손실 팝업에서만 보인다(없으면 실루엣 줄만).
+	_loss_art = TextureRect.new()
+	if ResourceLoader.exists(LOSS_ART_PATH):
+		_loss_art.texture = load(LOSS_ART_PATH)
+	_loss_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_loss_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_loss_art.custom_minimum_size = Vector2(0, 110)
+	_loss_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_loss_art.visible = false
+	box.add_child(_loss_art)
+
 	_note_label = UITheme.make_label("", UITheme.FS_BODY, UITheme.DANGER)
 	box.add_child(_note_label)
 
@@ -124,6 +139,7 @@ func show_result(body: String, effect: Dictionary, cb: Callable = Callable(), no
 	_note_label.visible = note != ""
 	_note_label.add_theme_color_override("font_color", note_color)
 	_party_strip.visible = not party.is_empty()
+	_loss_art.visible = not party.is_empty() and str(party.get("mode", "lose")) == "lose" and _loss_art.texture != null
 	if not party.is_empty():
 		_party_strip.slots = int(party.get("slots", 5))
 		_party_strip.left = int(party.get("left", 5))
