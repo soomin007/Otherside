@@ -82,7 +82,7 @@ class PartyStrip extends Control:
 			else:
 				_mound(p, 20.0, MOUND)
 
-	## 작은 사람 실루엣(머리 + 몸 캡슐) — Map._draw_person_glyph 과 같은 형태 언어.
+	## 작은 사람 실루엣(머리 + 몸 캡슐) — Map.LeftColumn._draw_person_glyph 과 같은 형태 언어.
 	func _person(at: Vector2, h: float, col: Color) -> void:
 		draw_circle(at + Vector2(0.0, -h * 0.30), h * 0.17, col)
 		draw_line(at + Vector2(0.0, -h * 0.06), at + Vector2(0.0, h * 0.40), col, h * 0.36, true)

@@ -118,6 +118,7 @@ const LABEL_MK: Color = Color(0.541, 0.184, 0.106)     ## #8a2f1b 선택 가능�
 var _title_eye: Label         ## "EXPEDITION · MAP" 에이브로우(§7)
 var _title_lbl: Label         ## "지도 · 탐험"
 var _guide: Label
+var _col_left: LeftColumn     ## 좌 "지닌 것" 칼럼 — 별도 Control(전환 흩어짐 참여, 분위기 (c))
 var _moving: bool = false
 var _move_timer: float = 0.0
 var _sit_panel: Control       ## 이동 중 상황 카드 모달
@@ -208,10 +209,11 @@ func _ready() -> void:
 	_build_chrome()
 	resized.connect(_layout_chrome)
 	call_deferred("_layout_chrome")
-	# 씬 등장 stagger(스펙 inScatter) — 각인 크롬만 순차 등장(제목→안내→가방→남기기).
-	# 양피지 지도·칼럼은 루트 _draw(배경 취급) — 걷힘은 베일 페이드가 담당한다.
+	# 씬 등장 stagger(스펙 inScatter) — 각인 크롬만 순차 등장(제목→칼럼→안내→가방→남기기).
+	# 양피지 지도는 루트 _draw(배경 취급) — 걷힘은 베일 페이드가 담당한다.
 	Transition.appear(_title_eye, 0.06)
 	Transition.appear(_title_lbl, 0.10)
+	Transition.appear(_col_left, 0.14)
 	Transition.appear(_guide, 0.18)
 	Transition.appear(_bag_btn, 0.24)
 	Transition.appear(_leave_btn, 0.30)
@@ -248,6 +250,12 @@ func _build_chrome() -> void:
 	leave.pressed.connect(_on_leave_pressed)
 	add_child(leave)
 	_leave_btn = leave
+	# 좌 "지닌 것" 칼럼 — 루트 _draw 에서 분리한 Control(내용은 LeftColumn._draw). 배치는 _layout_chrome.
+	_col_left = LeftColumn.new()
+	add_child(_col_left)
+	# 전환 OUT 때 크롬만 흩어짐 — 양피지 지도(루트 _draw)는 배경이라 베일 페이드가 담당(Transition 원칙).
+	for chrome: Control in [_title_eye, _title_lbl, _guide, _col_left, _bag_btn, _leave_btn]:
+		chrome.add_to_group("ui_scatter")
 
 ## 가방 열기 — 인벤토리 오버레이(정보 열람 — 이동은 계속 흐른다).
 func _on_bag_pressed() -> void:
@@ -296,6 +304,11 @@ func _layout_chrome() -> void:
 	_bag_btn.position = st.position + Vector2(COL_L_X - 12.0, 580.0) * sc
 	_leave_btn.size = Vector2((COL_L_W + 24.0) * sc, 54.0)
 	_leave_btn.position = st.position + Vector2(COL_L_X - 12.0, 638.0) * sc
+	# 좌 칼럼 — STAGE (36,140) w172, 내용 높이 ~344(첫 베이스라인 158 → 통계 479 + 여유).
+	_col_left.position = st.position + Vector2(COL_L_X, 140.0) * sc
+	_col_left.size = Vector2(COL_L_W, 344.0) * sc
+	_col_left.sc = sc
+	_col_left.queue_redraw()
 
 ## _ready 마무리 — 남기기·결과 팝업(공유 컴포넌트)·잉크 reveal·채점 원 초기화.
 func _after_ready_setup() -> void:
@@ -345,7 +358,9 @@ func _refresh_hud() -> void:
 		return
 	AudioManager.warn_thirst(run.get_res("water"))  # 물이 임계로 떨어지는 순간 경고음 1회
 	_update_leave_btn(run)
-	queue_redraw()  # 좌 칼럼(지닌 것)이 _draw 에서 자원을 직접 읽는다
+	queue_redraw()
+	if _col_left != null:
+		_col_left.queue_redraw()  # 좌 칼럼(지닌 것)이 _draw 에서 자원을 직접 읽는다
 
 ## 남기기 버튼 상태 — 이미 남겼으면 잠그고, 아니면 남길 수 있는 자원이 하나라도 있을 때만 활성.
 func _update_leave_btn(run: ExpeditionRun) -> void:
@@ -886,11 +901,8 @@ func _draw() -> void:
 
 	var cur: String = _current_node_id()
 	var nexts: Array = MapGraph.node(cur).get("next", [])
-	var sc: float = _sscale()   # STAGE 스케일(칼럼·크롬)
 	var ms: float = _mscale()   # MAP 스케일(노드·라벨 — 밴드 확대 포함)
-
-	# 좌 칼럼(§6) — "지닌 것" + 미니 범례 + 통계. 각인형(헤어라인+텍스트, 상자 없음). 우 칼럼은 지도 확대로 폐지.
-	_draw_col_left(font, sc)
+	# 좌 "지닌 것" 칼럼은 별도 Control(LeftColumn) — 전환 흩어짐 참여를 위해 루트 _draw 에서 분리(2026-07-14).
 
 	# 길 — 가본 노드에서 나가는 트레일. 밟은 길은 진한 실선, 미지로 향하는 길은 점선.
 	for id in MapGraph.NODES:
@@ -1379,89 +1391,103 @@ func _draw_resource_dot(p: Vector2, pigment: Color, ms: float) -> void:
 # --- 여백 칼럼(§6) — 각인형: 헤어라인 + 텍스트, 상자 없음 ---
 
 ## 스펙 헤어라인 — 왼쪽이 밝고 오른쪽으로 잦아드는 1px 모래선(3단 근사).
-func _draw_hairline(x: float, y: float, w: float) -> void:
-	var s := UITheme.SAND
-	draw_line(Vector2(x, y), Vector2(x + w * 0.4, y), Color(s.r, s.g, s.b, 0.32), 1.0, true)
-	draw_line(Vector2(x + w * 0.4, y), Vector2(x + w * 0.75, y), Color(s.r, s.g, s.b, 0.14), 1.0, true)
-	draw_line(Vector2(x + w * 0.75, y), Vector2(x + w, y), Color(s.r, s.g, s.b, 0.04), 1.0, true)
+## 좌 "지닌 것" 칼럼 — 자원 4행(값 Cinzel·이름) + 행렬 + 주머니 + 통계. STAGE (36,140) w172(§6).
+## 루트 _draw 에서 분리한 각인 크롬 Control(2026-07-14, backlog 분위기 (c)): 전환 흩어짐(ui_scatter)은
+## CanvasItem 단위라 루트에 그리면 지도(배경)와 한 몸 — 분리해야 크롬만 흩어진다. 배치는 _layout_chrome.
+class LeftColumn extends Control:
+	const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")  ## 수치 전용(preload 캐시 공유)
+	var sc: float = 1.0  ## STAGE 스케일 — Map._layout_chrome 이 넣어준다
 
-## 좌 "지닌 것" — 자원 4행(값 Cinzel·이름·효과) + 주머니(도구). STAGE (36,150) w172(§6).
-func _draw_col_left(font: Font, sc: float) -> void:
-	var run: ExpeditionRun = GameState.current_run
-	if run == null:
-		return
-	var st := _stage_rect()
-	var x: float = st.position.x + COL_L_X * sc
-	var w: float = COL_L_W * sc
-	var y: float = st.position.y + 158.0 * sc
-	draw_string(EN_TITLE_FONT, Vector2(x, y), "CARRIED", HORIZONTAL_ALIGNMENT_LEFT, w, maxi(8, int(10.0 * sc)), Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.6))
-	y += 26.0 * sc
-	draw_string(font, Vector2(x, y), "지닌 것", HORIZONTAL_ALIGNMENT_LEFT, w, maxi(12, int(22.0 * sc)), UITheme.FG)
-	y += 14.0 * sc
-	_draw_hairline(x, y, w)
-	var rows: Array = [
-		["water", "물"],
-		["food", "식량"],
-		["rope", "로프"],
-		["shelter", "장막"],
-	]
-	for r in rows:
+	func _init() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE  # 정보 표시 전용 — 지도 입력(루트 _gui_input)을 막지 않는다
+
+	## 내용·간격은 옛 Map._draw_col_left 그대로 — 좌표만 로컬(콘트롤 상단 = STAGE 140, 첫 베이스라인 158 → 18·sc).
+	func _draw() -> void:
+		var run: ExpeditionRun = GameState.current_run
+		if run == null:
+			return
+		var font: Font = get_theme_default_font()
+		if font == null:
+			font = ThemeDB.fallback_font
+		if font == null:
+			return
+		var x: float = 0.0
+		var w: float = size.x
+		var y: float = 18.0 * sc
+		draw_string(EN_TITLE_FONT, Vector2(x, y), "CARRIED", HORIZONTAL_ALIGNMENT_LEFT, w, maxi(8, int(10.0 * sc)), Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.6))
+		y += 26.0 * sc
+		draw_string(font, Vector2(x, y), "지닌 것", HORIZONTAL_ALIGNMENT_LEFT, w, maxi(12, int(22.0 * sc)), UITheme.FG)
+		y += 14.0 * sc
+		_draw_hairline(x, y, w)
+		var rows: Array = [
+			["water", "물"],
+			["food", "식량"],
+			["rope", "로프"],
+			["shelter", "장막"],
+		]
+		for r in rows:
+			y += 30.0 * sc
+			# 한 줄: 값(Cinzel) + 이름 — 효과 설명 글은 뺐다(2026-07-12 사용자, 뜻은 튜토리얼·일지가 맡는다).
+			draw_string(EN_TITLE_FONT, Vector2(x, y), str(run.get_res(str(r[0]))), HORIZONTAL_ALIGNMENT_LEFT, 30.0 * sc, maxi(11, int(21.0 * sc)), UITheme.SAND)
+			draw_string(font, Vector2(x + 36.0 * sc, y), str(r[1]), HORIZONTAL_ALIGNMENT_LEFT, w - 36.0 * sc, maxi(10, int(17.0 * sc)), Color(0.910, 0.875, 0.804))
+		# 행렬 — 함께 걷는 사람 수(연출 파티). 위험한 순간마다 줄어든다. 잃은 뒤엔 붉게(온전함이 깨졌다).
 		y += 30.0 * sc
-		# 한 줄: 값(Cinzel) + 이름 — 효과 설명 글은 뺐다(2026-07-12 사용자, 뜻은 튜토리얼·일지가 맡는다).
-		draw_string(EN_TITLE_FONT, Vector2(x, y), str(run.get_res(str(r[0]))), HORIZONTAL_ALIGNMENT_LEFT, 30.0 * sc, maxi(11, int(21.0 * sc)), UITheme.SAND)
-		draw_string(font, Vector2(x + 36.0 * sc, y), str(r[1]), HORIZONTAL_ALIGNMENT_LEFT, w - 36.0 * sc, maxi(10, int(17.0 * sc)), Color(0.910, 0.875, 0.804))
-	# 행렬 — 함께 걷는 사람 수(연출 파티). 위험한 순간마다 줄어든다. 잃은 뒤엔 붉게(온전함이 깨졌다).
-	y += 30.0 * sc
-	var party_color: Color = UITheme.SAND if run.is_intact() else UITheme.DANGER
-	draw_string(EN_TITLE_FONT, Vector2(x, y), str(run.party_left()), HORIZONTAL_ALIGNMENT_LEFT, 30.0 * sc, maxi(11, int(21.0 * sc)), party_color)
-	draw_string(font, Vector2(x + 36.0 * sc, y), "행렬", HORIZONTAL_ALIGNMENT_LEFT, w - 36.0 * sc, maxi(10, int(17.0 * sc)), Color(0.910, 0.875, 0.804))
-	# 행렬 줄 — 단순 실루엣(대장은 크게), 잃은 자리는 낮은 무더기. 세밀한 픽토그램 원화는
-	# 이 크기에서 뭉개져 뭘 그렸는지 안 읽혔다(2026-07-12 사용자) — 작게 보는 용은 절차 실루엣.
-	y += 30.0 * sc
-	var slots: int = 1 + ExpeditionRun.PARTY_MATES + run.party_gained
-	var step_x: float = minf(26.0 * sc, (w - 18.0 * sc) / maxf(1.0, float(slots)))
-	var left_cnt: int = run.party_left()
-	var ivory := Color(0.910, 0.875, 0.804, 0.95)
-	for i in range(slots):
-		var fx: float = x + 9.0 * sc + step_x * float(i)
-		if i < left_cnt:
-			var pc: Color = ivory if i == 0 else Color(ivory.r, ivory.g, ivory.b, 0.7)
-			if i > 0 and i >= left_cnt - run.party_gained:
-				# 거둔 이 — 따뜻한 모래빛(거두기 팝업과 같은 색 언어). 행렬 끝에서 함께 걷는 게 보인다.
-				pc = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.9)
-			_draw_person_glyph(Vector2(fx, y - 8.0 * sc), (22.0 if i == 0 else 17.0) * sc, pc)
-		else:
-			_draw_mound_glyph(Vector2(fx, y - 8.0 * sc), 16.0 * sc, Color(0.60, 0.53, 0.42, 0.8))
-	y += 14.0 * sc
-	_draw_hairline(x, y, w)
-	y += 24.0 * sc
-	draw_string(font, Vector2(x, y), "주머니", HORIZONTAL_ALIGNMENT_LEFT, w, maxi(9, int(13.0 * sc)), Color(0.62, 0.56, 0.46))
-	var tools: Array = []
-	for tk in Items.POUCH_TOOLS:
-		if int(run.get_res(str(tk))) > 0:
-			tools.append(Items.label_of(str(tk)))
-	var tl: String = (" · ".join(PackedStringArray(tools))) if not tools.is_empty() else "비었다"
-	y += 21.0 * sc
-	draw_string(font, Vector2(x, y), tl, HORIZONTAL_ALIGNMENT_LEFT, w, maxi(9, int(15.0 * sc)), Color(0.788, 0.718, 0.565))
+		var party_color: Color = UITheme.SAND if run.is_intact() else UITheme.DANGER
+		draw_string(EN_TITLE_FONT, Vector2(x, y), str(run.party_left()), HORIZONTAL_ALIGNMENT_LEFT, 30.0 * sc, maxi(11, int(21.0 * sc)), party_color)
+		draw_string(font, Vector2(x + 36.0 * sc, y), "행렬", HORIZONTAL_ALIGNMENT_LEFT, w - 36.0 * sc, maxi(10, int(17.0 * sc)), Color(0.910, 0.875, 0.804))
+		# 행렬 줄 — 단순 실루엣(대장은 크게), 잃은 자리는 낮은 무더기. 세밀한 픽토그램 원화는
+		# 이 크기에서 뭉개져 뭘 그렸는지 안 읽혔다(2026-07-12 사용자) — 작게 보는 용은 절차 실루엣.
+		y += 30.0 * sc
+		var slots: int = 1 + ExpeditionRun.PARTY_MATES + run.party_gained
+		var step_x: float = minf(26.0 * sc, (w - 18.0 * sc) / maxf(1.0, float(slots)))
+		var left_cnt: int = run.party_left()
+		var ivory := Color(0.910, 0.875, 0.804, 0.95)
+		for i in range(slots):
+			var fx: float = x + 9.0 * sc + step_x * float(i)
+			if i < left_cnt:
+				var pc: Color = ivory if i == 0 else Color(ivory.r, ivory.g, ivory.b, 0.7)
+				if i > 0 and i >= left_cnt - run.party_gained:
+					# 거둔 이 — 따뜻한 모래빛(거두기 팝업과 같은 색 언어). 행렬 끝에서 함께 걷는 게 보인다.
+					pc = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.9)
+				_draw_person_glyph(Vector2(fx, y - 8.0 * sc), (22.0 if i == 0 else 17.0) * sc, pc)
+			else:
+				_draw_mound_glyph(Vector2(fx, y - 8.0 * sc), 16.0 * sc, Color(0.60, 0.53, 0.42, 0.8))
+		y += 14.0 * sc
+		_draw_hairline(x, y, w)
+		y += 24.0 * sc
+		draw_string(font, Vector2(x, y), "주머니", HORIZONTAL_ALIGNMENT_LEFT, w, maxi(9, int(13.0 * sc)), Color(0.62, 0.56, 0.46))
+		var tools: Array = []
+		for tk in Items.POUCH_TOOLS:
+			if int(run.get_res(str(tk))) > 0:
+				tools.append(Items.label_of(str(tk)))
+		var tl: String = (" · ".join(PackedStringArray(tools))) if not tools.is_empty() else "비었다"
+		y += 21.0 * sc
+		draw_string(font, Vector2(x, y), tl, HORIZONTAL_ALIGNMENT_LEFT, w, maxi(9, int(15.0 * sc)), Color(0.788, 0.718, 0.565))
 
-	# 통계 한 줄(컴팩트). 범례는 지도 위 바닥 한 줄로 이사(2026-07-12 사용자 — _draw_map_legend).
-	y += 18.0 * sc
-	_draw_hairline(x, y, w)
-	y += 24.0 * sc
-	draw_string(font, Vector2(x, y), "원정 %d · 흔적 %d · 죽음 %d" % [GameState.expedition_count, GameState.traces.size(), GameState.deaths.size()], HORIZONTAL_ALIGNMENT_LEFT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))
+		# 통계 한 줄(컴팩트). 범례는 지도 위 바닥 한 줄로 이사(2026-07-12 사용자 — _draw_map_legend).
+		y += 18.0 * sc
+		_draw_hairline(x, y, w)
+		y += 24.0 * sc
+		draw_string(font, Vector2(x, y), "원정 %d · 흔적 %d · 죽음 %d" % [GameState.expedition_count, GameState.traces.size(), GameState.deaths.size()], HORIZONTAL_ALIGNMENT_LEFT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))
 
-## 작은 사람 실루엣(머리 + 몸 캡슐) — 좌 칼럼 행렬 줄. 작은 크기에서도 사람으로 읽힌다.
-func _draw_person_glyph(at: Vector2, h: float, col: Color) -> void:
-	draw_circle(at + Vector2(0.0, -h * 0.30), h * 0.17, col)
-	draw_line(at + Vector2(0.0, -h * 0.06), at + Vector2(0.0, h * 0.40), col, h * 0.36, true)
+	func _draw_hairline(x: float, y: float, w: float) -> void:
+		var s := UITheme.SAND
+		draw_line(Vector2(x, y), Vector2(x + w * 0.4, y), Color(s.r, s.g, s.b, 0.32), 1.0, true)
+		draw_line(Vector2(x + w * 0.4, y), Vector2(x + w * 0.75, y), Color(s.r, s.g, s.b, 0.14), 1.0, true)
+		draw_line(Vector2(x + w * 0.75, y), Vector2(x + w, y), Color(s.r, s.g, s.b, 0.04), 1.0, true)
 
-## 스러진 자리 — 낮은 모래 무더기(반원).
-func _draw_mound_glyph(at: Vector2, h: float, col: Color) -> void:
-	var pts: PackedVector2Array = PackedVector2Array()
-	for k in range(9):
-		var a: float = PI + PI * float(k) / 8.0
-		pts.append(at + Vector2(cos(a) * h * 0.42, h * 0.40 + sin(a) * h * 0.34))
-	draw_colored_polygon(pts, col)
+	## 작은 사람 실루엣(머리 + 몸 캡슐) — 행렬 줄. 작은 크기에서도 사람으로 읽힌다.
+	func _draw_person_glyph(at: Vector2, h: float, col: Color) -> void:
+		draw_circle(at + Vector2(0.0, -h * 0.30), h * 0.17, col)
+		draw_line(at + Vector2(0.0, -h * 0.06), at + Vector2(0.0, h * 0.40), col, h * 0.36, true)
+
+	## 스러진 자리 — 낮은 모래 무더기(반원).
+	func _draw_mound_glyph(at: Vector2, h: float, col: Color) -> void:
+		var pts: PackedVector2Array = PackedVector2Array()
+		for k in range(9):
+			var a: float = PI + PI * float(k) / 8.0
+			pts.append(at + Vector2(cos(a) * h * 0.42, h * 0.40 + sin(a) * h * 0.34))
+		draw_colored_polygon(pts, col)
 
 ## 지도 위 범례 — 양피지 바닥 왼쪽 한 줄(잉크 톤). 좌 칼럼에서 이사(2026-07-12 사용자 — 지도 확대와 한 몸).
 func _draw_map_legend(font: Font, ms: float, area: Rect2) -> void:
