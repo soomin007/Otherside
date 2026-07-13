@@ -146,6 +146,7 @@ func _step_what() -> void:
 
 	# 추모 — 이 자리에 죽은 이가 있으면(죽은 자리·시체) 물건 대신 표식만 남겨 기릴 수 있다.
 	# 자원은 안 들지만 런당 1회의 남기기를 쓴다. 기림이 쌓여야 재회가 열린다(GameState.REUNION_MOURN).
+	# 무엇을 남길까에 대한 또 하나의 답이라 닫는 헤어라인 위(내용 쪽)에 둔다.
 	_mourning = false
 	if GameState.is_death_site(_node_id) and not GameState.is_mourned(_node_id):
 		var mgap := Control.new()
@@ -158,11 +159,11 @@ func _step_what() -> void:
 		_box.add_child(mourn)
 		_box.add_child(UITheme.make_label("잃는 것은 없다. 대신 이번 생의 남김을 여기에 쓴다.", 13, NOTE_COL))
 
-	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 10)
-	_box.add_child(gap)
+	# 닫는 헤어라인 + 조용한 나가기 — 2단계와 같은 뼈대(표제 → 선 → 내용 → 선 → 행동 줄).
+	# 나가기는 "← 뒤로"와 같은 나브 취급(16) — 남길 것을 고르는 손보다 목소리가 커지면 안 된다.
+	_box.add_child(_hairline())
 	var cancel := EngravedItem.new()
-	cancel.init_item("아무것도 남기지 않고 간다", 18, false)
+	cancel.init_item("아무것도 남기지 않고 간다", 16, false)
 	cancel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	cancel.pressed.connect(_cancel)
 	_box.add_child(cancel)
