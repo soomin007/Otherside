@@ -419,6 +419,7 @@ class LegendMark extends Control:
 var _chapter: int = 0
 var _ctrl_idx: int = 0         ## 조작 챕터 펼침(0=안내 글·1=표식 읽기) — 양면에 둘씩, 넘겨서 본다
 var _set_idx: int = 0          ## 설정 챕터 펼침(소리|화면 · 이야기|Credit · 여정|위험)
+var _village_idx: int = 0      ## 마을 챕터 펼침(0=사람들·1..=이룬 일) — 책 원칙: 스크롤 대신 넘김
 var _flipping: bool = false
 var _rib_tw: Tween
 var _opened_ms: int = 0        ## 일지를 연 시각 — 여는 클릭이 스크림 닫기로 새는 것 방지 가드
@@ -581,6 +582,7 @@ func open_journal(chapter: int = 0) -> void:
 	_chapter = clampi(chapter, 0, CHAPTERS.size() - 1)
 	_ctrl_idx = 0        # 조작 챕터는 안내 글부터(표식은 넘겨서)
 	_set_idx = 0         # 설정 챕터는 첫 펼침(소리|화면)부터
+	_village_idx = 0     # 마을 챕터는 사람들부터(이룬 일은 넘겨서)
 	_book.thickness_cf = float(_chapter)  # 페이지 두께 스택(§5) 초기 위치
 	_apply_tab_state()
 	_render_chapter()
@@ -753,37 +755,76 @@ func _show_chronicle() -> void:
 
 # --- 챕터: 마을 (공훈 — 이룬 일이 사람을 부른다, 직능 해금. 2026-07-11 사용자 확정) ---
 
-## 왼쪽: 마을에 온(올) 사람들 — 직능별 해금 상태와 오는 조건. 오른쪽: 이룬 일 목록.
-## 조건은 세계의 말로 이미 Feats.cond 에 있다(숫자 규칙 낭독 아님).
-## 기록형 공훈(unlocks 없음)은 사람을 부르지 않는다 — 왼쪽에선 빼고, 달성하면 오른쪽 "이룬 일"에만.
+## 책 원칙: 세로 스크롤 금지("책 컨셉에 스크롤은 어긋난다" — 2026-07-07 사용자) → 펼침 넘김.
+## 펼침 0 = 마을 사람들(직능 공훈, 좌 3|우 2). 펼침 1.. = 이룬 일(달성 공훈, 좌 4|우 4 — 넘치면 다음 펼침).
+## 한 페이지에 다 담으면 왼쪽은 스크롤바가 뜨고 오른쪽은 바닥 고정 "일지를 덮는다" 위로 흘렀다(2026-07-13 사용자).
+## 기록형 공훈(unlocks 없음)은 사람을 부르지 않는다 — 사람들에선 빼고, 달성하면 이룬 일에만.
+const VILLAGE_PER_PAGE: int = 4   ## 이룬 일 한 페이지 최대 항목(한 펼침 = 좌우 8)
+const VILLAGE_PEOPLE_L: int = 3   ## 사람들 펼침의 왼쪽 페이지 인원(나머지는 오른쪽)
+
+## 마을 챕터 펼침 수 — 사람들 1 + 이룬 일 (항목 수에 따라 1 이상).
+func _village_spreads() -> int:
+	return 1 + maxi(1, ceili(float(GameState.feats_unlocked.size()) / float(VILLAGE_PER_PAGE * 2)))
+
 func _show_village() -> void:
 	_clear(_box_l)
 	_clear(_box_r)
+	if _village_idx == 0:
+		_village_people()
+	else:
+		_village_records(_village_idx - 1)
+	_spread_nav(_village_idx, _village_spreads(), _village_prev, _village_next)
+
+func _village_prev() -> void:
+	if _flipping or _village_idx <= 0:
+		return
+	_flip_page(-1, func() -> void:
+		_village_idx = maxi(0, _village_idx - 1)
+		_show_village())
+
+func _village_next() -> void:
+	if _flipping or _village_idx >= _village_spreads() - 1:
+		return
+	_flip_page(1, func() -> void:
+		_village_idx = mini(_village_spreads() - 1, _village_idx + 1)
+		_show_village())
+
+## 펼침 0 — 마을에 온(올) 사람들. 직능별 해금 상태와 오는 조건(조건은 세계의 말 — Feats.cond).
+func _village_people() -> void:
 	_box_l.add_child(_brush_heading("마을", 40, INK))
 	_box_l.add_child(_ink_label("원정 이야기는 마을에 금방 퍼진다.\n소문을 듣고, 하나둘 찾아온다.", UITheme.FS_SMALL, INK_FADE))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	var opened: Array = GameState.unlocked_vocations()
+	var people: Array = []
 	for f in Feats.LIST:
+		if str(f.get("unlocks", "")) != "":
+			people.append(f)
+	for i in range(people.size()):
+		var box: VBoxContainer = _box_l if i < VILLAGE_PEOPLE_L else _box_r
+		var f: Dictionary = people[i]
 		var vid: String = str(f.get("unlocks", ""))
-		if vid == "":
-			continue  # 기록형(명예 기록) — 이 목록은 직능 사람들 것
 		var nm: String = Vocations.name_of(vid)
 		if opened.has(vid):
 			# 온 사람은 이름을 붉은 잉크로 — 잠긴 회색 줄들 사이에서 한눈에 띈다.
-			_box_l.add_child(_rich_label("[color=#8a2f1b]%s[/color] · 마을에 있다" % nm, UITheme.FS_LABEL, INK))
+			box.add_child(_rich_label("[color=#8a2f1b]%s[/color] · 마을에 있다" % nm, UITheme.FS_LABEL, INK))
 		else:
-			_box_l.add_child(_ink_label("%s · 아직 소식이 없다" % nm, UITheme.FS_LABEL, INK_FADE))
-			_box_l.add_child(_ink_label(str(f.get("cond", "")), UITheme.FS_SMALL, INK_FADE))
-	_box_r.add_child(_brush_heading("이룬 일", 40, INK))
-	_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
-	if GameState.feats_unlocked.is_empty():
-		_box_r.add_child(_ink_label("아직 적을 것이 없다.\n길이 하나씩 가르쳐 줄 것이다.", UITheme.FS_LABEL, INK_FADE))
-	else:
-		for fid in GameState.feats_unlocked:
-			var done: Dictionary = Feats.by_id(str(fid))
-			_box_r.add_child(_ink_label(str(done.get("name", "")), UITheme.FS_LABEL, RED))
-			_box_r.add_child(_ink_label(str(done.get("line", "")), UITheme.FS_SMALL, INK_FADE))
-	_add_close(_box_r)
+			box.add_child(_ink_label("%s · 아직 소식이 없다" % nm, UITheme.FS_LABEL, INK_FADE))
+			box.add_child(_ink_label(str(f.get("cond", "")), UITheme.FS_SMALL, INK_FADE))
+
+## 펼침 1.. — 이룬 일(달성한 공훈·기록, 달성 순서). pair = 이룬 일 몇 번째 펼침인가(0부터).
+func _village_records(pair: int) -> void:
+	_box_l.add_child(_brush_heading("이룬 일", 40, INK))
+	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	var done_ids: Array = GameState.feats_unlocked
+	if done_ids.is_empty():
+		_box_l.add_child(_ink_label("아직 적을 것이 없다.\n길이 하나씩 가르쳐 줄 것이다.", UITheme.FS_LABEL, INK_FADE))
+		return
+	var start: int = pair * VILLAGE_PER_PAGE * 2
+	for i in range(start, mini(done_ids.size(), start + VILLAGE_PER_PAGE * 2)):
+		var box: VBoxContainer = _box_l if i < start + VILLAGE_PER_PAGE else _box_r
+		var done: Dictionary = Feats.by_id(str(done_ids[i]))
+		box.add_child(_ink_label(str(done.get("name", "")), UITheme.FS_LABEL, RED))
+		box.add_child(_ink_label(str(done.get("line", "")), UITheme.FS_SMALL, INK_FADE))
 
 # --- 챕터: 조작 안내 (펼침 2장 — 안내 글 | 표식 읽기 범례, 양면 다 채움) ---
 
