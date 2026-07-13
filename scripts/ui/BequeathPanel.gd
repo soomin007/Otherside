@@ -353,6 +353,9 @@ func _step_tags() -> void:
 	for cat in [WordPool.DIRECTION, WordPool.WARNING, WordPool.TIME, WordPool.GREETING]:
 		var flow := HFlowContainer.new()
 		flow.alignment = FlowContainer.ALIGNMENT_CENTER  # 단어들이 가운데로 모인다(왼쪽 쏠림 해소)
+		# 같은 주제(카테고리)는 한 줄에 다 띄운다(2026-07-13 사용자) — 가로 고정 화면이라 폭은 넉넉.
+		# 가장 긴 경고 줄(9단어 ≈ 700px)이 안 접히는 폭. 4:3 최소 논리폭(960)보다도 작아 안전.
+		flow.custom_minimum_size = Vector2(800, 0)
 		flow.add_theme_constant_override("h_separation", 8)
 		flow.add_theme_constant_override("v_separation", 8)
 		for w in cat:
