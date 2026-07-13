@@ -34,6 +34,7 @@ func _init() -> void:
 	_test_weight()
 	_test_party_intact()
 	_test_stragglers()
+	_test_namer()
 	_test_feats()
 	_test_run_serialization()
 
@@ -233,6 +234,31 @@ func _test_stragglers() -> void:
 	var deep_notes: Array = deep.take_loss_notes()
 	_ok(deep.party_lost == ExpeditionRun.PARTY_MATES + 1, "낙오자: 손실 상한 = 대원 + 거둔 이")
 	_ok(str(deep_notes.back()).contains("거두어 온 이"), "낙오자: 대원 넷을 넘어선 손실 = 거둔 이 전용 문구")
+
+## 원정대 이름(ExpeditionNamer) — 결정론(같은 시드 = 같은 이름)·풀 위생(빈 문자열·em dash 금지).
+func _test_namer() -> void:
+	var a := RandomNumberGenerator.new()
+	var b := RandomNumberGenerator.new()
+	a.seed = 42
+	b.seed = 42
+	var same: bool = true
+	for i in range(20):
+		if ExpeditionNamer.random(a) != ExpeditionNamer.random(b):
+			same = false
+	_ok(same, "이름: 같은 시드 = 같은 이름(결정론)")
+	var clean: bool = true
+	for w in ExpeditionNamer.MODS + ExpeditionNamer.NOUNS:
+		if str(w).strip_edges() == "" or str(w).contains("—"):
+			clean = false
+	_ok(clean, "이름: 풀 위생(빈 항목·em dash 없음)")
+	var r := RandomNumberGenerator.new()
+	r.seed = 7
+	var ok_form: bool = true
+	for i in range(50):
+		var nm: String = ExpeditionNamer.random(r)
+		if nm.strip_edges() == "" or nm.length() > 16:
+			ok_form = false  # 표시 폭 가드 — 일대기·막간 지명이 한 줄에 담긴다
+	_ok(ok_form, "이름: 생성형이 비어 있지 않고 표시 폭 안")
 
 func _test_mapgraph_integrity() -> void:
 	var nodes: Dictionary = MapGraph.NODES
