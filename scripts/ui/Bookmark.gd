@@ -790,6 +790,8 @@ func _village_next() -> void:
 		_show_village())
 
 ## 펼침 0 — 마을에 온(올) 사람들. 직능별 해금 상태와 오는 조건(조건은 세계의 말 — Feats.cond).
+## 항목 시각 구분(2026-07-13 사용자 — "어디까지가 누구 소개인지 감이 안 온다"):
+## 이름 줄은 진한 잉크(항목의 머리), 소개는 들여쓰기+이름에 붙임(한 덩이), 항목 사이 옅은 괘선.
 func _village_people() -> void:
 	_box_l.add_child(_brush_heading("마을", 40, INK))
 	_box_l.add_child(_ink_label("원정 이야기는 마을에 금방 퍼진다.\n소문을 듣고, 하나둘 찾아온다.", UITheme.FS_SMALL, INK_FADE))
@@ -799,17 +801,30 @@ func _village_people() -> void:
 	for f in Feats.LIST:
 		if str(f.get("unlocks", "")) != "":
 			people.append(f)
+	var prev_box: VBoxContainer = null
 	for i in range(people.size()):
 		var box: VBoxContainer = _box_l if i < VILLAGE_PEOPLE_L else _box_r
-		var f: Dictionary = people[i]
-		var vid: String = str(f.get("unlocks", ""))
-		var nm: String = Vocations.name_of(vid)
-		if opened.has(vid):
-			# 온 사람은 이름을 붉은 잉크로 — 잠긴 회색 줄들 사이에서 한눈에 띈다.
-			box.add_child(_rich_label("[color=#8a2f1b]%s[/color] · 마을에 있다" % nm, UITheme.FS_LABEL, INK))
-		else:
-			box.add_child(_ink_label("%s · 아직 소식이 없다" % nm, UITheme.FS_LABEL, INK_FADE))
-			box.add_child(_ink_label(str(f.get("cond", "")), UITheme.FS_SMALL, INK_FADE))
+		if box == prev_box:
+			box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.14), 1.0))
+		prev_box = box
+		box.add_child(_person_entry(people[i], opened))
+
+## 사람 한 항목 — 이름 줄 + 들여 쓴 소개를 한 덩이로(항목 경계가 눈에 잡히게).
+func _person_entry(f: Dictionary, opened: Array) -> Control:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 4)
+	var vid: String = str(f.get("unlocks", ""))
+	var nm: String = Vocations.name_of(vid)
+	if opened.has(vid):
+		# 온 사람은 이름을 붉은 잉크로 — 잠긴 줄들 사이에서 한눈에 띈다.
+		v.add_child(_rich_label("[color=#8a2f1b]%s[/color] · 마을에 있다" % nm, UITheme.FS_LABEL, INK))
+	else:
+		v.add_child(_ink_label("%s · 아직 소식이 없다" % nm, UITheme.FS_LABEL, INK))
+		var m := MarginContainer.new()
+		m.add_theme_constant_override("margin_left", 18)
+		m.add_child(_ink_label(str(f.get("cond", "")), UITheme.FS_SMALL, INK_FADE))
+		v.add_child(m)
+	return v
 
 ## 펼침 1.. — 이룬 일(달성한 공훈·기록, 달성 순서). pair = 이룬 일 몇 번째 펼침인가(0부터).
 func _village_records(pair: int) -> void:
