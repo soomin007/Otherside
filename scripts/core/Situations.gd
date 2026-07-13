@@ -411,15 +411,35 @@ static func pick_event(feat: Dictionary, flags: Dictionary, rng: RandomNumberGen
 ## 낙오자를 만난 카드 — 이전 원정에서 뒤처진 이가 버티고 있다(재회 축: 거두어 데리고 온전히 닿기).
 ## 거두면 물을 나눠 줘야 한다(needs 3: 나누고도 내가 살아야 한다) — 사람을 거두는 것도 남김의 문법(자기희생).
 ## 지나치면 그 자리에 남는다(다음 원정대 몫). action="rescue" 는 UI 가 받아 행렬 +1 + 세계에서 제거.
-static func straggler_event() -> Dictionary:
+## brief(2026-07-13) = GameState.straggler_briefs 가 주입한 출처 {origin, name?, cause?}.
+## 과거 런의 손실 출신(loss)은 어느 원정에서 어떻게 뒤처졌는지 카드가 말한다 — 내 실패가 얼굴을 얻는다.
+## 거두기 선택의 then = 거둔 이가 행렬에 드는 한 박자(정서 0/0, 스토리 먼저 — 기획서 §4.2 ⑤).
+static func straggler_event(brief: Dictionary = {}) -> Dictionary:
+	var nm: String = str(brief.get("name", ""))
+	var text: String = "바람을 피한 그늘에\n사람이 웅크리고 있다.\n지난 원정에서 뒤처진 이가,\n여기까지 버티고 있었다."
+	var word: String = "그는 물을 아주 조금씩\n오래 나눠 마신다.\n어느 원정이었는지 물어도\n고개만 젓는다.\n걸음만은 아직 원정대의 것이다."
+	if nm != "":
+		var fell: String = "다친 몸으로 뒤처진 채,"
+		match str(brief.get("cause", "")):
+			"thirst": fell = "물이 끊겨 뒤처진 채,"
+			"hunger": fell = "굶주려 뒤처진 채,"
+		text = "바람을 피한 그늘에\n사람이 웅크리고 있다.\n'%s' 원정의 사람이다.\n%s\n여기까지 버티고 있었다." % [nm, fell]
+		word = "그는 물을 아주 조금씩\n오래 나눠 마신다.\n그러고는 갈라진 목소리로\n한 마디를 꺼낸다.\n\"%s... 우리 이름이었소.\"" % nm
 	return {
 		"id": "straggler",
 		"kind": "straggler",
 		"name": "웅크린 사람",
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "바람을 피한 그늘에\n사람이 웅크리고 있다.\n지난 원정에서 뒤처진 이가,\n여기까지 버티고 있었다.",
+		"text": text,
 		"choices": [
-			{"label": "물을 나눠 주고 행렬에 거둔다", "effect": {"water": -2}, "needs": {"water": 3}, "action": "rescue"},
+			{"label": "물을 나눠 주고 행렬에 거둔다", "effect": {"water": -2}, "needs": {"water": 3}, "action": "rescue", "then": {
+				"id": "straggler_word", "threat": Threats.Kind.CONSUMPTION,
+				"text": word,
+				"choices": [
+					{"label": "행렬 가운데에 자리를 내준다", "effect": {}},
+					{"label": "곁에서 보폭을 맞춘다", "effect": {}},
+				],
+			}},
 			{"label": "지금은 지나친다 (다음 원정대가 거둔다)", "effect": {}},
 		],
 	}

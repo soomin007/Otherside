@@ -1424,6 +1424,9 @@ func _draw_col_left(font: Font, sc: float) -> void:
 		var fx: float = x + 9.0 * sc + step_x * float(i)
 		if i < left_cnt:
 			var pc: Color = ivory if i == 0 else Color(ivory.r, ivory.g, ivory.b, 0.7)
+			if i > 0 and i >= left_cnt - run.party_gained:
+				# 거둔 이 — 따뜻한 모래빛(거두기 팝업과 같은 색 언어). 행렬 끝에서 함께 걷는 게 보인다.
+				pc = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.9)
 			_draw_person_glyph(Vector2(fx, y - 8.0 * sc), (22.0 if i == 0 else 17.0) * sc, pc)
 		else:
 			_draw_mound_glyph(Vector2(fx, y - 8.0 * sc), 16.0 * sc, Color(0.60, 0.53, 0.42, 0.8))

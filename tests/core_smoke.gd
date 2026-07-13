@@ -104,25 +104,35 @@ func _test_party_intact() -> void:
 	_ok(worn.party_lost == ExpeditionRun.PARTY_MATES, "행렬: 손실은 대원 수까지만")
 	_ok(worn.party_left() == 1, "행렬: 마지막엔 대장 홀로")
 
-## 공훈(Feats) — 순수 판정: 문턱 경계·직능 매핑·정의 무결성(직능 id 실존·중복 해금 없음).
+## 공훈(Feats) — 순수 판정: 문턱 경계·직능 매핑·정의 무결성(직능 id 실존·중복 해금 없음)
+## + 기록형(명예 기록, 2026-07-13): unlocks 없음 = 직능을 열지 않는다.
 func _test_feats() -> void:
-	var none: Dictionary = {"thirst_deaths": 0, "hunger_deaths": 0, "heavy_departures": 0, "max_row_visited": 0, "traces_left": 0}
+	var none: Dictionary = {"thirst_deaths": 0, "hunger_deaths": 0, "heavy_departures": 0, "max_row_visited": 0, "traces_left": 0, "arrivals_total": 0, "reunions": 0, "intact_arrivals": 0, "all_nodes_visited": 0}
 	_ok(Feats.achieved_ids(none).is_empty(), "공훈: 빈 통계 = 달성 없음")
-	var below: Dictionary = {"thirst_deaths": 1, "hunger_deaths": 1, "heavy_departures": 0, "max_row_visited": 3, "traces_left": 2}
+	var below: Dictionary = {"thirst_deaths": 1, "hunger_deaths": 1, "heavy_departures": 0, "max_row_visited": 3, "traces_left": 2, "arrivals_total": 0, "reunions": 0, "intact_arrivals": 0, "all_nodes_visited": 0}
 	_ok(Feats.achieved_ids(below).is_empty(), "공훈: 문턱 미만은 전부 잠김(경계 -1)")
-	var all_hit: Dictionary = {"thirst_deaths": 2, "hunger_deaths": 2, "heavy_departures": 1, "max_row_visited": 4, "traces_left": 3}
+	var all_hit: Dictionary = {"thirst_deaths": 2, "hunger_deaths": 2, "heavy_departures": 1, "max_row_visited": 4, "traces_left": 3, "arrivals_total": 1, "reunions": 1, "intact_arrivals": 1, "all_nodes_visited": 1}
 	_ok(Feats.achieved_ids(all_hit).size() == Feats.LIST.size(), "공훈: 문턱 정확히 = 전부 달성(경계 0)")
 	var opened: Array = Feats.vocations_open(Feats.achieved_ids(all_hit))
 	_ok(opened.size() == Vocations.ids().size() - 1, "공훈: 전부 달성이면 평범 외 전 직능이 열린다")
 	var seen_voc: Dictionary = {}
 	var sound: bool = true
+	var records: int = 0
 	for f in Feats.LIST:
 		var vid: String = str(f.get("unlocks", ""))
-		if vid == "" or str(Vocations.by_id(vid).get("id", "x")) != vid or seen_voc.has(vid):
+		if vid == "":
+			# 기록형 — 직능 없음. 판정 근거(stat)와 달성 후 보일 글(name/line)은 있어야 한다.
+			records += 1
+			if str(f.get("stat", "")) == "" or str(f.get("name", "")) == "" or str(f.get("line", "")) == "":
+				sound = false
+			continue
+		if str(Vocations.by_id(vid).get("id", "x")) != vid or seen_voc.has(vid):
 			sound = false
 		seen_voc[vid] = true
-	_ok(sound, "공훈: 해금 직능 id 실존 + 한 직능 한 공훈")
+	_ok(sound, "공훈: 해금 직능 id 실존 + 한 직능 한 공훈 + 기록형 정의 무결")
+	_ok(records >= 4, "공훈: 기록형(명예 기록) 4종 이상")
 	_ok(Feats.vocations_open(["thirst_learned"]) == ["waterwise"], "공훈: 갈증 공훈 → 물지기만 연다")
+	_ok(Feats.vocations_open(["rec_reached", "rec_intact"]).is_empty(), "공훈: 기록형은 직능을 열지 않는다")
 
 ## 이어하기 직렬화 — 실제 JSON 왕복 후 상태가 보존되고, rng 까지 복원돼 같은 미래를 걷는가.
 func _test_run_serialization() -> void:
@@ -199,6 +209,19 @@ func _test_stragglers() -> void:
 	_advance(lossy)
 	lossy.apply_choice({"water": -5})
 	_ok(lossy.loss_sites.size() == 1 and str(lossy.loss_sites[0]["node_id"]) == "a1", "낙오자: 손실 자리 = 그 노드")
+	# 출처 brief(2026-07-13) — 손실 출신은 카드가 원정 이름·사연을 말하고, 거두기엔 후속 한 박자(then)가 붙는다.
+	var named: Dictionary = Situations.straggler_event({"node_id": "b1", "origin": "loss", "name": "먼동", "cause": "thirst"})
+	_ok(str(named.get("id", "")) == "straggler" and named["text"].contains("먼동") and named["text"].contains("물이 끊겨"), "낙오자: loss 출신 카드가 원정 이름·사연을 말한다")
+	var rescue_then: Dictionary = named["choices"][0].get("then", {})
+	_ok(str(rescue_then.get("id", "")) == "straggler_word" and not rescue_then.get("choices", []).is_empty(), "낙오자: 거두기 후속 장면(then) — 별개 id + 선택지")
+	_ok(rescue_then["text"].contains("먼동"), "낙오자: 거둔 이가 제 원정의 이름을 말한다")
+	# brief 주입·직렬화 — dict 주입이 도착 카드에 닿고, JSON 왕복 후에도 이름이 산다(이어하기).
+	var briefed: ExpeditionRun = ExpeditionRun.new({"water": 99, "food": 99}, [], [], {}, "", 0, [{"node_id": "a1", "origin": "loss", "name": "먼동"}])
+	briefed.begin_edge("a1")
+	_advance(briefed)
+	_ok(briefed.arrival_event()["text"].contains("먼동"), "낙오자: brief 주입 → 도착 카드에 출처")
+	var back_run: ExpeditionRun = ExpeditionRun.from_dict(JSON.parse_string(JSON.stringify(briefed.to_dict())))
+	_ok(back_run.arrival_event()["text"].contains("먼동"), "이어하기: 낙오자 brief 왕복 보존")
 
 func _test_mapgraph_integrity() -> void:
 	var nodes: Dictionary = MapGraph.NODES

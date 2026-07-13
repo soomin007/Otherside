@@ -1,15 +1,19 @@
 class_name Figures
 extends Control
 
-## 인물·사물 초상 — 마을 준비 화면용. kind: "market"(시장)·"leader"(대장)·"pack"(배낭).
+## 인물·사물 초상 — 마을 준비 화면용. kind: "market"(시장)·"leader"(대장)·"pack"(배낭)
+## ·"villager_a"/"villager_b"(마을에 새로 온 사람 — 공훈 해금 연출, 잉크 사람 픽토그램 밝음판).
 ## 손그림 초상 텍스처(흰→투명 변환본)를 얹는다. 로드 실패 시 절차적 draw_*(웹 안전) fallback.
 ## 다크 배경/카드 위에 얹히므로 투명 PNG 그대로 얹혀 읽힌다.
 
-## kind → 초상 텍스처(투명 변환본).
+## kind → 초상 텍스처(투명 변환본). villager 는 지도 트레일 폐지(2026-07-12)로 남은 사람 원화의
+## 새 용처 — 세밀한 잉크 원화는 큰 자리에만 쓴다는 규칙에 맞는 크기(모달 170px)로만 쓴다.
 const PORTRAIT_PATHS: Dictionary = {
 	"market": "res://assets/arts/transparent/19_초상_시장.png",
 	"leader": "res://assets/arts/transparent/20_초상_대장.png",
 	"pack": "res://assets/arts/transparent/21_초상_배낭.png",
+	"villager_a": "res://assets/arts/transparent/58_사람_대원갑_밝음.png",
+	"villager_b": "res://assets/arts/transparent/59_사람_대원을_밝음.png",
 }
 static var _tex_cache: Dictionary = {}   ## kind → Texture2D (null 도 캐시 = 반복 로드 방지)
 

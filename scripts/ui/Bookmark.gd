@@ -755,6 +755,7 @@ func _show_chronicle() -> void:
 
 ## 왼쪽: 마을에 온(올) 사람들 — 직능별 해금 상태와 오는 조건. 오른쪽: 이룬 일 목록.
 ## 조건은 세계의 말로 이미 Feats.cond 에 있다(숫자 규칙 낭독 아님).
+## 기록형 공훈(unlocks 없음)은 사람을 부르지 않는다 — 왼쪽에선 빼고, 달성하면 오른쪽 "이룬 일"에만.
 func _show_village() -> void:
 	_clear(_box_l)
 	_clear(_box_r)
@@ -764,6 +765,8 @@ func _show_village() -> void:
 	var opened: Array = GameState.unlocked_vocations()
 	for f in Feats.LIST:
 		var vid: String = str(f.get("unlocks", ""))
+		if vid == "":
+			continue  # 기록형(명예 기록) — 이 목록은 직능 사람들 것
 		var nm: String = Vocations.name_of(vid)
 		if opened.has(vid):
 			# 온 사람은 이름을 붉은 잉크로 — 잠긴 회색 줄들 사이에서 한눈에 띈다.

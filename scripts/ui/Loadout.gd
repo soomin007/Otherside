@@ -92,6 +92,9 @@ var _market_pages: Array = []      ## 지금 흐름의 대사(MARKET_PAGES 또�
 var _market_flow: String = ""      ## "intro"(기록지 건네기) / "hint"(재회 옛말)
 var _market_ready: bool = false    ## 페이드 인 완료 전엔 입력 무시(실수로 넘김 방지)
 var _market_tw: Tween              ## 대사 사이 페이드(연타 시 킬)
+var _feat_panel: Control           ## 공훈 연출 모달(있을 때만) — 새 얼굴/새 기록(시장 대화와 같은 각인 톤)
+var _feat_queue: Array = []        ## 아직 안 보여준 "방금 달성" 공훈 id — 여러 건이면 한 장씩
+var _feat_ready: bool = false      ## 페이드 인 완료 전 입력 무시(실수 닫힘 방지)
 
 func _ready() -> void:
 	_rng.randomize()
@@ -136,12 +139,16 @@ func _ready() -> void:
 		Transition.appear(ctrl, minf(0.02 + 0.04 * float(di), 0.30))
 		di += 1
 
+	# 방금 달성한 공훈 — 시장 대화가 없으면 바로, 있으면 대화가 끝난 뒤 연출(마을에 새 얼굴/새 기록).
+	_feat_queue = GameState.take_feat_notices()
 	# 첫 원정이면 시장이 규칙을 쭉 설명하고 기록지를 건넨다(책갈피가 켜진다).
 	if GameState.expedition_count == 0 and not GameState.record_seen:
 		_show_market_intro()
 	elif GameState.cycle_arrival_count() > GameState.reunion_hints_shown and not GameState.has_arrival_of("reunion"):
 		# 순환 엔딩을 볼 때마다 그다음 마을에서 한 번 — 시장이 재회의 옛말을 들려준다(이미 재회를 봤으면 불필요).
 		_show_market_hint()
+	elif not _feat_queue.is_empty():
+		_show_feat_panel()
 
 ## 단계 전환 — 단계 루트를 통째로 갈아끼운다(1=중앙 컬럼, 2=창고 사진 디에게틱). _pending_* 은 멤버라 단계 넘어 유지된다.
 func _show_step(n: int) -> void:
@@ -240,9 +247,6 @@ func _build_step1() -> void:
 		_pending_vocation = ""  # 잠긴 직능이 남아 있으면(옛 세이브 등) 평범으로
 	if _voc_open.size() > 1:
 		_col.add_child(_section_label("이번 대장의 특기"))
-		var notices: Array = GameState.take_feat_notices()
-		if not notices.is_empty():
-			_col.add_child(UITheme.make_label(_notice_line(notices), UITheme.FS_SMALL, UITheme.SAND))
 		var voc := OptionButton.new()
 		voc.custom_minimum_size = Vector2(340, UITheme.BTN_H_SM)
 		voc.size_flags_horizontal = Control.SIZE_SHRINK_CENTER  # 컬럼 폭 다 채우지 말고 내용 폭 + 가운데(빈 공간 축소)
@@ -867,14 +871,7 @@ func _on_voc_selected(idx: int) -> void:
 	if _voc_desc != null:
 		_voc_desc.text = str(Vocations.by_id(_pending_vocation).get("desc", ""))
 
-## 방금 달성한 공훈 안내 한 줄 — "마을에 새 얼굴이 왔다" + 온 직능 이름들.
-func _notice_line(feat_ids: Array) -> String:
-	var names: PackedStringArray = []
-	for fid in feat_ids:
-		var nm: String = Vocations.name_of(str(Feats.by_id(str(fid)).get("unlocks", "")))
-		if nm != "":
-			names.append(nm)
-	return "마을에 새 얼굴이 왔다.\n%s" % " · ".join(names)
+## (옛 "마을에 새 얼굴" 인라인 안내 한 줄은 공훈 연출 모달(_show_feat_panel)로 승격 — 2026-07-13.)
 
 ## (주머니 도구 선택은 단계 1 드롭다운에서 배낭 화면의 창고 집기로 이전 — 2026-07-05 사용자 확정.)
 
@@ -1049,5 +1046,86 @@ func _finish_market() -> void:
 	if _market_panel != null:
 		_market_panel.queue_free()
 		_market_panel = null
-	if _step_root != null:
+	if not _feat_queue.is_empty():
+		_show_feat_panel()  # 대화 다음 순서 — 방금 달성한 공훈 연출(채비 폼은 그 뒤에)
+	elif _step_root != null:
 		UITheme.fade_in(_step_root)  # 대화가 끝나면 채비 폼이 스르륵 나타난다
+
+# --- 공훈 연출 (방금 이룬 일 — 마을에 새 얼굴이 오거나, 오래 남을 기록이 된다. 2026-07-13) ---
+
+## 직능 공훈 = 새 인물 등장(사람 그림 + 도착의 말), 기록형 = 이야기 한 장(일지 "마을" 챕터에 쌓인다).
+## 시장 대화와 같은 각인 톤(스크림 + 방사 어둠 + 헤어라인). 여러 건이면 한 장씩 이어서 보여준다.
+func _show_feat_panel() -> void:
+	var f: Dictionary = {}
+	while not _feat_queue.is_empty() and f.is_empty():
+		f = Feats.by_id(str(_feat_queue.pop_front()))
+	if f.is_empty():
+		if _step_root != null and not _step_root.visible:
+			UITheme.fade_in(_step_root)
+		return
+	if _step_root != null:
+		_step_root.visible = false
+	_feat_panel = Control.new()
+	_feat_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_feat_panel)
+	var dim := ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = UITheme.SCRIM
+	dim.gui_input.connect(_on_feat_input)
+	_feat_panel.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE  # 탭은 스크림이 받는다(어디를 눌러도 넘어감)
+	_feat_panel.add_child(center)
+	var box := VBoxContainer.new()
+	box.custom_minimum_size = Vector2(UITheme.COLUMN_W, 0)
+	box.add_theme_constant_override("separation", UITheme.GAP)
+	UITheme.attach_dark_pool(box)
+	center.add_child(box)
+	var vid: String = str(f.get("unlocks", ""))
+	if vid != "":
+		# 새 얼굴 — 사람 그림이 서고, 그가 도착의 말을 건넨다(등장감). 그림은 공훈별로 둘을 번갈아.
+		box.add_child(UITheme.make_label("이룬 일이 소문이 되어\n마을에 새 얼굴을 불렀다.", UITheme.FS_SMALL, UITheme.SAND))
+		var fig := Figures.new()
+		fig.kind = "villager_a" if str(f.get("id", "")).hash() % 2 == 0 else "villager_b"
+		fig.custom_minimum_size = Vector2(0, 170.0)
+		fig.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		box.add_child(fig)
+	else:
+		# 기록 — 사람 대신 이야기가 남는다.
+		box.add_child(UITheme.make_label("마을이 오래 기억할 일이 생겼다.", UITheme.FS_SMALL, UITheme.SAND))
+		box.add_child(UITheme.make_label(str(f.get("name", "")), UITheme.FS_BODY, UITheme.SAND))
+	box.add_child(UITheme.make_hairline(Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.35), 2.0))
+	box.add_child(UITheme.make_label(str(f.get("line", "")), UITheme.FS_BODY))
+	box.add_child(UITheme.make_hairline(Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.35), 2.0))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var ok := EngravedItem.new()
+	ok.init_item("맞이한다" if vid != "" else "마음에 새겨 둔다", 18, true)
+	ok.pressed.connect(_close_feat_panel)
+	row.add_child(ok)
+	box.add_child(row)
+	_feat_panel.modulate.a = 0.0
+	_feat_ready = false
+	var t := create_tween()
+	t.tween_interval(0.4)
+	t.tween_property(_feat_panel, "modulate:a", 1.0, MARKET_INTRO_FADE)
+	t.tween_callback(func(): _feat_ready = true)
+
+func _on_feat_input(event: InputEvent) -> void:
+	if not _feat_ready:
+		return
+	var tap: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed)
+	if tap:
+		_close_feat_panel()
+
+func _close_feat_panel() -> void:
+	if not _feat_ready:
+		return
+	if _feat_panel != null:
+		_feat_panel.queue_free()
+		_feat_panel = null
+	if not _feat_queue.is_empty():
+		_show_feat_panel()  # 다음 장 — 여러 건을 한 장씩
+	elif _step_root != null:
+		UITheme.fade_in(_step_root)

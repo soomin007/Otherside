@@ -61,7 +61,7 @@ var rng := RandomNumberGenerator.new()
 var _loss_notes: Array = []           ## 방금 스러진 손실의 서사 줄들 — UI 가 take_loss_notes 로 소비
 var _water_scare: bool = false        ## 물 바닥 스침을 이미 겪었나(런당 1회만 센다)
 var _food_scare: bool = false
-var _straggler_nodes: Dictionary = {} ## 낙오자가 기다리는 노드(node_id→true, GameState 주입) — 도착 시 거두기 카드
+var _straggler_nodes: Dictionary = {} ## 낙오자가 기다리는 노드(node_id→brief{node_id,origin,name?,cause?}, GameState 주입) — 도착 시 거두기 카드가 출처를 말한다
 var _last_situation_id: String = ""
 var _next_situation_leg: int = 0      ## 다음 일반 상황이 뜰 걸음
 var _crisis_steps: Array = []         ## 이번 엣지의 위기 순간(edge_step 값들) — begin_edge 가 정한다
@@ -89,8 +89,14 @@ func _init(starting: Dictionary = {}, bridged_nodes: Array = [], persist_flags: 
 	for f in persist_flags:
 		_flags[str(f)] = true
 	_traces = pickup_traces.duplicate(true)
-	for nid in stragglers_at:
-		_straggler_nodes[str(nid)] = true
+	# 낙오자 — brief(dict, 출처 정보) 또는 노드 id(string, 옛 세이브·테스트) 둘 다 받는다.
+	for s in stragglers_at:
+		if s is Dictionary:
+			var snid: String = str(s.get("node_id", ""))
+			if snid != "":
+				_straggler_nodes[snid] = s.duplicate(true)
+		else:
+			_straggler_nodes[str(s)] = {"node_id": str(s)}
 	current_node = MapGraph.START_ID
 	rng.randomize()
 
@@ -137,7 +143,7 @@ func to_dict() -> Dictionary:
 		"loss_notes": _loss_notes,
 		"water_scare": _water_scare,
 		"food_scare": _food_scare,
-		"stragglers": _straggler_nodes.keys(),
+		"stragglers": _straggler_nodes.values(),
 		"bridged": _bridged.keys(),
 		"flags": _flags.keys(),
 		"traces": _traces,
@@ -377,7 +383,7 @@ func step() -> void:
 func arrival_event() -> Dictionary:
 	var node: Dictionary = MapGraph.node(_target_node)
 	if _straggler_nodes.has(_target_node):
-		return Situations.straggler_event()
+		return Situations.straggler_event(_straggler_nodes.get(_target_node, {}))
 	if str(node.get("kind", "")) == "blockage" and is_bridged(_target_node):
 		return Situations.crossed_blockage(node)
 	if _traces.has(_target_node):
