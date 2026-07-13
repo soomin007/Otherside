@@ -8,7 +8,7 @@ extends Control
 
 var _body_label: Label
 var _delta_label: Label
-var _loss_art: TextureRect  ## 손실의 순간 원화(62_사람_스러짐 밝음판) — note 위에 크게(2026-07-13 사용자)
+var _loss_art: LossArt  ## 손실의 순간 원화(62_사람_스러짐 밝음판) — note 위에 크게(2026-07-13 사용자)
 var _note_label: Label   ## 행렬 손실 등 무거운 한 줄 — 델타 아래 붉게(비어 있으면 숨김)
 var _party_strip: PartyStrip  ## 행렬 실루엣 줄(손실·구조의 순간) — note 아래(없으면 숨김)
 var _cb: Callable
@@ -16,6 +16,25 @@ var _closing: bool = false  ## "계속" 연타 방지 — 첫 탭의 닫힘 콜�
 
 ## 스러진 자리 원화 — 세밀한 잉크 원화는 큰 자리에만 쓴다는 규칙에 맞는 크기(폭 전체·높이 ~110).
 const LOSS_ART_PATH: String = "res://assets/arts/transparent/62_사람_스러짐_밝음.png"
+
+## 손실 원화 그리기 — 원화는 무더기가 왼쪽, 알갱이 꼬리가 오른쪽(320×69). 통짜 가운데 정렬이면
+## 무더기가 왼쪽으로 치우쳐 보인다(2026-07-13 사용자) — 무더기 중심이 상자 가운데에 오게 그린다.
+class LossArt extends Control:
+	var tex: Texture2D
+	const MOUND_X: float = 0.38  ## 원화 속 무더기 중심(가로 정규화, 실측 — 봉우리 0.34·본체 질량중심 0.41)
+	func _init() -> void:
+		clip_contents = true  # 오른쪽 알갱이 꼬리가 상자 폭을 넘으면 잘라낸다
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+	func _draw() -> void:
+		if tex == null:
+			return
+		var tw: float = float(tex.get_width())
+		var th: float = float(tex.get_height())
+		if tw <= 0.0 or th <= 0.0:
+			return
+		var sc: float = size.y / th
+		var w: float = tw * sc
+		draw_texture_rect(tex, Rect2(Vector2(size.x * 0.5 - w * MOUND_X, 0.0), Vector2(w, size.y)), false)
 
 ## 행렬 실루엣 줄 — 손실/구조의 순간을 사람으로 보여준다(지도 좌 칼럼 행렬 줄과 같은 그림 언어).
 ## mode "lose" = 방금 스러진 자리가 무너져 모래 무더기가 된다, "gain" = 새 사람이 행렬 끝에 배어 들어온다.
@@ -101,13 +120,10 @@ func _init() -> void:
 	box.add_child(_delta_label)
 
 	# 손실 원화 — 바람에 흩어지는 모래 무더기(스러진 자리). 손실 팝업에서만 보인다(없으면 실루엣 줄만).
-	_loss_art = TextureRect.new()
+	_loss_art = LossArt.new()
 	if ResourceLoader.exists(LOSS_ART_PATH):
-		_loss_art.texture = load(LOSS_ART_PATH)
-	_loss_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_loss_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_loss_art.tex = load(LOSS_ART_PATH)
 	_loss_art.custom_minimum_size = Vector2(0, 110)
-	_loss_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_loss_art.visible = false
 	box.add_child(_loss_art)
 
@@ -139,7 +155,7 @@ func show_result(body: String, effect: Dictionary, cb: Callable = Callable(), no
 	_note_label.visible = note != ""
 	_note_label.add_theme_color_override("font_color", note_color)
 	_party_strip.visible = not party.is_empty()
-	_loss_art.visible = not party.is_empty() and str(party.get("mode", "lose")) == "lose" and _loss_art.texture != null
+	_loss_art.visible = not party.is_empty() and str(party.get("mode", "lose")) == "lose" and _loss_art.tex != null
 	if not party.is_empty():
 		_party_strip.slots = int(party.get("slots", 5))
 		_party_strip.left = int(party.get("left", 5))

@@ -7,8 +7,8 @@ extends RefCounted
 ##
 ## 순수 데이터·판정(GameState/ui 미참조). check 는 통계 스냅샷(stats)만 받는다 — -s 단위 테스트 가능.
 ## stats 키(전부 int, GameState.feat_stats_snapshot 이 만든다):
-##  thirst_deaths     갈증으로 스러진 원정 수
-##  hunger_deaths     굶주림으로 스러진 원정 수
+##  thirst_deaths     갈증으로 쓰러진 원정 수
+##  hunger_deaths     굶주림으로 쓰러진 원정 수
 ##  heavy_departures  무료 무게(ExpeditionRun.WEIGHT_FREE)를 넘는 짐으로 출발한 원정 수
 ##  max_row_visited   방문한 노드의 가장 깊은 층(MapGraph row)
 ##  traces_left       남긴 흔적 수(유령 seed 제외 — GameState.player_trace_count)
@@ -48,9 +48,9 @@ const LIST: Array = [
 	{
 		"id": "thirst_learned", "unlocks": "waterwise",
 		"name": "갈증을 아는 이",
-		"cond": "물길을 읽는 노인은\n갈증에 스러진 원정 소식을\n못 본 체하지 못한다.",
+		"cond": "물길을 읽는 노인은\n갈증에 쓰러진 원정 소식을\n못 본 체하지 못한다.",
 		"line": "물지기가 마을에 왔다.\n\"어느 바닥에 물이 숨었는지\n늙은이는 냄새로 아네.\"",
-		"done": "갈증에 스러진 원정들이 노인을 일으켰다.",
+		"done": "갈증에 쓰러진 원정들이 노인을 일으켰다.",
 		"stat": "thirst_deaths", "at_least": 2,
 	},
 	{
