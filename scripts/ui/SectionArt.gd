@@ -15,6 +15,19 @@ const SECTION_PATHS: Dictionary = {
 	"dunes": "res://assets/arts/18_단면_사막.png",
 }
 
+## 노드별 맞춤 단면(§17, 2026-07-14) — kind 공용 커버 해소(오아시스가 "폐허" 그림을 쓰는 식).
+## 있으면 kind 공용보다 우선, 없으면 kind → 절차적 순 fallback(생성 전에도 안 깨짐 — 지도 아이콘과 같은 패턴).
+const NODE_SECTION_PATHS: Dictionary = {
+	"a1": "res://assets/arts/72_단면_마른강.png",
+	"b1": "res://assets/arts/73_단면_버려진야영지.png",
+	"c1": "res://assets/arts/74_단면_오아시스.png",
+	"d1": "res://assets/arts/75_단면_뼈의들판.png",
+	"d2": "res://assets/arts/76_단면_독웅덩이.png",
+	"c2": "res://assets/arts/77_단면_모래의벽.png",
+	"e1": "res://assets/arts/78_단면_무너진담.png",
+	"f1": "res://assets/arts/79_단면_폭풍의문.png",
+}
+
 ## kind → Texture2D 캐시(null 도 캐시 = 반복 로드 시도 방지). draw_section 이 매 프레임 불려도 1회만 로드.
 static var _tex_cache: Dictionary = {}
 static var _label_pool: GradientTexture2D  ## 지점 라벨 뒤 크림 빛 웅덩이 — 사진 위 가독(지도 라벨과 같은 결)
@@ -47,9 +60,12 @@ static func draw_tex_center(ci: CanvasItem, tex: Texture2D, center: Vector2, tar
 	var wh: Vector2 = Vector2(tw * s, th * s)
 	ci.draw_texture_rect(tex, Rect2(center - wh * 0.5, wh), false, mod)
 
-## 단면 배경 + 지면 + kind별 실루엣을 rect 안에 그린다. 이미지 있으면 배경 텍스처, 없으면 절차적.
+## 단면 배경 + 지면 + kind별 실루엣을 rect 안에 그린다. 노드 맞춤 > kind 공용 > 절차적 순.
+## seed_id = node_id(호출부 둘 다) — 맞춤 아트 키와 fallback 실루엣 시드를 겸한다.
 static func draw_section(ci: CanvasItem, kind: String, rect: Rect2, seed_id: String) -> void:
-	var tex: Texture2D = _section_tex(kind)
+	var tex: Texture2D = _node_tex(seed_id)
+	if tex == null:
+		tex = _section_tex(kind)
 	if tex != null:
 		_draw_cover(ci, tex, rect)                      # 배경 이미지(종횡비 유지 cover)
 		ci.draw_rect(rect, UITheme.PAPER_EDGE, false, 3.0)  # 낡은 가장자리(양피지와 통일)
@@ -68,6 +84,20 @@ static func draw_section(ci: CanvasItem, kind: String, rect: Rect2, seed_id: Str
 		"storm": _draw_storm(ci, rect, ground_y, rng)
 		"end": _draw_gate(ci, rect, ground_y, rng)
 		_: _draw_dunes(ci, rect, ground_y, rng)
+
+## 노드 맞춤 배경(1회 로드 후 캐시, null 도 캐시). 미생성이면 null → kind 공용으로.
+static func _node_tex(node_id: String) -> Texture2D:
+	if not NODE_SECTION_PATHS.has(node_id):
+		return null
+	var key: String = "node_" + node_id
+	if _tex_cache.has(key):
+		return _tex_cache[key]
+	var path: String = str(NODE_SECTION_PATHS[node_id])
+	var tex: Texture2D = null
+	if ResourceLoader.exists(path):
+		tex = load(path)
+	_tex_cache[key] = tex
+	return tex
 
 ## kind 의 배경 텍스처(1회 로드 후 캐시). 미등록 kind 는 dunes 로.
 static func _section_tex(kind: String) -> Texture2D:

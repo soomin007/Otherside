@@ -382,7 +382,7 @@ func _test_catalog_requires_filter() -> void:
 	var leaked: bool = false
 	for i in range(300):
 		var sid: String = str(Situations.pick(rng, "", {}).get("id", ""))
-		if sid == "gut_turn" or sid == "no_rope_ledge":
+		if sid == "gut_turn":  # requires 카드 표본(옛 no_rope_ledge 는 b2 상시 다리 확정으로 제거, 2026-07-14)
 			leaked = true
 			break
 	_ok(not leaked, "CATALOG 필터: 플래그 없으면 requires 상황 안 뜸(300회)")

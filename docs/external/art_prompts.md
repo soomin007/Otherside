@@ -47,8 +47,9 @@
 | 63~68 | **지도·단면 기호 6종** (흔적 점 바탕·로프 다리·위치 태그·넘침 배지·주요/보조 지점 고리) | §16 | ✅ 완료 (배선: `Map.gd` 자원 점/로프/태그/+N · `SectionArt.draw_spot` · `Bookmark` 범례) |
 | 69 | UI 소품 — 책갈피 리본 | §16 | ✅ 완료 (사용자 생성분 — 좌/우 640px 두 판, `Bookmark.Ribbon` 캡+몸통 렌더. 원본 `assets_src/arts_originals/`) |
 | 70~71 | UI 소품 — 가방 슬롯 담김/빈 | §16 | ✅ 완료 (배선: `Loadout._slot_stylebox` StyleBoxTexture — 가방 6칸+주머니) |
+| 72~79 | **노드별 맞춤 단면 8종** (마른강/야영지/오아시스/뼈의들판/독웅덩이/모래의벽/무너진담/폭풍의문) | §17 | ⏳ **생성 대기(사용자)** — 배선 완료(`SectionArt.NODE_SECTION_PATHS`), 파일 넣으면 자동 적용. 그동안은 kind 공용(13~18)으로 뜸 |
 
-**기존 아트(01~46 + 38 + 오프닝 가로판) 전부 완료(2026-07-04).** **신규(§13):** 가방 창고 `39` ✅ · 엔딩 슬라이드 `47~52`(순환 3·재회 3) ✅ **전부 삽입**. **배선 대기(구현): 엔딩 슬라이드쇼 2종 + 가방 창고 개편.** (세로형 단면 art 13~18 여부는 오리엔테이션 결정 후 — 아래 논의.) **§15 막간 삽화 `55~57` 완료(2026-07-12):** 3장 삽입 + `Interlude.gd` 배선(크로스페이드·켄 번즈·런 요약). (가로 고정 게임 — 세로판 없음.)
+**01~71 전부 완료.** **유일한 생성 대기 = §17 노드별 맞춤 단면 8종(72~79, 2026-07-14 추가)** — 프롬프트 준비·배선 완료, 이미지만 넣으면 자동 적용. (가로 고정 게임 — 세로판 없음.)
 
 ---
 
@@ -827,3 +828,91 @@ generous margin on a plain solid pure white background (#FFFFFF). Muted leather 
 ```
 (빈 칸(71)은 위 프롬프트의 "softly lit sand-colored recess" 를 "dark sunken empty recess" 로 바꿔 뽑는다.)
 
+
+---
+
+## 17. 노드별 맞춤 단면 8종 (불투명 · 가로 16:9 · 1600×900 이상) — 하나씩 복사 (2026-07-14 추가)
+
+> **쓰이는 곳:** 도착 노드 단면 배경. 지금은 kind 공용 6종(13~18)을 나눠 쓰는데, 오아시스가 "폐허" 그림을
+> 쓰는 식의 공용 커버를 노드 전용으로 해소한다(backlog "단면 맞춤 아트"). 조사 지점·글씨는 코드가 위에
+> 얹으니 **장소 분위기만.** 스타일 앵커 = 기존 단면 6종(§3)과 같은 결(painterly semi-realistic·세피아).
+> **배선 완료(`SectionArt.NODE_SECTION_PATHS`)** — 아래 파일명으로 `assets/arts/` 에 넣으면 자동 적용,
+> 없는 동안은 기존 kind 공용으로 뜬다. 파일명: `72_단면_마른강` ~ `79_단면_폭풍의문`.
+
+### 마른 강 (a1) — `72_단면_마른강`
+```
+A wide 16:9 side view of a dry cracked riverbed winding through desert, smooth water-worn stones and a
+faint damp stain in the lowest hollow, low horizon in the lower third, a full background scene filling
+the frame. Muted desert palette of sand beige and sepia, dusty haze, painterly semi-realistic, cinematic
+soft light, low saturation, quiet thirsty mood. Absolutely no text, no words, no letters, no labels,
+no watermark, no white background, no isolated object, no people.
+```
+
+### 버려진 야영지 (b1) — `73_단면_버려진야영지`
+```
+A wide 16:9 side view of an abandoned desert campsite, collapsed weathered tents half-buried in sand,
+a cold fire ring of blackened stones, scattered ropes and a broken pole, low horizon in the lower third,
+a full background scene filling the frame. Muted desert palette of sand beige and sepia, dusty haze,
+painterly semi-realistic, cinematic soft light, low saturation, melancholic deserted mood. Absolutely
+no text, no words, no letters, no labels, no watermark, no white background, no isolated object, no people.
+```
+
+### 오아시스 (c1) — `74_단면_오아시스`
+```
+A wide 16:9 side view of a small desert oasis, a clear spring pool glinting between sand mounds, a few
+date palms casting sparse shade, fallen fruit near the waterline, low horizon in the lower third, a full
+background scene filling the frame. Muted desert palette warmed by soft green and clear water highlights,
+dusty haze, painterly semi-realistic, cinematic soft light, low saturation, fragile peaceful mood.
+Absolutely no text, no words, no letters, no labels, no watermark, no white background, no isolated
+object, no people.
+```
+
+### 뼈의 들판 (d1) — `75_단면_뼈의들판`
+```
+A wide 16:9 side view of a flat desert plain scattered with enormous weathered bones, a giant bleached
+ribcage arching from the sand like a ruin, smaller bones half-buried around it, low horizon in the lower
+third, a full background scene filling the frame. Muted desert palette of sand beige, bone white and
+sepia, dusty haze, painterly semi-realistic, cinematic soft light, low saturation, solemn ancient mood.
+Absolutely no text, no words, no letters, no labels, no watermark, no white background, no isolated
+object, no people, no creature, no monster.
+```
+
+### 독 웅덩이 (d2) — `76_단면_독웅덩이`
+```
+A wide 16:9 side view of a murky stagnant pool in a desert basin, unnaturally dark still water with an
+oily sheen, dry reeds and stained mud at the edges, faint animal tracks in the mud, low horizon in the
+lower third, a full background scene filling the frame. Muted desert palette of sand beige and sepia
+with a sickly dark green accent in the water, dusty haze, painterly semi-realistic, cinematic soft light,
+low saturation, uneasy poisoned mood. Absolutely no text, no words, no letters, no labels, no watermark,
+no white background, no isolated object, no people.
+```
+
+### 모래의 벽 (c2) — `77_단면_모래의벽`
+```
+A wide 16:9 side view of a colossal standing wall of sand towering over the desert floor like a frozen
+wave, its face churning with wind-carved streaks, tiny wind-blown debris at its base, low horizon in the
+lower third, a full background scene filling the frame. Muted desert palette of sand beige and sepia,
+heavy dusty haze, painterly semi-realistic, cinematic soft light, low saturation, overwhelming ominous
+mood. Absolutely no text, no words, no letters, no labels, no watermark, no white background, no isolated
+object, no people.
+```
+
+### 무너진 담 (e1) — `78_단면_무너진담`
+```
+A wide 16:9 side view of a massive ancient collapsed rampart blocking the desert, tumbled megalithic
+stone blocks and one narrow dark gap between them, drifts of sand piled against the wall, low horizon in
+the lower third, a full background scene filling the frame. Muted desert palette of sand beige, grey
+stone and sepia, dusty haze, painterly semi-realistic, cinematic soft light, low saturation, weary
+impassable mood. Absolutely no text, no words, no letters, no labels, no watermark, no white background,
+no isolated object, no people.
+```
+
+### 폭풍의 문 (f1) — `79_단면_폭풍의문`
+```
+A wide 16:9 side view of two immense sandstorm columns leaning together over a desert path like a dark
+gate, the passage between them dim and howling with dust, torn banners of sand streaming from their
+crests, low horizon in the lower third, a full background scene filling the frame. Muted desert palette
+of sand beige and deep sepia, heavy dusty haze, painterly semi-realistic, cinematic soft light, low
+saturation, final threshold dread mood. Absolutely no text, no words, no letters, no labels, no watermark,
+no white background, no isolated object, no people, no creature, no monster.
+```

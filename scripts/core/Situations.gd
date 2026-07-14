@@ -200,17 +200,6 @@ const CATALOG: Array = [
 		],
 	},
 	{
-		# 앞선 차단(b2)에서 로프를 이미 썼으면(rope_spent_now) 로프가 아쉬운 얕은 골을 만난다.
-		"id": "no_rope_ledge",
-		"requires": "rope_spent_now",
-		"threat": Threats.Kind.CONSUMPTION,
-		"text": "얕은 골이 앞을 가른다.\n로프가 있었으면 단숨에 건넜을 텐데,\n앞선 틈에서 다 썼다.",
-		"choices": [
-			{"label": "돌아서 얕은 데로 건넌다", "effect": {"water": -1, "food": -1}},
-			{"label": "미끄러운 벽을 조심조심 내려간다", "effect": {"water": -2}},
-		],
-	},
-	{
 		# self-async 메아리: a1 에서 강바닥을 팠으면(river_dug 영속) 다음 원정의 강 지형 이동 중에 그 자국을 만난다.
 		"id": "dig_marks", "requires": "river_dug", "biome": ["river"],
 		"threat": Threats.Kind.CONSUMPTION,

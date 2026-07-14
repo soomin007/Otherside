@@ -132,39 +132,12 @@ const NODES: Dictionary = {
 	},
 	"b2": {
 		"kind": "blockage", "name": "갈라진 바닥", "row": 2, "col": 0.72, "next": ["c2"], "biome": "rock", "main_at": Vector2(0.53, 0.66),
-		"events": [
-			{
-				"id": "cracked_floor", "threat": Threats.Kind.BLOCKAGE,
-				"text": "땅이 쩍 갈라졌다.\n바닥은 보이지 않는다.\n맨몸으로 내려설 깊이가 아니다.\n로프를 걸면 다음에도 건널 수 있다.",
-				"choices": [
-					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge", "sets": ["rope_spent_now"], "then": {
-						"id": "rope_stays", "threat": Threats.Kind.BLOCKAGE,
-						"text": "매듭이 단단히 물렸다.\n우리는 이 줄을 한 번 쓰고 가지만\n줄은 이 자리에 남는다.\n뒤에 오는 사람들은\n여기서 멈추지 않아도 된다.",
-						"choices": [
-							{"label": "매듭을 한 번 더 조인다", "effect": {}},
-							{"label": "줄을 잡고 내려선다", "effect": {}},
-						],
-					}},
-					{"label": "맨몸으로 무리해서 건넌다", "effect": {"water": -3, "food": -2}},
-				],
-			},
-			{
-				"id": "cracked_floor_gust", "threat": Threats.Kind.BLOCKAGE,
-				"text": "갈라진 틈에서 모래바람이 솟구쳐\n건너편이 흐릿하다.\n로프를 걸면 다음에도 건널 수 있다.",
-				"choices": [
-					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge", "sets": ["rope_spent_now"]},
-					{"label": "바람 잦아들 때 맨몸으로 건넌다", "effect": {"water": -2, "food": -2}},
-				],
-			},
-			{
-				"id": "cracked_floor_bones", "threat": Threats.Kind.BLOCKAGE,
-				"text": "틈 가장자리에\n오래된 뼈 몇이 걸려 있다.\n누군가 여기서 미끄러졌다.\n로프를 걸면 다음에도 건널 수 있다.",
-				"choices": [
-					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge", "sets": ["rope_spent_now"]},
-					{"label": "조심조심 맨몸으로 건넌다", "effect": {"water": -3, "food": -2}},
-				],
-			},
-		],
+		# ★ 도착 이벤트 없음(의도, 2026-07-14 사용자 확정): 세계마다 유령 씨앗 로프가 여기 걸린 채
+		#   시작해(GameState._plant_seeds) 도착은 항상 crossed_blockage("이전 원정대가 로프를 걸어뒀다").
+		#   데스 스트랜딩의 NPC 사다리처럼 "남긴 물건이 영구히 길이 된다"를 첫 원정부터 보여주는 자리.
+		#   스스로 로프를 거는 경험은 e1(무너진 담)이 맡는다. 옛 cracked_floor 3종은 도달 불가라 제거
+		#   (rope_spent_now 체인 포함 — session_logs/2026-07-14 세션 6).
+		"events": [],
 		"spots": [
 			{"id": "crack_flask", "label": "틈 아래", "at": Vector2(0.40, 0.78), "source": "cache", "effect": {"water": 2}, "text": "균열 턱에 걸린 물통.\n조심히 집어 올린다."},
 			{"id": "crack_dark", "label": "틈 속 어둠", "at": Vector2(0.62, 0.82), "source": "empty", "text": "바닥이 보이지 않는다.\n손을 넣을 엄두가 안 난다."},
@@ -410,14 +383,8 @@ const NODES: Dictionary = {
 					{"label": "모래 더미를 밟고 무리해서 넘는다", "effect": {"water": -3, "food": -2}},
 				],
 			},
-			{
-				# 같은 런 연쇄: 앞 차단(b2)에서 로프를 이미 썼으면(rope_spent_now) 로프가 없다 — 맨몸뿐.
-				"id": "collapsed_wall_noropeleft", "requires": "rope_spent_now", "threat": Threats.Kind.BLOCKAGE,
-				"text": "또 막혔다.\n로프는 앞선 틈에서 다 썼다.\n이번엔 몸으로 부딪는 수밖에 없다.",
-				"choices": [
-					{"label": "맨몸으로 무리해서 넘는다", "effect": {"water": -3, "food": -2}},
-				],
-			},
+			# (collapsed_wall_noropeleft 는 제거 — 전제였던 b2 로프 소모(rope_spent_now)가
+			#  b2 상시 다리 확정(2026-07-14)으로 성립 불가.)
 		],
 		"spots": [
 			{"id": "wall_pack", "label": "틈에 낀 배낭", "at": Vector2(0.30, 0.74), "source": "cache", "effect": {"water": 2, "food": 2}, "text": "무너진 틈에 배낭이 끼어 있다.\n물통과 식량이 남았다."},
