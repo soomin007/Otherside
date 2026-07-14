@@ -421,6 +421,7 @@ var _ctrl_idx: int = 0         ## 조작 챕터 펼침(0=안내 글·1=표식 �
 var _set_idx: int = 0          ## 설정 챕터 펼침(소리|화면 · 이야기|Credit · 여정|위험)
 var _village_idx: int = 0      ## 마을 챕터 펼침(0=사람들·1..=이룬 일) — 책 원칙: 스크롤 대신 넘김
 var _flipping: bool = false
+var _relayout_wanted: bool = false  ## 넘김 중 도착한 리사이즈 — 넘김이 끝나면 반영(버리면 낡은 배치가 남는다)
 var _rib_tw: Tween
 var _opened_ms: int = 0        ## 일지를 연 시각 — 여는 클릭이 스크림 닫기로 새는 것 방지 가드
 var _in_confirm: bool = false  ## 설정 챕터의 "세계 지우기" 확인 화면
@@ -441,8 +442,13 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_on_viewport_resized)
 
 ## 뷰포트 리사이즈(전체화면 진입·창 크기 변경) — 일지가 열려 있으면 책과 현재 챕터를 다시 배치·렌더.
+## 넘김 중이면 버리지 않고 미뤄 둔다 — 여기서 그냥 return 하면 낡은 배치가 영영 남는다
+## (웹: 탭마다 전체화면 재진입 리사이즈가 넘김과 자주 겹친다, 2026-07-14).
 func _on_viewport_resized() -> void:
-	if _panel == null or not _panel.visible or _flipping:
+	if _panel == null or not _panel.visible:
+		return
+	if _flipping:
+		_relayout_wanted = true
 		return
 	_layout_book()
 	if not _in_confirm:
@@ -522,6 +528,10 @@ func _build() -> void:
 	_book.add_child(_box_r)
 	_footer_r = VBoxContainer.new()  # 바닥 고정 — 넘김/덮기가 내용 높이와 무관하게 항상 같은 자리
 	_footer_r.add_theme_constant_override("separation", 6)
+	# ★ 컨테이너 기본 PASS 는 "투명"이 아니다 — 픽킹을 가로채 부모로만 올려, 밑에 깔린 형제(버튼)는
+	#   탭을 영영 못 받는다. 확인 페이지에서 _box_r 버튼이 이 (비워진) 푸터 밑으로 가라앉으면
+	#   "나간다" 무반응(2026-07-14 폰 웹 제보). IGNORE 면 자식(넘김 버튼)은 그대로 받고 몸통만 투명.
+	_footer_r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_book.add_child(_footer_r)
 
 	# 챕터 책갈피 — 책 오른쪽 가장자리에서 삐져나온 작은 리본들(현재 챕터가 가장 김).
@@ -574,6 +584,7 @@ func open_journal(chapter: int = 0) -> void:
 	#   "오버레이 밑에서 세계가 흐르는" 계열 전체를 막는다. Bookmark/AudioManager/Transition/Tutorial 은
 	#   PROCESS_MODE_ALWAYS 라 일지 조작·음악·(닫은 뒤) 전환은 그대로 동작한다.
 	get_tree().paused = true
+	_relayout_wanted = false  # 닫혀 있는 동안 쌓인 잔여 플래그 정리(열며 어차피 새로 배치)
 	_layout_book()
 	_panel.visible = true
 	UITheme.fade_in(_panel)
@@ -684,7 +695,13 @@ func _run_flip(dir: int, sheets_n: int, spread: float, flip_win: float, riffle: 
 	deck.cf_from = cf_from
 	deck.cf_to = cf_to
 	deck.on_progress = func(cf: float) -> void: _book.thickness_cf = cf
-	deck.on_done = func() -> void: _flipping = false
+	deck.on_done = func() -> void:
+		_flipping = false
+		if _relayout_wanted:  # 넘김 중 밀린 리사이즈 반영
+			_relayout_wanted = false
+			_layout_book()
+			if not _in_confirm:
+				_render_chapter()
 	deck.set_anchors_preset(Control.PRESET_FULL_RECT)
 	deck.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_book.add_child(deck)
@@ -1057,6 +1074,10 @@ func _sec_danger(box: VBoxContainer) -> void:
 ## 확인 페이지(공용) — 왼쪽: 경고·제목·설명, 오른쪽: 머문다/실행. 지우기·타이틀로·끝내기가 공유.
 func _show_confirm_page(warn: String, title: String, desc: String, yes_txt: String, yes_cb: Callable) -> void:
 	_in_confirm = true
+	# 배치 재동기화 — 웹은 전체화면 진입·브라우저 바 리사이즈로 _box_r 크기가 낡을 수 있다.
+	# 다른 챕터는 위 정렬이라 티가 안 나지만 이 페이지만 세로 중앙(EXPAND)이라 버튼이
+	# 페이지 바닥(푸터 자리)까지 가라앉았다(2026-07-14 폰 웹 제보 — 재배치가 치유함을 CDP 재현으로 확인).
+	_layout_book()
 	AudioManager.play_sfx_random(PAGE_SFX)
 	_clear(_box_l)
 	_clear(_box_r)
