@@ -77,7 +77,7 @@
 - `The Unresolved.ogg` — 순환 엔딩(슬라이드+암전 겸용)
 
 ### SFX — `assets/sfx/` (wav, 모노 44.1k, 피크 -4dB · 원본 = `assets_src/sfx_original/`)
-- **UI:** `sfx_tap` · `sfx_card_open` · `sfx_card_close` · `sfx_bag_add` · `sfx_page_1~3` · `sfx_settings`(⏸ 보류)
+- **UI:** `sfx_tap` · `sfx_card_open` · `sfx_card_close` · `sfx_bag_add` · `sfx_page_1~3` · `sfx_settings`(공훈 달성 토스트)
 - **원 그리기:** `sfx_draw_1~6` (지도 호버 손그림 원 6변주 · freesound "Marker Circle" CC0 분할)
 - **걸음·자원:** `sfx_step_1·2·4` (3변주) · `sfx_water` · `sfx_resource`
 - **이벤트:** `sfx_pickup` · `sfx_rope` · `sfx_reveal` · `sfx_leave`
@@ -86,7 +86,7 @@
 
 > **⚠️ 재생성 후보(당장은 이대로):** `sfx_resource`·`sfx_reveal`·`sfx_cycle` 은 원본이 매우 조용해 +27~32dB 보강했다.
 > 폰·스피커로 들어 노이즈가 거슬릴 때만 §5 프롬프트로 재생성. (파일 노이즈는 재생성만이 답 — 볼륨 조절로 안 됨.)
-> **⏸ 보류:** `sfx_settings` 는 설정이 장부(양피지 소리)로 바뀌며 자리를 잃음. 특별한 확인음 등으로 재활용 후보.
+> `sfx_settings` 는 설정이 장부로 바뀌며 자리를 잃었다가 **공훈 달성 토스트**(`FeatToast.gd`)로 재배선(2026-07-14).
 
 ---
 

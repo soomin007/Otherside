@@ -9,6 +9,8 @@ extends Node
 const SAVE_PATH: String = "user://otherside_save.json"  # 웹에선 브라우저 IndexedDB 에 영속
 const SAVE_VERSION: int = 2  ## v2(2026-07-10): 이어하기 저장(run·run_section) 추가. 로더는 키 부재에 관대해 v1 세이브 호환.
 
+signal feat_achieved(feat_id: String)  ## 공훈을 방금 달성 — FeatToast 가 즉시 안내(효과음 포함, 2026-07-14 사용자)
+
 const SCENE_TITLE: String = "res://scenes/main.tscn"
 const SCENE_MAP: String = "res://scenes/map.tscn"
 const SCENE_EXPEDITION: String = "res://scenes/expedition.tscn"
@@ -167,6 +169,7 @@ func check_feats() -> void:
 			if not feats_unlocked.has(fid):
 				feats_unlocked.append(fid)
 				pending_feat_notices.append(fid)
+				feat_achieved.emit(str(fid))  # 즉시 안내(FeatToast) — 마을 모달(사람 도착 서사)과 별개
 				grew = true
 		if not grew:
 			return
