@@ -108,11 +108,11 @@ func _test_party_intact() -> void:
 ## 공훈(Feats) — 순수 판정: 문턱 경계·직능 매핑·정의 무결성(직능 id 실존·중복 해금 없음)
 ## + 기록형(명예 기록, 2026-07-13): unlocks 없음 = 직능을 열지 않는다.
 func _test_feats() -> void:
-	var none: Dictionary = {"thirst_deaths": 0, "hunger_deaths": 0, "heavy_departures": 0, "max_row_visited": 0, "traces_left": 0, "arrivals_total": 0, "reunions": 0, "intact_arrivals": 0, "all_nodes_visited": 0}
+	var none: Dictionary = {"thirst_deaths": 0, "hunger_deaths": 0, "heavy_departures": 0, "max_row_visited": 0, "traces_left": 0, "arrivals_total": 0, "reunions": 0, "intact_arrivals": 0, "all_nodes_visited": 0, "blockages_bridged": 0, "vocations_full": 0}
 	_ok(Feats.achieved_ids(none).is_empty(), "공훈: 빈 통계 = 달성 없음")
-	var below: Dictionary = {"thirst_deaths": 1, "hunger_deaths": 1, "heavy_departures": 0, "max_row_visited": 3, "traces_left": 2, "arrivals_total": 0, "reunions": 0, "intact_arrivals": 0, "all_nodes_visited": 0}
+	var below: Dictionary = {"thirst_deaths": 1, "hunger_deaths": 1, "heavy_departures": 0, "max_row_visited": 3, "traces_left": 2, "arrivals_total": 0, "reunions": 0, "intact_arrivals": 0, "all_nodes_visited": 0, "blockages_bridged": 0, "vocations_full": 0}
 	_ok(Feats.achieved_ids(below).is_empty(), "공훈: 문턱 미만은 전부 잠김(경계 -1)")
-	var all_hit: Dictionary = {"thirst_deaths": 2, "hunger_deaths": 2, "heavy_departures": 1, "max_row_visited": 4, "traces_left": 3, "arrivals_total": 1, "reunions": 1, "intact_arrivals": 1, "all_nodes_visited": 1}
+	var all_hit: Dictionary = {"thirst_deaths": 2, "hunger_deaths": 2, "heavy_departures": 1, "max_row_visited": 4, "traces_left": 3, "arrivals_total": 1, "reunions": 1, "intact_arrivals": 1, "all_nodes_visited": 1, "blockages_bridged": 1, "vocations_full": 1}
 	_ok(Feats.achieved_ids(all_hit).size() == Feats.LIST.size(), "공훈: 문턱 정확히 = 전부 달성(경계 0)")
 	var opened: Array = Feats.vocations_open(Feats.achieved_ids(all_hit))
 	_ok(opened.size() == Vocations.ids().size() - 1, "공훈: 전부 달성이면 평범 외 전 직능이 열린다")
@@ -133,9 +133,9 @@ func _test_feats() -> void:
 			sound = false  # 직능 공훈은 얻은 내력 한 줄(done)을 가진다(마을 챕터 표기, 2026-07-13)
 		seen_voc[vid] = true
 	_ok(sound, "공훈: 해금 직능 id 실존 + 한 직능 한 공훈 + done 보유 + 기록형 정의 무결")
-	_ok(records >= 4, "공훈: 기록형(명예 기록) 4종 이상")
+	_ok(records >= 6, "공훈: 기록형(명예 기록) 6종 이상")
 	_ok(Feats.vocations_open(["thirst_learned"]) == ["waterwise"], "공훈: 갈증 공훈 → 물지기만 연다")
-	_ok(Feats.vocations_open(["rec_reached", "rec_intact"]).is_empty(), "공훈: 기록형은 직능을 열지 않는다")
+	_ok(Feats.vocations_open(["rec_reached", "rec_intact", "rec_bridge", "rec_all_vocs"]).is_empty(), "공훈: 기록형은 직능을 열지 않는다")
 
 ## 이어하기 직렬화 — 실제 JSON 왕복 후 상태가 보존되고, rng 까지 복원돼 같은 미래를 걷는가.
 func _test_run_serialization() -> void:

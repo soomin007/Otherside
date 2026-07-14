@@ -23,7 +23,10 @@ extends RefCounted
 ##
 ## 기록형 공훈(2026-07-13): `unlocks` 가 없는 명예 기록 — 사람을 부르지 않고 일지 "마을" 챕터
 ## "이룬 일"에만 쌓인다. cond 없음 = **달성 전엔 어디에도 안 보인다**(재회 같은 결말의 존재를
-## 미리 새지 않게 — 기획서 §3 비공개 정책과 같은 축). 통계 키는 GameState.feat_stats_snapshot 파생값.
+## 미리 새지 않게 — 기획서 §3 비공개 정책과 같은 축). 통계 키는 GameState.feat_stats_snapshot 파생값
+## (arrivals_total·reunions·intact_arrivals·all_nodes_visited + 2026-07-14 추가분:
+##  blockages_bridged 차단 노드에 남긴 우리 로프 곳 수(유령 씨앗 제외) ·
+##  vocations_full    직능이 다 열렸으면 1 — feats_unlocked 파생이라 check_feats 가 연쇄 재확인).
 ##
 ## done(2026-07-13 사용자): 해금 뒤 마을 챕터에 남는 **얻은 내력 한 줄** — 무엇을 해서
 ## 이 사람이 왔는지. cond 의 짧은 과거형 변주. 직능 공훈만 가진다(기록형은 line 이 그 역할).
@@ -93,6 +96,21 @@ const LIST: Array = [
 		"name": "건너편의 재회",
 		"line": "먼저 간 모든 원정대가\n건너편에서 기다리고 있었다.",
 		"stat": "reunions", "at_least": 1,
+	},
+	{
+		# 차단 노드에 우리 로프를 남김(고정 또는 남기기 — 유령 씨앗 제외). 지도의 차단은 둘(b2·e1)이고
+		# b2 는 유령 로프가 걸린 채 시작하므로, 사실상 스스로 이은 첫 길의 기록.
+		"id": "rec_bridge",
+		"name": "길을 이어 놓은 원정",
+		"line": "막힌 자리에 로프를 걸어 두고 갔다.\n이제 어느 원정도\n거기서 멈추지 않는다.",
+		"stat": "blockages_bridged", "at_least": 1,
+	},
+	{
+		# 직능 공훈 다섯을 모두 이룸 — 마을이 다 찼다. "X가 마을에 왔다" 다섯 줄의 마무리.
+		"id": "rec_all_vocs",
+		"name": "다 모인 마을",
+		"line": "올 사람은 다 왔다.\n원정이 겪은 일들이\n사람을 하나씩 마을에 앉혔다.",
+		"stat": "vocations_full", "at_least": 1,
 	},
 ]
 

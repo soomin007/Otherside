@@ -118,10 +118,24 @@ func feat_stats_snapshot() -> Dictionary:
 		"reunions": reunions,
 		"intact_arrivals": intact,
 		"all_nodes_visited": 1 if _all_nodes_visited() else 0,
+		"blockages_bridged": _blockages_bridged(),
+		"vocations_full": 1 if Feats.vocations_open(feats_unlocked).size() >= Vocations.ids().size() - 1 else 0,
 	}
 
 func _bump_feat_stat(key: String) -> void:
 	feat_stats[key] = int(feat_stats.get(key, 0)) + 1
+
+## 차단 노드에 우리 로프가 남은 곳 수(유령 씨앗 제외) — 기록형 "길을 이어 놓은 원정"의 근거.
+## 로프 고정(action bridge)도 남기기(로프)도 같은 ROPE 흔적으로 남는다 — 뒤 원정에게 길을 연 같은 일.
+func _blockages_bridged() -> int:
+	var seen: Dictionary = {}
+	for raw in traces:
+		if raw is Dictionary and int(raw.get("object_kind", -1)) == TraceData.ObjectKind.ROPE \
+				and not bool(raw.get("seed", false)):
+			var nid: String = str(raw.get("node_id", ""))
+			if nid != "" and str(MapGraph.node(nid).get("kind", "")) == "blockage":
+				seen[nid] = true
+	return seen.size()
 
 ## 방문한 노드의 가장 깊은 층(MapGraph row) — 길잡이 공훈의 근거.
 func _max_row_visited() -> int:
@@ -142,12 +156,20 @@ func _all_nodes_visited() -> bool:
 
 ## 새로 달성한 공훈이 있으면 기록하고 안내 대기열에 얹는다. 저장은 호출측이 한다(중복 save 방지 —
 ## 이 함수를 부르는 자리는 전부 직후에 save_game/autosave 가 있다).
+## 새 달성이 없을 때까지 반복한다 — "다 모인 마을"(vocations_full)처럼 달성 *결과*(feats_unlocked)에서
+## 파생되는 기록은 같은 사건 안에서 연쇄로 이뤄져야 다음 사건으로 밀리지 않는다(2026-07-14).
+## 종료 보장: feats_unlocked 는 늘기만 하고 LIST 크기로 유한.
 func check_feats() -> void:
-	var stats: Dictionary = feat_stats_snapshot()
-	for fid in Feats.achieved_ids(stats):
-		if not feats_unlocked.has(fid):
-			feats_unlocked.append(fid)
-			pending_feat_notices.append(fid)
+	while true:
+		var stats: Dictionary = feat_stats_snapshot()
+		var grew: bool = false
+		for fid in Feats.achieved_ids(stats):
+			if not feats_unlocked.has(fid):
+				feats_unlocked.append(fid)
+				pending_feat_notices.append(fid)
+				grew = true
+		if not grew:
+			return
 
 ## 지금 고를 수 있는 직능 id 목록 — 평범("")은 항상 + 공훈으로 마을에 온 이들.
 func unlocked_vocations() -> Array:
