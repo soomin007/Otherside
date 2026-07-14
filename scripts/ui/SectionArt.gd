@@ -162,9 +162,10 @@ static func draw_spot(ci: CanvasItem, font: Font, center: Vector2, label: String
 		if _label_pool == null:
 			var pg := Gradient.new()
 			pg.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
+			# 밝은 그림(오아시스 하늘 등) 위에서 흐릿 → 중심 알파 보강(0.66/0.36 → 0.82/0.48, 2026-07-15 폰 확인).
 			pg.colors = PackedColorArray([
-				Color(0.914, 0.839, 0.686, 0.66),
-				Color(0.914, 0.839, 0.686, 0.36),
+				Color(0.914, 0.839, 0.686, 0.82),
+				Color(0.914, 0.839, 0.686, 0.48),
 				Color(0.914, 0.839, 0.686, 0.0),
 			])
 			_label_pool = GradientTexture2D.new()

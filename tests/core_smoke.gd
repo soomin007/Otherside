@@ -13,6 +13,7 @@ var _fail: int = 0
 
 func _init() -> void:
 	_test_mapgraph_integrity()
+	_test_spot_coordinates()
 	_test_water_cost_curve()
 	_test_edge_progression()
 	_test_edge_distance()
@@ -43,6 +44,41 @@ func _init() -> void:
 	else:
 		print("=== core_smoke: FAIL ", _fail, " ===")
 	quit(1 if _fail > 0 else 0)
+
+## 지점 좌표 스윕 — 메인 마커(main_at 또는 kind 기본값)와 spot, spot 과 spot 은 최소 0.1 떨어지고
+## 전부 0..1 범위 안이어야 한다(known_issues "스톰 노드 마커 포개짐" 재발 방지책의 자동화, 2026-07-15).
+func _test_spot_coordinates() -> void:
+	var min_d: float = 0.1
+	var bad: Array = []
+	for id in MapGraph.NODES:
+		var node: Dictionary = MapGraph.NODES[id]
+		var sp: Array = node.get("spots", [])
+		if sp.is_empty():
+			continue
+		var pts: Array = []
+		var main_at: Vector2 = node.get("main_at", _default_main_at(str(node.get("kind", ""))))
+		pts.append({"id": "(main)", "at": main_at})
+		for s in sp:
+			var spot: Dictionary = s
+			pts.append({"id": str(spot.get("id", "?")), "at": spot.get("at", Vector2(0.5, 0.5))})
+		for i in range(pts.size()):
+			var a: Dictionary = pts[i]
+			var pa: Vector2 = a["at"]
+			if pa.x < 0.0 or pa.x > 1.0 or pa.y < 0.0 or pa.y > 1.0:
+				bad.append("%s:%s 범위 밖" % [str(id), str(a["id"])])
+			for j in range(i + 1, pts.size()):
+				var b: Dictionary = pts[j]
+				var pb: Vector2 = b["at"]
+				if pa.distance_to(pb) < min_d:
+					bad.append("%s: %s~%s 거리 %s" % [str(id), str(a["id"]), str(b["id"]), String.num(pa.distance_to(pb), 3)])
+	_ok(bad.is_empty(), "지점 좌표 스윕(메인·지점 0.1 이상, 0..1 범위)" + ("" if bad.is_empty() else ": " + ", ".join(bad)))
+
+## SectionRun._default_main_at 복제(순수 테스트라 인스턴스 없이 쓴다) — SectionRun 쪽이 바뀌면 같이 바꾼다.
+func _default_main_at(k: String) -> Vector2:
+	match k:
+		"blockage": return Vector2(0.5, 0.5)
+		"storm": return Vector2(0.5, 0.42)
+		_: return Vector2(0.5, 0.55)
 
 # --- helpers ---
 
