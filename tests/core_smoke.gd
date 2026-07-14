@@ -66,12 +66,17 @@ func _test_spot_coordinates() -> void:
 			var pa: Vector2 = a["at"]
 			if pa.x < 0.0 or pa.x > 1.0 or pa.y < 0.0 or pa.y > 1.0:
 				bad.append("%s:%s 범위 밖" % [str(id), str(a["id"])])
+			# 안내선 창 회피 — Expedition 의 첫 도착/통과 안내가 화면 중앙 하단(y=rect.y-140, 가운데 정렬,
+			# FS_SMALL)에 뜬다. 중앙 x 대역의 라벨 글줄(y 0.71~0.78 부근)이 그 문구와 글자끼리 겹친다
+			# (2026-07-15 폰 확인: 오아시스 "웅크린 사람"). 마진 포함 창: x (0.36,0.64) × y (0.705,0.785).
+			if pa.x > 0.36 and pa.x < 0.64 and pa.y > 0.705 and pa.y < 0.785:
+				bad.append("%s:%s 안내선 창(0.36~0.64 × 0.705~0.785) 침범" % [str(id), str(a["id"])])
 			for j in range(i + 1, pts.size()):
 				var b: Dictionary = pts[j]
 				var pb: Vector2 = b["at"]
 				if pa.distance_to(pb) < min_d:
 					bad.append("%s: %s~%s 거리 %s" % [str(id), str(a["id"]), str(b["id"]), String.num(pa.distance_to(pb), 3)])
-	_ok(bad.is_empty(), "지점 좌표 스윕(메인·지점 0.1 이상, 0..1 범위)" + ("" if bad.is_empty() else ": " + ", ".join(bad)))
+	_ok(bad.is_empty(), "지점 좌표 스윕(메인·지점 0.1 이상, 0..1 범위, 안내선 창 회피)" + ("" if bad.is_empty() else ": " + ", ".join(bad)))
 
 ## SectionRun._default_main_at 복제(순수 테스트라 인스턴스 없이 쓴다) — SectionRun 쪽이 바뀌면 같이 바꾼다.
 func _default_main_at(k: String) -> Vector2:

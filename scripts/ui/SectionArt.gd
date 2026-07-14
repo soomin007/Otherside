@@ -161,11 +161,12 @@ static func draw_spot(ci: CanvasItem, font: Font, center: Vector2, label: String
 		# 크림 웅덩이 — 어떤 그림 위에서도 라벨이 읽히게(예전엔 잉크색 맨글자라 그림에 묻혔다, 2026-07-06).
 		if _label_pool == null:
 			var pg := Gradient.new()
-			pg.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
-			# 밝은 그림(오아시스 하늘 등) 위에서 흐릿 → 중심 알파 보강(0.66/0.36 → 0.82/0.48, 2026-07-15 폰 확인).
+			# 글자가 앉는 안쪽은 평탄하게 진하게, 가장자리만 페이드 — 어두운 그림(독 웅덩이 진흙) 위
+			# 잉크 글자 대비 확보(2026-07-15 폰 확인. 예전 0.5 지점부터 페이드라 긴 라벨 끝이 흐릿).
+			pg.offsets = PackedFloat32Array([0.0, 0.62, 1.0])
 			pg.colors = PackedColorArray([
-				Color(0.914, 0.839, 0.686, 0.82),
-				Color(0.914, 0.839, 0.686, 0.48),
+				Color(0.914, 0.839, 0.686, 0.88),
+				Color(0.914, 0.839, 0.686, 0.60),
 				Color(0.914, 0.839, 0.686, 0.0),
 			])
 			_label_pool = GradientTexture2D.new()
@@ -176,9 +177,12 @@ static func draw_spot(ci: CanvasItem, font: Font, center: Vector2, label: String
 			_label_pool.width = 128
 			_label_pool.height = 64
 		var pool_a: float = 1.0 if state == 0 else 0.55
-		ci.draw_texture_rect(_label_pool, Rect2(center.x - 78.0, center.y + r - 6.0, 156.0, 40.0), false, Color(1.0, 1.0, 1.0, pool_a))
+		# 웅덩이 폭 = 글자 폭 비례 — 고정 156px 은 긴 라벨("앞선 이의 유품")의 양끝을 못 받쳤다(2026-07-15 폰 확인).
+		var tw: float = font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, UITheme.FS_SMALL).x
+		var pw: float = maxf(140.0, tw * 1.8)
+		ci.draw_texture_rect(_label_pool, Rect2(center.x - pw * 0.5, center.y + r - 6.0, pw, 40.0), false, Color(1.0, 1.0, 1.0, pool_a))
 		var lc: Color = UITheme.INK if state == 0 else faded
-		ci.draw_string(font, center + Vector2(-60.0, r + 20.0), label, HORIZONTAL_ALIGNMENT_CENTER, 120.0, UITheme.FS_SMALL, lc)
+		ci.draw_string(font, center + Vector2(-(tw * 0.5 + 8.0), r + 20.0), label, HORIZONTAL_ALIGNMENT_CENTER, tw + 16.0, UITheme.FS_SMALL, lc)
 
 # --- kind별 실루엣 ---
 
