@@ -12,9 +12,9 @@ extends CanvasLayer
 
 const ENABLED: bool = true
 
-## 실제 활성 여부 — 웹(폰 배포) 빌드에선 상시 꺼짐. 폰에서 DEV 오탭으로 세계가 영구 오염되는
-## 사고 방지(2026-07-15 사용자 — "모든 노드 공개"·플래그·더미 추모는 저장까지 간다).
-## 폰에서 다시 필요해지면 `not OS.has_feature("web")` 조건만 지운다(ENABLED 는 데스크톱 개발 스위치).
+## 2026-07-15 오탭 사고 후 정리: 사고 원인이던 튜닝 슬라이더(글씨·제목 — 값은 이미 코드
+## 기본값으로 확정)는 패널에서 제거. 저장까지 가는 위험 버튼(모든 노드 공개·flag·재회 임계·
+## 세이브 초기화)은 첫 탭에 무장만 되고 2초 안에 한 번 더 눌러야 실행(_add_armed_btn).
 var _active: bool = false
 
 ## 원터치로 켤 런 플래그(선택 반영 체인 테스트용). 같은 런(sets)+영속(sets_persist) 둘 다 켠다.
@@ -27,7 +27,7 @@ var _god_btn: Button
 var _tick: float = 0.0
 
 func _ready() -> void:
-	_active = ENABLED and not OS.has_feature("web")
+	_active = ENABLED
 	if not _active:
 		return
 	layer = 128  # 게임 UI 위
@@ -121,7 +121,7 @@ func _build() -> void:
 	_god_btn = _add_btn(col, "God 모드: OFF", _toggle_god)
 
 	_add_title(col, "지도 / 이동")
-	_add_btn(col, "모든 노드 공개", _reveal_all)
+	_add_armed_btn(col, "모든 노드 공개", _reveal_all)
 	var jump := OptionButton.new()
 	jump.add_item("노드 단면으로 점프…")
 	for id in MapGraph.NODES:
@@ -134,41 +134,17 @@ func _build() -> void:
 	_add_title(col, "선택 반영 체인 (플래그 켜기)")
 	for f in TEST_FLAGS:
 		var flag: String = str(f)
-		_add_btn(col, "flag: " + flag, func() -> void: _set_flag(flag))
+		_add_armed_btn(col, "flag: " + flag, func() -> void: _set_flag(flag))
 
 	_add_title(col, "결말")
-	_add_btn(col, "재회 임계 채우기 (기림 %d·구조 %d·손실 0)" % [GameState.REUNION_MOURN, GameState.REUNION_RESCUES], _fill_reunion)
+	_add_armed_btn(col, "재회 임계 채우기 (기림 %d·구조 %d·손실 0)" % [GameState.REUNION_MOURN, GameState.REUNION_RESCUES], _fill_reunion)
 	_add_btn(col, "엔딩 바로보기: 순환", func() -> void: _show_ending("cycle"))
 	_add_btn(col, "엔딩 바로보기: 재회 (크레딧 롤)", func() -> void: _show_ending("reunion"))
 
-	# 각인 글씨(타이틀 메뉴 등) 실시간 튜닝 — 값을 정하면 EngravedItem 의 tune_* 기본값에 박는다.
-	_add_title(col, "글씨 튜닝 (각인 메뉴 — 실시간)")
-	_add_slider(col, "밑줄 두께", 0.2, 3.0, EngravedItem.tune_core,
-		func(v: float) -> void: EngravedItem.tune_core = v)
-	_add_slider(col, "밑줄 글로우", 0.0, 3.0, EngravedItem.tune_glow,
-		func(v: float) -> void: EngravedItem.tune_glow = v)
-	_add_slider(col, "그림자 진하기", 0.0, 1.0, EngravedItem.tune_shadow_a,
-		func(v: float) -> void: EngravedItem.tune_shadow_a = v)
-	_add_slider(col, "그림자 퍼짐", 0.0, 28.0, float(EngravedItem.tune_shadow_blur),
-		func(v: float) -> void: EngravedItem.tune_shadow_blur = int(v))
-	_add_slider(col, "테두리 어둠", 0.0, 1.0, EngravedItem.tune_outline_a,
-		func(v: float) -> void: EngravedItem.tune_outline_a = v)
-	_add_slider(col, "배경 어둠 진하기", 0.0, 1.0, EngravedItem.tune_bg_a,
-		func(v: float) -> void: EngravedItem.tune_bg_a = v)
-	_add_slider(col, "배경 어둠 퍼짐", 1.0, 4.0, EngravedItem.tune_bg_scale,
-		func(v: float) -> void: EngravedItem.tune_bg_scale = v)
-
-	_add_title(col, "제목 튜닝 (타이틀 로고 — 실시간)")
-	var main_scr := preload("res://scripts/ui/Main.gd")
-	_add_tslider(col, "제목 그림자 진하기", 0.0, 1.0, main_scr.title_shadow_a,
-		func(v: float) -> void: main_scr.title_shadow_a = v)
-	_add_tslider(col, "제목 그림자 퍼짐", 0.0, 28.0, float(main_scr.title_shadow_blur),
-		func(v: float) -> void: main_scr.title_shadow_blur = int(v))
-	_add_tslider(col, "제목 테두리 어둠", 0.0, 1.0, main_scr.title_outline_a,
-		func(v: float) -> void: main_scr.title_outline_a = v)
-
+	# (글씨·제목 튜닝 슬라이더는 2026-07-15 제거 — 값은 EngravedItem/Main 의 tune_*/title_* 기본값으로
+	#  확정된 지 오래고, 폰에서 오탭으로 타이틀이 실시간으로 뒤틀리는 사고만 남겼다. 필요하면 git 이력에서.)
 	_add_title(col, "세이브")
-	_add_btn(col, "세이브 초기화 → 타이틀", _reset)
+	_add_armed_btn(col, "세이브 초기화 → 타이틀", _reset)
 	_add_btn(col, "닫기", _toggle)
 
 func _add_title(col: VBoxContainer, text: String) -> void:
@@ -185,41 +161,28 @@ func _add_btn(col: VBoxContainer, text: String, cb: Callable) -> Button:
 	col.add_child(b)
 	return b
 
-## 제목 튜닝 슬라이더 — setter 후 타이틀(title_screen 그룹)에 적용 브로드캐스트.
-func _add_tslider(col: VBoxContainer, text: String, lo: float, hi: float, cur: float, setter: Callable) -> void:
-	var lbl := Label.new()
-	lbl.text = "%s: %.2f" % [text, cur]
-	lbl.add_theme_font_size_override("font_size", 13)
-	col.add_child(lbl)
-	var s := HSlider.new()
-	s.min_value = lo
-	s.max_value = hi
-	s.step = 0.01
-	s.value = cur
-	s.custom_minimum_size = Vector2(0, 30)
-	s.value_changed.connect(func(v: float) -> void:
-		setter.call(v)
-		lbl.text = "%s: %.2f" % [text, v]
-		get_tree().call_group("title_screen", "apply_title_tuning"))
-	col.add_child(s)
-
-## 튜닝 슬라이더 한 줄 — 값 바꾸면 setter 실행 후 모든 각인 항목에 즉시 반영(타이틀 띄워놓고 조절).
-func _add_slider(col: VBoxContainer, text: String, lo: float, hi: float, cur: float, setter: Callable) -> void:
-	var lbl := Label.new()
-	lbl.text = "%s: %.2f" % [text, cur]
-	lbl.add_theme_font_size_override("font_size", 13)
-	col.add_child(lbl)
-	var s := HSlider.new()
-	s.min_value = lo
-	s.max_value = hi
-	s.step = 0.01
-	s.value = cur
-	s.custom_minimum_size = Vector2(0, 30)
-	s.value_changed.connect(func(v: float) -> void:
-		setter.call(v)
-		lbl.text = "%s: %.2f" % [text, v]
-		get_tree().call_group("engraved_item", "apply_tuning"))
-	col.add_child(s)
+## 위험 버튼(저장까지 가는 것) — 첫 탭은 무장만, 2초 안에 한 번 더 눌러야 실행.
+## 폰에서 스크롤 오탭 한 번으로 세계가 영구 오염되던 사고 방지(2026-07-15).
+func _add_armed_btn(col: VBoxContainer, text: String, cb: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(0, 40)
+	b.set_meta("armed", false)
+	b.pressed.connect(func() -> void:
+		if bool(b.get_meta("armed")):
+			b.set_meta("armed", false)
+			b.text = text
+			cb.call()
+			return
+		b.set_meta("armed", true)
+		b.text = "한 번 더 누르면 실행: " + text
+		var tm: SceneTreeTimer = get_tree().create_timer(2.0)
+		tm.timeout.connect(func() -> void:
+			if is_instance_valid(b) and bool(b.get_meta("armed")):
+				b.set_meta("armed", false)
+				b.text = text))
+	col.add_child(b)
+	return b
 
 # --- 동작 ---
 
