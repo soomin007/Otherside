@@ -58,6 +58,8 @@ func _test_spot_coordinates() -> void:
 		var pts: Array = []
 		var main_at: Vector2 = node.get("main_at", _default_main_at(str(node.get("kind", ""))))
 		pts.append({"id": "(main)", "at": main_at})
+		if node.has("straggler_at"):
+			pts.append({"id": "(straggler)", "at": node["straggler_at"]})
 		for s in sp:
 			var spot: Dictionary = s
 			pts.append({"id": str(spot.get("id", "?")), "at": spot.get("at", Vector2(0.5, 0.5))})

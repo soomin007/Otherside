@@ -20,6 +20,9 @@ extends RefCounted
 ##    엣지 A→B 의 성격 = 도착 노드 B 의 biome("향하는 곳의 지형을 따라간다"). start/end 는 없으면 "flats" 폴백.
 ##  events: 도착 시 뜨는 이벤트 풀(Situations 와 같은 구조 — pick_event 재활용 가능). start/end 는 없음.
 ##    이벤트 = {id, threat, text, choices, requires?}. choice = {label, effect, needs?, action?, sets?, sets_persist?}.
+##  main_at: 도착 카드 마커의 단면 정규화 좌표(없으면 SectionRun 이 kind 기본값). spots: 보조 지점.
+##  straggler_at: 낙오자("웅크린 사람") 도착 카드일 때의 마커 자리 — 카드 문구("바람을 피한 그늘에")에 맞게
+##    그늘·바람 그늘에 앉힌다(없으면 main_at). 좌표 규칙은 spots 와 동일(core_smoke 스윕 대상).
 ## 거리 곡선(기획서 §1): 가까운 row 는 풍요(cache 위주), 먼 row 는 척박(위협 위주).
 ## 단일 진실: docs/design/SYOTOS_기획서_v0.1.md §5(두 레이어 — 탑뷰 지도).
 
@@ -30,7 +33,7 @@ const NODES: Dictionary = {
 		"kind": "start", "name": "마을", "row": 0, "col": 0.5, "next": ["a1"], "biome": "flats",
 	},
 	"a1": {
-		"kind": "cache", "name": "마른 강", "row": 1, "col": 0.5, "next": ["b1", "b2"], "biome": "river", "main_at": Vector2(0.44, 0.70),
+		"kind": "cache", "name": "마른 강", "row": 1, "col": 0.5, "next": ["b1", "b2"], "biome": "river", "main_at": Vector2(0.44, 0.70), "straggler_at": Vector2(0.13, 0.60),
 		"events": [
 			{
 				"id": "river_dig", "threat": Threats.Kind.CONSUMPTION,
@@ -80,7 +83,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"b1": {
-		"kind": "cache", "name": "버려진 야영지", "row": 2, "col": 0.28, "next": ["c1", "c2"], "biome": "flats", "main_at": Vector2(0.46, 0.68),
+		"kind": "cache", "name": "버려진 야영지", "row": 2, "col": 0.28, "next": ["c1", "c2"], "biome": "flats", "main_at": Vector2(0.46, 0.68), "straggler_at": Vector2(0.20, 0.57),
 		"events": [
 			{
 				"id": "camp_search", "threat": Threats.Kind.CONSUMPTION,
@@ -131,7 +134,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"b2": {
-		"kind": "blockage", "name": "갈라진 바닥", "row": 2, "col": 0.72, "next": ["c2"], "biome": "rock", "main_at": Vector2(0.53, 0.66),
+		"kind": "blockage", "name": "갈라진 바닥", "row": 2, "col": 0.72, "next": ["c2"], "biome": "rock", "main_at": Vector2(0.53, 0.66), "straggler_at": Vector2(0.30, 0.60),
 		# ★ 도착 이벤트 없음(의도, 2026-07-14 사용자 확정): 세계마다 유령 씨앗 로프가 여기 걸린 채
 		#   시작해(GameState._plant_seeds) 도착은 항상 crossed_blockage("이전 원정대가 로프를 걸어뒀다").
 		#   데스 스트랜딩의 NPC 사다리처럼 "남긴 물건이 영구히 길이 된다"를 첫 원정부터 보여주는 자리.
@@ -146,7 +149,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"c1": {
-		"kind": "cache", "name": "오아시스", "row": 3, "col": 0.3, "next": ["d1"], "biome": "river", "main_at": Vector2(0.56, 0.68),
+		"kind": "cache", "name": "오아시스", "row": 3, "col": 0.3, "next": ["d1"], "biome": "river", "main_at": Vector2(0.56, 0.68), "straggler_at": Vector2(0.16, 0.56),
 		"events": [
 			{
 				"id": "oasis", "threat": Threats.Kind.CONSUMPTION,
@@ -199,13 +202,13 @@ const NODES: Dictionary = {
 		"spots": [
 			{"id": "oasis_shade", "label": "야자 그늘", "at": Vector2(0.74, 0.52), "source": "cache", "effect": {"food": 1}, "text": "그늘에서 숨을 고른다.\n마른 대추야자 몇 알."},
 			{"id": "oasis_edge", "label": "물가", "at": Vector2(0.24, 0.71), "source": "cache", "effect": {"water": 3}, "text": "가장자리에 고인 맑은 물.\n물통을 넉넉히 채운다."},
-			{"id": "oasis_pooled", "label": "넓혀둔 웅덩이", "at": Vector2(0.38, 0.69), "source": "cache", "requires": "oasis_widened", "effect": {"water": 3}, "text": "이전 원정대가 파 넓힌 자리에\n물이 그득 고였다."},
-			{"id": "oasis_dig", "label": "물가 진흙", "at": Vector2(0.31, 0.84), "source": "cache", "effect": {}, "sets": ["oasis_widened"], "sets_persist": ["oasis_widened"], "text": "물가 진흙을 파 우물을 넓혀 둔다.\n지금 손에 쥐는 물은 없지만,\n다음에 올 이들 몫이 깊어진다."},
+			{"id": "oasis_pooled", "label": "파 넓힌 웅덩이", "at": Vector2(0.38, 0.69), "source": "cache", "requires": "oasis_widened", "effect": {"water": 3}, "text": "이전 원정대가 파 넓힌 자리에\n물이 그득 고였다."},
+			{"id": "oasis_dig", "label": "물가 진흙", "at": Vector2(0.31, 0.84), "source": "cache", "effect": {}, "sets": ["oasis_widened"], "sets_persist": ["oasis_widened"], "text": "물가 진흙을 파\n웅덩이를 넓혀 둔다.\n지금 손에 쥐는 물은 없지만,\n다음에 올 이들 몫이 깊어진다."},
 			{"id": "oasis_palm", "label": "야자 꼭대기", "at": Vector2(0.76, 0.30), "source": "event", "event": {"id": "oasis_palm_climb", "threat": Threats.Kind.CONSUMPTION, "text": "야자 꼭대기에 열매가 매달려 있다.\n오르면 딸 수 있지만 기운이 빠진다.", "choices": [{"label": "올라가 딴다", "effect": {"food": 1, "water": -1}}, {"label": "둔다", "effect": {}}]}},
 		],
 	},
 	"c2": {
-		"kind": "storm", "name": "모래의 벽", "row": 3, "col": 0.72, "next": ["d1", "d2"], "biome": "storm", "main_at": Vector2(0.58, 0.48),
+		"kind": "storm", "name": "모래의 벽", "row": 3, "col": 0.72, "next": ["d1", "d2"], "biome": "storm", "main_at": Vector2(0.58, 0.48), "straggler_at": Vector2(0.24, 0.66),
 		"events": [
 			{
 				"id": "sand_wall", "threat": Threats.Kind.STORM,
@@ -256,7 +259,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"d1": {
-		"kind": "cache", "name": "뼈의 들판", "row": 4, "col": 0.35, "next": ["e1"], "biome": "flats", "main_at": Vector2(0.46, 0.68),
+		"kind": "cache", "name": "뼈의 들판", "row": 4, "col": 0.35, "next": ["e1"], "biome": "flats", "main_at": Vector2(0.46, 0.68), "straggler_at": Vector2(0.34, 0.55),
 		"events": [
 			{
 				"id": "bones_gather", "threat": Threats.Kind.CONSUMPTION,
@@ -315,7 +318,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"d2": {
-		"kind": "cache", "name": "독 웅덩이", "row": 4, "col": 0.7, "next": ["e1"], "biome": "river", "main_at": Vector2(0.50, 0.66),
+		"kind": "cache", "name": "독 웅덩이", "row": 4, "col": 0.7, "next": ["e1"], "biome": "river", "main_at": Vector2(0.50, 0.66), "straggler_at": Vector2(0.80, 0.60),
 		"events": [
 			{
 				"id": "poison_pool", "threat": Threats.Kind.CONSUMPTION,
@@ -358,7 +361,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"e1": {
-		"kind": "blockage", "name": "무너진 담", "row": 5, "col": 0.5, "next": ["f1"], "biome": "rock", "main_at": Vector2(0.62, 0.47),
+		"kind": "blockage", "name": "무너진 담", "row": 5, "col": 0.5, "next": ["f1"], "biome": "rock", "main_at": Vector2(0.62, 0.47), "straggler_at": Vector2(0.45, 0.60),
 		"events": [
 			{
 				"id": "collapsed_wall", "threat": Threats.Kind.BLOCKAGE,
@@ -394,7 +397,7 @@ const NODES: Dictionary = {
 		],
 	},
 	"f1": {
-		"kind": "storm", "name": "폭풍의 문", "row": 6, "col": 0.5, "next": ["end"], "biome": "storm", "main_at": Vector2(0.50, 0.40),
+		"kind": "storm", "name": "폭풍의 문", "row": 6, "col": 0.5, "next": ["end"], "biome": "storm", "main_at": Vector2(0.50, 0.40), "straggler_at": Vector2(0.09, 0.65),
 		"events": [
 			{
 				"id": "storm_gate", "threat": Threats.Kind.STORM,
@@ -439,10 +442,10 @@ const NODES: Dictionary = {
 			},
 		],
 		"spots": [
-			{"id": "gate_relic", "label": "앞선 이의 유품", "at": Vector2(0.14, 0.80), "source": "cache", "effect": {"water": 4}, "text": "협곡 입구에 여럿의 물통이\n반쯤 묻혀 있다.\n여기까지 온 원정대가 있었다."},
-			{"id": "gate_mouth", "label": "협곡 입구", "at": Vector2(0.51, 0.66), "source": "empty", "text": "폭풍이 입구를 삼켰다.\n그 너머는 아무도 모른다."},
-			{"id": "gate_cairn", "label": "돌무더기", "at": Vector2(0.32, 0.78), "source": "empty", "text": "문 앞에 돌무더기. 여기까지 온\n원정대들이 하나씩 쌓았다.\n곁에 긁힌 표식: [ 마지막 · 또 ]"},
-			{"id": "gate_stock", "label": "마지막 물", "at": Vector2(0.82, 0.78), "source": "event", "event": {"id": "gate_last_water", "threat": Threats.Kind.STORM, "text": "폭풍에 들기 전 마지막 물.\n지금 마셔 힘을 낼지,\n한 모금 아껴 담아 둘지.\n아껴 둔 한 모금은\n폭풍 너머까지 간다.", "choices": [{"label": "지금 마셔 힘을 낸다", "effect": {}}, {"label": "한 모금 아껴 담아 둔다", "effect": {}, "sets": ["water_stocked"], "sets_persist": ["water_stocked"]}]}},
+			{"id": "gate_relic", "label": "앞선 이의 유품", "at": Vector2(0.14, 0.80), "source": "cache", "effect": {"water": 4}, "text": "검은 바위 그늘에\n물통 여럿이 반쯤 묻혀 있다.\n여기까지 온 원정대가 있었다."},
+			{"id": "gate_mouth", "label": "문 아래", "at": Vector2(0.51, 0.66), "source": "empty", "text": "폭풍이 두 기둥으로 서서\n문이 되었다.\n그 아래 어둠이 협곡 입구다.\n너머는 아무도 모른다."},
+			{"id": "gate_cairn", "label": "돌무더기", "at": Vector2(0.32, 0.78), "source": "empty", "text": "문으로 드는 길가에 돌무더기.\n여기까지 온 원정대들이\n하나씩 얹고 갔다.\n곁에 긁힌 표식: [ 마지막 · 또 ]"},
+			{"id": "gate_stock", "label": "마지막 물", "at": Vector2(0.82, 0.78), "source": "event", "event": {"id": "gate_last_water", "threat": Threats.Kind.STORM, "text": "검은 바위가 바람을 가려 주는 자리.\n폭풍에 들기 전 마지막 물이다.\n지금 마셔 힘을 낼지,\n한 모금 아껴 담아 둘지.\n아껴 둔 한 모금은\n폭풍 너머까지 간다.", "choices": [{"label": "지금 마셔 힘을 낸다", "effect": {}}, {"label": "한 모금 아껴 담아 둔다", "effect": {}, "sets": ["water_stocked"], "sets_persist": ["water_stocked"]}]}},
 		],
 	},
 	"end": {

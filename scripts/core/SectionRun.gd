@@ -39,6 +39,9 @@ func _init(run: ExpeditionRun = null, node: Dictionary = {}) -> void:
 	var main_ev: Dictionary = run.arrival_event()
 	if not main_ev.is_empty():
 		var main_at: Vector2 = node.get("main_at", _default_main_at(kind))
+		if str(main_ev.get("kind", "")) == "straggler":
+			# 낙오자는 카드 문구("바람을 피한 그늘에")대로 노드의 그늘 자리에 웅크린다(2026-07-15).
+			main_at = node.get("straggler_at", main_at)
 		var mand: bool = _is_mandatory_threat(main_ev)
 		var bridge: bool = str(main_ev.get("kind", "")) == "bridged"
 		spots.append({

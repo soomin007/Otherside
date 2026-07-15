@@ -651,6 +651,9 @@ func _draw() -> void:
 			st = 2  # 예산 소진(선택형). 필수 위협은 can_probe 가 항상 true라 열린 채로 남는다.
 		var is_main: bool = bool(spot.get("_result", {}).get("main", false))
 		SectionArt.draw_spot(self, font, _spot_screen(at), str(spot.get("label", "")), st, is_main)
+		# 낙오자면 마커 위에 웅크린 사람이 실제로 보이게(2026-07-15 사용자 — 시각 힌트 없인 뜬금없다).
+		if is_main and st == 0 and str(spot.get("_result", {}).get("event", {}).get("kind", "")) == "straggler":
+			SectionArt.draw_straggler(self, _spot_screen(at))
 	if _section.spot_count() == 0:
 		draw_string(font, Vector2(0.0, rect.y * 0.5), "둘러볼 것이 없다. 떠난다.", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_BODY, UITheme.FG)
 	elif _section.has_unresolved_threat():

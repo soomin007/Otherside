@@ -184,6 +184,35 @@ static func draw_spot(ci: CanvasItem, font: Font, center: Vector2, label: String
 		var lc: Color = UITheme.INK if state == 0 else faded
 		ci.draw_string(font, center + Vector2(-(tw * 0.5 + 8.0), r + 20.0), label, HORIZONTAL_ALIGNMENT_CENTER, tw + 16.0, UITheme.FS_SMALL, lc)
 
+## 낙오자 시각 힌트 — "웅크린 사람" 마커 위에 실제 웅크린 사람 스케치(지도·일지와 같은 킷 61).
+## 마커만 있으면 뜬금없다는 지적(2026-07-15 사용자) — 크림 원반(라벨 웅덩이와 같은 결) + 온기 무리 위에
+## 사람이 앉아, 어두운 그림에서도 "여기 사람이 있다"가 한눈에 읽히게 한다.
+static func draw_straggler(ci: CanvasItem, marker_center: Vector2) -> void:
+	var pos: Vector2 = marker_center + Vector2(0.0, -42.0)
+	ci.draw_circle(pos, 27.0, Color(0.914, 0.839, 0.686, 0.5))
+	ci.draw_circle(pos, 18.0, Color(0.86, 0.66, 0.38, 0.24))  # 옅은 온기 무리(지도 마커와 같은 신호)
+	var tex: Texture2D = _straggler_tex()
+	if tex != null:
+		draw_tex_center(ci, tex, pos, 44.0)
+		return
+	# fallback — 절차적 웅크린 실루엣(Map._draw_person 과 같은 결. 웹 안전).
+	var ink := Color(0.36, 0.24, 0.16, 0.92)
+	ci.draw_circle(pos + Vector2(0.0, -10.0), 4.2, ink)
+	ci.draw_line(pos + Vector2(-5.0, -5.0), pos + Vector2(-7.0, 7.5), ink, 2.6)
+	ci.draw_line(pos + Vector2(0.0, -5.5), pos + Vector2(0.0, 8.0), ink, 2.9)
+	ci.draw_line(pos + Vector2(5.0, -5.0), pos + Vector2(7.0, 7.5), ink, 2.6)
+
+## 낙오자 스케치(1회 로드 후 캐시, null 도 캐시 — 에셋이 없어도 안 깨진다).
+static func _straggler_tex() -> Texture2D:
+	if _tex_cache.has("straggler"):
+		return _tex_cache["straggler"]
+	var path: String = "res://assets/arts/transparent/61_사람_낙오자.png"
+	var tex: Texture2D = null
+	if ResourceLoader.exists(path):
+		tex = load(path)
+	_tex_cache["straggler"] = tex
+	return tex
+
 # --- kind별 실루엣 ---
 
 static func _draw_camp(ci: CanvasItem, rect: Rect2, gy: float, rng: RandomNumberGenerator) -> void:
