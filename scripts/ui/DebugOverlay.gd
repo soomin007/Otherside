@@ -12,6 +12,11 @@ extends CanvasLayer
 
 const ENABLED: bool = true
 
+## 실제 활성 여부 — 웹(폰 배포) 빌드에선 상시 꺼짐. 폰에서 DEV 오탭으로 세계가 영구 오염되는
+## 사고 방지(2026-07-15 사용자 — "모든 노드 공개"·플래그·더미 추모는 저장까지 간다).
+## 폰에서 다시 필요해지면 `not OS.has_feature("web")` 조건만 지운다(ENABLED 는 데스크톱 개발 스위치).
+var _active: bool = false
+
 ## 원터치로 켤 런 플래그(선택 반영 체인 테스트용). 같은 런(sets)+영속(sets_persist) 둘 다 켠다.
 const TEST_FLAGS: Array = ["pool_drank", "rope_spent_now", "camp_shelter_now", "river_dug", "camp_shelter", "bones_mourned", "oasis_widened", "wall_tent_taken", "water_stocked"]
 
@@ -22,7 +27,8 @@ var _god_btn: Button
 var _tick: float = 0.0
 
 func _ready() -> void:
-	if not ENABLED:
+	_active = ENABLED and not OS.has_feature("web")
+	if not _active:
 		return
 	layer = 128  # 게임 UI 위
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -31,13 +37,13 @@ func _ready() -> void:
 	_refresh_state()
 
 func _input(event: InputEvent) -> void:
-	if not ENABLED:
+	if not _active:
 		return
 	if event is InputEventKey and event.pressed and event.keycode == KEY_F1:
 		_toggle()
 
 func _process(delta: float) -> void:
-	if not ENABLED:
+	if not _active:
 		return
 	# God 모드 — 매 프레임 물/식량을 바닥 위로 유지(Map 의 step 이 0 으로 못 떨어뜨림).
 	var run: ExpeditionRun = GameState.current_run

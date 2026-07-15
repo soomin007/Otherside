@@ -697,6 +697,9 @@ func load_game() -> void:
 	controls_tutorial_seen = bool(data.get("controls_tutorial_seen", false))
 	village_intro_seen = bool(data.get("village_intro_seen", false))
 	mourned_nodes = data.get("mourned_nodes", [])
+	# DEV 오버레이의 더미 추모(debug_mourn_*)는 재시작 때 걷어낸다 — 오탭·테스트 잔여가
+	# 실세계의 재회 축(기림)을 영구 오염시키는 것 방지(2026-07-15 폰 오탭 사고).
+	mourned_nodes = mourned_nodes.filter(func(m: Variant) -> bool: return not str(m).begins_with("debug_mourn"))
 	stragglers = data.get("stragglers", [])
 	reunion_hints_shown = int(data.get("reunion_hints_shown", 0))
 	expedition_names = data.get("expedition_names", [])
