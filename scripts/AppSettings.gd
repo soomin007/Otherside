@@ -54,6 +54,40 @@ static func set_motion(v: float) -> void:
 	cfg.set_value(SECTION_DISPLAY, KEY_MOTION, _motion_cache)
 	cfg.save(PATH)
 
+## 글자 크기 = UI 전체 배율(Window.content_scale_factor). 1.0 기본, 0.85~1.2.
+## 텍스트만 스케일하려면 FS_* 전면 라우팅이 필요해 크다 — 전체 배율이 일관·저위험(2026-07-07 결정).
+## 그때 되돌린 원인(에디터 임베드뷰 스케일 충돌 의심 + 1.25 오버플로)은 상한 1.2 +
+## 적용 직후 재배치(뷰포트 리사이즈 훅, 2026-07-14) + 실창 스크린샷 검증으로 재도전(2026-07-15).
+const KEY_TEXT_SCALE: String = "text_scale"
+const DEFAULT_TEXT_SCALE: float = 1.0
+const TEXT_SCALE_MIN: float = 0.85
+const TEXT_SCALE_MAX: float = 1.2
+
+static var _text_scale_cache: float = -1.0
+
+static func load_text_scale() -> float:
+	if _text_scale_cache > 0.0:
+		return _text_scale_cache
+	var cfg := ConfigFile.new()
+	if cfg.load(PATH) != OK:
+		_text_scale_cache = DEFAULT_TEXT_SCALE
+	else:
+		_text_scale_cache = clampf(float(cfg.get_value(SECTION_DISPLAY, KEY_TEXT_SCALE, DEFAULT_TEXT_SCALE)), TEXT_SCALE_MIN, TEXT_SCALE_MAX)
+	return _text_scale_cache
+
+static func set_text_scale(v: float) -> void:
+	_text_scale_cache = clampf(v, TEXT_SCALE_MIN, TEXT_SCALE_MAX)
+	var cfg := ConfigFile.new()
+	cfg.load(PATH)  # 실패해도 빈 cfg 로 진행
+	cfg.set_value(SECTION_DISPLAY, KEY_TEXT_SCALE, _text_scale_cache)
+	cfg.save(PATH)
+
+## 저장된 배율을 창에 적용(앱 시작 시 GameState, 슬라이더 조작 시 Bookmark 가 부른다 — 멱등).
+## RefCounted 정적이라 트리 접근이 없다 — 호출부가 Window 를 넘긴다.
+static func apply_text_scale(win: Window) -> void:
+	if win != null:
+		win.content_scale_factor = load_text_scale()
+
 static func _load_key(key: String, def: float) -> float:
 	var cfg := ConfigFile.new()
 	if cfg.load(PATH) != OK:

@@ -626,17 +626,23 @@ func _on_scrim_input(event: InputEvent) -> void:
 	_close()
 
 ## 일지 크기 — 화면 90%·상한 1080×640(옛 장부와 동일 비율).
+## 폭은 추가로 vp.x-200 을 넘지 않는다 — 챕터 탭(오른쪽 리본, 폭 ~104)이 화면 안에 들어올 조건.
+## 기준 화면(1280)에선 상한 1080 이 정확히 이 조건이었지만, 글자 배율(>100%)로 논리 뷰포트가
+## 좁아지면 조건이 깨져 탭이 잘렸다(2026-07-15 — 07-07 "에디터 임베드뷰 잘림"의 실제 정체).
 func _layout_book() -> void:
 	var vp: Vector2 = get_viewport().get_visible_rect().size
-	var w: float = minf(vp.x * 0.9, 1080.0)
+	var w: float = minf(vp.x * 0.9, minf(1080.0, vp.x - 200.0))
 	var h: float = minf(vp.y * 0.86, 640.0)
 	_book.size = Vector2(w, h)
 	_book.position = (vp - Vector2(w, h)) * 0.5
 	_book.relayout()
-	# 페이지 내용 배치.
+	# 페이지 내용 배치. ★ 자식(_box_l) 최소폭을 rect 기준으로 "먼저" 줄인다 — Control.set_size 는
+	# 최소 크기 밑으로 못 줄어서, 자식 최소폭이 큰 채로 scroll.size 를 대입하면 축소가 막힌다
+	# (재배치마다 20px 씩만 줄어드는 랫칫 — 뷰포트가 좁아질 때만 걸려 07-07 "임베드뷰 잘림"으로 오인).
+	var scroll_size: Vector2 = _book.rect_l.size - Vector2(PAGE_PAD * 2.0, PAGE_PAD * 2.0)
+	_box_l.custom_minimum_size.x = scroll_size.x - 20.0  # 우측 여백(스크롤바+값 라벨 잘림 방지)
 	_scroll_l.position = _book.rect_l.position + Vector2(PAGE_PAD, PAGE_PAD)
-	_scroll_l.size = _book.rect_l.size - Vector2(PAGE_PAD * 2.0, PAGE_PAD * 2.0)
-	_box_l.custom_minimum_size.x = _scroll_l.size.x - 20.0  # 우측 여백(스크롤바+값 라벨 잘림 방지, 큰 배율 대비)
+	_scroll_l.size = scroll_size
 	# 오른쪽 페이지: 내용(_box_r)은 위쪽, 넘김/덮기(_footer_r)는 바닥 고정 자리.
 	var footer_h: float = 118.0
 	_box_r.position = _book.rect_r.position + Vector2(PAGE_PAD, PAGE_PAD)
@@ -1013,6 +1019,7 @@ func _sec_screen(box: VBoxContainer) -> void:
 		fs.pressed.connect(_toggle_fullscreen)
 		box.add_child(fs)
 	_add_motion_row(box, AppSettings.load_motion())
+	_add_scale_row(box, AppSettings.load_text_scale())
 
 ## 이야기(오프닝 다시보기·조작 안내 다시보기).
 func _sec_story(box: VBoxContainer) -> void:
@@ -1173,6 +1180,41 @@ func _add_motion_row(box: VBoxContainer, cur: float) -> void:
 		AppSettings.set_motion(v)
 		value.text = _pct(v))
 	box.add_child(slider)
+
+## 글자 크기 — UI 전체 배율(content_scale_factor, 0.85~1.2). 값 표시는 즉시, 창 적용은 손 뗄 때만
+## (드래그 중 매 틱 재배치가 슬라이더 밑을 흔드는 것 방지). 적용은 call_deferred — 배율이 바뀌면
+## 리사이즈 훅(_on_viewport_resized)이 이 페이지를 다시 짓는데, 시그널 핸들러 안에서
+## 자기 슬라이더가 해제되면 안 된다(2026-07-15 재도전 — 내력은 AppSettings 헤더).
+func _add_scale_row(box: VBoxContainer, cur: float) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var lbl := _ink_label("글자 크기", UITheme.FS_LABEL, INK)
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(lbl)
+	var value := _ink_label(_pct(cur), UITheme.FS_SMALL, INK_FADE)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value.autowrap_mode = TextServer.AUTOWRAP_OFF
+	row.add_child(value)
+	box.add_child(row)
+	var slider := HSlider.new()
+	slider.min_value = AppSettings.TEXT_SCALE_MIN
+	slider.max_value = AppSettings.TEXT_SCALE_MAX
+	slider.step = 0.05
+	slider.value = cur
+	slider.custom_minimum_size = Vector2(0, UITheme.SLIDER_H)
+	UITheme.style_slider(slider, INK)
+	slider.value_changed.connect(func(v: float) -> void:
+		value.text = _pct(v))
+	slider.drag_ended.connect(func(changed: bool) -> void:
+		if changed:
+			AppSettings.set_text_scale(slider.value)
+			_apply_text_scale.call_deferred())
+	box.add_child(slider)
+
+## 저장된 글자 배율을 창에 적용 — 배율 변경이 뷰포트 리사이즈 신호를 내고,
+## 훅(_on_viewport_resized)이 열린 일지를 새 배율로 재배치·재렌더한다.
+func _apply_text_scale() -> void:
+	AppSettings.apply_text_scale(get_window())
 
 ## 조작 안내 다시보기 — 일지를 덮고 튜토리얼을 처음부터 재무장한다(지도·단면 화면에서 다시 뜬다).
 func _replay_tutorial() -> void:
