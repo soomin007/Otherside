@@ -907,7 +907,7 @@ func _ctrl_guide() -> void:
 func _ctrl_legend() -> void:
 	_box_l.add_child(_brush_heading("표식 읽기", 40, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
-	_box_l.add_child(_legend_row("main", "주요 지점", "이 자리의 본 사건. 큰 이중 고리로 눈에 띈다."))
+	_box_l.add_child(_legend_row("main", "주요 지점", "그 자리에서 벌어지는 가장 큰 일. 큰 이중 고리로 눈에 띈다."))
 	_box_l.add_child(_legend_row("collect", "살필 곳", "물이나 식량, 흔적, 작은 일이 있을 수 있다."))
 	_box_l.add_child(_legend_row("done", "다 살핀 곳", "이미 살펴 흐려진 지점."))
 	_box_l.add_child(_legend_row("ramp", "조사 남음", "이 자리에서 살필 수 있는 횟수. 찬 점이 남은 것."))
