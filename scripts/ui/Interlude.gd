@@ -172,7 +172,8 @@ func _last_run_summary() -> String:
 		return ""
 	for a in GameState.arrivals:
 		if a is Dictionary and int(a.get("expedition", -1)) == n:
-			return "지난 원정은 끝에 닿았다.\n그리고 돌아오지 않았다."
+			# 순환의 물리적 반영(2026-07-15) — 플레이어는 이미 진실을 안다. 막간도 안다고 말한다.
+			return "지난 원정은 끝에 닿았다.\n그들은 그 자리에 남았다."
 	for i in range(GameState.deaths.size() - 1, -1, -1):
 		var d: Variant = GameState.deaths[i]
 		if not (d is Dictionary) or int(d.get("expedition", -1)) != n:

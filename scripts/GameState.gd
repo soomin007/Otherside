@@ -502,6 +502,18 @@ func cycle_arrival_count() -> int:
 			n += 1
 	return n
 
+## 이번 도달(current)을 뺀 마지막 순환의 원정 번호. 없으면 0.
+## 재도달 슬라이드가 "그 재앙"의 이름을 부르는 데 쓴다(순환의 물리적 반영, 2026-07-15).
+## mark_arrival 이 이번 도달을 먼저 기록하므로 current 제외가 필요하다.
+func last_cycle_expedition_before(current: int) -> int:
+	var best: int = 0
+	for a in arrivals:
+		if a is Dictionary and str(a.get("ending", "")) == "cycle":
+			var e: int = int(a.get("expedition", 0))
+			if e != current and e > best:
+				best = e
+	return best
+
 ## 시장의 재회 옛말을 들려줬다고 기록(영속) — 지금까지의 순환 도달 수만큼 소화한 것으로.
 func mark_reunion_hint_shown() -> void:
 	reunion_hints_shown = cycle_arrival_count()

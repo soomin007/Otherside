@@ -40,13 +40,25 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	size = get_viewport_rect().size   # 오버레이 크기 즉시 확정(레이아웃 패스 전 size 0 방지 — known_issues)
 	_reunion = (GameState.ending_kind_pending == "reunion")
-	_slides = REUNION_SLIDES if _reunion else CYCLE_SLIDES
+	_slides = REUNION_SLIDES if _reunion else _cycle_slides()
 	_build()
 	if _reunion:
 		AudioManager.play_reunion()   # 크레딧곡(잔잔 베드 → Other Side 크로스페이드)
 	else:
 		AudioManager.play_cycle()     # 순환곡(베드 → The Unresolved 크로스페이드, 루프)
 	_advance()
+
+## 순환 슬라이드 — 두 번째+ 순환이면 첫 장이 "그 재앙"의 이름을 안다(순환의 물리적 반영, 2026-07-15).
+## 재앙의 자리에 선 것은 익명의 누군가가 아니라, 지난 순환에 내가 이름 지어 보낸 그 원정대다.
+## 첫 순환(직전 순환 없음)은 기본 문구 그대로 — 반전의 익명성을 지킨다. 밀려난 이들의 행방은 침묵(사용자 확정).
+func _cycle_slides() -> Array:
+	var prev: int = GameState.last_cycle_expedition_before(GameState.expedition_count)
+	if prev <= 0:
+		return CYCLE_SLIDES
+	var s: Array = CYCLE_SLIDES.duplicate(true)
+	var first: Dictionary = s[0]
+	first["text"] = "재앙의 자리에 선 것은\n'%s'.\n우리가 보낸 사람들이었다." % GameState.expedition_name(prev)
+	return s
 
 func _build() -> void:
 	var bg := ColorRect.new()

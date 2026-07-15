@@ -947,7 +947,7 @@ func _draw() -> void:
 				# 이름은 아이콘 아래. 옛 스펙 17px 은 너무 컸다(2026-07-12 사용자 — 범례 글씨 크기 수준으로). 크림 후광 + 상태색.
 				var lcol: Color = LABEL_MK if (str(id) == cur or id in nexts) else LABEL_DIM
 				var lfs: int = maxi(9, int((13.0 if str(id) == "end" else 11.0) * ms))
-				_draw_map_label(font, p + Vector2(-75.0 * ms, ns * 0.5 + 10.0 * ms), str(MapGraph.NODES[id].get("name", "")), 150.0 * ms, lfs, lcol)
+				_draw_map_label(font, p + Vector2(-75.0 * ms, ns * 0.5 + 10.0 * ms), _node_display_name(str(id)), 150.0 * ms, lfs, lcol)
 				if str(id) == cur:
 					# 현재 위치 태그 "원정대" — 노드 위. 삼각형은 절차적으로(장식 유니코드 두부 방지, known_issues §38).
 					_draw_expedition_tag(font, p + Vector2(0.0, -ns * 0.5 - 8.0 * ms), ms)
@@ -1187,6 +1187,31 @@ func _draw_stragglers(area: Rect2) -> void:
 		var base: Vector2 = _node_screen(s, area)
 		var half: float = _node_size(s) * 0.5
 		_draw_person(base + Vector2(half + 12.0 * ms, -2.0 * ms), ms)
+	# 그들이 선 자리 — 순환을 본 세계에선 end 곁에 서 있는 사람이 보인다(순환의 물리적 반영, 2026-07-15).
+	# 왼쪽 옆구리 + 선 자세 — 오른쪽의 웅크린 낙오자(구조 대상)와 자리·자세 둘 다로 구별된다.
+	if GameState.cycle_arrival_count() > 0 and (_is_revealed("end") or _is_next_choice("end")):
+		var ebase: Vector2 = _node_screen("end", area)
+		var ehalf: float = _node_size("end") * 0.5
+		_draw_stander(ebase + Vector2(-(ehalf + 12.0 * ms), -2.0 * ms), ms)
+
+## 노드 표시 이름 — 순환을 한 번이라도 본 세계에선 end 가 "???"를 벗는다(플레이어가 이미 아는 진실을
+## 지도가 계속 감추지 않는다). 재회 순례의 목적지가 계획 화면에 상주하는 효과.
+func _node_display_name(id: String) -> String:
+	if id == "end" and GameState.cycle_arrival_count() > 0:
+		return "그들이 선 자리"
+	return str(MapGraph.NODES[id].get("name", ""))
+
+## 서 있는 사람 — 밀려나 재앙의 자리에 선 이전 순환 원정대(절차적 실루엣, 웅크린 낙오자와 구별).
+func _draw_stander(at: Vector2, ms: float) -> void:
+	var ink := Color(0.36, 0.24, 0.16, 0.92)
+	draw_circle(at, 13.0 * ms, Color(0.86, 0.66, 0.38, 0.18))  # 옅은 온기 무리(사람 신호 계열)
+	draw_circle(at + Vector2(0.0, -8.5 * ms), 2.6 * ms, ink)
+	draw_line(at + Vector2(0.0, -5.5 * ms), at + Vector2(0.0, 4.6 * ms), ink, 1.9 * ms, true)
+	# 두른 천 — 어깨에서 곧게 떨어지는 획 둘(선 자세).
+	draw_line(at + Vector2(-2.6 * ms, -3.6 * ms), at + Vector2(-3.0 * ms, 3.0 * ms), ink, 1.4 * ms, true)
+	draw_line(at + Vector2(2.6 * ms, -3.6 * ms), at + Vector2(3.0 * ms, 3.0 * ms), ink, 1.4 * ms, true)
+	draw_line(at + Vector2(-1.4 * ms, 4.6 * ms), at + Vector2(-1.8 * ms, 8.2 * ms), ink, 1.5 * ms, true)
+	draw_line(at + Vector2(1.4 * ms, 4.6 * ms), at + Vector2(1.8 * ms, 8.2 * ms), ink, 1.5 * ms, true)
 
 ## 손그림 사람(웅크린 낙오자) — 킷 텍스처(잉크판/밝음판), 없으면 절차적 실루엣 fallback.
 ## lit=true 는 어두운 배경(좌 칼럼 범례)용 아이보리판.
