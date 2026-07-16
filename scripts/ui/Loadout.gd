@@ -76,6 +76,8 @@ var _item_btns: Dictionary = {}    ## key -> {btn, delta(Label), base(String), p
 var _count_n: Label                ## "가방 N / 6" 의 N (Cinzel 24 sand)
 var _diegetic: Control             ## step2 사진 위 라벨 레이어(리사이즈 시 재배치)
 var _pouch_box: Container          ## 주머니 도구 한 칸(가방 옆) — 창고에서 집은 도구가 들어온다
+var _bag_row: HBoxContainer        ## 하단 가방 줄 전체(그림·카운트·슬롯·주머니) — _fit_bag_row 가 폭에 맞춰 줄인다
+var _bl_box: HBoxContainer         ## 하단 좌 버튼 묶음(뒤로·기본 채비) — 가방 줄 가용 폭 계산용
 var _slot_lock: bool = false       ## 빼기 바스러짐 동안 담기/빼기 잠금(재배열을 연출 뒤로 미루는 창)
 
 var _pending_name: String = ""     ## 이번 원정대 이름 — 랜덤 초기값, 편집·다시 뽑기 가능
@@ -161,6 +163,8 @@ func _show_step(n: int) -> void:
 	_count_n = null
 	_diegetic = null
 	_pouch_box = null
+	_bag_row = null
+	_bl_box = null
 	_item_btns.clear()
 	if _step_root != null:
 		_step_root.queue_free()
@@ -306,16 +310,15 @@ func _build_step2() -> void:
 
 	# 하단 가방 줄 — 한 줄 컴팩트: 열린 가방 그림 + "가방 N / 6"(N=Cinzel) + 아이콘 슬롯 6칸(탭하면 뺀다).
 	# 사진 라벨(테이블 앞판, y≈600까지)과 안 겹치게 낮고 얇게. 슬롯은 아이콘만(이름은 툴팁).
-	var bagc := CenterContainer.new()
-	bagc.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	bagc.offset_top = -128.0   # 슬롯 확대(54→76, 2026-07-12 사용자)에 맞춰 줄도 키움
-	bagc.offset_bottom = -34.0
-	bagc.mouse_filter = Control.MOUSE_FILTER_IGNORE  # 빈 영역이 하단 버튼 클릭을 막지 않게(자식 버튼은 받음)
-	_step_root.add_child(bagc)
+	# ⚠ CenterContainer 를 안 쓴다 — Container 는 재정렬(fit_child_in_rect)마다 자식 scale 을 1로
+	# 리셋해 _fit_bag_row 의 배율 축소가 못 산다(2026-07-16). _step_root(평범한 Control) 직속으로 두고
+	# 위치(옛 띠: 위 -128 · 아래 -34 의 중앙)·크기·스케일을 _fit_bag_row 가 직접 잡는다.
 	var brow := HBoxContainer.new()
 	brow.add_theme_constant_override("separation", 10)
 	brow.alignment = BoxContainer.ALIGNMENT_CENTER
-	bagc.add_child(brow)
+	brow.mouse_filter = Control.MOUSE_FILTER_IGNORE  # 빈 영역이 하단 버튼 클릭을 막지 않게(자식 버튼은 받음)
+	_step_root.add_child(brow)
+	_bag_row = brow
 	var bag_art: String = "res://assets/arts/transparent/38_배경_열린가방.png"
 	if ResourceLoader.exists(bag_art):
 		var art := TextureRect.new()
@@ -390,6 +393,7 @@ func _build_step2() -> void:
 	bl.offset_top = -76.0
 	bl.offset_bottom = -8.0
 	_step_root.add_child(bl)
+	_bl_box = bl
 	var back := EngravedItem.new()
 	back.init_item("← 뒤로", 16, false)
 	back.pressed.connect(_show_step.bind(1))
@@ -704,6 +708,25 @@ func _layout_photo_labels() -> void:
 		c.y = minf(c.y, size.y - 158.0)
 		# 텍스트 블록(버튼 하단)이 사진 좌표 c 에 오도록 — 버튼 몸통은 위로 뻗어 물건 그림을 덮는다.
 		btn.position = Vector2(c.x - btn.size.x * 0.5, c.y + 30.0 - btn.size.y)
+	_fit_bag_row()
+
+## 하단 가방 줄을 좌(뒤로·기본 채비)·우(떠난다) 사이 폭에 맞춘다 — 화면 배율 >100% 로 논리 뷰포트가
+## 좁아지면(120% 데스크톱 = 1067px) 중앙 줄이 양끝 버튼을 침범하던 것(2026-07-16 사용자 제보).
+## 컨테이너 배치는 무스케일 크기 기준이라, pivot 을 가운데 두고 시각 스케일만 줄인다(중앙 유지·입력 정상).
+func _fit_bag_row() -> void:
+	if _bag_row == null or _bl_box == null or _depart_btn == null:
+		return
+	var need: Vector2 = _bag_row.get_combined_minimum_size()
+	if need.x <= 0.0:
+		return
+	# 가용 폭 = 떠난다 왼쪽 끝(size.x-226) − 좌 묶음 오른쪽 끝(8+폭) − 양쪽 숨통 20.
+	var avail: float = (size.x - 226.0) - (8.0 + _bl_box.get_combined_minimum_size().x) - 20.0
+	var sc: float = clampf(avail / need.x, 0.7, 1.0)
+	_bag_row.size = need
+	_bag_row.pivot_offset = need * 0.5
+	_bag_row.scale = Vector2(sc, sc)
+	# 옛 CenterContainer 띠(위 -128 · 아래 -34)의 중앙(size.y-81)에, 가로는 화면 중앙에 앉힌다.
+	_bag_row.position = Vector2(size.x * 0.5, size.y - 81.0) - need * 0.5
 
 ## 배경 사진이 cover 로 그려지는 rect(화면을 채우고 넘침은 크롭) — 라벨 좌표 매핑의 기준.
 func _photo_rect() -> Rect2:

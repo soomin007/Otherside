@@ -56,7 +56,7 @@ var pending_feat_notices: Array = []  ## 방금 달성한 공훈 id — Loadout 
 var seen_choices: Dictionary = {}
 
 func _ready() -> void:
-	AppSettings.apply_text_scale(get_window())  # 글자 크기(전체 배율) — 씬 뜨기 전 적용(첫 프레임 튐 방지)
+	AppSettings.apply_text_scale(get_window())  # 화면 크기(전체 배율) — 씬 뜨기 전 적용(첫 프레임 튐 방지)
 	load_game()
 	ensure_seeded()
 

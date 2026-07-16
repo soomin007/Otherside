@@ -54,7 +54,8 @@ static func set_motion(v: float) -> void:
 	cfg.set_value(SECTION_DISPLAY, KEY_MOTION, _motion_cache)
 	cfg.save(PATH)
 
-## 글자 크기 = UI 전체 배율(Window.content_scale_factor). 1.0 기본, 0.85~1.2.
+## 화면 크기(설정 라벨, 옛 "글자 크기") = UI 전체 배율(Window.content_scale_factor). 1.0 기본, 0.85~1.2.
+## 코드 식별자·설정 키(text_scale)는 저장 호환 때문에 그대로 둔다 — 표시 문구만 "화면 크기"(2026-07-16).
 ## 텍스트만 스케일하려면 FS_* 전면 라우팅이 필요해 크다 — 전체 배율이 일관·저위험(2026-07-07 결정).
 ## 그때 되돌린 원인(에디터 임베드뷰 스케일 충돌 의심 + 1.25 오버플로)은 상한 1.2 +
 ## 적용 직후 재배치(뷰포트 리사이즈 훅, 2026-07-14) + 실창 스크린샷 검증으로 재도전(2026-07-15).

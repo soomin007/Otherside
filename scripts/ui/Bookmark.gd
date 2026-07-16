@@ -1008,7 +1008,7 @@ func _sec_sound(box: VBoxContainer) -> void:
 	_music_value = _add_volume_row(box, "배경음악", AppSettings.load_music_volume(), _on_music_changed, Callable())
 	_sfx_value = _add_volume_row(box, "효과음", AppSettings.load_sfx_volume(), _on_sfx_changed, _on_sfx_drag_ended)
 
-## 화면(전체화면·연출 세기·글자 크기).
+## 화면(전체화면·연출 세기·화면 크기).
 func _sec_screen(box: VBoxContainer) -> void:
 	box.add_child(_brush_heading("화면", 40, INK))
 	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
@@ -1181,14 +1181,15 @@ func _add_motion_row(box: VBoxContainer, cur: float) -> void:
 		value.text = _pct(v))
 	box.add_child(slider)
 
-## 글자 크기 — UI 전체 배율(content_scale_factor, 0.85~1.2). 값 표시는 즉시, 창 적용은 손 뗄 때만
+## 화면 크기 — UI 전체 배율(content_scale_factor, 0.85~1.2). 글자만이 아니라 전부 커져서
+## 라벨도 "화면 크기"(2026-07-16 사용자 — "글자 크기"는 실체와 어긋남). 값 표시는 즉시, 창 적용은 손 뗄 때만
 ## (드래그 중 매 틱 재배치가 슬라이더 밑을 흔드는 것 방지). 적용은 call_deferred — 배율이 바뀌면
 ## 리사이즈 훅(_on_viewport_resized)이 이 페이지를 다시 짓는데, 시그널 핸들러 안에서
 ## 자기 슬라이더가 해제되면 안 된다(2026-07-15 재도전 — 내력은 AppSettings 헤더).
 func _add_scale_row(box: VBoxContainer, cur: float) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
-	var lbl := _ink_label("글자 크기", UITheme.FS_LABEL, INK)
+	var lbl := _ink_label("화면 크기", UITheme.FS_LABEL, INK)
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(lbl)
 	var value := _ink_label(_pct(cur), UITheme.FS_SMALL, INK_FADE)
