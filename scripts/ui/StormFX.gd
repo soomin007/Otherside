@@ -21,14 +21,16 @@ const LIT := Color(0.96, 0.92, 0.80)   ## 전경 = 빛나는 모래 알갱이
 
 var _mid: CPUParticles2D
 var _fore: CPUParticles2D
+var _motion: float = 1.0  ## 연출 세기(설정, 씬 진입 시점 값) — 입자 수 배율. 0이면 set_band 가 분출을 막는다.
 
 func _init() -> void:
+	_motion = AppSettings.load_motion()  # 슬라이더 변경은 다음 씬 진입부터(2026-07-16)
 	var dot: ImageTexture = make_dot_texture(12)
 	# 중경: 크고(scale↑) 느리고(velocity↓) 아주 옅게(alpha↓), 길게 떠 있음.
-	_mid = _make_layer(MID_AMOUNT, dot, 1.2, 2.2, 70.0, 150.0,
+	_mid = _make_layer(maxi(1, int(MID_AMOUNT * _motion)), dot, 1.2, 2.2, 70.0, 150.0,
 		Color(HAZE.r, HAZE.g, HAZE.b, 0.15), 2.0)
 	# 전경: 작고 빠르고 또렷한 알갱이, 짧게. 움직임(스쳐 지나감)이 폭풍을 살린다.
-	_fore = _make_layer(FORE_AMOUNT, dot, 0.28, 0.5, 200.0, 330.0,
+	_fore = _make_layer(maxi(1, int(FORE_AMOUNT * _motion)), dot, 0.28, 0.5, 200.0, 330.0,
 		Color(LIT.r, LIT.g, LIT.b, 0.55), 1.1)
 	add_child(_mid)
 	add_child(_fore)
@@ -55,8 +57,9 @@ func _make_layer(amount: int, tex: Texture2D, smin: float, smax: float,
 	return p
 
 ## 화면상 폭풍 영역(Expedition Control 로컬 좌표). 폭/높이 0 이하면 숨기고 분출 정지.
+## 연출 세기 0(끔)이어도 같은 경로로 숨긴다 — 1층 그라데이션(분위기)은 호출측이 따로 그려 남는다.
 func set_band(band: Rect2) -> void:
-	if band.size.x <= 1.0 or band.size.y <= 1.0:
+	if _motion <= 0.02 or band.size.x <= 1.0 or band.size.y <= 1.0:
 		if visible:
 			visible = false
 			_mid.emitting = false

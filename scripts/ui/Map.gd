@@ -266,7 +266,12 @@ func _on_bag_pressed() -> void:
 
 ## 지도 띠 위 모래 드리프트 — 남기기 화면과 같은 원리(진행도 → 양·속도·짙기). 웹 안전: CPUParticles2D 소량.
 ## 배치·크기는 _layout_chrome 이 지도 띠에 맞춘다(리사이즈 추종).
+## 연출 세기(설정)를 입자 수에 반영(2026-07-16) — 0이면 아예 안 만든다(_layout_chrome 은 null 안전).
+## 슬라이더 변경은 다음 지도 진입부터(씬 진입 시점 값 — Transition·Interlude 와 같은 결).
 func _build_drift(prog: float) -> void:
+	var m: float = AppSettings.load_motion()
+	if m <= 0.02:
+		return
 	_drift = CPUParticles2D.new()
 	_drift.texture = StormFX.make_dot_texture(10)
 	_drift.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
@@ -277,7 +282,7 @@ func _build_drift(prog: float) -> void:
 	_drift.preprocess = 3.6                  # 들어오면 이미 불고 있던 바람
 	_drift.scale_amount_min = 0.5
 	_drift.scale_amount_max = 1.1
-	_drift.amount = int(lerpf(12.0, 50.0, prog))
+	_drift.amount = maxi(1, int(lerpf(12.0, 50.0, prog) * m))
 	_drift.initial_velocity_min = lerpf(26.0, 70.0, prog)
 	_drift.initial_velocity_max = lerpf(60.0, 170.0, prog)
 	# 밝은 모래색은 양피지와 같은 계열이라 안 보인다(대비 0) — 어두운 세피아 알갱이로,
