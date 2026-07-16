@@ -140,6 +140,7 @@ const NODES: Dictionary = {
 			{"id": "camp_cold", "label": "식은 재", "at": Vector2(0.655, 0.73), "source": "empty", "text": "불은 오래전에 꺼졌다.\n쓸 것이 없다."},
 			{"id": "camp_tent", "label": "무너진 천막", "at": Vector2(0.76, 0.47), "source": "event", "event": {"id": "camp_tent_take", "threat": Threats.Kind.CONSUMPTION, "text": "무너진 천막 골조에\n성한 장막 한 장이 걸려 있다.\n떼어 가면 폭풍에 든든하지만\n짐이 된다.", "choices": [{"label": "떼어 챙긴다", "effect": {"shelter": 1}, "sets": ["camp_shelter_now"], "sets_persist": ["camp_shelter"]}, {"label": "둔다 (짐을 줄인다)", "effect": {}}]}},
 			{"id": "camp_well", "label": "야영지 우물", "at": Vector2(0.20, 0.69), "source": "event", "event": {"id": "camp_well_draw", "threat": Threats.Kind.CONSUMPTION, "text": "우물 바닥에 물이 조금 남았다.\n두레박 줄이 삭아\n길어 올리기 수고롭다.", "choices": [{"label": "식량을 헐어 힘써 길어 올린다", "effect": {"water": 2, "food": -2}}, {"label": "삭은 줄이라 둔다", "effect": {}}]}},
+			{"id": "camp_chest", "label": "낡은 궤짝", "at": Vector2(0.08, 0.62), "source": "event", "event": {"id": "camp_chest_open", "threat": Threats.Kind.CONSUMPTION, "text": "천막 곁 나무 궤짝이\n모래에 반쯤 묻혀 있다.\n뚜껑이 모래 무게에 눌려\n땡볕에 한참을 파내야 한다.", "choices": [{"label": "땡볕에 파내고 뚜껑을 연다", "effect": {"food": 2, "water": -2}}, {"label": "두고 간다", "effect": {}}]}},
 		],
 	},
 	"b2": {
@@ -155,6 +156,7 @@ const NODES: Dictionary = {
 			{"id": "crack_dark", "label": "틈 속 어둠", "at": Vector2(0.62, 0.82), "source": "empty", "text": "바닥이 보이지 않는다.\n손을 넣을 엄두가 안 난다."},
 			{"id": "crack_scrap", "label": "틈에 걸린 것", "at": Vector2(0.70, 0.58), "source": "event", "event": {"id": "crack_rope_scrap", "threat": Threats.Kind.BLOCKAGE, "text": "틈 벽에 낡은 밧줄 토막이 걸려 있다.\n몸을 기울이면 닿을 듯도 하다.", "choices": [{"label": "기울여 잡아 뺀다", "effect": {"rope": 1, "water": -1}}, {"label": "위험하다, 둔다", "effect": {}}]}},
 			{"id": "crack_ledge", "label": "균열 벽", "at": Vector2(0.82, 0.50), "source": "event", "event": {"id": "crack_ledge_climb", "threat": Threats.Kind.BLOCKAGE, "text": "균열 벽을 타 넘으면 질러갈 수 있다.\n바위가 무르고 미끄럽다.", "choices": [{"label": "조심히 타 넘는다", "effect": {"water": -1}, "then": {"id": "crack_ledge_top", "threat": Threats.Kind.BLOCKAGE, "text": "벽 중턱, 바람이 판 홈마다\n먼저 오른 이들의 손자국이 남았다.\n홈 하나에 물이 반쯤 남은\n가죽 물통이 끼워져 있다.", "choices": [{"label": "물통째 챙겨 마저 오른다", "effect": {"water": 2}}, {"label": "물만 옮겨 담고 물통은 도로 끼운다", "effect": {"water": 2}}]}}, {"label": "안전하게 돌아간다", "effect": {"food": -1}}]}},
+			{"id": "crack_rim", "label": "벼랑 끝", "at": Vector2(0.15, 0.57), "source": "event", "event": {"id": "crack_rim_bundle", "threat": Threats.Kind.BLOCKAGE, "text": "틈 가장자리에 서서 아래를 살핀다.\n벽 중간 턱에 삭은 로프가 끊겨 있고\n그 곁에 가죽 꾸러미가 놓여 있다.\n내려가려던 이의 짐이었을까.", "choices": [{"label": "로프를 걸고 내려가 걷어 온다", "effect": {"food": 2, "water": -1}, "needs": {"rope": 1}}, {"label": "손이 안 닿는 것은 둔다", "effect": {}}]}},
 		],
 	},
 	"c1": {
@@ -461,6 +463,7 @@ const NODES: Dictionary = {
 			{"id": "wall_beyond", "label": "담 너머", "at": Vector2(0.12, 0.50), "source": "empty", "text": "담 너머는 보이지 않는다.\n넘어봐야 안다."},
 			{"id": "wall_scramble", "label": "무른 돌더미", "at": Vector2(0.85, 0.42), "source": "event", "event": {"id": "wall_scramble", "threat": Threats.Kind.BLOCKAGE, "text": "무너진 담을 기어오르면 넘을 수 있다.\n돌이 무르다.", "choices": [{"label": "기어 넘는다", "effect": {"water": -1}, "then": {"id": "wall_top_view", "threat": Threats.Kind.BLOCKAGE, "text": "더미 꼭대기.\n담 너머 협곡 입구가 한눈에 들고,\n돌 틈에 물이 남은 물통 하나가\n손 닿을 거리에 끼어 있다.", "choices": [{"label": "물통을 꺼내 들고 내려선다", "effect": {"water": 2}}, {"label": "물만 나눠 담고 틈에 도로 둔다", "effect": {"water": 2}}]}}, {"label": "틈으로 돌아 넘는다", "effect": {"food": -2}}]}},
 			{"id": "wall_stash", "label": "벽돌 틈", "at": Vector2(0.68, 0.60), "source": "event", "event": {"id": "wall_hidden_stash", "threat": Threats.Kind.BLOCKAGE, "text": "벽돌 사이에 천으로 싼 꾸러미.\n마른 먹을거리 냄새가 난다.\n틈이 좁아 긁히지 않고는\n못 꺼내겠다.", "choices": [{"label": "팔을 긁혀가며 꺼낸다", "effect": {"food": 2, "water": -2}}, {"label": "포기한다", "effect": {}}]}},
+			{"id": "wall_eaves", "label": "돌 처마 밑", "at": Vector2(0.47, 0.50), "source": "cache", "effect": {"water": 1}, "text": "무너져 내린 돌이 처마처럼 얹혔다.\n그늘 밑 모래가 축축하다.\n꾹 눌러 파니\n물이 한 모금만큼 고인다."},
 		],
 	},
 	"f1": {

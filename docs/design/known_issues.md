@@ -148,6 +148,10 @@
   실행 경로는 `--quit-after N`(정식 부팅) 으로 검증한다(둘 다 정상 종료·에러 0 이어야 함). 또 헤드리스 godot 을
   여러 개 동시에 띄우지 말 것 — 프로젝트 락으로 hang. 멈추면 `Stop-Process -Name godot -Force` 로 정리.
 
+- **증상:** 스크린샷 드라이버로 `expedition.tscn` 에 진입하면 **실제 세이브 파일이 덮일 수 있다**. (2026-07-16 발견 — 이번엔 7-10의 옛 이어하기 잔재(node_id "")가 우연히 방패가 되어 무사)
+  **원인:** `Expedition._ready` 가 단면을 새로 만들 때 `GameState.autosave_run()` → `save_game()` 을 부른다(도착 카드 재추첨 방지용 정식 경로). 드라이버가 가짜 `current_run` 을 넣고 진입하면 그 가짜 런이 진짜 세이브의 이어하기 슬롯에 저장된다.
+  **방지:** 단면 드라이버는 **`GameState.section_state` 를 선주입**한다 — `run._target_node = nid` 세팅 후 `SectionRun.new(run, node).to_dict()` 를 넣으면 from_dict 복원 경로를 타서 저장이 없다. 드라이버 실행 전후 **세이브 파일 해시 비교를 항상 포함**(mtime 아닌 해시).
+
 ## GDScript (전역 규칙 위반 흔한 패턴)
 
 - **증상:** 런타임에 `Trying to assign an array of type "Array" to a variable of type "Array[T]"`.
