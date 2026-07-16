@@ -947,7 +947,12 @@ func _draw() -> void:
 				# 이름은 아이콘 아래. 옛 스펙 17px 은 너무 컸다(2026-07-12 사용자 — 범례 글씨 크기 수준으로). 크림 후광 + 상태색.
 				var lcol: Color = LABEL_MK if (str(id) == cur or id in nexts) else LABEL_DIM
 				var lfs: int = maxi(9, int((13.0 if str(id) == "end" else 11.0) * ms))
-				_draw_map_label(font, p + Vector2(-75.0 * ms, ns * 0.5 + 10.0 * ms), _node_display_name(str(id)), 150.0 * ms, lfs, lcol)
+				# 현재 노드는 채점 원(반지름 ≈ ns×0.55 + 손떨림)이 라벨 줄을 긋고 지나간다(마을 등 큰 노드에서
+				# 글자가 원에 깔림, 2026-07-16) — 서 있는 동안만 원 밖으로 내린다.
+				var ly: float = ns * 0.5 + 10.0 * ms
+				if str(id) == cur:
+					ly = ns * 0.58 + 12.0 * ms
+				_draw_map_label(font, p + Vector2(-75.0 * ms, ly), _node_display_name(str(id)), 150.0 * ms, lfs, lcol)
 				if str(id) == cur:
 					# 현재 위치 태그 "원정대" — 노드 위. 삼각형은 절차적으로(장식 유니코드 두부 방지, known_issues §38).
 					_draw_expedition_tag(font, p + Vector2(0.0, -ns * 0.5 - 8.0 * ms), ms)
