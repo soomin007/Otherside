@@ -67,6 +67,15 @@ const NODES: Dictionary = {
 				],
 			},
 			{
+				# a1 은 물 일색이라 식량 결 카드 하나 — 강이 흐르던 시절의 세계를 지나가듯 보여준다.
+				"id": "river_nets", "threat": Threats.Kind.CONSUMPTION,
+				"text": "말라붙은 강턱에\n고기잡이 그물이 삭아 있다.\n강이 흐르던 시절의 물건이다.\n그물코에 걸린 것들이\n바싹 마른 채 남았다.",
+				"choices": [
+					{"label": "땡볕에 그물코를 뒤져 거둔다", "effect": {"food": 2, "water": -1}},
+					{"label": "그물은 두고 길을 간다", "effect": {}},
+				],
+			},
+			{
 				"id": "river_dug_again", "requires": "river_dug", "threat": Threats.Kind.CONSUMPTION,
 				"text": "이전 원정대가 파둔 구덩이가\n그대로 있다. 더 깊이 파볼까.",
 				"choices": [
@@ -243,6 +252,15 @@ const NODES: Dictionary = {
 				],
 			},
 			{
+				# 제3의 대비 = 시간(장막 없이도 대가를 고를 수 있는 폭풍 카드) — 기다림은 식량, 강행은 물.
+				"id": "wall_lull_dusk", "threat": Threats.Kind.STORM,
+				"text": "모래 벽에도\n바람이 눕는 때가 있다.\n해거름의 짧은 틈.\n그때까지 웅크린 기다림은\n먹을 것을 축낸다.",
+				"choices": [
+					{"label": "해거름까지 기다렸다 지난다", "effect": {"food": -2}},
+					{"label": "기다리지 않고 뚫는다", "effect": {"water": -3, "food": -1}},
+				],
+			},
+			{
 				"id": "wall_revisit", "requires": "wall_tent_taken", "threat": Threats.Kind.STORM,
 				"text": "이전 원정대가 천막을 떼어간 자리.\n기둥 자국과 마른 열매 몇 알만 남았다.",
 				"choices": [
@@ -337,10 +355,20 @@ const NODES: Dictionary = {
 				],
 			},
 			{
+				# self-async: 사체를 묻으면 영속(pool_cleared) → 다음 원정 재방문 변형(pool_cleared_spring — 물이 맑아진다).
+				# 이번 런엔 얻는 것 없이 품만 든다 — 오아시스 물가 진흙(oasis_dig)과 같은 "다음 몫" 문법.
 				"id": "pool_carcass", "threat": Threats.Kind.CONSUMPTION,
-				"text": "웅덩이 옆에 짐승 사체가 삭고 있다.\n물맛이 왜 그런지 알 것 같다.",
+				"text": "웅덩이 옆에 짐승 사체가 삭고 있다.\n물맛이 왜 그런지 알 것 같다.\n끌어내 묻자면 한나절 품이다.",
 				"choices": [
 					{"label": "그래도 조금 걸러 마신다", "effect": {"water": 2}, "sets": ["pool_drank"]},
+					{"label": "사체를 끌어내 모래에 묻는다", "effect": {"food": -2}, "sets_persist": ["pool_cleared"], "then": {
+						"id": "pool_burial", "threat": Threats.Kind.CONSUMPTION,
+						"text": "사체를 끌어낸 자리에\n모래를 덮고 돌을 얹는다.\n물이 맑아지는 것을\n우리는 보지 못하고 떠난다.\n그래도 손은 개운하다.",
+						"choices": [
+							{"label": "돌무더기를 한 번 돌아본다", "effect": {}},
+							{"label": "손을 털고 길을 간다", "effect": {}},
+						],
+					}},
 					{"label": "미련 없이 지나친다", "effect": {}},
 				],
 			},
@@ -350,6 +378,14 @@ const NODES: Dictionary = {
 				"choices": [
 					{"label": "정화천에 걸러 마신다", "effect": {"water": 4, "filter": -1}, "needs": {"filter": 1}},
 					{"label": "위험하다, 지나친다", "effect": {}},
+				],
+			},
+			{
+				"id": "pool_cleared_spring", "requires": "pool_cleared", "threat": Threats.Kind.CONSUMPTION,
+				"text": "이전 원정대가 사체를 묻은\n돌무더기가 물가에 남았다.\n단내가 가시고\n물빛이 한결 맑다.",
+				"choices": [
+					{"label": "물통을 채운다", "effect": {"water": 3}},
+					{"label": "물을 뜨고 돌 하나를 더 얹는다", "effect": {"water": 2}},
 				],
 			},
 		],
@@ -384,6 +420,37 @@ const NODES: Dictionary = {
 				"choices": [
 					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge"},
 					{"label": "모래 더미를 밟고 무리해서 넘는다", "effect": {"water": -3, "food": -2}},
+				],
+			},
+			{
+				# 결정 축 다양화(2026-07-16): "로프냐 강행이냐" 재탕 대신 노동(식량) 대안 — 옛 문 자리라 넘는 대가가 덜하다.
+				"id": "wall_old_gate", "threat": Threats.Kind.BLOCKAGE,
+				"text": "담을 따라 걷다\n옛 문 자리를 찾았다.\n문짝은 오래전에 삭아 내렸고\n그 자리를 무너진 돌이 메웠다.\n돌을 걷어내는 데 품이 든다.\n로프를 걸면 다음에도 건널 수 있다.",
+				"choices": [
+					{"label": "로프를 고정한다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge"},
+					{"label": "돌을 걷어내고 문턱을 넘는다", "effect": {"food": -2, "water": -1}, "then": {
+						"id": "gate_threshold", "threat": Threats.Kind.BLOCKAGE,
+						"text": "돌 밑에서 문턱이 드러난다.\n문지방이 발길에 닳아 반질하다.\n담이 성하던 시절\n여기로 오간 사람들의 자국이다.",
+						"choices": [
+							{"label": "닳은 문지방을 밟고 넘는다", "effect": {}},
+							{"label": "잠시 서서 너머를 본다", "effect": {}},
+						],
+					}},
+				],
+			},
+			{
+				"id": "wall_old_rope", "threat": Threats.Kind.BLOCKAGE,
+				"text": "담 틈에 삭은 로프 한 가닥이\n걸려 있다.\n먼저 온 이가 걸어 둔 것이다.\n몸을 다 맡기기엔 삭았지만\n손잡이 삼을 수는 있겠다.",
+				"choices": [
+					{"label": "그 곁에 내 로프를 새로 건다", "effect": {"rope": -1}, "needs": {"rope": 1}, "action": "bridge", "then": {
+						"id": "rope_knot_kin", "threat": Threats.Kind.BLOCKAGE,
+						"text": "삭은 줄을 걷어 내리는데\n매듭이 낯익다.\n우리가 쓰는 매듭법 그대로다.\n같은 마을에서 배워 온 손이\n먼저 여기 닿았던 것이다.",
+						"choices": [
+							{"label": "옛 줄을 고이 걷어 둔다", "effect": {}},
+							{"label": "새 매듭을 당겨 보고 넘는다", "effect": {}},
+						],
+					}},
+					{"label": "삭은 줄을 손잡이 삼아 넘는다", "effect": {"water": -2, "food": -2}},
 				],
 			},
 			# (collapsed_wall_noropeleft 는 제거 — 전제였던 b2 로프 소모(rope_spent_now)가

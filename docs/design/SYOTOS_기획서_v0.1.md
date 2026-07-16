@@ -156,7 +156,7 @@
 - **같은 런 연쇄.** `sets` 플래그가 같은 원정의 뒤 이벤트를 바꾼다. (데모: 야영지서 여분 장막 챙김 → 뒤 폭풍이 한결 든든.)
 - **다음 원정 반영.** `sets_persist` 플래그가 세이브돼 다음 원정의 변형을 깬다(self-async). (데모: 마른 강 판 자리 → 다음엔 더 깊이.)
 - **core 순수성.** `ExpeditionRun` 은 영속 플래그를 생성자 주입, run 플래그는 `set_flag` 로 누적(GameState 미참조).
-- **Phase 0 데모.** 노드 events 에 산다 — 재방문 변형(a1 `river_dug_again`·b1 `camp_revisit_shelter`·d1 `bones_revisit_mourn`·c1 `oasis_deeper`·c2 `wall_revisit`) + 같은 런 연쇄(b1 `camp_shelter_now`→폭풍 변형, c1 `water_stocked`→f1 폭풍의 문 완화 `storm_gate_stocked`). 콘텐츠 확충은 노드 `events`/`sets`/`requires` 만 추가하면 된다.
+- **Phase 0 데모.** 노드 events 에 산다 — 재방문 변형(a1 `river_dug_again`·b1 `camp_revisit_shelter`·d1 `bones_revisit_mourn`·c1 `oasis_deeper`·c2 `wall_revisit`·d2 `pool_cleared_spring` — 사체를 묻으면 다음 원정에 물이 맑아진다, 2026-07-16) + 같은 런 연쇄(b1 `camp_shelter_now`→폭풍 변형, c1 `water_stocked`→f1 폭풍의 문 완화 `storm_gate_stocked`). 콘텐츠 확충은 노드 `events`/`sets`/`requires` 만 추가하면 된다.
 - **b2(갈라진 바닥) = 상시 다리 (2026-07-14 사용자 확정).** 세계마다 유령 씨앗 로프가 걸린 채 시작해 도착이 항상 "이전 원정대가 로프를 걸어뒀다"(무료 통과) — 데스 스트랜딩의 NPC 사다리처럼 **남긴 물건이 영구히 길이 된다**를 첫 원정부터 보여주는 자리. b2 자체 도착 이벤트는 없다(도달 불가라 제거 — 스스로 로프를 거는 경험은 e1 이 맡는다).
 
 **선택지 결과 숨김 (blind choice, 사용자 확정).** "가보기 전엔 모른다"(§1 강한 미지)를 결정 단위에 적용한다. 결과를 *알고* 누르면 미지·긴장이 깨지므로:

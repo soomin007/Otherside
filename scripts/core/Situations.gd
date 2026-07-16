@@ -258,6 +258,16 @@ const CATALOG: Array = [
 			{"label": "눈을 가늘게 뜨고 빠르게 벗어난다", "effect": {"water": -2}},
 		],
 	},
+	{
+		# storm 일반 2번째(2026-07-16) — grit_wind 하나뿐이라 폭풍 엣지에서 같은 카드가 반복되던 것 보강.
+		"id": "sand_tide", "biome": ["storm"],
+		"threat": Threats.Kind.STORM,
+		"text": "길 위로 모래가\n개울처럼 흘러내린다.\n발목까지 차오르는 모래를\n헤치며 가야 한다.",
+		"choices": [
+			{"label": "정강이로 헤치며 곧장 간다", "effect": {"water": -2}},
+			{"label": "모래가 얕은 등성이로 돌아간다", "effect": {"water": -1, "food": -1}},
+		],
+	},
 	# --- 정서 카드(정보 0, 정서 100) — 이전 원정대의 흔적을 스친다. 자원보다 결이 목적. 태그는 wordpool 안에서만 ---
 	{
 		"id": "sand_marker",
@@ -275,6 +285,26 @@ const CATALOG: Array = [
 		"choices": [
 			{"label": "잠시 손을 얹었다 간다", "effect": {}},
 			{"label": "빈 물통을 챙겨 둔다", "effect": {}},
+		],
+	},
+	{
+		# 정서 카드 3(2026-07-16) — 폭풍이 글씨를 지우는 세계 규칙을 지나가듯 보여준다. 태그 없음(못다 새긴 것이 핵).
+		"id": "half_scratched",
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "길가 바위에 긁다 만 자국.\n한 글자를 이루지 못한 채\n선 몇 개로 끊겼다.\n폭풍이 먼저 왔는지\n힘이 먼저 다했는지.",
+		"choices": [
+			{"label": "끊긴 선 위에 손가락을 얹어 본다", "effect": {}},
+			{"label": "못다 새긴 말을 짐작하며 간다", "effect": {}},
+		],
+	},
+	{
+		# 정서 카드 4(2026-07-16) — 물건이 절반을 말한다(나란한 그릇 = 함께한 두 사람). 태그는 wordpool 안에서만.
+		"id": "two_bowls",
+		"threat": Threats.Kind.CONSUMPTION,
+		"text": "바위 그늘에 나무 그릇 두 개가\n나란히 엎어져 있다.\n모래가 반쯤 삼켰어도\n나란한 것은 그대로다.\n곁의 표식: [ 고맙다 ]",
+		"choices": [
+			{"label": "모래를 털고 바로 놓아 준다", "effect": {}},
+			{"label": "나란한 채로 두고 간다", "effect": {}},
 		],
 	},
 	# --- 후반 전용(min_prog) 가혹 이동 상황 — 진행도 높을수록만 등장(멀수록 척박, 거리 곡선). 대가가 초반보다 크다 ---
@@ -303,6 +333,16 @@ const CATALOG: Array = [
 		"choices": [
 			{"label": "무너지기 전에 내달린다", "effect": {"water": -3, "food": -1}},
 			{"label": "단단한 바위만 골라 신중히 간다", "effect": {"food": -3}},
+		],
+	},
+	{
+		# 후반 전용 storm(2026-07-16) — min_prog 구역에 storm 만 없었다(flats·river·rock 은 있음).
+		"id": "veiled_sun", "min_prog": 0.55, "biome": ["storm"],
+		"threat": Threats.Kind.STORM,
+		"text": "날린 모래가 해를 가려\n한낮이 저물녘처럼 어둡다.\n길잡이 삼을 것 하나 없는 땅.\n걸음마다 방향을 되짚는다.",
+		"choices": [
+			{"label": "감에 기대어 서둘러 가로지른다", "effect": {"water": -3}},
+			{"label": "바람의 결을 읽으며 천천히 간다", "effect": {"water": -1, "food": -2}},
 		],
 	},
 ]
