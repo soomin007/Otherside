@@ -11,16 +11,18 @@ const PRESET: Array = ["water", "water", "food", "food", "rope", "shelter"]  ## 
 
 ## 첫 원정 시장 인트로 — 규칙을 한 번 쭉 설명하고 마지막에 기록지를 건넨다(give_record). Opening 슬라이드식.
 ## ⚠ 대사 줄바꿈은 수동 \n — autowrap(WORD_SMART)은 한글을 음절 사이 아무 데서나 끊는다("이어지는/군").
-##   의미 단위로 끊고 한 줄 ~26자 이내(COLUMN_W 520 · FS_BODY 기준). 오프닝 SLIDES 와 같은 규칙.
+##   의미 단위로 끊고 한 줄 ~26자 이내(COLUMN_W 520 · FS_BODY 기준, BBCode 태그는 셈에서 제외). 오프닝 SLIDES 와 같은 규칙.
 ## ⚠ 말투는 실제 사람(늙은 장사꾼)의 구어로 — 규칙서 낭독 금지, 시스템 용어(자원·릴레이 등) 입에 올리지 않기.
+##   문장 성분을 생략하지 않는다("딱 질 만큼만 지게" 같은 목적어 빠진 말 금지 — 2026-07-17 사용자).
+## 중요한 낱말은 [color=...] 강조 — 자원은 창고 라벨 틴트(PHOTO_NAME_TINT)의 색 언어, 규칙 낱말은 모래색(SAND).
 const MARKET_PAGES: Array = [
 	"시장: 잘 왔네. 채비를 도와줌세.",
-	"시장: 가방은 여섯 칸뿐일세.\n물하고 먹을 것부터 챙기게. 그게 목숨이야.\n틈엔 로프, 폭풍엔 장막이 자넬 살리지.",
-	"시장: 욕심내서 가득 지면 그만큼 목이 타네.\n무거운 짐은 물을 더 마시게 하거든.\n딱 질 만큼만 지게.",
-	"시장: 길은 지도에서 고르는 걸세.\n어딜 찍든 걸어서 가야 하고,\n걸음마다 물이 줄지. 먼 길일수록 목이 타네.",
-	"시장: 닿은 곳에선 몇 군데만 둘러볼 수 있네.\n드는 건 없네만, 살필 눈은 몇 번뿐이지.\n어딜 볼지 잘 고르게.",
-	"시장: 죽기 전에 딱 한 번, 물건을 두고 올 수 있네.\n뒤에 가는 이들이 그걸 줍지.\n무얼 두고 올지는 자네가 정하게.",
-	"시장: 이 기록지를 가져가게.\n떠난 이들의 이야기가 여기 적힐 걸세.\n화면 귀퉁이 책갈피를 누르면 언제든 볼 수 있네.",
+	"시장: 가방은 [color=#D6B278]여섯 칸[/color]뿐일세.\n[color=#9ECCE6]물[/color]하고 [color=#E6C27A]먹을 것[/color]부터 챙기게. 그게 목숨이야.\n폭풍용 [color=#C7D194]장막[/color]과 [color=#E0C794]로프[/color]도\n분명 쓸 일이 있을 것이네.",
+	"시장: 짐을 챙길 때는\n필요한 만큼만 챙기게.\n무거운 짐은 [color=#9ECCE6]물[/color]을 더 마시게 하거든.\n어깨가 가벼워야 오래 걷는 법이지.",
+	"시장: 어디로 향할지는\n자네에게 달려 있네.\n먼 곳일수록 시간도 오래 걸리고,\n그만큼 [color=#9ECCE6]물[/color]과 [color=#E6C27A]식량[/color]도 많이 필요하겠지.",
+	"시장: 가다가 닿는 곳마다\n[color=#D6B278]두 군데[/color] 정도는 살펴볼 여유가 있을 걸세.\n그 시간 동안은 자유롭게 둘러보게.",
+	"시장: 아, 그리고 원정이 끝나기 전에\n[color=#D6B278]딱 한 번, 물건 하나[/color]를 길에 남길 수 있네.\n자네가 끝내 닿지 못할 때를 대비해\n다음 원정대에게 전하는 걸세.\n무엇을 어디에 언제 둘지 잘 생각해 보게.",
+	"시장: 이 기록지를 가져가게.\n떠난 이들의 이야기가 여기 적힐 걸세.\n화면 귀퉁이 [color=#D6B278]책갈피[/color]를 누르면 언제든 볼 수 있네.",
 ]
 
 ## 순환 엔딩을 볼 때마다 다음 마을에서 한 번 — 시장의 재회 옛말(사용자 확정: 반복 노출).
@@ -28,7 +30,7 @@ const MARKET_PAGES: Array = [
 ## 게이트: cycle_arrival_count() > reunion_hints_shown (재회를 이미 봤으면 안 띄움).
 const REUNION_HINT_PAGES: Array = [
 	"시장: 끝에 닿았다 왔다지.\n그런데도 원정은 끝나질 않는군.",
-	"시장: 옛말이 하나 있긴 하지.\n잠든 이들을 기리고, 뒤처진 이들을 거두고,\n한 사람도 잃지 않고 닿은 원정만이\n밀어내지 않고 지나간다고.",
+	"시장: 옛말이 하나 있긴 하지.\n잠든 이들을 [color=#D6B278]기리고[/color], 뒤처진 이들을 [color=#D6B278]거두고[/color],\n[color=#D6B278]한 사람도 잃지 않고[/color] 닿은 원정만이\n밀어내지 않고 지나간다고.",
 	"시장: 왠지 자네도 알 것 같네만.\n죽은 자리를 지나치지 말고,\n길에 웅크린 이가 보이거든 거두게.\n옛말이 다 헛말은 아닐 걸세.",
 ]
 
@@ -88,7 +90,7 @@ var _voc_desc: Label               ## step1 위젯 (직능 설명 갱신)
 var _name_edit: LineEdit           ## step1 위젯
 var _rng := RandomNumberGenerator.new()
 var _market_panel: Control         ## 시장 대화 모달(있을 때만) — 첫 원정 인트로/첫 순환 후 옛말 공용
-var _market_label: Label
+var _market_label: RichTextLabel   ## 대사 글 — 중요한 낱말 색 강조(BBCode)
 var _market_idx: int = 0
 var _market_pages: Array = []      ## 지금 흐름의 대사(MARKET_PAGES 또는 REUNION_HINT_PAGES)
 var _market_flow: String = ""      ## "intro"(기록지 건네기) / "hint"(재회 옛말)
@@ -1012,7 +1014,8 @@ func _show_market_panel() -> void:
 	fig.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_child(fig)
 	box.add_child(UITheme.make_hairline(Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.35), 2.0))
-	_market_label = UITheme.make_label(str(_market_pages[0]), UITheme.FS_BODY)
+	_market_label = _make_market_label()
+	_set_market_text(str(_market_pages[0]))
 	box.add_child(_market_label)
 	box.add_child(UITheme.make_hairline(Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.35), 2.0))
 	var row := HBoxContainer.new()
@@ -1056,8 +1059,27 @@ func _market_advance() -> void:
 		_market_tw.kill()  # 연타 — 진행 중 페이드는 끊고 바로 다음 대사로
 	_market_tw = _market_label.create_tween()
 	_market_tw.tween_property(_market_label, "modulate:a", 0.0, 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
-	_market_tw.tween_callback(func() -> void: _market_label.text = str(_market_pages[_market_idx]))
+	_market_tw.tween_callback(func() -> void: _set_market_text(str(_market_pages[_market_idx])))
 	_market_tw.tween_property(_market_label, "modulate:a", 1.0, 0.3).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+## 시장 대사 글 — 색 강조(BBCode) 지원 RichTextLabel(일지 _rich_label 과 같은 결). 폰트는 기본 테마.
+func _make_market_label() -> RichTextLabel:
+	var r := RichTextLabel.new()
+	r.bbcode_enabled = true
+	r.fit_content = true
+	r.scroll_active = false
+	r.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	r.add_theme_font_size_override("normal_font_size", UITheme.FS_BODY)
+	r.add_theme_color_override("default_color", UITheme.FG)
+	r.add_theme_constant_override("line_separation", 8)  # make_label 의 line_spacing 8 과 같은 호흡
+	return r
+
+## 대사 갈아끼우기 — 가운데 정렬은 [center] 태그로(옛 Label 의 가운데 정렬 유지).
+func _set_market_text(bb: String) -> void:
+	if _market_label != null:
+		_market_label.text = "[center]" + bb + "[/center]"
 
 func _finish_market() -> void:
 	if not _market_ready:
