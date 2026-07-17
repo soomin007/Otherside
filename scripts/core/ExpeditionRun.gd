@@ -105,10 +105,17 @@ func get_res(key: String) -> int:
 
 ## 한 걸음의 물 소모 — 멀어질수록 커진다(거리 = 척박함의 기울기). 출발지 근처 1, 무인지대로 갈수록 늘어난다.
 ## 직능: 길잡이는 곡선 완화(desolation_bonus), 짐꾼은 무거워 기본 소모 +1(water_per_step_bonus).
+## 무게 대칭 사다리(2026-07-17 사용자 확정): WEIGHT_FREE 초과 WEIGHT_STEP 마다 +1(무거움),
+## 미만 WEIGHT_STEP 마다 -1(가벼움 — "어깨가 가벼워야 오래 걷는다"). 바닥 1 = 공짜 걷기 금지라
+## 마을 근처(기본 1)에선 안 보이고, 거리 곡선이 소모를 올린 먼 길에서 실효가 난다.
+## carry_weight 0 = 무게 미주입(디버그 진입 등) — 페널티도 보너스도 없음.
 func water_cost() -> int:
 	var deso: int = DESOLATION_EVERY + int(_vocation.get("desolation_bonus", 0))
 	var heavy: int = maxi(0, carry_weight - WEIGHT_FREE) / maxi(1, WEIGHT_STEP)  # 무거운 짐 → 걸음당 물↑
-	return WATER_PER_STEP + int(_vocation.get("water_per_step_bonus", 0)) + heavy + int(leg / maxi(1, deso))
+	var light: int = 0
+	if carry_weight > 0:
+		light = maxi(0, WEIGHT_FREE - carry_weight) / maxi(1, WEIGHT_STEP)      # 가벼운 짐 → 걸음당 물↓
+	return maxi(1, WATER_PER_STEP + int(_vocation.get("water_per_step_bonus", 0)) + heavy - light + int(leg / maxi(1, deso)))
 
 func is_bridged(node_id: String) -> bool:
 	return _bridged.has(node_id)

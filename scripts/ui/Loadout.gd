@@ -503,7 +503,12 @@ func _refresh_meta() -> void:
 	var res: Dictionary = _bag_resources()
 	var wgt: int = Items.bag_weight(_bag)  # 주머니 도구는 무게에서 뺀다(가방 6칸과 별개 보험 슬롯 — 절벽 방지)
 	var pen: int = maxi(0, wgt - ExpeditionRun.WEIGHT_FREE) / maxi(1, ExpeditionRun.WEIGHT_STEP)
-	var pen_str: String = "  · 짐이 무거워 걸음마다 물 +%d" % pen if pen > 0 else ""
+	var lgt: int = maxi(0, ExpeditionRun.WEIGHT_FREE - wgt) / maxi(1, ExpeditionRun.WEIGHT_STEP) if wgt > 0 else 0
+	var pen_str: String = ""
+	if pen > 0:
+		pen_str = "  · 짐이 무거워 걸음마다 물 +%d" % pen
+	elif lgt > 0:
+		pen_str = "  · 짐이 가벼워 먼 길에서 물 -%d" % lgt  # 바닥 1 — 실효는 소모가 오른 구간부터(water_cost)
 	_preview.text = "물 %d · 식량 %d · %s · 무게 %d%s" % [
 		int(res["water"]), int(res["food"]), Items.tools_summary(res), wgt, pen_str]
 	if _count_n != null:
