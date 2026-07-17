@@ -5,12 +5,15 @@ extends Control
 ## 기획서 §0·§2 세계관을 각색.
 
 ## FS_H1(28)·520px 컬럼 = 한 줄 ~17자. 수동 \n 필수(autowrap 은 음절 중간을 끊는다).
+## 어투 = 존댓말(합니다체) 내레이션(2026-07-18 사용자 — 시스템 목소리와 같은 결, 문장 성분 완결).
+## 내용 = 세계관·정서만(몰입 훅). 규칙 설명(남기기 "단 한 번" 등)은 시장·튜토리얼·일지 몫 — 여기서 반복 금지.
+## 각 장은 삽화(ILLUS_PATHS)와 1:1: 떠난다·죽는다·지운다·보내는 자·남긴다. 마지막 장이 제목 카드를 받는다("건너편" → See you on the other side).
 const SLIDES: Array = [
-	"모래가 가라앉으면,\n재앙을 멈추러 원정대가 떠난다.",
-	"거의 다 도중에 죽는다.\n한 번에 닿은 이는 아직 없었다.",
-	"모래폭풍이 글을 지우는 땅.\n말은 남지 않는다. 물건만 남는다.",
-	"너는 그들을 거듭 보내는 자.\n매번 다른 이가 떠나고,\n너는 그 사실을 안다.",
-	"죽기 전 단 한 번.\n다음 원정대에게 무엇을 남길지,\n그것만이 네 몫이다.",
+	"폭풍이 지나가고\n모래가 가라앉으면,\n재앙을 멈추러\n원정대가 떠납니다.",
+	"거의 모두가\n길 위에서 죽습니다.\n한 번에 닿은 사람은\n아직 없었습니다.",
+	"모래폭풍은 글을 지웁니다.\n말은 남지 않고,\n물건만 남습니다.",
+	"당신은 그들을\n거듭 보내는 사람입니다.\n매번 다른 이가 떠나고,\n당신만이 모든 원정을 기억합니다.",
+	"죽음을 앞둔 이들은\n다음 원정대를 위해\n물건 하나를 남깁니다.\n건너편에서 다시 만나자는\n약속입니다.",
 ]
 const TITLE_TEXT: String = "See you on the other side"
 ## 게임 로고(§18) — 있으면 제목 카드에 텍스트 대신 로고가 배어난다. 없으면 텍스트 fallback.
@@ -39,6 +42,7 @@ const ILLUS_PATHS_LAND: Array = [
 
 var _idx: int = 0
 var _label: Label
+var _text_box: VBoxContainer       ## 글씨 뒷배(방사 어둠) 래퍼 — 페이드는 이걸 잡아 뒷배와 글씨가 한 몸으로 배어난다
 var _hint: Label
 var _title_mode: bool = false
 var _logo: TextureRect             ## 로고 레이어(에셋 있을 때만, 제목 카드에서 텍스트 대신)
@@ -81,9 +85,14 @@ func _ready() -> void:
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
+	# 글씨 뒷배 — 은은한 방사 어둠(상자 아님). 밝은 삽화 위에서도 내레이션이 서게(2026-07-18 사용자 "약간").
+	_text_box = VBoxContainer.new()
+	_text_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	UITheme.attach_dark_pool(_text_box, 1.7, 0.75)
+	center.add_child(_text_box)
 	_label = UITheme.make_label(SLIDES[0], UITheme.FS_H1, UITheme.FG)
 	_label.custom_minimum_size = Vector2(UITheme.COLUMN_W, 0)
-	center.add_child(_label)
+	_text_box.add_child(_label)
 
 	# 로고 레이어 — 화면 중앙, 좌우 12%·상하 24% 여백 안에 contain. 제목 카드에서만 켜진다.
 	if ResourceLoader.exists(LOGO_PATH):
@@ -195,17 +204,17 @@ func _on_illus_resize() -> void:
 		_illus.texture = _tex_for(_illus_cur)
 
 func _fade_in() -> void:
-	_label.modulate.a = 0.0
+	_text_box.modulate.a = 0.0
 	var t := _restart_label_tw()
-	t.tween_property(_label, "modulate:a", 1.0, FADE)
+	t.tween_property(_text_box, "modulate:a", 1.0, FADE)
 	if _illus != null:
 		_illus_tw = create_tween()
 		_illus_tw.tween_property(_illus, "modulate:a", 1.0, FADE)
 
-## 제목 카드(로고) — 글씨를 걷고 로고가 느리게 배어나며, 살짝 크게 시작해 자리 잡는다.
+## 제목 카드(로고) — 글씨(뒷배 포함)를 걷고 로고가 느리게 배어나며, 살짝 크게 시작해 자리 잡는다.
 func _reveal_logo() -> void:
 	var t := _restart_label_tw()
-	t.tween_property(_label, "modulate:a", 0.0, FADE * 0.5)
+	t.tween_property(_text_box, "modulate:a", 0.0, FADE * 0.5)
 	t.tween_property(_logo, "modulate:a", 1.0, TITLE_FADE)
 	_logo.pivot_offset = _logo.size * 0.5
 	_logo.scale = Vector2(1.04, 1.04)
@@ -217,16 +226,16 @@ func _reveal_logo() -> void:
 ## 제목 카드(텍스트 fallback) — 본문 슬라이드보다 느린 페이드로 무게를 준다.
 func _reveal_title_text() -> void:
 	var t := _restart_label_tw()
-	t.tween_property(_label, "modulate:a", 0.0, FADE * 0.5)
+	t.tween_property(_text_box, "modulate:a", 0.0, FADE * 0.5)
 	t.tween_callback(_apply_text.bind(TITLE_TEXT, UITheme.FS_DISPLAY, UITheme.SAND))
-	t.tween_property(_label, "modulate:a", 1.0, TITLE_FADE)
+	t.tween_property(_text_box, "modulate:a", 1.0, TITLE_FADE)
 
-## 텍스트를 페이드아웃 → 교체 → 페이드인.
+## 텍스트를 페이드아웃 → 교체 → 페이드인 (뒷배 포함 한 몸).
 func _fade_to(text: String, size: int, color: Color) -> void:
 	var t := _restart_label_tw()
-	t.tween_property(_label, "modulate:a", 0.0, FADE * 0.5)
+	t.tween_property(_text_box, "modulate:a", 0.0, FADE * 0.5)
 	t.tween_callback(_apply_text.bind(text, size, color))
-	t.tween_property(_label, "modulate:a", 1.0, FADE)
+	t.tween_property(_text_box, "modulate:a", 1.0, FADE)
 
 ## 글씨 트윈 재시작 — 진행 중이던 페이드를 죽이고 새로 만든다.
 ## (연타로 슬라이드 트윈이 돌던 중 제목 카드에 들어가면, 이전 트윈이 뒤늦게 글씨를 되살려
