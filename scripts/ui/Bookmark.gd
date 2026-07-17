@@ -1252,6 +1252,7 @@ func _add_volume_row(box: VBoxContainer, txt: String, vol: float, on_changed: Ca
 
 func _on_music_changed(value: float) -> void:
 	AppSettings.set_music_volume(value)
+	AudioManager.refresh_music_volume()  # 웹 샘플 베드는 Music 버스 밖 — 직접 갱신해야 바로 들린다
 	if _music_value != null:
 		_music_value.text = _pct(value)
 

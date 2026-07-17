@@ -191,12 +191,17 @@ func play_bed() -> void:
 	_bed.play()
 
 ## Music 설정 음량을 베드 플레이어에 직접 적용(Master 버스라 Music 버스 볼륨이 안 먹는다).
-## (한계: 재생 중 슬라이더 실시간 반영은 다음 play_bed 때 — 씬 전환마다 재적용됨.)
 func _apply_bed_volume() -> void:
 	if _bed == null:
 		return
 	var lin: float = clampf(AppSettings.load_music_volume(), 0.0, 1.0)
 	_bed.volume_db = -80.0 if lin <= 0.0001 else linear_to_db(lin)
+
+## 설정의 음악 슬라이더 변경을 즉시 반영 — 웹 샘플 베드는 Music 버스 밖(Master 직결)이라 버스 볼륨이
+## 안 닿아, 조정해도 다음 play_bed(씬 전환)까지 그대로였다(2026-07-17 사용자 제보). 슬라이더가 부른다.
+## 네이티브(스트림 경로)는 버스 볼륨이 실시간이라 여기선 할 일이 없다(_bed == null → no-op).
+func refresh_music_volume() -> void:
+	_apply_bed_volume()
 
 ## 스트림 BGM(폭풍·엔딩) 정리 — 루프 상태도 해제.
 func _stop_stream_tracks() -> void:
