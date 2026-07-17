@@ -920,14 +920,14 @@ no white background, no isolated object, no people, no creature, no monster.
 
 ---
 
-## 18. 게임 로고 — 제목 레터링 (검정 배경 → 투명 · 가로 1536×1024 이상) — `80_로고_제목.png` (2026-07-17 추가)
+## 18. 게임 로고 — 제목 레터링 (**현행: 마젠타 #FF00FF → 투명(C안)** · 가로 1536×1024 이상) — `80_로고_제목.png`
 
 > **쓰이는 곳:** ① 오프닝 마지막 제목 카드(어두운 밤 배경 위, `Opening.gd` — 느린 페이드+스케일 정착 배선 완료)
 > ② 타이틀 화면 상단(키아트 위 어두운 글로우 안, `Main.gd` — 텍스트 로고 자리 교체 배선 완료).
 > 파일만 `assets/arts/80_로고_제목.png` 로 넣으면 두 곳 다 바로 뜬다. 없으면 텍스트 제목 fallback.
 >
-> **이번엔 검정 배경(#000000)이다** — 흰 배경이 아니라. 로고 글자가 밝은 모래·아이보리색이라 흰 배경으로 뽑으면
-> 흰→투명 변환이 글자까지 지운다. 검정→투명 변환은 Claude 가 삽입 때 처리한다(`alpha_key` 확장).
+> **(A/B안의 검정 배경은 구판 규약 — 현행은 C안의 마젠타. 도구가 배경색을 자동 감지하니 둘 다 처리된다.)**
+> 흰 배경은 금지 — 로고 글자가 밝은 모래·아이보리색이라 흰→투명 변환이 글자까지 지운다.
 > 로고는 늘 어두운 화면 위에 얹히므로 경계의 어두운 헤일로는 티가 안 난다.
 > 생성기가 **진짜 투명 배경 PNG** 를 줄 수 있으면 그걸로 받아도 된다(진짜 투명인지 검사는 Claude 몫 — 체커보드를
 > *그림으로* 그리는 함정은 맨 위 교훈 참조). 철자가 틀리면 그 판은 버리고 다시 뽑는다(글자만은 타협 불가).
@@ -959,28 +959,35 @@ quiet mood. Absolutely no other words, no subtitle, no tagline, no numbers, no w
 no checkerboard, no border, no frame, no emblem, no scenery, no misspelling.
 ```
 
-### C안 — Cinzel 레터링 유지판 (2026-07-18 추가 · **참고 이미지 첨부형**)
+### C안 — Cinzel 레터링 유지판 (현행 · **참고 이미지 첨부형 · 마젠타 배경**)
 
 > 기존 타이틀 텍스트 로고의 Cinzel 서체·자간·두 줄 구성이 아까워서(사용자), **글자꼴은 그대로 두고
 > 질감만 입히는** 재생성판. 텍스트 프롬프트만으로는 GPT 가 Cinzel 을 재현하지 못한다 — 반드시
 > **`assets_src/logo_ref_cinzel.png` 를 첨부**하고 아래 프롬프트를 같이 붙인다.
-> (참고판 = Main._logo_label 과 같은 세팅을 2.7배 해상도로 렌더: Cinzel wght700·자간 8·아이보리·순검정 배경.
-> 다시 뽑아야 하면 세션 로그 2026-07-18 세션 7의 드라이버 요령 참조.)
-> 그림자 확정값(0.5/블러7/오프셋2)은 프롬프트에 안 넣는다 — `black_key.gd` ⑤ 그림자 굽기가 화면 비율로
-> 근사해 얹는다(현재 0.55/블러≈9/아래5, 결과 보고 손잡이 조정).
-> **철자·글자꼴이 조금이라도 바뀌면 그 판은 버리고 재생성한다.**
+> - 참고판 = Cinzel wght700 을 **Title Case**("See You On The / Other Side")로 렌더 — 단어마다 큰 첫
+>   글자가 있어야 small caps 리듬이 산다(문장 대문자만 쓰면 큰 글자가 S 하나뿐 — 2026-07-18 사용자 지적).
+> - **배경 = 마젠타(#FF00FF)** — 검정은 어두운 디테일(그림자·돌 틈)과 배경이 색으로 안 갈라진다
+>   (2026-07-18 사용자 제안). `black_key.gd` 가 배경색을 자동 감지해 언믹스 키잉 + 팔레트 비율
+>   despill 로 처리한다(합성 테스트 검증 완료. 검정 구판도 여전히 처리 가능).
+> - 그림자는 프롬프트에 없다 — 생성물에 그리게 하면 불투명 덩어리로 키잉돼 지저분해진다.
+>   게임 확정값 비율의 그림자는 `black_key.gd` ⑤ 가 굽는다(0.55/블러≈9/아래5, 결과 보고 조정).
+> - 참고판 재렌더 요령은 세션 로그 2026-07-18 세션 7·8 (창 1920×960·fs150·오토로드 오버레이 숨김).
+> - **철자·글자꼴이 조금이라도 바뀌면 그 판은 버리고 재생성한다.**
 
 첨부와 함께 붙일 프롬프트:
 ```
 Use the attached image as the exact template for the lettering: keep the same typeface, the same
-letterforms, the same spelling, the same two-line layout, size ratio and letter spacing. Do not redraw,
-restyle or reinterpret any letter shape and do not change the wording. Repaint the surface of these exact
-letters as weathered ancient sandstone, pale sand-ivory with a subtle warm gold edge light, and let the
-bottom edges of the letters crumble and dissolve into fine sand grains streaming away to the right on the
-wind, as if a sandstorm is slowly erasing the words. Keep the lettering centered with generous empty
-margin all around, on a plain solid pure black background (#000000). Muted desert palette, timeworn,
-solemn quiet mood. Absolutely no other words, no subtitle, no watermark, no border, no frame, no scenery,
-no characters, no misspelling.
+letterforms, the same spelling, the same two-line layout, size ratio and letter spacing, including the
+small-caps rhythm where the first letter of every word is a larger capital. Do not redraw, restyle or
+reinterpret any letter shape and do not change the wording. Repaint the surface of these exact letters
+as weathered ancient sandstone, pale sand-ivory with a subtle warm gold edge light, and let the bottom
+edges of the letters crumble and dissolve into fine sand grains streaming away to the right on the wind,
+as if a sandstorm is slowly erasing the words. Keep the lettering centered with generous empty margin
+all around. The background must stay one single uniform flat pure magenta color (#FF00FF) with no
+gradient, no texture and no vignette. Muted desert palette on the letters only, timeworn, solemn quiet
+mood. Absolutely no other words, no subtitle, no watermark, no border, no frame, no scenery,
+no characters, no misspelling, no drop shadow painted onto the background, no magenta or pink tint on
+the letters or the sand.
 ```
 
 행렬판(81 대체)도 뽑으려면 위 프롬프트 끝에 한 문장 추가:
@@ -997,9 +1004,10 @@ classical Roman inscription capitals in the tradition of the Trajan column, bold
 thin-to-thick serif strokes, lowercase rendered as smaller capitals (small caps), generous letter
 spacing, repainted as weathered ancient sandstone in pale sand-ivory with a subtle warm gold edge light,
 the bottom edges of the letters crumbling and dissolving into fine sand grains streaming away to the
-right on the wind, centered wide horizontal composition with generous empty margin, on a plain solid
-pure black background (#000000). Muted desert palette, timeworn, solemn quiet mood. Absolutely no other
-words, no subtitle, no watermark, no border, no frame, no scenery, no characters, no misspelling.
+right on the wind, centered wide horizontal composition with generous empty margin, the background one
+single uniform flat pure magenta color (#FF00FF) with no gradient and no texture. Muted desert palette
+on the letters only, timeworn, solemn quiet mood. Absolutely no other words, no subtitle, no watermark,
+no border, no frame, no scenery, no characters, no misspelling, no magenta or pink tint on the letters.
 ```
 
 ### 삽입 완료 기록 (2026-07-18)

@@ -1,19 +1,18 @@
 extends SceneTree
 
-## 검정 배경 → 투명 변환 도구 (로고 등 "밝은 그림 · 검정 배경" 전용, alpha_key.gd 의 자매)
+## 배경 컬러키 → 투명 변환 도구 (로고 등 단색 배경 생성물 전용, alpha_key.gd 의 자매)
 ##
-## 배경: 밝은 모래색 로고는 흰 배경으로 뽑으면 흰→투명 키잉(alpha_key)이 글자까지 지운다.
-##       그래서 검정(#000000) 배경으로 뽑고, 여기서 밝기를 alpha 로 되살린다(언프리멀티플라이).
-##       원본이 검정 위 합성이므로 c' = c / a, a = 밝기 램프 — 어두운 화면 위에 얹으면 원본과 같게 보인다.
+## 배경색을 모서리에서 자동 감지해 두 모드 중 하나로 키잉한다:
+## - **마젠타 크로마키(#FF00FF, 권장)** — 마젠타 성분 m=min(r,b)-g 로 alpha 를 세우고,
+##   c = f·a + key·(1-a) 를 풀어 진짜 전경색을 복원(언믹스). 모래·아이보리·갈색엔 마젠타가 없어
+##   어두운 디테일까지 깨끗이 분리된다. 검정 모드의 내부 구멍 편법이 필요 없다(2026-07-18 사용자 제안).
+## - 검정(#000000, 구판 호환) — 밝기를 alpha 로 되살린다(언프리멀티플라이). 어두운 디테일과 배경을
+##   구분 못 해 내부 구멍 메움 편법이 붙는다. 새로 뽑을 땐 마젠타로.
 ##
 ## 실행 (대상은 인자로만 받는다 — 폴더 스캔 없음):
 ##   godot --headless --path . -s scripts/tools/black_key.gd -- <입력.png> <출력.png> [<입력2> <출력2> ...]
 ##
-## 처리: ① 밝기 램프 alpha (FLOOR 이하 = 배경 노이즈 → 0, SOLID 이상 → 1)
-##       ② 내부 구멍 메움 — 글자 안 어두운 질감(돌 틈)이 반투명해지면 밝은 배경 위에서 씻겨 보인다.
-##          테두리에서 못 닿는 저알파 픽셀 = 내부 → 원색 그대로 불투명 유지.
-##          단, 순검정(a=0) 심이 있는 내부 영역은 글자 속 구멍(O·D 의 속)이라 배경으로 재분류(투명).
-##       ③ 바깥(모래 흩날림)은 c/a 언프리멀티플라이로 부드러운 페이드 보존
+## 처리: ①~③ 키잉(모드별 — 마젠타 언믹스 / 검정 언프리멀티플라이+내부 구멍 메움)
 ##       ④ 여백 크롭(+MARGIN)
 ##       ⑤ 그림자 굽기 — 알파를 블러해 아래로 민 어두운 판을 밑에 깐다(밝은 키아트 위 가독. 셰이더 금지
 ##          제약이라 런타임 블러가 없어 에셋에 굽는다. 어두운 배경에선 안 보여 무해).
@@ -66,74 +65,15 @@ func _convert_one(src: String, dst: String) -> bool:
 	var w: int = img.get_width()
 	var h: int = img.get_height()
 
-	# ① 밝기 램프 alpha 맵
-	var amap: PackedFloat32Array = PackedFloat32Array()
-	amap.resize(w * h)
-	for y in range(h):
-		for x in range(w):
-			var c: Color = img.get_pixel(x, y)
-			var mx: float = maxf(c.r, maxf(c.g, c.b))
-			amap[y * w + x] = clampf((mx - FLOOR) / (SOLID - FLOOR), 0.0, 1.0)
-
-	# ② 내부 구멍 판정 — 테두리에서 저알파(HOLE_A 미만) 픽셀만 밟아 flood fill. 못 닿은 저알파 = 내부.
-	var outside: PackedByteArray = PackedByteArray()
-	outside.resize(w * h)  # 1 = 바깥(테두리와 저알파로 연결됨)
-	var stack: Array = []
-	for x in range(w):
-		stack.append(Vector2i(x, 0))
-		stack.append(Vector2i(x, h - 1))
-	for y in range(h):
-		stack.append(Vector2i(0, y))
-		stack.append(Vector2i(w - 1, y))
-	while not stack.is_empty():
-		var p: Vector2i = stack.pop_back()
-		var idx: int = p.y * w + p.x
-		if outside[idx] == 1 or amap[idx] >= HOLE_A:
-			continue
-		outside[idx] = 1
-		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-			var nx: int = p.x + d.x
-			var ny: int = p.y + d.y
-			if nx >= 0 and ny >= 0 and nx < w and ny < h and outside[ny * w + nx] == 0:
-				stack.append(Vector2i(nx, ny))
-
-	# ②-2 글자 속 구멍 재분류 — 내부인데 순검정(a=0) 픽셀이 있으면 그 연결 영역은 배경이다
-	#      (O·D 의 속 구멍). 검정 심에서 저알파 픽셀을 타고 flood fill → outside 와 같게 취급.
-	for y2 in range(h):
-		for x2 in range(w):
-			var si: int = y2 * w + x2
-			if outside[si] == 0 and amap[si] <= 0.0:
-				stack.append(Vector2i(x2, y2))
-	while not stack.is_empty():
-		var p2: Vector2i = stack.pop_back()
-		var pi: int = p2.y * w + p2.x
-		if outside[pi] == 1 or amap[pi] >= HOLE_A:
-			continue
-		outside[pi] = 1
-		for d2 in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-			var mx2: int = p2.x + d2.x
-			var my2: int = p2.y + d2.y
-			if mx2 >= 0 and my2 >= 0 and mx2 < w and my2 < h and outside[my2 * w + mx2] == 0:
-				stack.append(Vector2i(mx2, my2))
-
-	# ③ 픽셀 쓰기 — 본체/내부 구멍 = 원색 불투명, 바깥 페이드 = 언프리멀티플라이
-	var cleared: int = 0
-	var filled: int = 0
-	for y in range(h):
-		for x in range(w):
-			var idx2: int = y * w + x
-			var a: float = amap[idx2]
-			var c2: Color = img.get_pixel(x, y)
-			if a >= HOLE_A:
-				img.set_pixel(x, y, Color(c2.r, c2.g, c2.b, 1.0))
-			elif outside[idx2] == 0:
-				img.set_pixel(x, y, Color(c2.r, c2.g, c2.b, 1.0))  # 내부 어두운 질감 보존
-				filled += 1
-			elif a <= 0.0:
-				img.set_pixel(x, y, Color(0, 0, 0, 0))
-				cleared += 1
-			else:
-				img.set_pixel(x, y, Color(minf(c2.r / a, 1.0), minf(c2.g / a, 1.0), minf(c2.b / a, 1.0), a))
+	# ①~③ 키잉 — 배경색을 모서리에서 감지해 모드 결정
+	var key: Color = _detect_key(img)
+	var stats: PackedInt32Array
+	if minf(key.r, key.b) - key.g > 0.5:
+		stats = _key_chroma(img, key)  # 마젠타 크로마키 — 언믹스
+	else:
+		stats = _key_black(img)        # 검정(구판 호환) — 언프리멀티플라이 + 내부 구멍 메움
+	var cleared: int = stats[0]
+	var filled: int = stats[1]
 
 	if img.detect_alpha() == Image.ALPHA_NONE:
 		print("FAIL 투명픽셀 없음(문턱 재조정 필요): ", src)
@@ -163,6 +103,135 @@ func _convert_one(src: String, dst: String) -> bool:
 		return false
 	print("OK  %s → %s  [%dx%d, 배경 %dpx 투명, 내부 메움 %dpx]" % [src.get_file(), dst, img.get_width(), img.get_height(), cleared, filled])
 	return true
+
+## 배경색 감지 — 네 모서리 8×8 패치 평균.
+func _detect_key(img: Image) -> Color:
+	var w: int = img.get_width()
+	var h: int = img.get_height()
+	var sum: Vector3 = Vector3.ZERO
+	var n: int = 0
+	for corner in [Vector2i(0, 0), Vector2i(w - 8, 0), Vector2i(0, h - 8), Vector2i(w - 8, h - 8)]:
+		for dy in range(8):
+			for dx in range(8):
+				var c: Color = img.get_pixel(corner.x + dx, corner.y + dy)
+				sum += Vector3(c.r, c.g, c.b)
+				n += 1
+	return Color(sum.x / n, sum.y / n, sum.z / n)
+
+## 마젠타 크로마키 — 마젠타 성분 m=min(r,b)-g 으로 alpha 를 세우고,
+## c = f·a + key·(1-a) 를 풀어 전경색 복원(언믹스).
+## 따뜻한 팔레트(초록>파랑)에선 이 alpha 가 과대해져 반투명 영역에 분홍이 남는다 —
+## 본체 픽셀에서 팔레트의 파랑/초록 비율(ρ)을 학습해, 그 비율을 넘는 파랑을 마젠타 잔여로
+## 보고 배경 몫으로 되돌린다(c = f·a + k·(1-a) 의 정확한 재매개화 — 합성 결과 불변).
+func _key_chroma(img: Image, key: Color) -> PackedInt32Array:
+	var w: int = img.get_width()
+	var h: int = img.get_height()
+	var mk: float = minf(key.r, key.b) - key.g
+	# 1패스 — 본체(alpha≈1) 픽셀로 팔레트 비율 ρ = Σ(b·g)/Σ(g²) (가중 최소제곱)
+	var bg_sum: float = 0.0
+	var gg_sum: float = 0.0
+	for y in range(h):
+		for x in range(w):
+			var c: Color = img.get_pixel(x, y)
+			var m: float = minf(c.r, c.b) - c.g
+			if 1.0 - clampf(m / mk, 0.0, 1.0) >= 0.97 and c.g > 0.1:
+				bg_sum += c.b * c.g
+				gg_sum += c.g * c.g
+	var rho: float = 0.75 if gg_sum <= 0.0 else clampf(bg_sum / gg_sum, 0.3, 0.95)
+	# 2패스 — 키잉 + 잔여 마젠타 재배분
+	var cleared: int = 0
+	for y in range(h):
+		for x in range(w):
+			var c: Color = img.get_pixel(x, y)
+			var m: float = minf(c.r, c.b) - c.g
+			var a: float = 1.0 - clampf(m / mk, 0.0, 1.0)
+			if a <= 0.06:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+				cleared += 1
+			elif a >= 0.97:
+				img.set_pixel(x, y, Color(c.r, c.g, c.b, 1.0))
+			else:
+				var fr: float = clampf((c.r - key.r * (1.0 - a)) / a, 0.0, 1.0)
+				var fg: float = clampf((c.g - key.g * (1.0 - a)) / a, 0.0, 1.0)
+				var fb: float = clampf((c.b - key.b * (1.0 - a)) / a, 0.0, 1.0)
+				var t: float = clampf(fb - rho * fg, 0.0, 0.85)  # 팔레트 비율 초과분 = 마젠타 잔여
+				if t > 0.003:
+					fr = clampf((fr - key.r * t) / (1.0 - t), 0.0, 1.0)
+					fg = clampf((fg - key.g * t) / (1.0 - t), 0.0, 1.0)
+					fb = clampf((fb - key.b * t) / (1.0 - t), 0.0, 1.0)
+					a = a * (1.0 - t)
+				img.set_pixel(x, y, Color(fr, fg, fb, a))
+	return PackedInt32Array([cleared, 0])
+
+## 검정 키(구판 호환) — 밝기 램프 언프리멀티플라이 + 내부 구멍 메움 + 글자 속 구멍 재분류.
+func _key_black(img: Image) -> PackedInt32Array:
+	var w: int = img.get_width()
+	var h: int = img.get_height()
+	# ① 밝기 램프 alpha 맵
+	var amap: PackedFloat32Array = PackedFloat32Array()
+	amap.resize(w * h)
+	for y in range(h):
+		for x in range(w):
+			var c: Color = img.get_pixel(x, y)
+			var mx: float = maxf(c.r, maxf(c.g, c.b))
+			amap[y * w + x] = clampf((mx - FLOOR) / (SOLID - FLOOR), 0.0, 1.0)
+	# ② 내부 구멍 판정 — 테두리에서 저알파(HOLE_A 미만) 픽셀만 밟아 flood fill. 못 닿은 저알파 = 내부.
+	var outside: PackedByteArray = PackedByteArray()
+	outside.resize(w * h)  # 1 = 바깥(테두리와 저알파로 연결됨)
+	var stack: Array = []
+	for x in range(w):
+		stack.append(Vector2i(x, 0))
+		stack.append(Vector2i(x, h - 1))
+	for y in range(h):
+		stack.append(Vector2i(0, y))
+		stack.append(Vector2i(w - 1, y))
+	while not stack.is_empty():
+		var p: Vector2i = stack.pop_back()
+		var idx: int = p.y * w + p.x
+		if outside[idx] == 1 or amap[idx] >= HOLE_A:
+			continue
+		outside[idx] = 1
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var nx: int = p.x + d.x
+			var ny: int = p.y + d.y
+			if nx >= 0 and ny >= 0 and nx < w and ny < h and outside[ny * w + nx] == 0:
+				stack.append(Vector2i(nx, ny))
+	# ②-2 글자 속 구멍 재분류 — 내부인데 순검정(a=0) 심이 있으면 그 연결 영역은 배경(O·D 의 속 구멍).
+	for y2 in range(h):
+		for x2 in range(w):
+			var si: int = y2 * w + x2
+			if outside[si] == 0 and amap[si] <= 0.0:
+				stack.append(Vector2i(x2, y2))
+	while not stack.is_empty():
+		var p2: Vector2i = stack.pop_back()
+		var pi: int = p2.y * w + p2.x
+		if outside[pi] == 1 or amap[pi] >= HOLE_A:
+			continue
+		outside[pi] = 1
+		for d2 in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var mx2: int = p2.x + d2.x
+			var my2: int = p2.y + d2.y
+			if mx2 >= 0 and my2 >= 0 and mx2 < w and my2 < h and outside[my2 * w + mx2] == 0:
+				stack.append(Vector2i(mx2, my2))
+	# ③ 픽셀 쓰기 — 본체/내부 구멍 = 원색 불투명, 바깥 페이드 = 언프리멀티플라이
+	var cleared: int = 0
+	var filled: int = 0
+	for y in range(h):
+		for x in range(w):
+			var idx2: int = y * w + x
+			var a: float = amap[idx2]
+			var c2: Color = img.get_pixel(x, y)
+			if a >= HOLE_A:
+				img.set_pixel(x, y, Color(c2.r, c2.g, c2.b, 1.0))
+			elif outside[idx2] == 0:
+				img.set_pixel(x, y, Color(c2.r, c2.g, c2.b, 1.0))  # 내부 어두운 질감 보존
+				filled += 1
+			elif a <= 0.0:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+				cleared += 1
+			else:
+				img.set_pixel(x, y, Color(minf(c2.r / a, 1.0), minf(c2.g / a, 1.0), minf(c2.b / a, 1.0), a))
+	return PackedInt32Array([cleared, filled])
 
 ## ⑤ 그림자 굽기 — 알파 채널을 블러한 어두운 판을 SHADOW_OFF 만큼 밀어 그림 밑에 깐다.
 func _bake_shadow(src: Image) -> Image:
