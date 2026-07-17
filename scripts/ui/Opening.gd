@@ -36,12 +36,12 @@ var _idx: int = 0
 var _label: Label
 var _hint: Label
 var _title_mode: bool = false
-## 삽화 두 장 겹침(진짜 크로스페이드) — 예전 "껐다 켜기"는 전환 중 맨 뒤 Backdrop(사막 밤 폴백)이
-## 드러났다(2026-07-06 사용자 지적: "밤배경 이미지 같은 게 나온다"). 옛 장이 남은 채 새 장이 배어난다.
-var _illus_a: TextureRect          ## 삽화 레이어 A
-var _illus_b: TextureRect          ## 삽화 레이어 B
-var _illus_front: TextureRect      ## 지금 보이는(또는 배어나는 중인) 쪽
-var _illus_tw: Tween               ## 진행 중 크로스페이드(연타 시 킬)
+## 삽화 전환은 글씨와 같은 리듬(페이드아웃 → 교체 → 페이드인, 2026-07-17 사용자 요청).
+## 삽화 뒤에 검은 밑판을 깔아 전환 중 맨 뒤 Backdrop(사막 밤 폴백)이 비치지 않게 한다
+## (2026-07-06 사용자 지적 "밤배경 이미지 같은 게 나온다" 재발 방지).
+var _illus: TextureRect            ## 삽화 레이어(한 장 — 꺼졌다 새 장으로 켜진다)
+var _illus_black: ColorRect        ## 삽화 뒤 검은 밑판(제목 카드에서만 함께 걷힘)
+var _illus_tw: Tween               ## 진행 중 페이드(연타 시 킬)
 var _illus_tex: Array = []         ## 세로본 Texture2D(없으면 null)
 var _illus_tex_land: Array = []    ## 가로본 Texture2D(없으면 null)
 var _illus_cur: int = 0            ## 지금 보이는 삽화 슬라이드(리사이즈 시 방향 재판정용, -1=삽화 없음)
@@ -55,11 +55,13 @@ func _ready() -> void:
 	for p in ILLUS_PATHS_LAND:
 		_illus_tex_land.append(load(str(p)) if ResourceLoader.exists(str(p)) else null)
 	if _illus_tex.any(func(t): return t != null) or _illus_tex_land.any(func(t): return t != null):
-		_illus_a = _make_illus_layer()
-		_illus_b = _make_illus_layer()
-		_illus_a.texture = _tex_for(0)
-		_illus_a.modulate.a = 1.0
-		_illus_front = _illus_a
+		_illus_black = ColorRect.new()
+		_illus_black.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_illus_black.color = UITheme.BG
+		_illus_black.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_illus_black)
+		_illus = _make_illus_layer()
+		_illus.texture = _tex_for(0)  # 첫 장도 글씨처럼 _fade_in 에서 함께 배어난다
 		get_viewport().size_changed.connect(_on_illus_resize)  # 창 방향 바뀌면 재판정
 		# 글씨 가독용 어두운 스크림(삽화 위, 텍스트 아래).
 		var scrim := ColorRect.new()
@@ -128,33 +130,27 @@ func _make_illus_layer() -> TextureRect:
 	add_child(tr)
 	return tr
 
-## 삽화를 idx 슬라이드로 크로스페이드 — 옛 장은 불투명하게 남긴 채 새 장이 그 위로 배어난다.
-## (둘을 동시에 교차하면 중간에 뒤 Backdrop 이 비친다 — 위에서만 배어들게 해 빈틈 0.)
-## idx 밖 = 삽화 끔(제목 카드 — 어두운 밤 배경 위 제목만, 이건 의도된 노출). 레이어 없으면 no-op(fallback).
+## 삽화를 idx 슬라이드로 전환 — 글씨와 같은 리듬(페이드아웃 → 교체 → 페이드인).
+## 전환 중 빈 자리는 검은 밑판이 받쳐 뒤 Backdrop 이 비치지 않는다.
+## idx 밖 = 삽화·밑판 함께 걷음(제목 카드 — 어두운 밤 배경 위 제목만, 이건 의도된 노출).
+## 레이어 없으면 no-op(fallback).
 func _set_illus(idx: int) -> void:
-	if _illus_front == null:
+	if _illus == null:
 		return
 	_illus_cur = idx
 	if _illus_tw != null and _illus_tw.is_valid():
 		_illus_tw.kill()
-	# 직전 전환을 즉시 완결(연타 대비) — 보이던 쪽만 확정해 두고 새 전환을 시작한다.
-	for l in [_illus_a, _illus_b]:
-		if l != null:
-			l.modulate.a = 1.0 if l == _illus_front else 0.0
 	var nt: Texture2D = _tex_for(idx)
-	if nt == null:
-		_illus_tw = create_tween()
-		_illus_tw.tween_property(_illus_front, "modulate:a", 0.0, FADE)
-		return
-	var back: TextureRect = _illus_front
-	var front: TextureRect = _illus_b if _illus_front == _illus_a else _illus_a
-	front.texture = nt
-	if front.get_index() < back.get_index():
-		move_child(front, back.get_index())  # 새 장을 옛 장 바로 위로(스크림·글은 그대로 위)
-	_illus_front = front
 	_illus_tw = create_tween()
-	_illus_tw.tween_property(front, "modulate:a", 1.0, FADE)
-	_illus_tw.tween_callback(func() -> void: back.modulate.a = 0.0)
+	if nt == null:
+		_illus_tw.set_parallel(true)
+		_illus_tw.tween_property(_illus, "modulate:a", 0.0, FADE * 0.5)
+		_illus_tw.tween_property(_illus_black, "modulate:a", 0.0, FADE * 0.5)
+		return
+	_illus_black.modulate.a = 1.0
+	_illus_tw.tween_property(_illus, "modulate:a", 0.0, FADE * 0.5)
+	_illus_tw.tween_callback(func() -> void: _illus.texture = nt)
+	_illus_tw.tween_property(_illus, "modulate:a", 1.0, FADE)
 
 ## idx 슬라이드의 삽화 — 가로 화면이고 가로본이 있으면 가로본, 아니면 세로본(둘 다 없으면 null).
 func _tex_for(idx: int) -> Texture2D:
@@ -167,13 +163,16 @@ func _tex_for(idx: int) -> Texture2D:
 
 ## 창 방향이 바뀌면 지금 슬라이드 삽화를 그 방향본으로 즉시 교체(페이드 없이).
 func _on_illus_resize() -> void:
-	if _illus_front != null:
-		_illus_front.texture = _tex_for(_illus_cur)
+	if _illus != null:
+		_illus.texture = _tex_for(_illus_cur)
 
 func _fade_in() -> void:
 	_label.modulate.a = 0.0
 	var t := create_tween()
 	t.tween_property(_label, "modulate:a", 1.0, FADE)
+	if _illus != null:
+		_illus_tw = create_tween()
+		_illus_tw.tween_property(_illus, "modulate:a", 1.0, FADE)
 
 ## 텍스트를 페이드아웃 → 교체 → 페이드인.
 func _fade_to(text: String, size: int, color: Color) -> void:
