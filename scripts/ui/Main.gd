@@ -4,6 +4,7 @@ extends Control
 ## 배경 키아트(방향 자동 교체) + 하단 그라디언트 스크림으로 글씨 가독. 부제 없음(원본 구도).
 
 const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")  ## 영어 타이틀·통계 전용(비문풍 세리프)
+const LOGO_ART: String = "res://assets/arts/80_로고_제목.png"  ## 게임 로고(§18) — 있으면 텍스트 로고 대신, 오프닝 제목 카드와 공용
 
 var _stat_label: Label
 var _title_tr: TextureRect   ## 타이틀 키아트 배경 — 방향 따라 세로/가로 교체
@@ -94,13 +95,33 @@ func _build_logo() -> void:
 	# 로고 뒤 어두운 방사 글로우 — 글씨마다 그림자 대신 영역 언저리에 두꺼운 어둠(밝은 배경에서 가독 + 무게).
 	var glow := _dark_glow()
 	add_child(glow)
-	var logo := _logo_label(UITheme.FG, 0.0, 0.0)
+	var logo: Control
+	if ResourceLoader.exists(LOGO_ART):
+		logo = _logo_image()  # 로고 이미지(80) — 텍스트 로고와 같은 상단 띠
+	else:
+		var lbl := _logo_label(UITheme.FG, 0.0, 0.0)
+		_logo_lbl = lbl  # 텍스트일 때만 DEV 제목 튜닝 대상
+		logo = lbl
 	logo.add_to_group("ui_scatter")  # 전환 OUT 때 UI 만 흩어짐(글로우=배경층이라 제외)
 	add_child(logo)
 	_logo_nodes = [glow, logo]
-	_logo_lbl = logo
 	add_to_group("title_screen")  # DEV 제목 튜닝 브로드캐스트 대상
 	apply_title_tuning()
+
+## 로고 이미지 한 겹 — 텍스트 로고 자리(상단 띠)에 contain. 뒤 글로우·등장 stagger 는 그대로.
+func _logo_image() -> TextureRect:
+	var tr := TextureRect.new()
+	tr.texture = load(LOGO_ART)
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tr.anchor_left = 0.0
+	tr.anchor_right = 1.0
+	tr.anchor_top = 0.10
+	tr.anchor_bottom = 0.34
+	tr.offset_left = 40.0
+	tr.offset_right = -40.0
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return tr
 
 ## 제목 그림자·테두리 적용 — DEV "제목 튜닝" 슬라이더가 그룹 호출.
 func apply_title_tuning() -> void:

@@ -13,7 +13,11 @@ const SLIDES: Array = [
 	"죽기 전 단 한 번.\n다음 원정대에게 무엇을 남길지,\n그것만이 네 몫이다.",
 ]
 const TITLE_TEXT: String = "See you on the other side"
+## 게임 로고(80, §18) — 있으면 제목 카드에 텍스트 대신 로고가 배어난다. 없으면 텍스트 fallback.
+const LOGO_PATH: String = "res://assets/arts/80_로고_제목.png"
 const FADE: float = 0.6
+const TITLE_FADE: float = 1.4      ## 제목 카드 전용 페이드 — 본문보다 느리게 배어나며 무게를 준다
+const TITLE_GUARD_MS: int = 900    ## 제목 카드 등장 직후 탭 무시 — 연타에 제목이 잠깐 스치고 지나가는 것 방지
 
 ## 슬라이드별 배경 삽화(SLIDES 와 1:1). 없으면 삽화 없이 Backdrop 만(fallback).
 const ILLUS_PATHS: Array = [
@@ -36,6 +40,8 @@ var _idx: int = 0
 var _label: Label
 var _hint: Label
 var _title_mode: bool = false
+var _logo: TextureRect             ## 로고 레이어(에셋 있을 때만, 제목 카드에서 텍스트 대신)
+var _title_guard_until: int = 0    ## 이 시각(msec)까지 제목 카드 탭 무시
 ## 삽화 전환은 글씨와 같은 리듬(페이드아웃 → 교체 → 페이드인, 2026-07-17 사용자 요청).
 ## 삽화 뒤에 검은 밑판을 깔아 전환 중 맨 뒤 Backdrop(사막 밤 폴백)이 비치지 않게 한다
 ## (2026-07-06 사용자 지적 "밤배경 이미지 같은 게 나온다" 재발 방지).
@@ -77,6 +83,20 @@ func _ready() -> void:
 	_label.custom_minimum_size = Vector2(UITheme.COLUMN_W, 0)
 	center.add_child(_label)
 
+	# 로고 레이어 — 화면 중앙, 좌우 12%·상하 24% 여백 안에 contain. 제목 카드에서만 켜진다.
+	if ResourceLoader.exists(LOGO_PATH):
+		_logo = TextureRect.new()
+		_logo.texture = load(LOGO_PATH)
+		_logo.anchor_left = 0.12
+		_logo.anchor_right = 0.88
+		_logo.anchor_top = 0.24
+		_logo.anchor_bottom = 0.76
+		_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_logo.modulate.a = 0.0
+		add_child(_logo)
+
 	var bottom := CenterContainer.new()
 	bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	bottom.offset_top = -110.0
@@ -102,6 +122,8 @@ func _gui_input(event: InputEvent) -> void:
 	var clicked: bool = (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) \
 		or (event is InputEventScreenTouch and event.pressed)
 	if clicked:
+		if _title_mode and Time.get_ticks_msec() < _title_guard_until:
+			return  # 제목 카드가 배어나는 중 — 연타로 스쳐 지나가지 않게 잠깐 받친다
 		_advance()
 
 func _advance() -> void:
@@ -114,10 +136,14 @@ func _advance() -> void:
 		_fade_to(SLIDES[_idx], UITheme.FS_H1, UITheme.FG)
 	else:
 		_title_mode = true
+		_title_guard_until = Time.get_ticks_msec() + TITLE_GUARD_MS
 		if _hint != null:
 			_hint.text = "탭하여 시작"
 		_set_illus(-1)  # 제목 카드 — 삽화 없이(어두운 배경 위 제목만)
-		_fade_to(TITLE_TEXT, UITheme.FS_DISPLAY, UITheme.SAND)
+		if _logo != null:
+			_reveal_logo()
+		else:
+			_reveal_title_text()
 
 ## 삽화 레이어 한 장(풀스크린 cover, 투명 시작).
 func _make_illus_layer() -> TextureRect:
@@ -173,6 +199,25 @@ func _fade_in() -> void:
 	if _illus != null:
 		_illus_tw = create_tween()
 		_illus_tw.tween_property(_illus, "modulate:a", 1.0, FADE)
+
+## 제목 카드(로고) — 글씨를 걷고 로고가 느리게 배어나며, 살짝 크게 시작해 자리 잡는다.
+func _reveal_logo() -> void:
+	var t := create_tween()
+	t.tween_property(_label, "modulate:a", 0.0, FADE * 0.5)
+	t.tween_property(_logo, "modulate:a", 1.0, TITLE_FADE)
+	_logo.pivot_offset = _logo.size * 0.5
+	_logo.scale = Vector2(1.04, 1.04)
+	var s := create_tween()
+	s.tween_interval(FADE * 0.5)
+	s.tween_property(_logo, "scale", Vector2.ONE, TITLE_FADE * 1.6) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+
+## 제목 카드(텍스트 fallback) — 본문 슬라이드보다 느린 페이드로 무게를 준다.
+func _reveal_title_text() -> void:
+	var t := create_tween()
+	t.tween_property(_label, "modulate:a", 0.0, FADE * 0.5)
+	t.tween_callback(_apply_text.bind(TITLE_TEXT, UITheme.FS_DISPLAY, UITheme.SAND))
+	t.tween_property(_label, "modulate:a", 1.0, TITLE_FADE)
 
 ## 텍스트를 페이드아웃 → 교체 → 페이드인.
 func _fade_to(text: String, size: int, color: Color) -> void:

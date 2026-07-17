@@ -48,8 +48,9 @@
 | 69 | UI 소품 — 책갈피 리본 | §16 | ✅ 완료 (사용자 생성분 — 좌/우 640px 두 판, `Bookmark.Ribbon` 캡+몸통 렌더. 원본 `assets_src/arts_originals/`) |
 | 70~71 | UI 소품 — 가방 슬롯 담김/빈 | §16 | ✅ 완료 (배선: `Loadout._slot_stylebox` StyleBoxTexture — 가방 6칸+주머니) |
 | 72~79 | **노드별 맞춤 단면 8종** (마른강/야영지/오아시스/뼈의들판/독웅덩이/모래의벽/무너진담/폭풍의문) | §17 | ✅ 완료 (2026-07-14 사용자 생성 → 리네임·1280×720 다운스케일·lossy 0.8 임포트·원본 arts_originals 보관. 배선 `SectionArt.NODE_SECTION_PATHS`) |
+| 80 | **게임 로고**(제목 레터링) — 오프닝 제목 카드·타이틀 화면 공용 | §18 | 🎨 **생성 대기.** 배선은 완료(`Opening.gd`·`Main.gd`) — `80_로고_제목.png` 만 넣으면 바로 뜬다. 없으면 지금처럼 텍스트 제목 fallback |
 
-**01~79 전부 완료(2026-07-14).** 생성 대기 없음. (가로 고정 게임 — 세로판 없음.)
+**01~79 완료(2026-07-14). 80 로고 생성 대기(§18, 2026-07-17 추가).** (가로 고정 게임 — 세로판 없음.)
 
 ---
 
@@ -916,3 +917,50 @@ of sand beige and deep sepia, heavy dusty haze, painterly semi-realistic, cinema
 saturation, final threshold dread mood. Absolutely no text, no words, no letters, no labels, no watermark,
 no white background, no isolated object, no people, no creature, no monster.
 ```
+
+---
+
+## 18. 게임 로고 — 제목 레터링 (검정 배경 → 투명 · 가로 1536×1024 이상) — `80_로고_제목.png` (2026-07-17 추가)
+
+> **쓰이는 곳:** ① 오프닝 마지막 제목 카드(어두운 밤 배경 위, `Opening.gd` — 느린 페이드+스케일 정착 배선 완료)
+> ② 타이틀 화면 상단(키아트 위 어두운 글로우 안, `Main.gd` — 텍스트 로고 자리 교체 배선 완료).
+> 파일만 `assets/arts/80_로고_제목.png` 로 넣으면 두 곳 다 바로 뜬다. 없으면 텍스트 제목 fallback.
+>
+> **이번엔 검정 배경(#000000)이다** — 흰 배경이 아니라. 로고 글자가 밝은 모래·아이보리색이라 흰 배경으로 뽑으면
+> 흰→투명 변환이 글자까지 지운다. 검정→투명 변환은 Claude 가 삽입 때 처리한다(`alpha_key` 확장).
+> 로고는 늘 어두운 화면 위에 얹히므로 경계의 어두운 헤일로는 티가 안 난다.
+> 생성기가 **진짜 투명 배경 PNG** 를 줄 수 있으면 그걸로 받아도 된다(진짜 투명인지 검사는 Claude 몫 — 체커보드를
+> *그림으로* 그리는 함정은 맨 위 교훈 참조). 철자가 틀리면 그 판은 버리고 다시 뽑는다(글자만은 타협 불가).
+
+### A안 — 모래에 지워지는 각인 (기본 추천)
+```
+A video game logo of elegant title lettering only, the words "SEE YOU ON THE" on the first line and
+"OTHER SIDE" larger on the second line, spelled exactly like that, in weathered classical roman capitals
+like an inscription chiseled into ancient sandstone, pale sand-ivory letters with a subtle warm gold edge
+light, the bottom edges of the letters crumbling and dissolving into fine sand grains that stream away to
+the right on the wind, as if a sandstorm is slowly erasing the words, centered wide horizontal composition
+with generous empty margin all around, on a plain solid pure black background (#000000). Muted desert
+palette, timeworn, solemn quiet mood. Absolutely no other words, no subtitle, no tagline, no numbers,
+no watermark, no signature, no checkerboard, no border, no frame, no emblem, no scenery, no characters,
+no misspelling.
+```
+
+### B안 — A안 + 지평선 위 작은 행렬 (밑줄 문양)
+```
+A video game logo of elegant title lettering only, the words "SEE YOU ON THE" on the first line and
+"OTHER SIDE" larger on the second line, spelled exactly like that, in weathered classical roman capitals
+like an inscription chiseled into ancient sandstone, pale sand-ivory letters with a subtle warm gold edge
+light, the bottom edges of the letters crumbling and dissolving into fine sand grains that stream away to
+the right on the wind, as if a sandstorm is slowly erasing the words, and beneath the lettering a single
+faint thin horizon line drawn like a dry ink stroke with a tiny caravan of four minuscule hooded
+silhouettes walking along it to the right, centered wide horizontal composition with generous empty margin
+all around, on a plain solid pure black background (#000000). Muted desert palette, timeworn, solemn
+quiet mood. Absolutely no other words, no subtitle, no tagline, no numbers, no watermark, no signature,
+no checkerboard, no border, no frame, no emblem, no scenery, no misspelling.
+```
+
+### 삽입 시 Claude 작업 (다음 세션 체크리스트)
+1. 리네임 `80_로고_제목.png` + 원본 `assets_src/arts_originals/` 보관
+2. 검정→투명 변환(`alpha_key` 확장) 또는 진짜 투명 여부 검사 → 여백 크롭
+3. 폭 ~1600px 로 다운스케일(로고는 선명해야 하므로 과하게 줄이지 않는다)
+4. 오프닝 제목 카드·타이틀 화면 스크린샷으로 실제 렌더 확인(크기·위치 앵커 튜닝)
