@@ -11,6 +11,8 @@ const SPLASH_DUR: float = 0.8      ## 걸음마다 번지는 잉크 얼룩이 �
 const EDGE_SAMPLES: int = 18       ## 엣지 곡선을 그릴 때 나눌 샘플 수(경로·마커가 같은 곡선을 공유)
 const DRAG_THRESH: float = 10.0    ## 이만큼 넘게 끌면 팬(스크롤), 미만이면 탭(노드 선택)
 const REVEAL_DUR: float = 0.55     ## 방문 시 잉크 reveal 애니 길이(초)
+const NEW_PATH_DELAY: float = 0.35 ## 도착 잉크 reveal 뒤 새 길이 그어지기 시작하는 뜸(초)
+const NEW_PATH_DUR: float = 0.85   ## 새 길(붉은 길·미지 "?")이 붓으로 그어지는 시간(초)
 
 # --- STAGE 좌표계 (핸드오프 MAP_지도화면.md §0 + 사용자 확대 지시) ---
 ## 화면 전체를 고정 캔버스 1280×720(STAGE)으로 보고 contain 스케일 — 모든 스펙 px 가 이 기준.
@@ -155,6 +157,11 @@ var _circle_cur_id: String = ""      ## 현재 채점 원이 걸린 노드
 var _circle_cur_t: float = 0.0       ## current 원 경과(그려짐→점멸)
 var _hover_t: float = 0.0            ## hover 원 그려짐 경과(호버 바뀔 때 0 으로)
 var _view: Rect2 = Rect2(0.0, 0.0, 820.0, 461.25)  ## 지도 뷰 창(MAP 좌표) — 가본 만큼 조여진다(_map_view_target 추종)
+## 재진입 줌 아웃 — 직전 지도 방문의 뷰를 기억한다(스크립트 정적 — 씬 인스턴스를 넘어 산다).
+## 같은 원정에서 노드를 다녀와 돌아오면 그 (좁은) 창에서 출발해, _process 글라이드가 넓어진
+## 목표까지 쭉 줌 아웃한다(2026-07-17 사용자). 원정이 바뀌면 무시(곧장 목표).
+static var _view_cache: Rect2 = Rect2()
+static var _view_cache_exp: int = -1
 
 func _ready() -> void:
 	if GameState.current_run == null or not GameState.current_run.alive:
@@ -334,7 +341,14 @@ func _after_ready_setup() -> void:
 	_circle_cur_id = _current_node_id()
 	_circle_cache[_circle_cur_id] = _gen_grading_circle()
 	_circle_cur_t = 0.0
-	_view = _map_view_target()  # 지도 진입 시엔 글라이드 없이 곧장 — 새 노드가 열릴 때만 넓어진다
+	# 지도 뷰 — 같은 원정의 재진입이면 직전 방문의 창에서 출발한다. 그 사이 새 노드가 열렸다면
+	# _process 글라이드가 넓어진 목표까지 쭉 줌 아웃(노드를 다녀오면 지도가 열리는 감각).
+	# 새 원정 첫 진입·모션 줄이기는 글라이드 없이 곧장.
+	if _view_cache_exp == GameState.expedition_count and _view_cache.size.x > 0.0 \
+			and AppSettings.load_motion() > 0.02:
+		_view = _view_cache
+	else:
+		_view = _map_view_target()
 	_refresh_hud()
 	queue_redraw()
 
@@ -421,8 +435,8 @@ func _process(delta: float) -> void:
 				kept.append(sp)
 		_splashes = kept
 		queue_redraw()
-	# reveal 애니가 진행 중이면 다시 그린다(이동 중이 아니어도).
-	if _reveal_t < REVEAL_DUR:
+	# reveal 애니가 진행 중이면 다시 그린다(이동 중이 아니어도). 새 길 긋기(NEW_PATH_*)까지 포함.
+	if _reveal_t < maxf(REVEAL_DUR, NEW_PATH_DELAY + NEW_PATH_DUR):
 		_reveal_t += delta
 		queue_redraw()
 	# 흔적 두루마리 펼침 애니 — 다 펼쳐질 때까지만 다시 그린다.
@@ -825,6 +839,32 @@ func _node_size(id: String) -> float:
 func _edge_point(from_id: String, to_id: String, t: float, area: Rect2) -> Vector2:
 	return area.position + (MapGraph.edge_point(from_id, to_id, t) - _view.position) * (area.size.x / _view.size.x)
 
+## 새 길 긋기 진행도(0~1) — 방금 도착한 노드의 나가는 붉은 길과 미지 "?" 가 붓으로 그어지듯
+## 나타난다. 도착 잉크 reveal 이 먼저 피고(NEW_PATH_DELAY 뜸) 그 다음 NEW_PATH_DUR 동안 자란다.
+## 모션 줄이기·도착 애니가 아닐 땐 1(완성 상태).
+func _new_path_frac() -> float:
+	if _reveal_id == "" or _reveal_id != _current_node_id() or AppSettings.load_motion() <= 0.02:
+		return 1.0
+	return smoothstep(0.0, 1.0, clampf((_reveal_t - NEW_PATH_DELAY) / NEW_PATH_DUR, 0.0, 1.0))
+
+## 폴리라인의 앞 f(0~1)만큼만 잘라낸 부분 선 — 새 길이 붓끝을 따라 자라나는 렌더용.
+func _poly_prefix(pts: PackedVector2Array, f: float) -> PackedVector2Array:
+	var n: int = pts.size()
+	if n < 2 or f >= 1.0:
+		return pts
+	var total: float = float(n - 1) * clampf(f, 0.0, 1.0)
+	var full: int = int(floor(total))
+	var out: PackedVector2Array = pts.slice(0, full + 1)
+	var frac: float = total - float(full)
+	if full < n - 1 and frac > 0.001:
+		out.append(pts[full].lerp(pts[full + 1], frac))
+	return out
+
+## 씬을 떠날 때 지금 뷰를 기억 — 단면(노드)에 다녀와 재진입하면 여기서부터 줌 아웃 글라이드.
+func _exit_tree() -> void:
+	_view_cache = _view
+	_view_cache_exp = GameState.expedition_count
+
 ## 엣지 곡선을 EDGE_SAMPLES 로 나눈 폴리라인(경로 실선/점선 렌더용).
 func _edge_polyline(from_id: String, to_id: String, area: Rect2) -> PackedVector2Array:
 	var pts: PackedVector2Array = []
@@ -922,7 +962,11 @@ func _draw() -> void:
 			var pts: PackedVector2Array = _edge_polyline(str(id), nx_s, area)
 			if from_cur and nx_s in nexts:
 				# 지금 갈 수 있는 다음 길 — 붉게(§3). 터치엔 호버가 없으니 이 붉은 길이 "여기로 갈 수 있다" 어포던스.
-				_draw_red_path(pts, _node_size(nx_s))
+				# 방금 도착한 직후엔 앞부분부터 붓으로 그어지듯 자라난다(_new_path_frac).
+				var pf: float = _new_path_frac()
+				var draw_pts: PackedVector2Array = pts if pf >= 1.0 else _poly_prefix(pts, pf)
+				if draw_pts.size() >= 2:
+					_draw_red_path(draw_pts, _node_size(nx_s))
 			elif _is_revealed(nx_s):
 				# 밟은 길 — 옅은 실선 위에 발자국(원정대가 지나간 자취).
 				draw_polyline(pts, Color(ROUTE.r, ROUTE.g, ROUTE.b, 0.4), 1.5)
@@ -963,10 +1007,14 @@ func _draw() -> void:
 					_draw_expedition_tag(font, p + Vector2(0.0, -ns * 0.5 - 8.0 * ms), ms)
 		else:
 			# 갈 수 있는 미지 — 노드 크기에 비례한 옅은 원 + 큼직한 "?"(스펙 ??? 19px 상당).
-			draw_circle(p, ns * 0.26, Color(INK_FADE.r, INK_FADE.g, INK_FADE.b, 0.20))
-			if font != null:
-				var qfs: int = maxi(12, int(24.0 * ms))
-				draw_string(font, p + Vector2(-qfs * 0.28, qfs * 0.36), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, qfs, INK_FADE)
+			# 도착 직후엔 새 길이 그어져 닿는 만큼 배어난다(길 긋기와 같은 시계).
+			var qf: float = _new_path_frac()
+			if qf > 0.0:
+				draw_circle(p, ns * 0.26, Color(INK_FADE.r, INK_FADE.g, INK_FADE.b, 0.20 * qf))
+				if font != null:
+					var qfs: int = maxi(12, int(24.0 * ms))
+					draw_string(font, p + Vector2(-qfs * 0.28, qfs * 0.36), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, qfs,
+						Color(INK_FADE.r, INK_FADE.g, INK_FADE.b, INK_FADE.a * qf))
 
 	# 흔적 — 이전 원정대들이 노드에 남긴 것(누적된 길/죽음의 역사, self-async).
 	_draw_traces(area)
