@@ -13,8 +13,9 @@ const SLIDES: Array = [
 	"죽기 전 단 한 번.\n다음 원정대에게 무엇을 남길지,\n그것만이 네 몫이다.",
 ]
 const TITLE_TEXT: String = "See you on the other side"
-## 게임 로고(80, §18) — 있으면 제목 카드에 텍스트 대신 로고가 배어난다. 없으면 텍스트 fallback.
-const LOGO_PATH: String = "res://assets/arts/80_로고_제목.png"
+## 게임 로고(§18) — 있으면 제목 카드에 텍스트 대신 로고가 배어난다. 없으면 텍스트 fallback.
+## 오프닝은 행렬판(81 — 지평선 위 작은 행렬이 슬라이드 서사를 받는다), 타이틀은 글자판(80 — 키아트와 수평선 중복 회피).
+const LOGO_PATH: String = "res://assets/arts/81_로고_제목_행렬.png"
 const FADE: float = 0.6
 const TITLE_FADE: float = 1.4      ## 제목 카드 전용 페이드 — 본문보다 느리게 배어나며 무게를 준다
 const TITLE_GUARD_MS: int = 900    ## 제목 카드 등장 직후 탭 무시 — 연타에 제목이 잠깐 스치고 지나가는 것 방지
@@ -42,6 +43,7 @@ var _hint: Label
 var _title_mode: bool = false
 var _logo: TextureRect             ## 로고 레이어(에셋 있을 때만, 제목 카드에서 텍스트 대신)
 var _title_guard_until: int = 0    ## 이 시각(msec)까지 제목 카드 탭 무시
+var _label_tw: Tween               ## 진행 중 글씨 페이드(연타 시 킬 — 이전 트윈이 글씨를 되살리는 것 방지)
 ## 삽화 전환은 글씨와 같은 리듬(페이드아웃 → 교체 → 페이드인, 2026-07-17 사용자 요청).
 ## 삽화 뒤에 검은 밑판을 깔아 전환 중 맨 뒤 Backdrop(사막 밤 폴백)이 비치지 않게 한다
 ## (2026-07-06 사용자 지적 "밤배경 이미지 같은 게 나온다" 재발 방지).
@@ -194,7 +196,7 @@ func _on_illus_resize() -> void:
 
 func _fade_in() -> void:
 	_label.modulate.a = 0.0
-	var t := create_tween()
+	var t := _restart_label_tw()
 	t.tween_property(_label, "modulate:a", 1.0, FADE)
 	if _illus != null:
 		_illus_tw = create_tween()
@@ -202,7 +204,7 @@ func _fade_in() -> void:
 
 ## 제목 카드(로고) — 글씨를 걷고 로고가 느리게 배어나며, 살짝 크게 시작해 자리 잡는다.
 func _reveal_logo() -> void:
-	var t := create_tween()
+	var t := _restart_label_tw()
 	t.tween_property(_label, "modulate:a", 0.0, FADE * 0.5)
 	t.tween_property(_logo, "modulate:a", 1.0, TITLE_FADE)
 	_logo.pivot_offset = _logo.size * 0.5
@@ -214,17 +216,26 @@ func _reveal_logo() -> void:
 
 ## 제목 카드(텍스트 fallback) — 본문 슬라이드보다 느린 페이드로 무게를 준다.
 func _reveal_title_text() -> void:
-	var t := create_tween()
+	var t := _restart_label_tw()
 	t.tween_property(_label, "modulate:a", 0.0, FADE * 0.5)
 	t.tween_callback(_apply_text.bind(TITLE_TEXT, UITheme.FS_DISPLAY, UITheme.SAND))
 	t.tween_property(_label, "modulate:a", 1.0, TITLE_FADE)
 
 ## 텍스트를 페이드아웃 → 교체 → 페이드인.
 func _fade_to(text: String, size: int, color: Color) -> void:
-	var t := create_tween()
+	var t := _restart_label_tw()
 	t.tween_property(_label, "modulate:a", 0.0, FADE * 0.5)
 	t.tween_callback(_apply_text.bind(text, size, color))
 	t.tween_property(_label, "modulate:a", 1.0, FADE)
+
+## 글씨 트윈 재시작 — 진행 중이던 페이드를 죽이고 새로 만든다.
+## (연타로 슬라이드 트윈이 돌던 중 제목 카드에 들어가면, 이전 트윈이 뒤늦게 글씨를 되살려
+## 로고 위에 겹치던 버그 방지. _illus_tw 와 같은 킬 패턴.)
+func _restart_label_tw() -> Tween:
+	if _label_tw != null and _label_tw.is_valid():
+		_label_tw.kill()
+	_label_tw = create_tween()
+	return _label_tw
 
 func _apply_text(text: String, size: int, color: Color) -> void:
 	_label.text = text
