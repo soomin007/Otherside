@@ -43,6 +43,7 @@ window/handheld/orientation=4
 
 theme/custom_font="res://assets/fonts/MaruBuri-Regular.ttf"
 theme/default_font_size=24
+timers/tooltip_delay_sec=0.2
 
 [input_devices]
 

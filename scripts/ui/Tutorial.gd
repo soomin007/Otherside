@@ -8,14 +8,14 @@ extends CanvasLayer
 const ENABLED: bool = true
 
 ## 말풍선 = FS_BODY(22)·520px 컬럼 = 한 줄 ~22자. 수동 \n(의미 단위 — autowrap 은 음절 중간을 끊는다).
-## 말투는 담담한 평서(게임 공통 목소리) — 합쇼체·해요체 금지.
+## 말투는 존댓말(합니다체) — 2026-07-17 사용자. NPC 대사(하게체)와 달리 안내는 공손하게.
 const STEPS: Array = [
 	{"scene": "res://scenes/map.tscn", "rect": Rect2(0.12, 0.17, 0.76, 0.36),
-		"text": "지도에서 갈 곳을 누르면 나아간다.\n가 봐야 무엇이 있는지 알고,\n걸음마다 물과 식량이 닳는다."},
+		"text": "지도에서 갈 곳을 누르면 나아갑니다.\n가 봐야 무엇이 있는지 알 수 있고,\n걸음마다 물과 식량이 닳습니다."},
 	{"scene": "res://scenes/map.tscn", "rect": Rect2(0.08, 0.78, 0.84, 0.16),
-		"text": "언제든 [남기기]로 물건 하나를\n두고 갈 수 있다. 그만큼 잃지만,\n다음 원정대가 그것을 줍는다."},
+		"text": "언제든 [남기기]로 물건 하나를\n두고 갈 수 있습니다.\n그만큼 잃지만, 다음 원정대가\n그것을 줍습니다."},
 	{"scene": "res://scenes/expedition.tscn", "rect": Rect2(0.12, 0.24, 0.76, 0.40),
-		"text": "닿은 곳에선 표시된 지점을 눌러 살핀다.\n살필 횟수는 정해져 있고,\n살핀다고 물이 줄지는 않는다."},
+		"text": "닿은 곳에서는 표시된 지점을\n눌러 살펴봅니다.\n살필 횟수는 정해져 있고,\n살핀다고 물이 줄지는 않습니다."},
 ]
 
 var _root: Control
@@ -117,6 +117,14 @@ func _build() -> void:
 	box.add_theme_constant_override("separation", UITheme.GAP)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE  # 빈 곳 탭은 스크림(다음)으로 통과, 버튼만 자기 입력
 	UITheme.attach_dark_pool(box)  # 상자 대신 방사 어둠 — 밑의 지도 글씨와 안 섞이게
+	# 뒷판 — 지도 테두리 장식 위에서 글자가 떠 보이던 것(2026-07-17 사용자): 방사 어둠은 가장자리가
+	# 비치므로, 글 뒤에 거의 불투명한 어두운 판을 한 장 더 깐다(둥근 모서리·무테 — 상자로 안 읽히게).
+	var backing := StyleBoxFlat.new()
+	backing.bg_color = Color(0.05, 0.05, 0.07, 0.94)
+	backing.set_corner_radius_all(14)
+	box.draw.connect(func() -> void:
+		var pad: float = 16.0
+		box.draw_style_box(backing, Rect2(-pad, -pad, box.size.x + pad * 2.0, box.size.y + pad * 2.0)))
 	_bubble_holder.add_child(box)
 	box.add_child(UITheme.make_hairline(Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.35), 2.0))
 	_bubble_label = UITheme.make_label("", UITheme.FS_BODY)

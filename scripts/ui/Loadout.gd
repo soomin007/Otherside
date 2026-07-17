@@ -14,12 +14,13 @@ const PRESET: Array = ["water", "water", "food", "food", "rope", "shelter"]  ## 
 ##   의미 단위로 끊고 한 줄 ~26자 이내(COLUMN_W 520 · FS_BODY 기준, BBCode 태그는 셈에서 제외). 오프닝 SLIDES 와 같은 규칙.
 ## ⚠ 말투는 실제 사람(늙은 장사꾼)의 구어로 — 규칙서 낭독 금지, 시스템 용어(자원·릴레이 등) 입에 올리지 않기.
 ##   문장 성분을 생략하지 않는다("딱 질 만큼만 지게" 같은 목적어 빠진 말 금지 — 2026-07-17 사용자).
-## 중요한 낱말은 [color=...] 강조 — 자원은 창고 라벨 틴트(PHOTO_NAME_TINT)의 색 언어, 규칙 낱말은 모래색(SAND).
+## 중요한 낱말은 [color=...] 강조 — 전부 모래색(SAND #D6B278) 한 가지만. 대사 안 여러 색(자원색 틴트)은
+## 정신 사납다(2026-07-17 사용자). 색 구분은 창고 라벨·슬롯 점 몫, 대사는 단색 강조.
 const MARKET_PAGES: Array = [
 	"시장: 잘 왔네. 채비를 도와줌세.",
-	"시장: 가방은 [color=#D6B278]여섯 칸[/color]뿐일세.\n[color=#9ECCE6]물[/color]하고 [color=#E6C27A]먹을 것[/color]부터 챙기게. 그게 목숨이야.\n폭풍용 [color=#C7D194]장막[/color]과 [color=#E0C794]로프[/color]도\n분명 쓸 일이 있을 것이네.",
-	"시장: 짐을 챙길 때는\n필요한 만큼만 챙기게.\n무거운 짐은 [color=#9ECCE6]물[/color]을 더 마시게 하거든.\n어깨가 가벼워야 오래 걷는 법이지.",
-	"시장: 어디로 향할지는\n자네에게 달려 있네.\n먼 곳일수록 시간도 오래 걸리고,\n그만큼 [color=#9ECCE6]물[/color]과 [color=#E6C27A]식량[/color]도 많이 필요하겠지.",
+	"시장: 가방은 [color=#D6B278]여섯 칸[/color]뿐일세.\n[color=#D6B278]물[/color]하고 [color=#D6B278]먹을 것[/color]부터 챙기게. 그게 목숨이야.\n폭풍용 [color=#D6B278]장막[/color]과 [color=#D6B278]로프[/color]도\n분명 쓸 일이 있을 것이네.",
+	"시장: 짐을 챙길 때는\n필요한 만큼만 챙기게.\n무거운 짐은 [color=#D6B278]물[/color]을 더 마시게 하거든.\n어깨가 가벼워야 오래 걷는 법이지.",
+	"시장: 어디로 향할지는\n자네에게 달려 있네.\n먼 곳일수록 시간도 오래 걸리고,\n그만큼 [color=#D6B278]물[/color]과 [color=#D6B278]식량[/color]도 많이 필요하겠지.",
 	"시장: 가다가 닿는 곳마다\n[color=#D6B278]두 군데[/color] 정도는 살펴볼 여유가 있을 걸세.\n그 시간 동안은 자유롭게 둘러보게.",
 	"시장: 아, 그리고 원정이 끝나기 전에\n[color=#D6B278]딱 한 번, 물건 하나[/color]를 길에 남길 수 있네.\n자네가 끝내 닿지 못할 때를 대비해\n다음 원정대에게 전하는 걸세.\n무엇을 어디에 언제 둘지 잘 생각해 보게.",
 	"시장: 이 기록지를 가져가게.\n떠난 이들의 이야기가 여기 적힐 걸세.\n화면 귀퉁이 [color=#D6B278]책갈피[/color]를 누르면 언제든 볼 수 있네.",
@@ -353,7 +354,7 @@ func _build_step2() -> void:
 	c2.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_shadow(c2)
 	crow.add_child(c2)
-	var hint := UITheme.make_label("담은 물건을 누르면 뺀다", 11, Color(UITheme.MUTED.r, UITheme.MUTED.g, UITheme.MUTED.b, 0.85))
+	var hint := UITheme.make_label("담은 물건은 다시 눌러서 제거", 11, Color(UITheme.MUTED.r, UITheme.MUTED.g, UITheme.MUTED.b, 0.85))
 	hint.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_shadow(hint)
 	mid.add_child(hint)
@@ -535,7 +536,7 @@ func _make_slot_filled(idx: int, key: String) -> Control:
 	slot.add_theme_stylebox_override("hover", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("pressed", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("focus", _slot_stylebox(true))
-	slot.tooltip_text = "%s  (누르면 뺀다)" % Items.label_of(key)
+	slot.tooltip_text = "%s  (다시 눌러서 제거)" % Items.label_of(key)
 	slot.pressed.connect(_remove_slot.bind(idx, slot))
 	slot.add_child(_slot_icon(key))
 	return slot
@@ -548,7 +549,7 @@ func _make_pouch_slot(key: String) -> Control:
 	slot.add_theme_stylebox_override("hover", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("pressed", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("focus", _slot_stylebox(true))
-	slot.tooltip_text = "%s  (누르면 창고로 되돌린다)" % Items.label_of(key)
+	slot.tooltip_text = "%s  (다시 눌러서 제거)" % Items.label_of(key)
 	slot.pressed.connect(_clear_pouch_from.bind(slot))
 	slot.add_child(_slot_icon(key))
 	return slot
