@@ -48,9 +48,9 @@
 | 69 | UI 소품 — 책갈피 리본 | §16 | ✅ 완료 (사용자 생성분 — 좌/우 640px 두 판, `Bookmark.Ribbon` 캡+몸통 렌더. 원본 `assets_src/arts_originals/`) |
 | 70~71 | UI 소품 — 가방 슬롯 담김/빈 | §16 | ✅ 완료 (배선: `Loadout._slot_stylebox` StyleBoxTexture — 가방 6칸+주머니) |
 | 72~79 | **노드별 맞춤 단면 8종** (마른강/야영지/오아시스/뼈의들판/독웅덩이/모래의벽/무너진담/폭풍의문) | §17 | ✅ 완료 (2026-07-14 사용자 생성 → 리네임·1280×720 다운스케일·lossy 0.8 임포트·원본 arts_originals 보관. 배선 `SectionArt.NODE_SECTION_PATHS`) |
-| 80~81 | **게임 로고**(제목 레터링) — 80 글자판=타이틀 화면, 81 행렬판(지평선+행렬)=오프닝 제목 카드 | §18 | ✅ 완료 (2026-07-18 사용자 생성 2장 모두 채택 — 검정→투명 `black_key.gd` 변환·lossy 0.8+밉맵·스크린샷 확인. 원본 arts_originals) |
+| 80~81 | **게임 로고**(제목 레터링) — 80 글자판=타이틀 화면, 81 행렬판(지평선+행렬)=오프닝 제목 카드 | §18 | ✅ 완료 (2026-07-18 사용자 생성 2장 모두 채택 — 검정→투명 `black_key.gd` 변환·lossy 0.8+밉맵·스크린샷 확인. 원본 arts_originals) · 🎨 **C안(Cinzel 레터링 유지판) 재생성 대기** — §18 C안, 참고 이미지 첨부형 |
 
-**01~81 전부 완료(2026-07-18).** 생성 대기 없음. (가로 고정 게임 — 세로판 없음.)
+**01~81 완료. 80~81 은 C안(Cinzel 유지판)으로 재생성 대기(§18, 2026-07-18).** (가로 고정 게임 — 세로판 없음.)
 
 ---
 
@@ -957,6 +957,49 @@ silhouettes walking along it to the right, centered wide horizontal composition 
 all around, on a plain solid pure black background (#000000). Muted desert palette, timeworn, solemn
 quiet mood. Absolutely no other words, no subtitle, no tagline, no numbers, no watermark, no signature,
 no checkerboard, no border, no frame, no emblem, no scenery, no misspelling.
+```
+
+### C안 — Cinzel 레터링 유지판 (2026-07-18 추가 · **참고 이미지 첨부형**)
+
+> 기존 타이틀 텍스트 로고의 Cinzel 서체·자간·두 줄 구성이 아까워서(사용자), **글자꼴은 그대로 두고
+> 질감만 입히는** 재생성판. 텍스트 프롬프트만으로는 GPT 가 Cinzel 을 재현하지 못한다 — 반드시
+> **`assets_src/logo_ref_cinzel.png` 를 첨부**하고 아래 프롬프트를 같이 붙인다.
+> (참고판 = Main._logo_label 과 같은 세팅을 2.7배 해상도로 렌더: Cinzel wght700·자간 8·아이보리·순검정 배경.
+> 다시 뽑아야 하면 세션 로그 2026-07-18 세션 7의 드라이버 요령 참조.)
+> 그림자 확정값(0.5/블러7/오프셋2)은 프롬프트에 안 넣는다 — `black_key.gd` ⑤ 그림자 굽기가 화면 비율로
+> 근사해 얹는다(현재 0.55/블러≈9/아래5, 결과 보고 손잡이 조정).
+> **철자·글자꼴이 조금이라도 바뀌면 그 판은 버리고 재생성한다.**
+
+첨부와 함께 붙일 프롬프트:
+```
+Use the attached image as the exact template for the lettering: keep the same typeface, the same
+letterforms, the same spelling, the same two-line layout, size ratio and letter spacing. Do not redraw,
+restyle or reinterpret any letter shape and do not change the wording. Repaint the surface of these exact
+letters as weathered ancient sandstone, pale sand-ivory with a subtle warm gold edge light, and let the
+bottom edges of the letters crumble and dissolve into fine sand grains streaming away to the right on the
+wind, as if a sandstorm is slowly erasing the words. Keep the lettering centered with generous empty
+margin all around, on a plain solid pure black background (#000000). Muted desert palette, timeworn,
+solemn quiet mood. Absolutely no other words, no subtitle, no watermark, no border, no frame, no scenery,
+no characters, no misspelling.
+```
+
+행렬판(81 대체)도 뽑으려면 위 프롬프트 끝에 한 문장 추가:
+```
+Beneath the lettering add a single faint thin horizon line drawn like a dry ink stroke, with a tiny
+caravan of four minuscule hooded silhouettes walking along it to the right.
+```
+
+이미지 첨부가 안 될 때의 텍스트 전용 fallback(재현도 낮음 — 차선책):
+```
+A video game logo of elegant title lettering only, the words "See you on the" on the first line and
+"other side" on the second line, spelled exactly like that, set in the style of the Cinzel typeface:
+classical Roman inscription capitals in the tradition of the Trajan column, bold weight, refined
+thin-to-thick serif strokes, lowercase rendered as smaller capitals (small caps), generous letter
+spacing, repainted as weathered ancient sandstone in pale sand-ivory with a subtle warm gold edge light,
+the bottom edges of the letters crumbling and dissolving into fine sand grains streaming away to the
+right on the wind, centered wide horizontal composition with generous empty margin, on a plain solid
+pure black background (#000000). Muted desert palette, timeworn, solemn quiet mood. Absolutely no other
+words, no subtitle, no watermark, no border, no frame, no scenery, no characters, no misspelling.
 ```
 
 ### 삽입 완료 기록 (2026-07-18)
