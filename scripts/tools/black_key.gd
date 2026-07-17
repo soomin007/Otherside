@@ -14,7 +14,13 @@ extends SceneTree
 ##          테두리에서 못 닿는 저알파 픽셀 = 내부 → 원색 그대로 불투명 유지.
 ##          단, 순검정(a=0) 심이 있는 내부 영역은 글자 속 구멍(O·D 의 속)이라 배경으로 재분류(투명).
 ##       ③ 바깥(모래 흩날림)은 c/a 언프리멀티플라이로 부드러운 페이드 보존
-##       ④ 여백 크롭(+MARGIN) ⑤ MAX_W 초과 시 Lanczos 다운스케일
+##       ④ 여백 크롭(+MARGIN)
+##       ⑤ 그림자 굽기 — 알파를 블러해 아래로 민 어두운 판을 밑에 깐다(밝은 키아트 위 가독. 셰이더 금지
+##          제약이라 런타임 블러가 없어 에셋에 굽는다. 어두운 배경에선 안 보여 무해).
+##       ⑥ 광학 중심 정렬 — 본체(alpha≥CENTER_A) bbox 중심이 캔버스 중심에 오도록 투명 여백을 비대칭 보정.
+##          한쪽으로 뻗는 모래 뿌림이 bbox 를 늘려, 이미지째 가운데 정렬하면 글자가 옆으로 밀리는 것 방지
+##          (2026-07-18 사용자 지적).
+##       ⑦ MAX_W 초과 시 Lanczos 다운스케일
 ##
 ## 제약: -s 컨텍스트엔 autoload 없음 — 순수 Image API 만 쓴다(alpha_key 와 동일).
 
@@ -23,6 +29,19 @@ const SOLID: float = 0.72   # 이 밝기 이상 = 그림 본체 → 완전 불�
 const HOLE_A: float = 0.98  # 이 alpha 미만을 '빈 곳 후보'로 보고 테두리 flood fill — 못 닿으면 내부 구멍
 const MARGIN: int = 8       # 크롭 후 사방 여백(px)
 const MAX_W: int = 1600     # 결과 최대 폭(로고 선명도 유지 선에서 다이어트)
+
+# --- ⑤ 그림자 손잡이 ---
+const SHADOW_A: float = 0.55            # 그림자 최대 진하기
+const SHADOW_COL: Color = Color(0.04, 0.025, 0.015)  # 그림자 색(따뜻한 검정 — 세계 팔레트)
+const SHADOW_OFF: Vector2i = Vector2i(0, 5)          # 그림자 오프셋(아래로)
+const SHADOW_R: int = 3                 # 박스 블러 반경
+const SHADOW_PASSES: int = 3            # 블러 반복(가우시안 근사)
+const SHADOW_PAD: int = 16              # 블러·오프셋이 잘리지 않게 미리 키우는 캔버스 여백
+
+# --- ⑥ 정렬 손잡이 ---
+const DENS_FRAC: float = 0.10  # 열/행 알파 밀도가 최대치의 이 비율 이상이면 본체.
+                               # 뿌림 입자는 밝아서 픽셀 alpha 로는 본체와 구분이 안 되고(1.0),
+                               # 성긴 밀도로만 갈라진다 — 글자 열은 빽빽, 뿌림 열은 듬성.
 
 func _init() -> void:
 	var args: PackedStringArray = OS.get_cmdline_user_args()
@@ -127,7 +146,13 @@ func _convert_one(src: String, dst: String) -> bool:
 		used = used.intersection(Rect2i(0, 0, w, h))
 		img = img.get_region(used)
 
-	# ⑤ 폭 다이어트
+	# ⑤ 그림자 굽기 — 캔버스를 키우고, 알파 블러판을 오프셋해 원본 밑에 src-over 합성
+	img = _bake_shadow(img)
+
+	# ⑥ 광학 중심 정렬 — 본체 bbox 중심을 캔버스 중심으로(모자란 쪽에만 투명 여백 추가)
+	img = _center_on_core(img)
+
+	# ⑦ 폭 다이어트
 	if img.get_width() > MAX_W:
 		var nh: int = int(round(float(img.get_height()) * float(MAX_W) / float(img.get_width())))
 		img.resize(MAX_W, nh, Image.INTERPOLATE_LANCZOS)
@@ -138,3 +163,111 @@ func _convert_one(src: String, dst: String) -> bool:
 		return false
 	print("OK  %s → %s  [%dx%d, 배경 %dpx 투명, 내부 메움 %dpx]" % [src.get_file(), dst, img.get_width(), img.get_height(), cleared, filled])
 	return true
+
+## ⑤ 그림자 굽기 — 알파 채널을 블러한 어두운 판을 SHADOW_OFF 만큼 밀어 그림 밑에 깐다.
+func _bake_shadow(src: Image) -> Image:
+	var w: int = src.get_width() + SHADOW_PAD * 2
+	var h: int = src.get_height() + SHADOW_PAD * 2
+	var canvas: Image = Image.create(w, h, false, Image.FORMAT_RGBA8)
+	canvas.blit_rect(src, Rect2i(0, 0, src.get_width(), src.get_height()), Vector2i(SHADOW_PAD, SHADOW_PAD))
+	var am: PackedFloat32Array = PackedFloat32Array()
+	am.resize(w * h)
+	for y in range(h):
+		for x in range(w):
+			am[y * w + x] = canvas.get_pixel(x, y).a
+	var bl: PackedFloat32Array = _box_blur(am, w, h)
+	for y in range(h):
+		for x in range(w):
+			var sx: int = x - SHADOW_OFF.x
+			var sy: int = y - SHADOW_OFF.y
+			if sx < 0 or sy < 0 or sx >= w or sy >= h:
+				continue
+			var sa: float = minf(bl[sy * w + sx] * 1.4, 1.0) * SHADOW_A
+			if sa <= 0.004:
+				continue
+			var f: Color = canvas.get_pixel(x, y)
+			var ra: float = f.a + sa * (1.0 - f.a)
+			if ra <= 0.0:
+				continue
+			var r: float = (f.r * f.a + SHADOW_COL.r * sa * (1.0 - f.a)) / ra
+			var g: float = (f.g * f.a + SHADOW_COL.g * sa * (1.0 - f.a)) / ra
+			var b: float = (f.b * f.a + SHADOW_COL.b * sa * (1.0 - f.a)) / ra
+			canvas.set_pixel(x, y, Color(r, g, b, ra))
+	return canvas
+
+## 분리형 박스 블러(슬라이딩 윈도, 가장자리 클램프) — SHADOW_PASSES 회 반복으로 가우시안 근사.
+func _box_blur(src: PackedFloat32Array, w: int, h: int) -> PackedFloat32Array:
+	var cur: PackedFloat32Array = src.duplicate()
+	var span: float = float(SHADOW_R * 2 + 1)
+	for _p in range(SHADOW_PASSES):
+		# 가로
+		var hz: PackedFloat32Array = PackedFloat32Array()
+		hz.resize(w * h)
+		for y in range(h):
+			var row: int = y * w
+			var acc: float = 0.0
+			for i in range(-SHADOW_R, SHADOW_R + 1):
+				acc += cur[row + clampi(i, 0, w - 1)]
+			for x in range(w):
+				hz[row + x] = acc / span
+				acc -= cur[row + clampi(x - SHADOW_R, 0, w - 1)]
+				acc += cur[row + clampi(x + SHADOW_R + 1, 0, w - 1)]
+		# 세로
+		var vt: PackedFloat32Array = PackedFloat32Array()
+		vt.resize(w * h)
+		for x2 in range(w):
+			var acc2: float = 0.0
+			for i2 in range(-SHADOW_R, SHADOW_R + 1):
+				acc2 += hz[clampi(i2, 0, h - 1) * w + x2]
+			for y2 in range(h):
+				vt[y2 * w + x2] = acc2 / span
+				acc2 -= hz[clampi(y2 - SHADOW_R, 0, h - 1) * w + x2]
+				acc2 += hz[clampi(y2 + SHADOW_R + 1, 0, h - 1) * w + x2]
+		cur = vt
+	return cur
+
+## ⑥ 광학 중심 정렬 — 본체(밀도 기준) bbox 중심이 캔버스 중심에 오도록 투명 여백을 한쪽에 더한다.
+func _center_on_core(src: Image) -> Image:
+	var w: int = src.get_width()
+	var h: int = src.get_height()
+	var col: PackedFloat32Array = PackedFloat32Array()
+	var row: PackedFloat32Array = PackedFloat32Array()
+	col.resize(w)
+	row.resize(h)
+	for y in range(h):
+		for x in range(w):
+			var a: float = src.get_pixel(x, y).a
+			col[x] += a
+			row[y] += a
+	var cmax: float = 0.0
+	var rmax: float = 0.0
+	for x in range(w):
+		cmax = maxf(cmax, col[x])
+	for y in range(h):
+		rmax = maxf(rmax, row[y])
+	if cmax <= 0.0 or rmax <= 0.0:
+		return src  # 본체 없음 — 정렬 생략
+	var minx: int = 0
+	var maxx: int = w - 1
+	var miny: int = 0
+	var maxy: int = h - 1
+	while minx < maxx and col[minx] < cmax * DENS_FRAC:
+		minx += 1
+	while maxx > minx and col[maxx] < cmax * DENS_FRAC:
+		maxx -= 1
+	while miny < maxy and row[miny] < rmax * DENS_FRAC:
+		miny += 1
+	while maxy > miny and row[maxy] < rmax * DENS_FRAC:
+		maxy -= 1
+	var ccx: float = float(minx + maxx + 1) * 0.5
+	var ccy: float = float(miny + maxy + 1) * 0.5
+	var pad_l: int = maxi(0, int(round(float(w) - ccx * 2.0)))
+	var pad_r: int = maxi(0, int(round(ccx * 2.0 - float(w))))
+	var pad_t: int = maxi(0, int(round(float(h) - ccy * 2.0)))
+	var pad_b: int = maxi(0, int(round(ccy * 2.0 - float(h))))
+	if pad_l == 0 and pad_r == 0 and pad_t == 0 and pad_b == 0:
+		return src
+	var canvas: Image = Image.create(w + pad_l + pad_r, h + pad_t + pad_b, false, Image.FORMAT_RGBA8)
+	canvas.blit_rect(src, Rect2i(0, 0, w, h), Vector2i(pad_l, pad_t))
+	print("    광학 정렬: 본체중심 (%.0f,%.0f) → 여백 좌%d 우%d 상%d 하%d" % [ccx, ccy, pad_l, pad_r, pad_t, pad_b])
+	return canvas
