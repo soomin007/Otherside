@@ -19,6 +19,12 @@ extends RefCounted
 ##  그게 게이트(gate_idx)다 — 열기 전엔 보조 지점이 보이지 않는다(먼저 치르고, 넘은 뒤에 둘러본다).
 ##  게이트 조사는 예산 무료("free"). 다리 통과는 떠나기를 막지 않는다(위협이 아니라 이전 원정대의 보답).
 ##  줍기가 주요인 노드는 게이트 없음 — 줍기가 위협을 가리는 우선순위는 확정 의도(arrival_event 주석).
+##
+## 총괄자의 기억(2026-07-18, 사용자 확정): 지난 원정들이 살핀 보조 지점(known_ids 주입)은 재방문 때
+##  기억으로 보인다 — ui 가 memory_line 을 라벨 밑에 흐리게 그린다. 빈손으로 끝났던 자리(known+empty)는
+##  다시 조사할 것이 없어 비활성(예산 계산에서도 빠진다). 자원·사건 자리는 기억을 보며 예산대로 재조사한다.
+##  세계관 모순 없음: 원정대 사이엔 글이 못 남지만, 기억의 주체는 메타 층의 총괄자다(오프닝 4장).
+##  기억은 보장이 아니다 — 문구는 "지난 원정 때 ~였다"에 머문다(재방문 변형의 여지, backlog 환경발 변주).
 
 const SECTION_PROBES: int = 2   ## 기본 예산(노드가 probes 로 오버라이드)
 
@@ -30,7 +36,8 @@ var gate_idx: int = -1      ## 통과 게이트 지점 인덱스(-1=게이트 �
 var spots: Array = []   ## 각: {label:String, at:Vector2, done:bool, _result:Dictionary}
 
 ## run == null 은 from_dict(이어하기 복원) 전용 — 빈 껍데기를 만들고 저장본으로 채운다.
-func _init(run: ExpeditionRun = null, node: Dictionary = {}) -> void:
+## known_ids = 지난 원정들이 살핀 이 노드의 보조 지점 id 들(총괄자의 기억 — GameState 영속을 ui 가 주입).
+func _init(run: ExpeditionRun = null, node: Dictionary = {}, known_ids: Array = []) -> void:
 	if run == null:
 		return
 	node_id = run.target_node_id()
@@ -54,16 +61,19 @@ func _init(run: ExpeditionRun = null, node: Dictionary = {}) -> void:
 		})
 		if mand or bridge:
 			gate_idx = 0  # 두 단계: 통과를 열기 전엔 보조 지점이 안 보인다
-	# 보조 지점 — node.spots 중 requires 통과분.
+	# 보조 지점 — node.spots 중 requires 통과분. id 는 총괄자의 기억(영속 기록)의 키.
 	for sp in node.get("spots", []):
 		var spot: Dictionary = sp
 		var req: String = str(spot.get("requires", ""))
 		if req != "" and not run.has_flag(req):
 			continue
+		var sid: String = str(spot.get("id", ""))
 		spots.append({
 			"label": str(spot.get("label", "살핀다")),
 			"at": spot.get("at", Vector2(0.5, 0.5)),
 			"done": false,
+			"id": sid,
+			"known": sid != "" and sid in known_ids,   # 지난 원정이 살핀 자리(기억)
 			"_result": _spot_result(spot),
 		})
 	# 예산 = 선택형(보조) 지점에만 적용. 필수 위협이 있으면 예산 한 칸을 미리 차지한다 — 위협 노드는
@@ -74,8 +84,8 @@ func _init(run: ExpeditionRun = null, node: Dictionary = {}) -> void:
 	for s in spots:
 		if bool(s.get("mandatory", false)):
 			has_mandatory = true
-		else:
-			optional_count += 1
+		elif not _is_inert(s):
+			optional_count += 1  # 기억 속 빈손 자리는 조사 대상이 아니라 예산 계산에서도 뺀다
 	var probes: int = int(node.get("probes", SECTION_PROBES))
 	if has_mandatory:
 		probes -= 1
@@ -148,6 +158,8 @@ func can_probe(i: int) -> bool:
 	var spot: Dictionary = spots[i]
 	if bool(spot.get("done", false)):
 		return false
+	if _is_inert(spot):
+		return false  # 총괄자의 기억 — 빈손이었던 자리는 다시 살필 것이 없다
 	if not is_spot_visible(i):
 		return false  # 게이트 뒤 보조 지점은 통과 전엔 조사 불가(두 단계)
 	# 통과(필수 위협·다리)는 예산과 무관하게 항상 조사 가능(마주하기 전엔 떠날 수 없으므로 막히면 안 된다).
@@ -182,6 +194,30 @@ func unresolved_threat_kind() -> int:
 			return int(ev.get("threat", -1))
 	return -1
 
+## 총괄자의 기억 한 줄 — 지난 원정이 살핀 지점(known)의 결과 요약. ui 가 라벨 밑에 흐리게 그린다.
+## 보장이 아니라 기억이라 "지난 원정 때 ~"에 머문다. 이번 런에 이미 살폈으면(결과를 봤으면) 비운다.
+func memory_line(i: int) -> String:
+	var spot: Dictionary = get_spot(i)
+	if not bool(spot.get("known", false)) or bool(spot.get("done", false)):
+		return ""
+	var res: Dictionary = spot.get("_result", {})
+	match str(res.get("type", "")):
+		"empty":
+			return "지난 원정 때 빈손이었다"
+		"delta":
+			var items: Array = []
+			var effect: Dictionary = res.get("effect", {})
+			for k in effect:
+				if int(effect.get(k, 0)) > 0 and RESOURCE_WORDS.has(str(k)):
+					items.append(str(RESOURCE_WORDS[str(k)]))
+			if items.is_empty():
+				return "지난 원정도 여기를 살폈다"
+			var joined: String = "·".join(PackedStringArray(items))
+			var last: String = str(items[items.size() - 1])
+			return "지난 원정 때 %s%s 나왔다" % [joined, _josa_iga(last)]
+		_:
+			return "지난 원정도 여기를 살폈다"
+
 ## 지금까지 조사한 지점 수 (첫 도착 안내 표시 판단용 — 0이면 아직 아무것도 안 봤다).
 func probed_count() -> int:
 	var n: int = 0
@@ -201,6 +237,25 @@ func exhausted() -> bool:
 	return true
 
 # --- 내부 ---
+
+## 자원 키 → 세계의 말(기억 한 줄용). HUD·남기기와 같은 어휘.
+const RESOURCE_WORDS: Dictionary = {
+	"water": "물", "food": "식량", "rope": "로프", "shelter": "장막",
+	"medicine": "약초", "flint": "부싯돌", "filter": "정화천",
+}
+
+## 기억으로 끝난 자리 — 지난 원정이 살펴 빈손임을 아는 지점(known+empty)은 다시 조사할 것이 없다.
+static func _is_inert(spot: Dictionary) -> bool:
+	return bool(spot.get("known", false)) and str(spot.get("_result", {}).get("type", "")) == "empty"
+
+## 받침 유무로 이/가 고르기 — 기억 한 줄의 조사(로프"가"·물"이").
+static func _josa_iga(word: String) -> String:
+	if word.is_empty():
+		return "이"
+	var c: int = word.unicode_at(word.length() - 1)
+	if c < 0xAC00 or c > 0xD7A3:
+		return "이"
+	return "이" if (c - 0xAC00) % 28 != 0 else "가"
 
 ## 이 주요 지점이 반드시 마주해야 하는 위협인가 — 폭풍/차단만.
 ## 이미 로프 걸린 무료 통과(bridged)는 위협이 아니라 이전 원정대의 보답이라 제외. 줍기·소모 이벤트도 선택(포기 가능).

@@ -61,7 +61,8 @@ func _ready() -> void:
 		if not saved_section.is_empty() and str(saved_section.get("node_id", "")) == _run.target_node_id():
 			_section = SectionRun.from_dict(saved_section)
 		else:
-			_section = SectionRun.new(_run, MapGraph.node(_run.target_node_id()))
+			_section = SectionRun.new(_run, MapGraph.node(_run.target_node_id()),
+				GameState.probed_spot_ids(_run.target_node_id()))  # 총괄자의 기억 — 살핀 지점 주입
 			GameState.autosave_run(_section.to_dict())  # 도착 카드 추첨 결과 확정 — 다시 뽑히지 않게 즉시 저장
 		# 폭풍 biome 노드는 위기곡으로 교체, 그 외엔 베드(이미 재생 중이면 무시 — 연속 유지).
 		if str(MapGraph.node(_run.target_node_id()).get("biome", "")) == "storm":
@@ -503,6 +504,11 @@ func _probe_spot(i: int) -> void:
 	var res: Dictionary = _section.probe(i)
 	if res.is_empty():
 		return
+	# 총괄자의 기억 — 살핀 보조 지점을 세계 기록에(다음 원정이 재방문 때 기억으로 본다).
+	# 저장은 아래 각 분기의 autosave_run 이 함께 싣는다.
+	var probed_sid: String = str(_section.get_spot(i).get("id", ""))
+	if probed_sid != "":
+		GameState.record_probed_spot(_section.node_id, probed_sid)
 	AudioManager.play_sfx(AudioManager.REVEAL, -4.0)  # 조사 — 잉크가 번지듯 드러난다
 	# 이어하기 저장은 각 분기에서 상태가 다 정해진 뒤에 — 열린 카드(pending)·자원 반영까지 스냅샷에 실린다.
 	var t: String = str(res.get("type", ""))
@@ -651,6 +657,10 @@ func _draw() -> void:
 			st = 2  # 예산 소진(선택형). 필수 위협은 can_probe 가 항상 true라 열린 채로 남는다.
 		var is_main: bool = bool(spot.get("_result", {}).get("main", false))
 		SectionArt.draw_spot(self, font, _spot_screen(at), str(spot.get("label", "")), st, is_main)
+		# 총괄자의 기억 — 지난 원정이 살핀 지점은 라벨 밑에 기억 한 줄(흐리게).
+		var mem: String = _section.memory_line(i)
+		if mem != "":
+			SectionArt.draw_spot_memory(self, font, _spot_screen(at), mem)
 		# 낙오자면 마커 위에 웅크린 사람이 실제로 보이게(2026-07-15 사용자 — 시각 힌트 없인 뜬금없다).
 		if is_main and st == 0 and str(spot.get("_result", {}).get("event", {}).get("kind", "")) == "straggler":
 			SectionArt.draw_straggler(self, _spot_screen(at))

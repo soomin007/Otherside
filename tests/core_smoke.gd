@@ -28,6 +28,7 @@ func _init() -> void:
 	_test_section_budget()
 	_test_section_mandatory_threat()
 	_test_section_bridged_gate()
+	_test_section_overseer_memory()
 	_test_bequeath_gate()
 	_test_tool_bequest()
 	_test_vocations()
@@ -617,6 +618,49 @@ func _test_section_bridged_gate() -> void:
 	section.probe(0)
 	_ok(section.budget_left() == b0, "단면(다리): 통과 조사는 예산 무료(옛 예산 낭비 함정 제거)")
 	_ok(section.gate_opened() and section.spot_count() > 1 and section.is_spot_visible(1), "단면(다리/2단계): 통과 후 보조 드러남")
+
+## 총괄자의 기억(2026-07-18) — 지난 원정이 살핀 지점(known_ids 주입)은 기억으로 보인다.
+## 빈손(known+empty)은 재조사 불가·예산 계산 제외, 자원·사건 자리는 기억을 보며 예산대로 재조사.
+func _test_section_overseer_memory() -> void:
+	# 실제 노드(c2) — id 배선·비활성 빈손.
+	var run: ExpeditionRun = _fresh()
+	run.begin_edge("c2")
+	_advance(run)
+	var section := SectionRun.new(run, MapGraph.node("c2"), ["wall_roar", "wall_tarp"])
+	var roar: int = -1
+	var tarp: int = -1
+	for i in range(section.spot_count()):
+		var sp: Dictionary = section.get_spot(i)
+		if str(sp.get("id", "")) == "wall_roar":
+			roar = i
+		elif str(sp.get("id", "")) == "wall_tarp":
+			tarp = i
+	_ok(roar >= 0 and tarp >= 0, "기억: c2 보조 지점에 id 배선")
+	_ok(bool(section.get_spot(roar).get("known", false)) and bool(section.get_spot(tarp).get("known", false)), "기억: known_ids 주입분 known 표시")
+	_ok(not section.can_probe(roar), "기억: 빈손 자리는 다시 조사 불가")
+	_ok(section.memory_line(roar) == "지난 원정 때 빈손이었다", "기억: 빈손 기억 한 줄")
+	_ok(section.memory_line(tarp).contains("물"), "기억: 자원 기억 한 줄(물 언급)")
+	section.probe(0)  # 게이트(폭풍 위협, 무료) 열기
+	_ok(section.can_probe(tarp), "기억: 자원 자리는 재조사 가능")
+	var b0: int = section.budget_left()
+	var d: Dictionary = section.probe(tarp)
+	_ok(str(d.get("type", "")) == "delta" and section.budget_left() == b0 - 1, "기억: 자원 재조사는 예산대로 소모")
+	# 직렬화 왕복 — known·id 가 이어하기에 보존된다.
+	var rd: Variant = JSON.parse_string(JSON.stringify(section.to_dict()))
+	var sec2: SectionRun = SectionRun.from_dict(rd)
+	_ok(bool(sec2.get_spot(roar).get("known", false)) and str(sec2.get_spot(roar).get("id", "")) == "wall_roar", "기억: 이어하기 직렬화 보존")
+	_ok(not sec2.can_probe(roar) and sec2.memory_line(roar) != "", "기억: 복원 후에도 빈손 비활성·기억 유지")
+	# 합성 노드 — 빈손 기억이 예산 계산에서 빠지는 것(min 상한이 걸리지 않는 probes 4 로 관찰).
+	var host: ExpeditionRun = _fresh()
+	host.begin_edge("a1")
+	_advance(host)
+	var fake: Dictionary = {"kind": "cache", "probes": 4, "spots": [
+		{"id": "m_empty", "label": "빈 곳", "source": "empty", "text": "없다."},
+		{"id": "m_cache", "label": "천 무더기", "source": "cache", "effect": {"water": 1}, "text": "물."},
+	]}
+	var s_fresh := SectionRun.new(host, fake)
+	var s_known := SectionRun.new(host, fake, ["m_empty", "m_cache"])
+	_ok(s_known.budget_left() == s_fresh.budget_left() - 1, "기억: 빈손 기억은 예산 계산에서 빠진다(-1)")
 
 func _test_bequeath_gate() -> void:
 	var run: ExpeditionRun = _fresh({"water": 20, "food": 13, "rope": 1, "shelter": 1})

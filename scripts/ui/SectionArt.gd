@@ -184,6 +184,21 @@ static func draw_spot(ci: CanvasItem, font: Font, center: Vector2, label: String
 		var lc: Color = UITheme.INK if state == 0 else faded
 		ci.draw_string(font, center + Vector2(-(tw * 0.5 + 8.0), r + 20.0), label, HORIZONTAL_ALIGNMENT_CENTER, tw + 16.0, UITheme.FS_SMALL, lc)
 
+## 총괄자의 기억 한 줄 — 살핀 적 있는 지점 라벨 밑에 흐린 잉크로("당신만이 모든 원정을 기억합니다").
+## 보조 지점(r=15) 라벨 줄 바로 아래. 크림 웅덩이는 라벨 것과 이어져 한 기둥으로 읽힌다.
+static func draw_spot_memory(ci: CanvasItem, font: Font, center: Vector2, text: String) -> void:
+	if font == null or text == "":
+		return
+	var fs: int = maxi(10, UITheme.FS_SMALL - 3)
+	var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x
+	var base_y: float = center.y + 55.0
+	if _label_pool != null:
+		var pw: float = maxf(120.0, tw * 1.8)
+		ci.draw_texture_rect(_label_pool, Rect2(center.x - pw * 0.5, base_y - 18.0, pw, 26.0), false, Color(1.0, 1.0, 1.0, 0.8))
+	# INK_FADE 는 웅덩이 위에서 안 읽힌다(1차 스크린샷) — 본잉크를 살짝만 낮춘 색으로.
+	ci.draw_string(font, Vector2(center.x - tw * 0.5, base_y), text, HORIZONTAL_ALIGNMENT_LEFT, tw + 8.0, fs,
+		Color(UITheme.INK.r, UITheme.INK.g, UITheme.INK.b, 0.82))
+
 ## 낙오자 시각 힌트 — "웅크린 사람" 마커 위에 실제 웅크린 사람 스케치(지도·일지와 같은 킷 61).
 ## 마커만 있으면 뜬금없다는 지적(2026-07-15 사용자) — 크림 원반(라벨 웅덩이와 같은 결) + 온기 무리 위에
 ## 사람이 앉아, 어두운 그림에서도 "여기 사람이 있다"가 한눈에 읽히게 한다.

@@ -537,6 +537,27 @@ func loaded_traces() -> Array[TraceData]:
 			out.append(TraceData.from_dict(raw))
 	return out
 
+# --- 총괄자의 기억 (단면 지점 조사 기록 — 2026-07-18 사용자 확정) ---
+# 지난 원정들이 살핀 보조 지점을 노드별로 기억한다. 재방문 단면에서 흐린 한 줄로 보인다.
+# 세계관 모순 없음: 원정대 사이엔 글이 못 남지만(폭풍이 지운다), 기억의 주체는 총괄자(플레이어)다.
+
+## node_id -> 살핀 spot id 배열. 영속(세이브 포함).
+var probed_spots: Dictionary = {}
+
+## 단면 지점 조사를 세계 기록에 남긴다 — Expedition 이 probe 성공 직후 부른다(저장은 기존 autosave 가).
+func record_probed_spot(nid: String, spot_id: String) -> void:
+	if nid == "" or spot_id == "":
+		return
+	var ids: Array = probed_spots.get(nid, [])
+	if spot_id in ids:
+		return
+	ids.append(spot_id)
+	probed_spots[nid] = ids
+
+## 이 노드에서 지난 원정들이 살핀 spot id 들 — SectionRun 생성자 주입용(core 는 GameState 를 모른다).
+func probed_spot_ids(nid: String) -> Array:
+	return probed_spots.get(nid, [])
+
 ## 과거에 로프를 고정한 차단 노드들(ROPE 흔적의 node_id). 다음 원정에서 그 노드에 도착하면 무료로 건넌다.
 ## 차단 = "영구 지형 변화"(기획서 §4)의 영속 표현. ExpeditionRun 에 주입된다.
 func bridged_nodes() -> Array:
@@ -662,6 +683,7 @@ func save_game() -> void:
 		"seeded": seeded,
 		"feat_stats": feat_stats,
 		"feats_unlocked": feats_unlocked,
+		"probed_spots": probed_spots,
 		# 이어하기(서스펜드) — 살아 있는 진행 중 원정만 싣는다. 죽음/도달로 런이 닫히면 다음 저장에서 비워진다.
 		# 자유 세이브/로드 아님(사용자 확정 2026-07-10): 한 슬롯, 상시 자동 저장, 시점 선택 없음.
 		"run": current_run.to_dict() if (current_run != null and current_run.alive) else {},
@@ -708,6 +730,7 @@ func load_game() -> void:
 	seeded = bool(data.get("seeded", false))
 	feat_stats = data.get("feat_stats", {})   # JSON 왕복 후 값은 float — 읽는 쪽(snapshot)이 int() 캐스팅
 	feats_unlocked = data.get("feats_unlocked", [])
+	probed_spots = data.get("probed_spots", {})
 	# 이어하기 — 길 위에 원정이 있었으면 되살린다(타이틀이 "이어서 간다"를 띄운다).
 	var run_data: Dictionary = data.get("run", {})
 	if not run_data.is_empty():
@@ -736,6 +759,7 @@ func reset_save() -> void:
 	feat_stats = {}
 	feats_unlocked = []
 	pending_feat_notices = []
+	probed_spots = {}
 	_plant_seeds()      # 새 세계에도 유령 흔적을 다시 심는다(빈 세계 회피)
 	seeded = true
 	save_game()
