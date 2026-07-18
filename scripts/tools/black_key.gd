@@ -28,6 +28,8 @@ const SOLID: float = 0.72   # 이 밝기 이상 = 그림 본체 → 완전 불�
 const HOLE_A: float = 0.98  # 이 alpha 미만을 '빈 곳 후보'로 보고 테두리 flood fill — 못 닿으면 내부 구멍
 const MARGIN: int = 8       # 크롭 후 사방 여백(px)
 const MAX_W: int = 1600     # 결과 최대 폭(로고 선명도 유지 선에서 다이어트)
+const EDGE_TRIM: int = 4    # 키잉 전 소스 사방을 이만큼 잘라낸다 — 생성물 극단 가장자리의 심(seam) 노이즈가
+                            # 문턱을 넘어 점선 잔재로 남는 것 방지(2026-07-18 C안 하단 줄에서 확인)
 
 # --- ⑤ 그림자 손잡이 ---
 const SHADOW_A: float = 0.55            # 그림자 최대 진하기
@@ -62,6 +64,9 @@ func _convert_one(src: String, dst: String) -> bool:
 		return false
 	if img.get_format() != Image.FORMAT_RGBA8:
 		img.convert(Image.FORMAT_RGBA8)
+	if img.get_width() > EDGE_TRIM * 4 and img.get_height() > EDGE_TRIM * 4:
+		img = img.get_region(Rect2i(EDGE_TRIM, EDGE_TRIM,
+			img.get_width() - EDGE_TRIM * 2, img.get_height() - EDGE_TRIM * 2))
 	var w: int = img.get_width()
 	var h: int = img.get_height()
 
@@ -120,15 +125,17 @@ func _detect_key(img: Image) -> Color:
 
 ## 마젠타 크로마키 — 마젠타 성분 m=min(r,b)-g 으로 alpha 를 세우고,
 ## c = f·a + key·(1-a) 를 풀어 전경색 복원(언믹스).
-## 따뜻한 팔레트(초록>파랑)에선 이 alpha 가 과대해져 반투명 영역에 분홍이 남는다 —
-## 본체 픽셀에서 팔레트의 파랑/초록 비율(ρ)을 학습해, 그 비율을 넘는 파랑을 마젠타 잔여로
-## 보고 배경 몫으로 되돌린다(c = f·a + k·(1-a) 의 정확한 재매개화 — 합성 결과 불변).
+## 따뜻한 팔레트(초록>파랑)에선 이 alpha 가 과대해져 반투명 영역에 마젠타 잔여가 남는다 —
+## 본체 픽셀에서 팔레트의 파랑/초록·빨강/초록 비율(ρb·ρr)을 학습해, 비율을 넘는 초과분을
+## 마젠타 잔여로 보고 배경 몫으로 되돌린다(c = f·a + k·(1-a) 의 정확한 재매개화 — 합성 결과 불변).
+## 파랑만 보정하면 마젠타의 빨강 성분이 남아 입자가 연어색이 된다(2026-07-18 C안에서 확인 — 빨강도 필수).
 func _key_chroma(img: Image, key: Color) -> PackedInt32Array:
 	var w: int = img.get_width()
 	var h: int = img.get_height()
 	var mk: float = minf(key.r, key.b) - key.g
-	# 1패스 — 본체(alpha≈1) 픽셀로 팔레트 비율 ρ = Σ(b·g)/Σ(g²) (가중 최소제곱)
+	# 1패스 — 본체(alpha≈1) 픽셀로 팔레트 비율 ρ = Σ(c·g)/Σ(g²) (가중 최소제곱, 채널별)
 	var bg_sum: float = 0.0
+	var rg_sum: float = 0.0
 	var gg_sum: float = 0.0
 	for y in range(h):
 		for x in range(w):
@@ -136,8 +143,10 @@ func _key_chroma(img: Image, key: Color) -> PackedInt32Array:
 			var m: float = minf(c.r, c.b) - c.g
 			if 1.0 - clampf(m / mk, 0.0, 1.0) >= 0.97 and c.g > 0.1:
 				bg_sum += c.b * c.g
+				rg_sum += c.r * c.g
 				gg_sum += c.g * c.g
 	var rho: float = 0.75 if gg_sum <= 0.0 else clampf(bg_sum / gg_sum, 0.3, 0.95)
+	var rho_r: float = 1.25 if gg_sum <= 0.0 else clampf(rg_sum / gg_sum, 0.6, 2.5)
 	# 2패스 — 키잉 + 잔여 마젠타 재배분
 	var cleared: int = 0
 	for y in range(h):
@@ -154,7 +163,9 @@ func _key_chroma(img: Image, key: Color) -> PackedInt32Array:
 				var fr: float = clampf((c.r - key.r * (1.0 - a)) / a, 0.0, 1.0)
 				var fg: float = clampf((c.g - key.g * (1.0 - a)) / a, 0.0, 1.0)
 				var fb: float = clampf((c.b - key.b * (1.0 - a)) / a, 0.0, 1.0)
-				var t: float = clampf(fb - rho * fg, 0.0, 0.85)  # 팔레트 비율 초과분 = 마젠타 잔여
+				var tb: float = (fb - rho * fg) / maxf(key.b - rho * key.g, 0.5)
+				var tr: float = (fr - rho_r * fg) / maxf(key.r - rho_r * key.g, 0.5)
+				var t: float = clampf(maxf(tb, tr), 0.0, 0.85)  # 팔레트 비율 초과분 = 마젠타 잔여
 				if t > 0.003:
 					fr = clampf((fr - key.r * t) / (1.0 - t), 0.0, 1.0)
 					fg = clampf((fg - key.g * t) / (1.0 - t), 0.0, 1.0)
