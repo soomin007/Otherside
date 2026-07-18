@@ -62,3 +62,6 @@ assets/fonts/OTF/
 # (요약 핸드오프 md 는 docs/handoffs/ 에 tracked 로 남아 있음)
 docs/handoffs/design_handoff_expedition_ui/
 docs/handoffs/handoff_book_flip/
+
+# 인스타 캐러셀 첨부 모음 — 업로드 편의용 복사본(원본은 assets/·docs/handoffs/ 에 tracked). 32MB 중복이라 제외.
+docs/handoffs/인스타_캐러셀_첨부/
