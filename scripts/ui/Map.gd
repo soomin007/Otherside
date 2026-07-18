@@ -500,9 +500,12 @@ func _process(delta: float) -> void:
 			_show_situation_card()  # 이동 중 마주친 상황/줍기 — 결정하면 이동을 잇는다
 
 func _gui_input(event: InputEvent) -> void:
-	# 터치 기기에선 에뮬레이트된 마우스 이벤트를 무시 — 탭 한 번에 ScreenTouch 와 MouseButton 이
-	# 둘 다 들어와 흔적 두루마리 토글이 2번 실행(열리자마자 닫힘)되던 원인(2026-07-12 폰 제보).
-	if DisplayServer.is_touchscreen_available() and (event is InputEventMouseButton or event is InputEventMouseMotion):
+	# 합성(에뮬레이트) 이벤트만 무시 — 탭 한 번에 원본과 합성이 둘 다 들어와 흔적 두루마리 토글이
+	# 2번 실행(열리자마자 닫힘)되던 것 방지(2026-07-12 폰 제보). emulate_touch_from_mouse 라 데스크톱
+	# 클릭은 ScreenTouch 를, 폰 터치는 마우스 이벤트를 합성한다 — 어느 쪽이든 합성본은 device 가
+	# DEVICE_ID_EMULATION 이라 이걸로 거른다. 옛 판별(터치 "가능" 기기의 마우스 전부 무시)은 터치 가능
+	# 데스크톱에서 진짜 마우스 모션까지 버려 호버 원이 죽었다(2026-07-18 제보).
+	if event.device == InputEvent.DEVICE_ID_EMULATION:
 		return
 	if _moving or (_sit_panel != null and _sit_panel.visible) or (_bequeath != null and _bequeath.is_open()) or (_result_popup != null and _result_popup.is_open()) or (_inventory != null and _inventory.is_open()):
 		if _hovered_node != "" or _active_trace != "":
@@ -521,14 +524,17 @@ func _gui_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed) or (event is InputEventScreenTouch and not event.pressed):
 		_dragging = false
 		if _drag_moved < DRAG_THRESH:
+			# 갈 수 있는 노드가 흔적 아이콘의 넉넉한 판정보다 우선(아이콘 몸통 정타만 예외) —
+			# 노드 옆에 쌓인 표식이 노드 탭을 가로채던 것 방지(2026-07-18 제보: 모래의 벽을 눌러도 표식만 열림).
+			var pick: Array = _pick_target(event.position, area)
 			# 흔적 아이콘 탭 → 표식 단어 펼치기/접기(라우팅 아님, 터치 우선).
-			var trh: String = _trace_at(event.position)
+			var trh: String = str(pick[1])
 			if trh != "":
 				_active_trace = "" if _active_trace == trh else trh
 				_trace_open_t = 0.0
 				queue_redraw()
 				return
-			var hit: String = _reachable_at(event.position, area)
+			var hit: String = str(pick[0])
 			if hit != "":
 				GameState.begin_travel(hit)
 				_moving = true
@@ -543,15 +549,16 @@ func _gui_input(event: InputEvent) -> void:
 	if _dragging and (event is InputEventMouseMotion or event is InputEventScreenDrag):
 		_drag_moved = maxf(_drag_moved, absf(event.position.y - _drag_start_y))
 		return
-	# 호버 — 마우스가 올라간 도달 가능 노드(그 원이 커진다). 데스크톱 전용.
+	# 호버 — 마우스가 올라간 도달 가능 노드(그 원이 커진다). 데스크톱 전용. 탭과 같은 중재 규칙.
 	if event is InputEventMouseMotion:
 		var mpos: Vector2 = (event as InputEventMouseMotion).position
-		var trh: String = _trace_at(mpos)   # 데스크톱: 흔적 아이콘 호버 시 표식 펼침
+		var pick: Array = _pick_target(mpos, area)
+		var trh: String = str(pick[1])   # 데스크톱: 흔적 아이콘 호버 시 표식 펼침
 		if trh != _active_trace:
 			_active_trace = trh
 			_trace_open_t = 0.0
 			queue_redraw()
-		var hov: String = _reachable_at(mpos, area)
+		var hov: String = str(pick[0])
 		if hov != _hovered_node:
 			_hovered_node = hov
 			if hov != "":
@@ -1419,11 +1426,23 @@ func _draw_trace_scroll(font: Font, center: Vector2, tags: Array, ms: float, ope
 		draw_string(font, Vector2(center.x - tw * 0.5, center.y + float(fs) * 0.36), text,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0.918, 0.855, 0.729, ta))
 
+## 탭/호버 한 지점의 대상 중재 — [도달 가능 노드 id, 흔적 nid] (항상 한쪽만 비어 있지 않다).
+## 겹치면 노드가 이긴다 — 노드 옆에 쌓인 표식의 넉넉한 판정이 노드 탭/호버를 가로채지 않게
+## (2026-07-18 제보). 예외 = 아이콘 몸통 정타(core): 정확히 아이콘을 짚었으면 흔적을 인정해
+## 노드 판정 안쪽의 흔적도 읽을 수 있다(마우스 정밀도 전제 — 손가락은 대개 몸통을 못 짚어 노드로 간다).
+func _pick_target(pos: Vector2, area: Rect2) -> Array:
+	var nd: String = _reachable_at(pos, area)
+	var tr: String = _trace_at(pos, nd != "")
+	if tr != "":
+		nd = ""
+	return [nd, tr]
+
 ## 흔적 아이콘 히트테스트 — 위치에 흔적 아이콘이 있으면 그 노드 id(호버·탭 판정 공용).
-func _trace_at(pos: Vector2) -> String:
+## core_only = 아이콘 몸통(≈14px)만 인정 — 노드 판정과 겹칠 때 "정확히 짚었다"의 기준(_pick_target).
+func _trace_at(pos: Vector2, core_only: bool = false) -> String:
 	var best: String = ""
 	# 터치(폰)는 손가락 오차만큼 판정을 넉넉히(2026-07-12 — 흔적 표식이 안 열린다는 제보 방어).
-	var best_d: float = (38.0 if DisplayServer.is_touchscreen_available() else 28.0) * _mscale()
+	var best_d: float = (14.0 if core_only else (38.0 if DisplayServer.is_touchscreen_available() else 28.0)) * _mscale()
 	for hb in _trace_hitboxes:
 		var d: float = pos.distance_to(hb["pos"])
 		if d <= best_d:
