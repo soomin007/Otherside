@@ -139,7 +139,7 @@ const NODES: Dictionary = {
 			{"id": "camp_sacks", "label": "식량 자루", "at": Vector2(0.32, 0.78), "source": "cache", "effect": {"food": 2}, "text": "모래에 반쯤 묻힌 자루.\n아직 상하지 않았다."},
 			{"id": "camp_cold", "label": "식은 재", "at": Vector2(0.655, 0.73), "source": "empty", "text": "불은 오래전에 꺼졌다.\n쓸 것이 없다."},
 			{"id": "camp_tent", "label": "무너진 천막", "at": Vector2(0.76, 0.47), "source": "event", "event": {"id": "camp_tent_take", "threat": Threats.Kind.CONSUMPTION, "text": "무너진 천막 골조에\n성한 장막 한 장이 걸려 있다.\n떼어 가면 폭풍에 든든하지만\n짐이 된다.", "choices": [{"label": "떼어 챙긴다", "effect": {"shelter": 1}, "sets": ["camp_shelter_now"], "sets_persist": ["camp_shelter"]}, {"label": "둔다 (짐을 줄인다)", "effect": {}}]}},
-			{"id": "camp_well", "label": "야영지 우물", "at": Vector2(0.20, 0.69), "source": "event", "event": {"id": "camp_well_draw", "threat": Threats.Kind.CONSUMPTION, "text": "우물 바닥에 물이 조금 남았다.\n두레박 줄이 삭아\n길어 올리기 수고롭다.", "choices": [{"label": "식량을 헐어 힘써 길어 올린다", "effect": {"water": 2, "food": -2}}, {"label": "삭은 줄이라 둔다", "effect": {}}]}},
+			{"id": "camp_well", "label": "야영지 우물", "at": Vector2(0.20, 0.69), "source": "event", "event": {"id": "camp_well_draw", "threat": Threats.Kind.CONSUMPTION, "text": "우물 바닥에 물이 조금 남았다.\n두레박 줄이 삭아\n길어 올리기 수고롭다.", "choices": [{"label": "든든히 먹고 힘껏 길어 올린다", "effect": {"water": 2, "food": -2}}, {"label": "삭은 줄이라 둔다", "effect": {}}]}},
 			{"id": "camp_chest", "label": "낡은 궤짝", "at": Vector2(0.08, 0.62), "source": "event", "event": {"id": "camp_chest_open", "threat": Threats.Kind.CONSUMPTION, "text": "천막 곁 나무 궤짝이\n모래에 반쯤 묻혀 있다.\n뚜껑이 모래 무게에 눌려\n땡볕에 한참을 파내야 한다.", "choices": [{"label": "땡볕에 파내고 뚜껑을 연다", "effect": {"food": 2, "water": -2}}, {"label": "두고 간다", "effect": {}}]}},
 		],
 	},
