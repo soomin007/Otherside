@@ -9,6 +9,10 @@ extends Node
 const SAVE_PATH: String = "user://otherside_save.json"  # 웹에선 브라우저 IndexedDB 에 영속
 const SAVE_VERSION: int = 2  ## v2(2026-07-10): 이어하기 저장(run·run_section) 추가. 로더는 키 부재에 관대해 v1 세이브 호환.
 
+## 플레이 의견 설문(구글 폼) — 타이틀의 "의견 보내기"가 연다. 비어 있으면 버튼 자체를 안 만든다.
+## 폼 개설 후 forms.gle 단축 URL 을 여기 기입(EoY 와 같은 패턴). 문항 초안: docs/design/feedback_form_v0.1.md
+const FEEDBACK_URL: String = ""
+
 signal feat_achieved(feat_id: String)  ## 공훈을 방금 달성 — FeatToast 가 즉시 안내(효과음 포함, 2026-07-14 사용자)
 
 const SCENE_TITLE: String = "res://scenes/main.tscn"
@@ -763,3 +767,13 @@ func reset_save() -> void:
 	_plant_seeds()      # 새 세계에도 유령 흔적을 다시 심는다(빈 세계 회피)
 	seeded = true
 	save_game()
+
+## 의견 설문을 외부 브라우저(데스크톱) / 새 탭(웹)으로 연다.
+## 반드시 버튼 pressed 에서 호출 — 웹의 window.open 이 팝업 차단되지 않으려면 사용자 제스처 컨텍스트가 필요.
+func open_feedback() -> void:
+	if FEEDBACK_URL.is_empty():
+		return
+	if OS.has_feature("web"):
+		JavaScriptBridge.eval("window.open('%s', '_blank')" % FEEDBACK_URL, true)
+	else:
+		OS.shell_open(FEEDBACK_URL)

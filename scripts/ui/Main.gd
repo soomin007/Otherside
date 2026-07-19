@@ -218,6 +218,13 @@ func _build_menu() -> void:
 	settings.pressed.connect(_on_settings_pressed)
 	menu.add_child(settings)
 
+	# 의견 설문(구글 폼) — URL 이 비어 있으면(폼 개설 전) 항목 자체를 만들지 않는다.
+	if not GameState.FEEDBACK_URL.is_empty():
+		var feedback := EngravedItem.new()
+		feedback.init_item("의견 보내기", 22, false)
+		feedback.pressed.connect(_on_feedback_pressed)
+		menu.add_child(feedback)
+
 ## 메뉴 뒤 방사 어둠 — 중앙 하단(메뉴 영역)만 은은하게(가장자리 투명).
 func _menu_glow() -> TextureRect:
 	var grad := Gradient.new()
@@ -287,6 +294,9 @@ func _on_record_pressed() -> void:
 
 func _on_settings_pressed() -> void:
 	Bookmark.open_journal(Bookmark.CH_SETTINGS)  # 원정 일지의 설정 챕터(옛 별도 장부는 일지로 흡수 통합)
+
+func _on_feedback_pressed() -> void:
+	GameState.open_feedback()  # 새 탭(웹)/브라우저(데스크톱) — pressed 컨텍스트라 팝업 차단 없음
 
 func _on_data_reset() -> void:
 	_stat_label.text = _stat_text()
