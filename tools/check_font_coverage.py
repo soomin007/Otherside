@@ -6,8 +6,7 @@
 
 이 도구는 scripts/ 의 한글 포함 문자열 리터럴에서 쓰이는 모든 문자를 모아,
   - MaruBuri(기본 폰트 = 최종 폴백): 하나라도 빠지면 어디서든 두부 → FAIL(exit 1)
-  - NanumBrush(붓글씨): 빠진 글리프는 UITheme._static_init 의 MaruBuri 폴백이 메운다(정보성)
-를 검사한다.
+를 검사한다. (NanumBrush 붓 폰트는 2026-07-19 폐지 — 전 화면 명조 통일.)
 
 사용: python tools/check_font_coverage.py   (필요: pip install fonttools)
 """
@@ -23,7 +22,6 @@ except ImportError:
 
 FONTS = {
     "MaruBuri (기본/폴백)": "assets/fonts/MaruBuri-Regular.ttf",
-    "NanumBrush (붓글씨)": "assets/fonts/NanumBrushScript-Regular.ttf",
 }
 HANGUL = re.compile(r"[가-힣]")
 STRLIT = re.compile(r'"([^"]*)"')
@@ -53,17 +51,13 @@ def collect_displayed_chars() -> dict:
 def main() -> int:
     chars = collect_displayed_chars()
     maru = codepoints(FONTS["MaruBuri (기본/폴백)"])
-    brush = codepoints(FONTS["NanumBrush (붓글씨)"])
 
     maru_missing = sorted(ch for ch in chars if ord(ch) not in maru)
-    brush_missing = sorted(ch for ch in chars if ord(ch) not in brush)
 
     def fmt(cs):
         return " ".join(f"{c}(U+{ord(c):04X})" for c in cs) if cs else "없음"
 
     print(f"표시 문자열 고유 문자 {len(chars)}개 검사")
-    print(f"[NanumBrush 미포함 {len(brush_missing)}개 — MaruBuri 폴백이 메움]")
-    print(f"  {fmt(brush_missing)}")
     print(f"[MaruBuri(최종 폴백) 미포함 {len(maru_missing)}개]")
     print(f"  {fmt(maru_missing)}")
 

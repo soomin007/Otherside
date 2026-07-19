@@ -337,17 +337,17 @@ func _step_tags() -> void:
 		_box.add_child(UITheme.make_label("여기 잠든 이를 기린다. 돌 위의 말은 다음 원정대도 읽는다.", 13, NOTE_COL))
 	else:
 		_box.add_child(UITheme.make_label("%s 곁에 한두 마디. 다음 원정대가 읽는다." % _obj_name(_picked_kind), 13, NOTE_COL))
-	# 새길 말 미리보기 — 붓글씨 크게, 지도 두루마리에 펼쳐질 모습 그대로. 비었으면 말 없이 두는 것도 답.
+	# 새길 말 미리보기 — 크게, 지도 두루마리에 펼쳐질 모습 그대로(두루마리도 기본 명조.
+	# 붓 폰트 폐지, 2026-07-19). 비었으면 말 없이 두는 것도 답.
 	var prev := Label.new()
 	prev.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	prev.add_theme_font_override("font", UITheme.BRUSH_FONT)
 	if _picked_tags.is_empty():
 		prev.text = "말 없이 기린다" if _mourning else "말 없이 남긴다"
-		prev.add_theme_font_size_override("font_size", 30)
+		prev.add_theme_font_size_override("font_size", 24)
 		prev.add_theme_color_override("font_color", Color(NOTE_COL.r, NOTE_COL.g, NOTE_COL.b, 0.85))
 	else:
 		prev.text = " · ".join(PackedStringArray(_picked_tags))
-		prev.add_theme_font_size_override("font_size", 42)
+		prev.add_theme_font_size_override("font_size", 34)
 		prev.add_theme_color_override("font_color", UITheme.SAND)
 	_box.add_child(prev)
 	_box.add_child(_hairline())

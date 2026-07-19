@@ -623,13 +623,12 @@ func _draw() -> void:
 		_make_scrims()
 	draw_texture_rect(_scrim_top, Rect2(0.0, 0.0, rect.x, 200.0), false)
 	draw_texture_rect(_scrim_bot, Rect2(0.0, rect.y - 240.0, rect.x, 240.0), false)
-	# 장소 이름(붓글씨, 지도 지명과 같은 결) + 남은 조사 횟수 — 왼쪽 아래 스크림 위.
+	# 장소 이름(명조 — 지도 지명과 같은 결. 붓 폰트 폐지, 2026-07-19) + 남은 조사 횟수 — 왼쪽 아래 스크림 위.
 	if node_id != "":
 		var nm: String = str(MapGraph.node(node_id).get("name", ""))
-		var bf: Font = UITheme.BRUSH_FONT if UITheme.BRUSH_FONT != null else font
 		var base := Vector2(44.0, rect.y - 66.0)
-		draw_string(bf, base + Vector2(0.0, 2.5), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 44, Color(0.0, 0.0, 0.0, 0.75))
-		draw_string(bf, base, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 44, UITheme.FG)
+		draw_string(font, base + Vector2(0.0, 2.5), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(0.0, 0.0, 0.0, 0.75))
+		draw_string(font, base, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 36, UITheme.FG)
 		if _section != null and _section.spot_count() > 0 and _section.budget_left() > 0:
 			# "조사" + 램프 점 — 남은 조사 횟수(채워진 점) / 쓴 것(빈 점). 숫자보다 한눈에.
 			var by: float = rect.y - 30.0

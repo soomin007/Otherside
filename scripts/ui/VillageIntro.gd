@@ -99,11 +99,10 @@ func _draw() -> void:
 		var a: float = 0.6 * (float(k) / 9.0)
 		draw_rect(Rect2(0.0, s.y - sh + sh / 10.0 * float(k), s.x, sh / 10.0 + 1.0), Color(0.02, 0.02, 0.04, a))
 
-	# 장소 이름(붓글씨, 지도 지명과 같은 결) — 왼쪽 아래.
-	var bf: Font = UITheme.BRUSH_FONT if UITheme.BRUSH_FONT != null else font
+	# 장소 이름(명조 — 지도 지명과 같은 결. 붓 폰트 폐지, 2026-07-19) — 왼쪽 아래.
 	var base := Vector2(44.0, s.y - 66.0)
-	draw_string(bf, base + Vector2(0.0, 2.5), "마을", HORIZONTAL_ALIGNMENT_LEFT, -1, 44, Color(0.0, 0.0, 0.0, 0.75))
-	draw_string(bf, base, "마을", HORIZONTAL_ALIGNMENT_LEFT, -1, 44, UITheme.FG)
+	draw_string(font, base + Vector2(0.0, 2.5), "마을", HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(0.0, 0.0, 0.0, 0.75))
+	draw_string(font, base, "마을", HORIZONTAL_ALIGNMENT_LEFT, -1, 36, UITheme.FG)
 
 	# "조사" + 램프 점 — 남은 조사 횟수(채운 점)/쓴 것(빈 점). 실제 단면과 같은 표현.
 	if _budget > 0:
