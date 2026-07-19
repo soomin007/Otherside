@@ -10,8 +10,8 @@ const SAVE_PATH: String = "user://otherside_save.json"  # 웹에선 브라우저
 const SAVE_VERSION: int = 2  ## v2(2026-07-10): 이어하기 저장(run·run_section) 추가. 로더는 키 부재에 관대해 v1 세이브 호환.
 
 ## 플레이 의견 설문(구글 폼) — 타이틀의 "의견 보내기"가 연다. 비어 있으면 버튼 자체를 안 만든다.
-## 폼 개설 후 forms.gle 단축 URL 을 여기 기입(EoY 와 같은 패턴). 문항 초안: docs/design/feedback_form_v0.1.md
-const FEEDBACK_URL: String = ""
+## 문항·폼 설정: docs/design/feedback_form_v0.1.md (개설 2026-07-19, EoY 와 같은 패턴)
+const FEEDBACK_URL: String = "https://forms.gle/uqAhLzuZxVuZRJj76"
 
 signal feat_achieved(feat_id: String)  ## 공훈을 방금 달성 — FeatToast 가 즉시 안내(효과음 포함, 2026-07-14 사용자)
 
