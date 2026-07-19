@@ -336,7 +336,7 @@ var _book: LedgerBook
 var _box_l: VBoxContainer      ## 왼쪽 페이지 내용
 var _box_r: VBoxContainer      ## 오른쪽 페이지 내용(넘김/덮기 제외 — 위쪽만)
 var _footer_r: VBoxContainer   ## 오른쪽 페이지 바닥 고정 자리 — 넘김·덮기(펼침마다 같은 위치)
-var _scroll_l: ScrollContainer ## 왼쪽 페이지 스크롤(일대기가 길다)
+var _scroll_l: ScrollContainer ## 왼쪽 페이지 컨테이너 — 전 챕터가 펼침 넘김이라 스크롤은 안전망일 뿐
 var _tabs: Array = []          ## 챕터 책갈피(Ribbon) — 책 오른쪽에 얹힘
 ## 범례 표식 그림 — 조작 챕터 "표식 읽기"가 지도·단면 실제 표식의 축소판을 작은 칸에 그린다.
 ## 지점 고리·흔적 점은 실제 킷 텍스처(§16)를 그대로 축소해 게임 화면과 똑같이 보이게 한다(없으면 절차 fallback).
@@ -417,6 +417,7 @@ class LegendMark extends Control:
 					draw_arc(c + Vector2(0.0, 4.0), 8.0, PI, TAU, 12, mk, 3.0)
 
 var _chapter: int = 0
+var _chron_idx: int = 0        ## 일대기 챕터 펼침(0=목록 첫 장|행적 · 1..=목록 계속) — 책 원칙: 스크롤 대신 넘김
 var _ctrl_idx: int = 0         ## 조작 챕터 펼침(0=안내 글·1=표식 읽기) — 양면에 둘씩, 넘겨서 본다
 var _set_idx: int = 0          ## 설정 챕터 펼침(소리|화면 · 이야기|Credit · 여정|위험)
 var _village_idx: int = 0      ## 마을 챕터 펼침(0=사람들·1..=이룬 일) — 책 원칙: 스크롤 대신 넘김
@@ -591,6 +592,7 @@ func open_journal(chapter: int = 0) -> void:
 	_opened_ms = Time.get_ticks_msec()
 	AudioManager.play_sfx("res://assets/sfx/sfx_page_1.wav")
 	_chapter = clampi(chapter, 0, CHAPTERS.size() - 1)
+	_chron_idx = 0       # 일대기 챕터는 첫 장(목록|행적)부터
 	_ctrl_idx = 0        # 조작 챕터는 안내 글부터(표식은 넘겨서)
 	_set_idx = 0         # 설정 챕터는 첫 펼침(소리|화면)부터
 	_village_idx = 0     # 마을 챕터는 사람들부터(이룬 일은 넘겨서)
@@ -756,25 +758,56 @@ func _render_chapter() -> void:
 
 # --- 챕터: 일대기 ---
 
-## 왼쪽: 원정 목록(스크롤), 오른쪽: 행적 요약 + 덮기.
+## 책 원칙: 세로 스크롤 금지("책 컨셉에 스크롤은 어긋난다" — 2026-07-07 사용자) → 마을처럼 펼침 넘김.
+## 원정이 쌓이면 왼쪽 목록이 스크롤로 흐르던 것을 교체(2026-07-19 사용자).
+## 펼침 0 = 목록 첫 장 | 행적 요약. 펼침 1.. = 목록 계속(좌 4|우 4).
+const CHRON_PER_PAGE: int = 4   ## 목록 한 페이지 최대 원정 수(죽음 줄은 3줄로 접힐 수 있어 보수적으로)
+
+## 일대기 챕터 펼침 수 — 첫 장(왼쪽 4) 이후 남는 원정을 펼침당 8(좌 4·우 4)씩.
+func _chron_spreads() -> int:
+	var rest: int = GameState.expedition_count - CHRON_PER_PAGE
+	return 1 + maxi(0, ceili(float(rest) / float(CHRON_PER_PAGE * 2)))
+
 func _show_chronicle() -> void:
 	_clear(_box_l)
 	_clear(_box_r)
-	_box_l.add_child(_brush_heading("원정 일대기", 40, INK))
 	var n: int = GameState.expedition_count
-	if n <= 0:
-		_box_l.add_child(_ink_label("아직 떠난 원정이 없다.", UITheme.FS_LABEL, INK_FADE))
-	else:
-		for exp in range(1, n + 1):
+	_box_l.add_child(_page_heading("원정 일대기", 32, INK))
+	if _chron_idx == 0:
+		if n <= 0:
+			_box_l.add_child(_ink_label("아직 떠난 원정이 없다.", UITheme.FS_LABEL, INK_FADE))
+		for exp in range(1, mini(n, CHRON_PER_PAGE) + 1):
 			_box_l.add_child(_chronicle_line(exp))
-	_box_r.add_child(_brush_heading("행적", 40, INK))
-	_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
-	_box_r.add_child(_ledger_row("보낸 원정", "%d회" % GameState.expedition_count))
-	_box_r.add_child(_ledger_row("남긴 흔적", "%d" % GameState.traces.size()))
-	_box_r.add_child(_ledger_row("죽은 자리", "%d" % GameState.deaths.size()))
-	_box_r.add_child(_ledger_row("기린 자리", "%d" % GameState.mourn_count()))
-	_box_r.add_child(_ledger_row("끝에 닿음", "%d번" % GameState.arrivals.size()))
-	_add_close(_box_r)
+		_box_r.add_child(_page_heading("행적", 32, INK))
+		_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+		_box_r.add_child(_ledger_row("보낸 원정", "%d회" % GameState.expedition_count))
+		_box_r.add_child(_ledger_row("남긴 흔적", "%d" % GameState.traces.size()))
+		_box_r.add_child(_ledger_row("죽은 자리", "%d" % GameState.deaths.size()))
+		_box_r.add_child(_ledger_row("기린 자리", "%d" % GameState.mourn_count()))
+		_box_r.add_child(_ledger_row("끝에 닿음", "%d번" % GameState.arrivals.size()))
+	else:
+		var start: int = CHRON_PER_PAGE + (_chron_idx - 1) * CHRON_PER_PAGE * 2
+		for i in range(start, mini(n, start + CHRON_PER_PAGE * 2)):
+			var box: VBoxContainer = _box_l if i < start + CHRON_PER_PAGE else _box_r
+			box.add_child(_chronicle_line(i + 1))
+	if _chron_spreads() > 1:
+		_spread_nav(_chron_idx, _chron_spreads(), _chron_prev, _chron_next)
+	else:
+		_add_close(_box_r)
+
+func _chron_prev() -> void:
+	if _flipping or _chron_idx <= 0:
+		return
+	_flip_page(-1, func() -> void:
+		_chron_idx = maxi(0, _chron_idx - 1)
+		_show_chronicle())
+
+func _chron_next() -> void:
+	if _flipping or _chron_idx >= _chron_spreads() - 1:
+		return
+	_flip_page(1, func() -> void:
+		_chron_idx = mini(_chron_spreads() - 1, _chron_idx + 1)
+		_show_chronicle())
 
 # --- 챕터: 마을 (공훈 — 이룬 일이 사람을 부른다, 직능 해금. 2026-07-11 사용자 확정) ---
 
@@ -816,7 +849,7 @@ func _village_next() -> void:
 ## 항목 시각 구분(2026-07-13 사용자 — "어디까지가 누구 소개인지 감이 안 온다"):
 ## 이름 줄은 진한 잉크(항목의 머리), 소개는 들여쓰기+이름에 붙임(한 덩이), 항목 사이 옅은 괘선.
 func _village_people() -> void:
-	_box_l.add_child(_brush_heading("마을", 40, INK))
+	_box_l.add_child(_page_heading("마을", 32, INK))
 	_box_l.add_child(_ink_label("원정 이야기는 마을에 금방 퍼진다.\n소문을 듣고, 하나둘 찾아온다.", UITheme.FS_SMALL, INK_FADE))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	var opened: Array = GameState.unlocked_vocations()
@@ -858,7 +891,7 @@ func _indent_small(txt: String) -> Control:
 
 ## 펼침 1.. — 이룬 일(달성한 공훈·기록, 달성 순서). pair = 이룬 일 몇 번째 펼침인가(0부터).
 func _village_records(pair: int) -> void:
-	_box_l.add_child(_brush_heading("이룬 일", 40, INK))
+	_box_l.add_child(_page_heading("이룬 일", 32, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	var done_ids: Array = GameState.feats_unlocked
 	if done_ids.is_empty():
@@ -900,7 +933,7 @@ func _ctrl_next() -> void:
 
 ## 안내 — 네 갈래 조작 설명을 양면에 둘씩(왼 2·오 2).
 func _ctrl_guide() -> void:
-	_box_l.add_child(_brush_heading("조작 안내", 40, INK))
+	_box_l.add_child(_page_heading("조작 안내", 32, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	_box_l.add_child(_rich_label(str(TUTORIAL_PAGES[0]), UITheme.FS_BODY, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.15), 1.0))
@@ -911,7 +944,7 @@ func _ctrl_guide() -> void:
 
 ## 표식 읽기 — 범례 9종을 양면에 나눠(왼 4·오 5). 지도·단면 실제 표식의 축소판.
 func _ctrl_legend() -> void:
-	_box_l.add_child(_brush_heading("표식 읽기", 40, INK))
+	_box_l.add_child(_page_heading("표식 읽기", 32, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	_box_l.add_child(_legend_row("main", "주요 지점", "그 자리에서 벌어지는 가장 큰 일. 큰 이중 고리로 눈에 띈다."))
 	_box_l.add_child(_legend_row("collect", "살필 곳", "물이나 식량, 흔적, 작은 일이 있을 수 있다."))
@@ -998,7 +1031,7 @@ func _set_next() -> void:
 
 ## 소리(음소거·배경음악·효과음). 음소거는 자기 줄로(헤딩 옆 두면 큰 글자 크기에서 페이지를 넘침).
 func _sec_sound(box: VBoxContainer) -> void:
-	box.add_child(_brush_heading("소리", 40, INK))
+	box.add_child(_page_heading("소리", 32, INK))
 	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	var master: float = AppSettings.load_master_volume()
 	var mute := UITheme.make_pill("소리 켜기" if master <= 0.0 else "전체 음소거", INK, Color(0, 0, 0, 0),
@@ -1010,7 +1043,7 @@ func _sec_sound(box: VBoxContainer) -> void:
 
 ## 화면(전체화면·연출 세기·화면 크기).
 func _sec_screen(box: VBoxContainer) -> void:
-	box.add_child(_brush_heading("화면", 40, INK))
+	box.add_child(_page_heading("화면", 32, INK))
 	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	if not OS.has_feature("web"):
 		var fs_on: bool = DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
@@ -1023,7 +1056,7 @@ func _sec_screen(box: VBoxContainer) -> void:
 
 ## 이야기(오프닝 다시보기·조작 안내 다시보기).
 func _sec_story(box: VBoxContainer) -> void:
-	box.add_child(_brush_heading("이야기", 40, INK))
+	box.add_child(_page_heading("이야기", 32, INK))
 	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	var replay := UITheme.make_pill("오프닝 다시보기", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
 	replay.pressed.connect(_replay_opening)
@@ -1039,7 +1072,7 @@ func _sec_story(box: VBoxContainer) -> void:
 
 ## Credit(제목·내용·만든 이·출처). 기술 출처는 영어로.
 func _sec_credits(box: VBoxContainer) -> void:
-	box.add_child(_brush_heading("Credit", 40, INK))
+	box.add_child(_page_heading("Credit", 32, INK))
 	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	box.add_child(_ink_label("See you on the other side", UITheme.FS_BODY, INK))
 	box.add_child(_ink_label("폭풍이 지날 때마다 원정대가 떠나고, 거의 다 죽는다.\n죽기 전 단 한 번, 다음 원정대에게 물건을 남긴다.",
@@ -1057,7 +1090,7 @@ func _sec_journey(box: VBoxContainer) -> void:
 	var show_quit: bool = not OS.has_feature("web")
 	if not show_title and not show_quit:
 		return
-	box.add_child(_brush_heading("여정", 40, INK))
+	box.add_child(_page_heading("여정", 32, INK))
 	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
 	if show_title:
 		var to_title := UITheme.make_pill("타이틀로 나간다", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
@@ -1070,7 +1103,7 @@ func _sec_journey(box: VBoxContainer) -> void:
 
 ## 위험 구역(세계 지우기).
 func _sec_danger(box: VBoxContainer) -> void:
-	box.add_child(_brush_heading("위험 구역", 40, RED))
+	box.add_child(_page_heading("위험 구역", 32, RED))
 	box.add_child(UITheme.make_hairline(Color(RED.r, RED.g, RED.b, 0.5), 2.0))
 	box.add_child(_ink_label("저장된 이 세계를 지운다.\n원정과 흔적, 죽은 자리가 모두 사라지고\n처음부터 다시 시작한다.",
 		UITheme.FS_SMALL, INK_FADE))
@@ -1090,7 +1123,7 @@ func _show_confirm_page(warn: String, title: String, desc: String, yes_txt: Stri
 	_clear(_box_r)
 	_clear(_footer_r)  # 확인 페이지는 넘김/덮기 없음(머문다/실행만)
 	_box_l.add_child(_ink_label(warn, UITheme.FS_SMALL, RED))
-	_box_l.add_child(_brush_heading(title, 40, INK))
+	_box_l.add_child(_page_heading(title, 32, INK))
 	_box_l.add_child(UITheme.make_hairline(Color(RED.r, RED.g, RED.b, 0.5), 2.0))
 	_box_l.add_child(_ink_label(desc, UITheme.FS_SMALL, INK))
 	var sp := Control.new()
@@ -1285,23 +1318,23 @@ func _add_close(_box: VBoxContainer) -> void:
 	_clear(_footer_r)
 	_footer_r.add_child(_ink_btn("일지를 덮는다", _close))
 
-## 붓글씨 제목(나눔손글씨 붓 — 지도 지명과 같은 결).
-func _brush_heading(txt: String, fs: int, col: Color) -> Label:
+## 장 제목(명조) — 붓 폰트는 폐지(2026-07-19 사용자, 일지 제목의 붓글씨가 안 어울리고 싸 보임).
+## 본문과 같은 명조(기본 폰트)를 크기만 키워 장을 연다.
+func _page_heading(txt: String, fs: int, col: Color) -> Label:
 	var l := Label.new()
 	l.text = txt
-	l.add_theme_font_override("font", UITheme.BRUSH_FONT)
 	l.add_theme_font_size_override("font_size", fs)
 	l.add_theme_color_override("font_color", col)
 	return l
 
-## 장부 한 줄 — 항목은 왼쪽 잉크, 값은 오른쪽 붓글씨(손으로 적은 숫자).
+## 장부 한 줄 — 항목은 왼쪽 잉크, 값은 오른쪽 붉은 잉크 숫자.
 func _ledger_row(name_txt: String, value_txt: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	var nm := _ink_label(name_txt, UITheme.FS_LABEL, INK)
 	nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(nm)
-	row.add_child(_brush_heading(value_txt, 30, RED))
+	row.add_child(_page_heading(value_txt, 24, RED))
 	return row
 
 ## 양피지 위 잉크 라벨.
