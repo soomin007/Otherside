@@ -10,15 +10,16 @@ extends Control
 
 const FADE: float = 1.1
 const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")  ## 크레딧 마지막 영어 타이틀(타이틀 화면과 동일)
+## 내레이션은 오프닝과 같은 문법(중앙 컬럼 + 방사 어둠) — FS_H1·520px = 한 줄 ~17자, 수동 \n.
 const CYCLE_SLIDES: Array = [
-	{"img": "res://assets/arts/47_엔딩순환_도착.png", "text": "재앙의 자리엔, 먼저 간 원정대가 서 있었다."},
-	{"img": "res://assets/arts/48_엔딩순환_밀어냄.png", "text": "멈추려면 그를 밀어내야 했다.\n이제 이 자리에 선 것은 우리다."},
-	{"img": "res://assets/arts/49_엔딩순환_이어짐.png", "text": "곧 다음 원정대가 이곳을 향해 온다.\n행렬은 멈추지 않는다."},
+	{"img": "res://assets/arts/47_엔딩순환_도착.png", "text": "재앙의 자리엔,\n먼저 간 원정대가 서 있었다."},
+	{"img": "res://assets/arts/48_엔딩순환_밀어냄.png", "text": "멈추려면 그를 밀어내야 했다.\n이제 이 자리에 선 것은\n우리다."},
+	{"img": "res://assets/arts/49_엔딩순환_이어짐.png", "text": "곧 다음 원정대가\n이곳을 향해 온다.\n행렬은 멈추지 않는다."},
 ]
 const REUNION_SLIDES: Array = [
-	{"img": "res://assets/arts/50_엔딩재회_닿음.png", "text": "목적지에 닿았다. 죽지 않고, 온전히."},
+	{"img": "res://assets/arts/50_엔딩재회_닿음.png", "text": "목적지에 닿았다.\n죽지 않고, 온전히."},
 	{"img": "res://assets/arts/51_엔딩재회_지나쳐.png", "text": "밀어내지 않아도 되었다.\n지나쳐, 건너편으로."},
-	{"img": "res://assets/arts/52_엔딩재회_모두.png", "text": "먼저 간 모든 원정대가 기다리고 있었다.\n행렬이 멈춘다. 드디어 그쪽에서 만난다."},
+	{"img": "res://assets/arts/52_엔딩재회_모두.png", "text": "먼저 간 모든 원정대가\n기다리고 있었다.\n행렬이 멈춘다.\n드디어 그쪽에서 만난다."},
 ]
 
 var _slides: Array = []
@@ -29,6 +30,7 @@ var _busy: bool = false          ## 페이드 중 입력 무시
 
 var _illus: TextureRect
 var _label: Label
+var _text_box: VBoxContainer     ## 글씨 뒷배(방사 어둠) 래퍼 — 오프닝과 같이 뒷배와 글씨가 한 몸으로 배어난다
 var _dim: ColorRect
 var _hint: Label                 ## 순환 암전 뒤 어둠 속 독백 — 다른 결말의 존재를 암시(사용자 확정)
 var _prompt: Label
@@ -76,29 +78,27 @@ func _build() -> void:
 	_illus.modulate.a = 0.0
 	add_child(_illus)
 
-	# 하단 어둠 — 내레이션 가독
+	# 글씨 가독용 어두운 스크림 — 오프닝과 동일(삽화 전체를 은은히 가라앉힌다. 하단 띠 상자는 폐지,
+	# 2026-07-19 사용자 "글씨에 비해 아래 박스가 너무 커 화면 절반을 가린다").
 	var scrim := ColorRect.new()
-	scrim.color = Color(0.02, 0.02, 0.04, 0.5)
-	scrim.anchor_left = 0.0
-	scrim.anchor_right = 1.0
-	scrim.anchor_top = 0.6
-	scrim.anchor_bottom = 1.0
+	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scrim.color = Color(0.03, 0.03, 0.05, 0.5)
 	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(scrim)
 
-	_label = Label.new()
-	_label.add_theme_font_size_override("font_size", UITheme.FS_H2)
-	_label.add_theme_color_override("font_color", UITheme.FG)
-	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_label.anchor_left = 0.08
-	_label.anchor_right = 0.92
-	_label.anchor_top = 0.72
-	_label.anchor_bottom = 0.92
-	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_label.modulate.a = 0.0
-	add_child(_label)
+	# 내레이션 — 오프닝과 같은 문법: 화면 중앙 컬럼 + 은은한 방사 어둠(상자 아님).
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(center)
+	_text_box = VBoxContainer.new()
+	_text_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	UITheme.attach_dark_pool(_text_box, 1.7, 0.75)
+	center.add_child(_text_box)
+	_label = UITheme.make_label("", UITheme.FS_H1, UITheme.FG)
+	_label.custom_minimum_size = Vector2(UITheme.COLUMN_W, 0)
+	_text_box.add_child(_label)
+	_text_box.modulate.a = 0.0
 
 	_dim = ColorRect.new()
 	_dim.color = Color(0, 0, 0, 0)
@@ -158,14 +158,14 @@ func _advance() -> void:
 	var img: String = str(slide["img"])
 	var tex: Texture2D = load(img) if ResourceLoader.exists(img) else null
 	var t := create_tween()
-	t.tween_property(_label, "modulate:a", 0.0, FADE * 0.5)
+	t.tween_property(_text_box, "modulate:a", 0.0, FADE * 0.5)
 	t.parallel().tween_property(_illus, "modulate:a", 0.0, FADE * 0.5)
 	t.tween_callback(_apply_slide.bind(tex, str(slide["text"])))
 	if _reunion and _idx == _slides.size() - 1:
 		# 마지막 재회 슬라이드("모두가 기다리고 있었다")가 떠오르는 순간 — 따뜻한 차임.
 		t.tween_callback(AudioManager.play_sfx.bind(AudioManager.REUNION_CHIME))
 	t.tween_property(_illus, "modulate:a", 1.0, FADE * 0.7)
-	t.parallel().tween_property(_label, "modulate:a", 1.0, FADE)
+	t.parallel().tween_property(_text_box, "modulate:a", 1.0, FADE)
 	t.tween_callback(_clear_busy)
 
 func _apply_slide(tex: Texture2D, text: String) -> void:
@@ -203,7 +203,7 @@ func _reveal_prompt(text: String) -> void:
 func _start_credits() -> void:
 	var t := create_tween()
 	t.tween_property(_illus, "modulate:a", 0.22, FADE)
-	t.parallel().tween_property(_label, "modulate:a", 0.0, FADE * 0.5)
+	t.parallel().tween_property(_text_box, "modulate:a", 0.0, FADE * 0.5)
 	t.parallel().tween_property(_dim, "color:a", 0.5, FADE)
 
 	var host := Control.new()
