@@ -6,11 +6,11 @@ extends CanvasLayer
 ## 왜 autoload CanvasLayer 인가: 기존 UI 씬(Main/Map/Expedition/Loadout)을 하나도 안 건드리고
 ## 그 위에 얹혀 GameState/current_run(공개 상태)을 조작한다. 씬 갱신이 필요한 동작은 GameState 라우팅으로 새로 그린다.
 ##
-## 끄기: 배포 정식 빌드에서 안 보이게 하려면 ENABLED = false. (기본 true — 플레이테스트 편의)
-## 여는 법: 오른쪽 위 "DEV" 버튼 탭(폰) / 데스크톱은 F1.
+## 끄기: 배포 정식 빌드에서 안 보이게 ENABLED = false. (2026-07-19 출시 준비로 껐다 — 개발 때만 잠깐 켠다)
+## 여는 법(켰을 때): 오른쪽 위 "DEV" 버튼 탭(폰) / 데스크톱은 F1.
 ## 제약: -s(헤드리스 스크립트)엔 autoload 가 안 뜨므로 시뮬/테스트와 무간섭. UI 미감은 실기기에서 확인.
 
-const ENABLED: bool = true
+const ENABLED: bool = false
 
 ## 2026-07-15 오탭 사고 후 정리: 사고 원인이던 튜닝 슬라이더(글씨·제목 — 값은 이미 코드
 ## 기본값으로 확정)는 패널에서 제거. 저장까지 가는 위험 버튼(모든 노드 공개·flag·재회 임계·
