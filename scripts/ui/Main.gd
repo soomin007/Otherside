@@ -1,6 +1,6 @@
 extends Control
 
-## 타이틀 — 코어 루프의 입구(디자인 원본 재현). 로고 상단·각인 메뉴 하단·통계 좌하단·기록 좌상단(Bookmark autoload).
+## 타이틀 — 코어 루프의 입구(디자인 원본 재현). 로고 상단·각인 메뉴 하단·통계 좌하단·의견 카드 우하단·기록 리본(Bookmark autoload).
 ## 배경 키아트(방향 자동 교체) + 하단 그라디언트 스크림으로 글씨 가독. 부제 없음(원본 구도).
 
 const EN_TITLE_FONT := preload("res://assets/fonts/Cinzel.ttf")  ## 영어 타이틀·통계 전용(비문풍 세리프)
@@ -21,6 +21,13 @@ var _logo_lbl: Label          ## 로고 글자(튜닝 적용 대상)
 var _menu_node: Control
 var _stat_node: Control
 
+# 의견 카드(우하단) — 메뉴 밖 별도 카드(2026-07-19 사용자: 메뉴 바닥에 붙는 느낌 싫음).
+var _fb_card: Control
+var _fb_label: Label
+var _fb_lines: Array = []     ## 위아래 헤어라인(반짝임 대상)
+var _fb_hover: bool = false
+const FB_COL_REST := Color(0.965, 0.925, 0.831, 0.8)  ## 평상시 글자색(UITheme.FG 의 0.8)
+
 func _ready() -> void:
 	AppSettings.apply_saved()  # 저장된 음량 복원(앱 시작 = 항상 타이틀 경유)
 	Bookmark.data_reset.connect(_on_data_reset)  # 일지 설정 챕터에서 세계를 지우면 통계 갱신
@@ -30,7 +37,8 @@ func _ready() -> void:
 	_build_logo()
 	_build_menu()
 	_build_stat()
-	# 등장 stagger(스펙 inScatter) — 로고 → 메뉴 → 통계 순으로 "모래가 모여 형체를 이루듯".
+	_build_feedback_card()
+	# 등장 stagger(스펙 inScatter) — 로고 → 메뉴 → 통계 → 의견 카드 순으로 "모래가 모여 형체를 이루듯".
 	# 구현은 Transition.appear(공용) — 배경(키아트)은 움직이지 않는다(원칙: 배경/UI 분리).
 	for n in _logo_nodes:
 		Transition.appear(n, 0.08)
@@ -38,6 +46,8 @@ func _ready() -> void:
 		Transition.appear(_menu_node, 0.16)
 	if _stat_node != null:
 		Transition.appear(_stat_node, 0.30)
+	if _fb_card != null:
+		Transition.appear(_fb_card, 0.42)
 
 # --- 배경(키아트 + 스크림) ---
 
@@ -218,13 +228,6 @@ func _build_menu() -> void:
 	settings.pressed.connect(_on_settings_pressed)
 	menu.add_child(settings)
 
-	# 의견 설문(구글 폼) — URL 이 비어 있으면(폼 개설 전) 항목 자체를 만들지 않는다.
-	if not GameState.FEEDBACK_URL.is_empty():
-		var feedback := EngravedItem.new()
-		feedback.init_item("의견 보내기", 22, false)
-		feedback.pressed.connect(_on_feedback_pressed)
-		menu.add_child(feedback)
-
 ## 메뉴 뒤 방사 어둠 — 중앙 하단(메뉴 영역)만 은은하게(가장자리 투명).
 func _menu_glow() -> TextureRect:
 	var grad := Gradient.new()
@@ -278,6 +281,79 @@ func _build_stat() -> void:
 
 func _stat_text() -> String:
 	return "보낸 원정 %d  ·  남긴 흔적 %d" % [GameState.expedition_count, GameState.traces.size()]
+
+# --- 의견 카드(우하단) ---
+
+## 의견 설문(구글 폼) 진입 카드 — 메뉴 항목이 아니라 우하단의 독립 카드.
+## 각인 문법(방사 어둠 + 모래 헤어라인 위아래)의 작은 판. 가죽 상자 카드는 게임 화면 금지(2026-07-06)라 안 쓴다.
+## 몇 초마다 글자와 헤어라인에 모래색이 배었다가 돌아온다(반짝임 — 2026-07-19 사용자 요청).
+func _build_feedback_card() -> void:
+	if GameState.FEEDBACK_URL.is_empty():
+		return  # 폼 개설 전 — 카드 자체를 만들지 않는다
+	var card := Button.new()
+	card.flat = true
+	card.focus_mode = Control.FOCUS_NONE
+	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var empty := StyleBoxEmpty.new()
+	for s in ["normal", "hover", "pressed", "focus", "disabled"]:
+		card.add_theme_stylebox_override(s, empty)
+	# 우하단 코너 — 통계(좌하단)와 대칭, 일지 리본(우상단)과 안 겹침. 터치 타깃 68px(>56).
+	card.anchor_left = 1.0
+	card.anchor_right = 1.0
+	card.anchor_top = 1.0
+	card.anchor_bottom = 1.0
+	card.offset_left = -236.0
+	card.offset_right = -36.0
+	card.offset_top = -104.0
+	card.offset_bottom = -36.0
+	card.pressed.connect(_on_feedback_pressed)
+	card.mouse_entered.connect(func() -> void:
+		_fb_hover = true
+		_fb_apply(1.0))
+	card.mouse_exited.connect(func() -> void:
+		_fb_hover = false
+		_fb_apply(0.0))
+	UITheme.attach_dark_pool(card, 1.7, 0.8)  # 상자 대신 뒤를 가라앉혀 판으로 세운다
+	var box := VBoxContainer.new()
+	box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 8)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(box)
+	var top_line := UITheme.make_hairline(Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.35), 1.0)
+	box.add_child(top_line)
+	_fb_label = Label.new()
+	_fb_label.text = "의견 보내기"
+	_fb_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_fb_label.add_theme_font_size_override("font_size", 18)
+	_fb_label.add_theme_color_override("font_color", FB_COL_REST)
+	_fb_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.6))
+	_fb_label.add_theme_constant_override("shadow_offset_y", 2)
+	_fb_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(_fb_label)
+	var bot_line := UITheme.make_hairline(Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.35), 1.0)
+	box.add_child(bot_line)
+	_fb_lines = [top_line, bot_line]
+	card.add_to_group("ui_scatter")
+	add_child(card)
+	_fb_card = card
+	# 주기 반짝임 — 4초쯤마다 1.5초 동안 모래색이 스며들었다 돌아온다(sin 곡선, 셰이더 없이 웹 안전).
+	var tw := card.create_tween().set_loops()
+	tw.tween_interval(4.2)
+	tw.tween_method(_fb_glint, 0.0, 1.0, 1.5)
+
+## 반짝임 한 순간 — t 0→1 을 sin 으로 0→1→0 강도로 바꿔 적용. hover 중엔 최대 강도 유지.
+func _fb_glint(t: float) -> void:
+	_fb_apply(maxf(sin(t * PI), 1.0 if _fb_hover else 0.0))
+
+## 카드 강조 강도 적용(k 0=평상시, 1=모래색 만개) — 글자색과 헤어라인이 함께 물든다.
+func _fb_apply(k: float) -> void:
+	if _fb_label != null:
+		_fb_label.add_theme_color_override("font_color", FB_COL_REST.lerp(UITheme.SAND, k))
+	for hl in _fb_lines:
+		var line := hl as ColorRect
+		if line != null:
+			line.color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, lerpf(0.35, 0.9, k))
 
 # --- 액션 ---
 
