@@ -6,11 +6,16 @@ extends CanvasLayer
 ## 왜 autoload CanvasLayer 인가: 기존 UI 씬(Main/Map/Expedition/Loadout)을 하나도 안 건드리고
 ## 그 위에 얹혀 GameState/current_run(공개 상태)을 조작한다. 씬 갱신이 필요한 동작은 GameState 라우팅으로 새로 그린다.
 ##
-## 끄기: 배포 정식 빌드에서 안 보이게 ENABLED = false. (2026-07-19 출시 준비로 껐다 — 개발 때만 잠깐 켠다)
-## 여는 법(켰을 때): 오른쪽 위 "DEV" 버튼 탭(폰) / 데스크톱은 F1.
+## 접근(2026-07-20 비밀 게이트 — "출시 빌드에서 통째로 끄기"를 대체):
+##   · 에디터/CLI 개발 실행 = 항상 켜짐. 오른쪽 위 "DEV" 버튼 탭(폰) / 데스크톱은 F1.
+##   · 배포 웹 = 주소 뒤에 ?dev=<비밀 토큰> 을 붙였을 때만. 토큰 원문은 저장소에 없다
+##     (SHA-256 해시만 대조 — 공개 저장소 소스를 읽어도 토큰을 알 수 없다. 원문은 로컬 메모에만).
+##   · 토큰 교체: 새 토큰의 sha256 hex 로 DEV_TOKEN_HASH 를 갈아끼운다.
+##   · ENABLED = false 는 전체 킬 스위치(어떤 경로로도 안 열림).
 ## 제약: -s(헤드리스 스크립트)엔 autoload 가 안 뜨므로 시뮬/테스트와 무간섭. UI 미감은 실기기에서 확인.
 
-const ENABLED: bool = false
+const ENABLED: bool = true
+const DEV_TOKEN_HASH: String = "237fd3b8ea9ee98913d2c1f38fb90877715d49da28e8b9145e2334b79b06ed10"
 
 ## 2026-07-15 오탭 사고 후 정리: 사고 원인이던 튜닝 슬라이더(글씨·제목 — 값은 이미 코드
 ## 기본값으로 확정)는 패널에서 제거. 저장까지 가는 위험 버튼(모든 노드 공개·flag·재회 임계·
@@ -27,7 +32,7 @@ var _god_btn: Button
 var _tick: float = 0.0
 
 func _ready() -> void:
-	_active = ENABLED
+	_active = ENABLED and _dev_access()
 	if not _active:
 		return
 	layer = 128  # 게임 UI 위
@@ -35,6 +40,16 @@ func _ready() -> void:
 	_build()
 	_panel.visible = false
 	_refresh_state()
+
+## 비밀 접근 판정 — 개발 실행(에디터 바이너리)은 그대로 켜지고, 배포 웹은 ?dev=토큰의
+## 해시가 맞을 때만. 배포 데스크톱(현재 미사용)은 사용자 인자 --dev 로 열어 둔다.
+func _dev_access() -> bool:
+	if OS.has_feature("editor"):
+		return true
+	if OS.has_feature("web"):
+		var v: String = str(JavaScriptBridge.eval("new URLSearchParams(location.search).get('dev')||''", true))
+		return v != "" and v.sha256_text() == DEV_TOKEN_HASH
+	return OS.get_cmdline_user_args().has("--dev")
 
 func _input(event: InputEvent) -> void:
 	if not _active:
