@@ -19,7 +19,7 @@
 1. itch.io 가입 → Dashboard → Create new project
 2. Title: `See you on the other side` · URL: `see-you-on-the-other-side`
 3. Kind of project: **HTML** · Pricing: **No payments** (후원 금지 — 라이선스, 핸드오프 §0)
-4. Uploads: 이 폴더의 `syotos_web_v0.3.3.zip` 업로드 → "This file will be played in the browser" 체크
+4. Uploads: 이 폴더의 `syotos_web_v0.3.4.zip` 업로드 → "This file will be played in the browser" 체크
 5. Embed: **640 × 360** · Fullscreen button ✔ · Mobile friendly ✔ (Orientation: Landscape)
    — 임베드 크기는 "페이지에 박힌 상자" 크기일 뿐이다. 실제 플레이는 폰 = 항상 전체화면,
    PC = 전체화면 버튼. 크게(1280) 잡으면 **페이지 본문 폭이 따라 넓어져** 배경의 어둠 채널(중앙
@@ -72,9 +72,10 @@
 
 ## 빌드
 
-- `syotos_web_v0.3.3.zip` (이 폴더, git 미추적) — 0.3.3 = 복귀 치유 강화(JS 전체화면 감시 0.5s,
-  마우스 캡처·포커스 해제, 일지 열려 있으면 새로 짓기) + 이름칸 밖 탭 시 키보드 내리기.
-  0.3.2 = Fullscreen 일시정지 무시 + 진단 프로브. 0.3.1 = 고착 터치 해제 + iframe 전체화면 양보.
+- `syotos_web_v0.3.4.zip` (이 폴더, git 미추적) — 0.3.4 = **일지 먹통 원인 수정**: 챕터 탭·스크림을
+  "뗄 때" 반응으로(뒤로가기 가장자리 스와이프의 누름이 넘김을 시작시키던 것 차단) + 매달린 넘김
+  워치독(복귀 2초 뒤 자동 복구) + 일지 열림 중 진단 줄 상시 표시.
+  0.3.3 = 복귀 치유(JS 전체화면 감시·포커스 해제) + 이름칸 키보드 무한 수정. 0.3.1~2 = 방어 층.
 - 재빌드가 필요하면: `project.godot` 의 `config/version` 올리기 → 프로젝트 루트에서
   `godot --headless --path . --export-release "Web" build/web/index.html` →
   `Compress-Archive -Path build\web\* -DestinationPath itch_업로드\syotos_web_v<버전>.zip -Force`

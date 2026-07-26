@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="See you on the other side"
-config/version="0.3.3"
+config/version="0.3.4"
 config/description="비동기 로그라이트. 폭풍이 지날 때마다 원정대가 떠나고 거의 다 죽는다. 매번 다른 이가 가고, 죽기 전 단 한 번 다음 원정대에게 물건을 남긴다."
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")

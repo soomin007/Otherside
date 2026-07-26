@@ -422,6 +422,7 @@ var _ctrl_idx: int = 0         ## 조작 챕터 펼침(0=안내 글·1=표식 �
 var _set_idx: int = 0          ## 설정 챕터 펼침(차례 · 소리|화면 · 이야기|Credit · 여정|위험)
 var _village_idx: int = 0      ## 마을 챕터 펼침(0=사람들·1..=이룬 일) — 책 원칙: 스크롤 대신 넘김
 var _flipping: bool = false
+var _flip_serial: int = 0           ## 넘김 회차 — 워치독이 "그 넘김"이 아직인지 판별(2026-07-27)
 var _relayout_wanted: bool = false  ## 넘김 중 도착한 리사이즈 — 넘김이 끝나면 반영(버리면 낡은 배치가 남는다)
 var _rib_tw: Tween
 var _opened_ms: int = 0        ## 일지를 연 시각 — 여는 클릭이 스크림 닫기로 새는 것 방지 가드
@@ -567,10 +568,22 @@ func _on_ribbon_input(event: InputEvent) -> void:
 		_ribbon.accept_event()
 		call_deferred("open_journal", 0)
 
+## 탭은 "뗄 때" 반응한다(누를 때 X, 2026-07-27) — 안드로이드 뒤로가기 = 오른쪽 가장자리 스와이프의
+## 시작 터치가 탭 띠(책 오른편~화면 끝)에 얹힌다. 누름 기준이면 의도치 않은 챕터 넘김이 시작된 채
+## 시스템이 제스처를 가로채(뗌이 안 옴) 넘김이 매달렸다(폰 itch 복귀 먹통의 시발점). 탭 밖 뗌 = 취소.
 func _on_tab_input(event: InputEvent, idx: int) -> void:
-	if (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed) \
-			or (event is InputEventScreenTouch and event.pressed):
-		var tab: Ribbon = _tabs[idx]
+	var tab: Ribbon = _tabs[idx]
+	var mb := event as InputEventMouseButton
+	var st := event as InputEventScreenTouch
+	if (mb != null and mb.button_index == MOUSE_BUTTON_LEFT and mb.pressed) or (st != null and st.pressed):
+		tab.accept_event()  # 누름은 삼키기만 — 스크림 닫기로 새지 않게
+		return
+	var released: bool = (mb != null and mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed) \
+		or (st != null and not st.pressed)
+	if not released:
+		return
+	var pos: Vector2 = mb.position if mb != null else st.position  # gui_input 좌표 = 컨트롤 로컬
+	if Rect2(Vector2.ZERO, tab.size).grow(6.0).has_point(pos):
 		tab.accept_event()
 		_flip_to(idx)
 
@@ -612,10 +625,36 @@ func is_open() -> bool:
 ## 폰 itch 사례(2026-07-26) 방어: 배치를 다시 재고 현재 챕터를 **새 컨트롤로** 다시 짓는다.
 ## 낡은 컨트롤이 어떤 상태로 굳었든 새로 지으면 무관해진다. 열려 있지 않으면 아무 것도 안 한다.
 func heal_after_restore() -> void:
-	if not is_open() or _flipping:
+	if not is_open():
+		return
+	if _flipping:
+		_force_end_flip()  # 매달린 넘김(뒤로가기로 숨겨진 사이 멎은 것)부터 걷어낸다
 		return
 	_layout_book()
+	_apply_tab_state()
 	_render_chapter()
+
+## 매달린 넘김 강제 정리(워치독·복귀 치유 공용) — 덮개를 걷고 현재 챕터를 다시 짓는다.
+func _force_end_flip() -> void:
+	_flipping = false
+	_flip_serial += 1  # 아직 매달려 있을 수 있는 옛 넘김 코루틴 무효화(await 뒤에서 스스로 물러남)
+	for c in _book.get_children():
+		if c is FlipDeck:
+			(c as FlipDeck).queue_free()
+	_relayout_wanted = false
+	_layout_book()
+	_apply_tab_state()
+	if not _in_confirm:
+		_render_chapter()
+
+## 임시 진단 문자열(Fullscreen 프로브가 읽는다) — 원인이 확정되면 프로브와 함께 제거.
+func debug_state() -> String:
+	var decks: int = 0
+	for c in _book.get_children():
+		if c is FlipDeck:
+			decks += 1
+	return "fl:%s dk:%d ch:%d sp:%d rw:%s" % ["1" if _flipping else "0", decks, _chapter, _set_idx,
+		"1" if _relayout_wanted else "0"]
 
 func _close() -> void:
 	get_tree().paused = false  # 일지를 덮으면 세계가 다시 흐른다(이동·연출 재개)
@@ -623,9 +662,12 @@ func _close() -> void:
 	_panel.visible = false
 
 func _on_scrim_input(event: InputEvent) -> void:
-	var tap: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed)
+	# 뗄 때 기준(2026-07-27) — 뒤로가기 가장자리 스와이프의 "누름"이 스크림에 얹혀도 일지가 안 닫히게.
+	# (뗌은 시스템이 가로채 안 오므로, 누름 기준이던 시절엔 스와이프만으로 닫혔다.)
+	var released: bool = (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed) \
+		or (event is InputEventScreenTouch and not event.pressed)
 	# 연 직후 250ms 는 무시 — 여는 클릭의 잔여 이벤트(합성 터치 등)가 바로 닫는 것 방지.
-	if not tap or Time.get_ticks_msec() - _opened_ms <= 250:
+	if not released or Time.get_ticks_msec() - _opened_ms <= 250:
 		return
 	# 책·챕터 탭 둘레의 여유 띠에선 닫지 않는다 — 탭을 노리다 살짝 빗나간 터치가
 	# 일지를 닫아 버리던 것 방지(2026-07-12 사용자). 진짜 바깥(먼 검은 영역)만 닫는다.
@@ -694,8 +736,19 @@ func _run_flip(dir: int, sheets_n: int, spread: float, flip_win: float, riffle: 
 		swap.call()
 		return
 	_flipping = true
+	# 워치독(2026-07-27) — 아래 await(frame_post_draw)는 웹에서 화면이 숨겨지면(폰 뒤로가기)
+	# 렌더 프레임이 멎어 그대로 매달린다. _flipping 이 true 로 굳으면 넘김·점프가 전부 잠기므로,
+	# 넘김 정상 길이(0.45s)보다 넉넉히 지나도 안 끝났으면 강제 정리한다(타이머도 숨김 중엔 멎고
+	# 복귀 후 이어 재므로, 사실상 "복귀 2초 뒤 자동 복구"가 된다).
+	_flip_serial += 1
+	var my_flip: int = _flip_serial
+	get_tree().create_timer(2.0).timeout.connect(func() -> void:
+		if _flipping and _flip_serial == my_flip:
+			_force_end_flip())
 	AudioManager.play_sfx_random(PAGE_SFX)  # 장 집힐 때 1회
 	await RenderingServer.frame_post_draw
+	if not _flipping or _flip_serial != my_flip:
+		return  # 매달린 사이 워치독이 정리했다 — 낡은 캡처·덮개를 얹지 않는다
 	var tex_l: ImageTexture = _capture_page(_book.rect_l)
 	var tex_r: ImageTexture = _capture_page(_book.rect_r)
 	swap.call()

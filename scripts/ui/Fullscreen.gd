@@ -80,6 +80,7 @@ func _input(event: InputEvent) -> void:
 func _release_stuck_touches() -> void:
 	if not DisplayServer.is_touchscreen_available():
 		return
+	_heal_count += 1
 	for i in range(10):
 		var ev := InputEventScreenTouch.new()
 		ev.index = i
@@ -109,6 +110,7 @@ var _probe_lbl: Label
 var _probe_until_ms: int = 0
 var _last_ev: String = "-"
 var _last_ev_ms: int = 0
+var _heal_count: int = 0   ## 복귀 치유가 몇 번 돌았나(프로브 표시용)
 
 func _build_probe() -> void:
 	_probe = CanvasLayer.new()
@@ -145,19 +147,19 @@ func _process(_delta: float) -> void:
 			_release_stuck_touches()
 			_probe_wake()
 	var now: int = Time.get_ticks_msec()
-	_probe.visible = now < _probe_until_ms
+	var bm: Node = get_node_or_null("/root/Bookmark")
+	var jopen: bool = bm != null and bool(bm.call("is_open"))
+	# 일지가 열려 있는 동안엔 상시 표시(20초 만료 X) — 먹통이 20초 넘게 이어져 관찰을 놓치던 것 방지.
+	_probe.visible = (jopen and DisplayServer.is_touchscreen_available()) or now < _probe_until_ms
 	if not _probe.visible:
 		return
 	var vp: Vector2 = get_viewport().get_visible_rect().size
-	var open_txt: String = "?"
-	var bm: Node = get_node_or_null("/root/Bookmark")
-	if bm != null:
-		open_txt = str(bm.call("is_open"))
-	_probe_lbl.text = "v%s p:%s j:%s vp:%dx%d h:%s ev:%s +%.1fs" % [
+	var bm_txt: String = str(bm.call("debug_state")) if bm != null and jopen else "-"
+	_probe_lbl.text = "v%s p:%s vp:%dx%d h:%s heal:%d | %s | ev:%s +%.1fs" % [
 		str(ProjectSettings.get_setting("application/config/version", "?")),
-		"1" if get_tree().paused else "0", open_txt, int(vp.x), int(vp.y),
-		"1" if (_hint != null and _hint.visible) else "0",
-		_last_ev, float(now - _last_ev_ms) / 1000.0]
+		"1" if get_tree().paused else "0", int(vp.x), int(vp.y),
+		"1" if (_hint != null and _hint.visible) else "0", _heal_count,
+		bm_txt, _last_ev, float(now - _last_ev_ms) / 1000.0]
 
 ## 화면을 가로로 잠근다(양방향 가로) — 브라우저 orientation API 를 JS 로 직접 호출.
 ## DisplayServer.screen_set_orientation 은 웹에서 동작하지 않음(실기기 확인 2026-07-06, known_issues).
