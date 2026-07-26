@@ -132,6 +132,7 @@ static func _draw_cover(ci: CanvasItem, tex: Texture2D, rect: Rect2) -> void:
 ## 지점 마커. state: 0=조사가능(붉은 링) 1=완료(체크·흐림) 2=잠김(예산0·흐림)
 ## is_main = 노드의 본 사건(도착 이벤트) — 채집 지점보다 크고 이중 링으로 눈에 띈다.
 static func draw_spot(ci: CanvasItem, font: Font, center: Vector2, label: String, state: int, is_main: bool = false) -> void:
+	label = L10N.t(label)  # 로컬라이제이션 관문 — 지점 라벨(MapGraph spots 데이터)
 	var r: float = 20.0 if is_main else 15.0   # 너무 크고 강렬 → 축소(2026-07-12 사용자)
 	var faded: Color = UITheme.INK_FADE
 	var ring_tex: Texture2D = _spot_tex(is_main)
@@ -189,6 +190,7 @@ static func draw_spot(ci: CanvasItem, font: Font, center: Vector2, label: String
 static func draw_spot_memory(ci: CanvasItem, font: Font, center: Vector2, text: String) -> void:
 	if font == null or text == "":
 		return
+	text = L10N.t(text)  # 로컬라이제이션 관문
 	var fs: int = maxi(10, UITheme.FS_SMALL - 3)
 	var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x
 	var base_y: float = center.y + 55.0

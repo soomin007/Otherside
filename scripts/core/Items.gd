@@ -79,5 +79,5 @@ static func tools_summary(resources: Dictionary) -> String:
 	for key in TOOL_KEYS:
 		var n: int = int(resources.get(key, 0))
 		if n > 0:
-			parts.append("%s %d" % [str(TOOL_LABEL.get(key, key)), n])
-	return " · ".join(parts) if not parts.is_empty() else "도구 없음"
+			parts.append("%s %d" % [L10N.t(str(TOOL_LABEL.get(key, key))), n])  # 표시용 요약 — 라벨만 번역
+	return " · ".join(parts) if not parts.is_empty() else L10N.t("도구 없음")

@@ -28,15 +28,15 @@ var _base_col: Color              ## 평상시 글자색(hover 해제 시 복귀
 
 ## 생성 직후 호출 — 문구·글자 크기(px)·대표 여부. add_child 전에 부른다.
 func init_item(txt: String, px: int, key: bool) -> void:
-	text = txt
+	text = L10N.t(txt)  # 로컬라이제이션 관문
 	_px = px
 	is_key = key
 
 ## 문구 교체(런타임) — 실제 글자는 내부 Label 이 그리므로(text 만 바꾸면 화면 미반영) 함께 동기화.
 func set_label(txt: String) -> void:
-	text = txt
+	text = L10N.t(txt)
 	if _lbl != null:
-		_lbl.text = txt
+		_lbl.text = text
 
 func _ready() -> void:
 	flat = true

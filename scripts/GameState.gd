@@ -60,6 +60,7 @@ var pending_feat_notices: Array = []  ## 방금 달성한 공훈 id — Loadout 
 var seen_choices: Dictionary = {}
 
 func _ready() -> void:
+	AppSettings.apply_language()  # 언어 — 첫 화면(타이틀)이 뜨기 전에 L10N 에 적용
 	AppSettings.apply_text_scale(get_window())  # 화면 크기(전체 배율) — 씬 뜨기 전 적용(첫 프레임 튐 방지)
 	load_game()
 	ensure_seeded()
@@ -343,7 +344,7 @@ func expedition_name(n: int) -> String:
 		var nm: String = str(expedition_names[i])
 		if nm != "":
 			return nm
-	return "이름 없는 원정대"
+	return L10N.t("이름 없는 원정대")
 
 ## 지금 진행 중(또는 마지막) 원정의 이름.
 func current_expedition_name() -> String:

@@ -157,6 +157,12 @@
   **수복:** 단계별 mtime 프로브로 저장 지점을 특정(다른 단계는 전부 무해 확인) → JSON 수술로 run 슬롯 비움·count/이름 원복·공훈 비움(스탯은 그대로라 다음 실제 출발 때 정상 연출과 함께 재해금).
   **재발 방지(3줄 규칙):** ① 드라이버에서 `begin_run_in_place`/`begin_run_with` **금지** — 런이 필요하면 `GameState.current_run = ExpeditionRun.new(GameState.START_RESOURCES, GameState.bridged_nodes(), GameState.flags, GameState.pickup_traces_by_node(), "", 0, GameState.straggler_briefs())` 로 **직접 대입**(저장·카운트·공훈 없음). ② 실행 전 **세이브 파일을 통째로 복사 백업**(해시 기록만으로는 탐지만 되고 복구가 안 된다 — 이번에 뼈저림). ③ 실행 후 해시 대조, 다르면 백업으로 원복부터. 토스트·DEV 버튼은 `FeatToast.visible = false`·`Debug.visible = false` 로 가린다.
 
+## 로컬라이제이션 (영어판, 2026-07-26 도입)
+
+- **증상:** 영어 모드인데 특정 문구만 한국어로 남는다.
+  **원인:** 둘 중 하나. ① 번역 표(`LangEN.TABLE`) 키가 코드 리터럴과 1글자라도 다름(표는 바이트 일치 조회 — 폴백이 원문이라 조용히 한국어로 남는다). ② **조합 후 표시**: `"...%s..." % x` 로 조합된 문자열을 헬퍼(make_label 등)에 넘기면 조합 결과가 표에 없어 미스 — 포맷 리터럴을 조합 **전에** `L10N.t()` 로 감싸야 한다.
+  **방지:** 새 문구는 리터럴 그대로 표에 추가(`tools/gen_lang_en.py` 재생성 또는 LangEN 값만 손수정 — 키는 절대 손대지 않는다). 조합 문구는 `L10N.t("포맷") % [...]` 패턴. 데이터(태그·플래그·세이브)는 항상 한국어 원문 — 표시 지점에서만 번역(세이브 호환). 검증은 영어 스크린샷 드라이버로 화면 훑기.
+
 ## GDScript (전역 규칙 위반 흔한 패턴)
 
 - **증상:** 런타임에 `Trying to assign an array of type "Array" to a variable of type "Array[T]"`.

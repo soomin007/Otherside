@@ -231,17 +231,17 @@ func _lose_mate(cause: String) -> void:
 	var site: String = death_node_id()
 	if site != "" and site != MapGraph.START_ID:
 		loss_sites.append({"node_id": site, "cause": cause})
-	var line: String = "행렬의 한 사람이 일어나지 못했다."
+	var line: String = L10N.t("행렬의 한 사람이 일어나지 못했다.")
 	if party_lost > PARTY_MATES:
 		# 원래 대원 넷을 넘어선 손실 — 거두어 온 이가 스러졌다(구한 사람을 다시 잃는 무게, 2026-07-13).
-		line = "거두어 온 이가 다시 주저앉았다.\n이번에는 일으키지 못했다."
+		line = L10N.t("거두어 온 이가 다시 주저앉았다.\n이번에는 일으키지 못했다.")
 	else:
 		match cause:
 			"thirst":
-				line = "목마름에 한 사람이 쓰러졌다."
+				line = L10N.t("목마름에 한 사람이 쓰러졌다.")
 			"hunger":
-				line = "굶주림에 한 사람이 뒤처졌다."
-	_loss_notes.append(line + "\n이제 행렬은 %d명이다." % party_left())
+				line = L10N.t("굶주림에 한 사람이 뒤처졌다.")
+	_loss_notes.append(line + L10N.t("\n이제 행렬은 %d명이다.") % party_left())
 
 ## 바닥 스침 — 물/식량이 처음 임계 이하로 떨어진 순간(자원별 런당 1회). 고갈사가 먼저면 안 센다(죽음이 말한다).
 func _check_close_call() -> void:

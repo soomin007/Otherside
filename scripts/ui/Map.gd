@@ -387,10 +387,10 @@ func _update_leave_btn(run: ExpeditionRun) -> void:
 		return
 	if run.bequeathed:
 		_leave_btn.disabled = true
-		_leave_btn.text = "남겼다"
+		_leave_btn.text = L10N.t("남겼다")
 	else:
 		_leave_btn.disabled = not _any_leavable(run)
-		_leave_btn.text = "남기기"
+		_leave_btn.text = L10N.t("남기기")
 
 func _any_leavable(run: ExpeditionRun) -> bool:
 	for key in ["water", "food", "rope", "shelter"]:
@@ -407,7 +407,7 @@ func _on_leave_pressed() -> void:
 		return
 	_moving = false
 	if _guide != null:
-		_guide.text = "멈춰 선다."
+		_guide.text = L10N.t("멈춰 선다.")
 	# node_id=떠나온 노드(줍기 키), 이동 중이면 BequeathPanel 이 엣지 위 실제 지점(to_node·position)도 찍는다.
 	_bequeath.open(run, run.current_node)
 
@@ -419,7 +419,7 @@ func _on_bequeath_done() -> void:
 		_moving = true
 		_move_timer = 0.0
 		if _guide != null:
-			_guide.text = "나아가는 중..."
+			_guide.text = L10N.t("나아가는 중...")
 	elif _guide != null:
 		_guide.text = _guide_text()
 
@@ -543,7 +543,7 @@ func _gui_input(event: InputEvent) -> void:
 				_active_trace = ""
 				_edge_offered.clear()   # 새 엣지 — 지나며 줍기 제안 이력 초기화
 				if _guide != null:
-					_guide.text = "나아가는 중..."
+					_guide.text = L10N.t("나아가는 중...")
 		return
 	# 끄는 중 — 누적 이동만 추적(임계 넘으면 위에서 탭 취소). 화면은 fit 이라 팬 없음.
 	if _dragging and (event is InputEventMouseMotion or event is InputEventScreenDrag):
@@ -638,12 +638,12 @@ func _show_situation_card() -> void:
 		_sit_box.remove_child(c)
 		c.queue_free()
 	if _guide != null:
-		_guide.text = "멈춰 선다."
+		_guide.text = L10N.t("멈춰 선다.")
 	var threat_kind: int = int(sit.get("threat", Threats.Kind.CONSUMPTION))
 	AudioManager.play_situation_card(threat_kind)  # 카드 열림 — 위협 종류별 소리(폭풍 돌풍·갈라진 울림·양피지)
 	_set_card_storm(threat_kind == Threats.Kind.STORM)  # 폭풍 위협이면 카드 뒤로 시각 폭풍 3층
 	var threat_info: Dictionary = Threats.info(threat_kind)
-	_sit_box.add_child(UITheme.make_label("[ %s ]" % str(threat_info.get("label", "상황")), UITheme.FS_SMALL, UITheme.SAND))
+	_sit_box.add_child(UITheme.make_label("[ %s ]" % L10N.t(str(threat_info.get("label", "상황"))), UITheme.FS_SMALL, UITheme.SAND))
 	_sit_box.add_child(UITheme.make_label(str(sit.get("text", "")), UITheme.FS_BODY))
 	var event_id: String = str(sit.get("id", ""))
 	var choices: Array = sit.get("choices", [])
@@ -763,7 +763,7 @@ func _after_situation() -> void:
 	_moving = true   # 아직 도착 전 — 이동을 잇는다
 	_move_timer = 0.0
 	if _guide != null:
-		_guide.text = "나아가는 중..."
+		_guide.text = L10N.t("나아가는 중...")
 
 # --- 렌더 ---
 
@@ -1397,7 +1397,10 @@ func _draw_trace_overflow(p: Vector2, count: int, ms: float) -> void:
 ## 이 게임의 심장(기획서 §3): 태그 = 다음 원정대와의 소통. 평소엔 아이콘만, 호버/탭 때만 펼친다.
 ## open = 펼침 진행(0~1, 가운데서 양옆으로). 지도 밖으로 삐지지 않게 area 안으로 민다.
 func _draw_trace_scroll(font: Font, center: Vector2, tags: Array, ms: float, open: float, area: Rect2) -> void:
-	var text: String = "[ %s ]" % " · ".join(PackedStringArray(tags))
+	var tags_disp: Array = []
+	for tg in tags:
+		tags_disp.append(L10N.t(str(tg)))  # 태그 원문(한국어)은 데이터 — 표시만 번역
+	var text: String = "[ %s ]" % " · ".join(PackedStringArray(tags_disp))
 	var fs: int = maxi(9, int(12.5 * ms))
 	var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var full_w: float = tw + 34.0 * ms
@@ -1518,7 +1521,7 @@ class LeftColumn extends Control:
 		var y: float = 18.0 * sc
 		draw_string(EN_TITLE_FONT, Vector2(x, y), "CARRIED", HORIZONTAL_ALIGNMENT_LEFT, w, maxi(8, int(10.0 * sc)), Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.6))
 		y += 26.0 * sc
-		draw_string(font, Vector2(x, y), "지닌 것", HORIZONTAL_ALIGNMENT_LEFT, w, maxi(12, int(22.0 * sc)), UITheme.FG)
+		draw_string(font, Vector2(x, y), L10N.t("지닌 것"), HORIZONTAL_ALIGNMENT_LEFT, w, maxi(12, int(22.0 * sc)), UITheme.FG)
 		y += 14.0 * sc
 		_draw_hairline(x, y, w)
 		var rows: Array = [
@@ -1531,12 +1534,12 @@ class LeftColumn extends Control:
 			y += 30.0 * sc
 			# 한 줄: 값(Cinzel) + 이름 — 효과 설명 글은 뺐다(2026-07-12 사용자, 뜻은 튜토리얼·일지가 맡는다).
 			draw_string(EN_TITLE_FONT, Vector2(x, y), str(run.get_res(str(r[0]))), HORIZONTAL_ALIGNMENT_LEFT, 30.0 * sc, maxi(11, int(21.0 * sc)), UITheme.SAND)
-			draw_string(font, Vector2(x + 36.0 * sc, y), str(r[1]), HORIZONTAL_ALIGNMENT_LEFT, w - 36.0 * sc, maxi(10, int(17.0 * sc)), Color(0.910, 0.875, 0.804))
+			draw_string(font, Vector2(x + 36.0 * sc, y), L10N.t(str(r[1])), HORIZONTAL_ALIGNMENT_LEFT, w - 36.0 * sc, maxi(10, int(17.0 * sc)), Color(0.910, 0.875, 0.804))
 		# 행렬 — 함께 걷는 사람 수(연출 파티). 위험한 순간마다 줄어든다. 잃은 뒤엔 붉게(온전함이 깨졌다).
 		y += 30.0 * sc
 		var party_color: Color = UITheme.SAND if run.is_intact() else UITheme.DANGER
 		draw_string(EN_TITLE_FONT, Vector2(x, y), str(run.party_left()), HORIZONTAL_ALIGNMENT_LEFT, 30.0 * sc, maxi(11, int(21.0 * sc)), party_color)
-		draw_string(font, Vector2(x + 36.0 * sc, y), "행렬", HORIZONTAL_ALIGNMENT_LEFT, w - 36.0 * sc, maxi(10, int(17.0 * sc)), Color(0.910, 0.875, 0.804))
+		draw_string(font, Vector2(x + 36.0 * sc, y), L10N.t("행렬"), HORIZONTAL_ALIGNMENT_LEFT, w - 36.0 * sc, maxi(10, int(17.0 * sc)), Color(0.910, 0.875, 0.804))
 		# 행렬 줄 — 단순 실루엣(대장은 크게), 잃은 자리는 낮은 무더기. 세밀한 픽토그램 원화는
 		# 이 크기에서 뭉개져 뭘 그렸는지 안 읽혔다(2026-07-12 사용자) — 작게 보는 용은 절차 실루엣.
 		y += 30.0 * sc
@@ -1557,12 +1560,12 @@ class LeftColumn extends Control:
 		y += 14.0 * sc
 		_draw_hairline(x, y, w)
 		y += 24.0 * sc
-		draw_string(font, Vector2(x, y), "주머니", HORIZONTAL_ALIGNMENT_LEFT, w, maxi(9, int(13.0 * sc)), Color(0.62, 0.56, 0.46))
+		draw_string(font, Vector2(x, y), L10N.t("주머니"), HORIZONTAL_ALIGNMENT_LEFT, w, maxi(9, int(13.0 * sc)), Color(0.62, 0.56, 0.46))
 		var tools: Array = []
 		for tk in Items.POUCH_TOOLS:
 			if int(run.get_res(str(tk))) > 0:
-				tools.append(Items.label_of(str(tk)))
-		var tl: String = (" · ".join(PackedStringArray(tools))) if not tools.is_empty() else "비었다"
+				tools.append(L10N.t(Items.label_of(str(tk))))
+		var tl: String = (" · ".join(PackedStringArray(tools))) if not tools.is_empty() else L10N.t("비었다")
 		y += 21.0 * sc
 		draw_string(font, Vector2(x, y), tl, HORIZONTAL_ALIGNMENT_LEFT, w, maxi(9, int(15.0 * sc)), Color(0.788, 0.718, 0.565))
 
@@ -1570,7 +1573,7 @@ class LeftColumn extends Control:
 		y += 18.0 * sc
 		_draw_hairline(x, y, w)
 		y += 24.0 * sc
-		draw_string(font, Vector2(x, y), "원정 %d · 흔적 %d · 죽음 %d" % [GameState.expedition_count, GameState.traces.size(), GameState.deaths.size()], HORIZONTAL_ALIGNMENT_LEFT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))
+		draw_string(font, Vector2(x, y), L10N.t("원정 %d · 흔적 %d · 죽음 %d") % [GameState.expedition_count, GameState.traces.size(), GameState.deaths.size()], HORIZONTAL_ALIGNMENT_LEFT, w, maxi(8, int(11.5 * sc)), Color(0.529, 0.475, 0.376))
 
 	func _draw_hairline(x: float, y: float, w: float) -> void:
 		var s := UITheme.SAND
@@ -1607,7 +1610,7 @@ func _draw_map_legend(font: Font, ms: float, area: Rect2) -> void:
 	total += _legend_tw(font, "죽은 자리", fs) + gap
 	total += 17.0 * ms + _legend_tw(font, "뒤처진 이", fs) + gap
 	if _sketch_tex.get("warn", null) != null:
-		total += 17.0 * ms + _legend_tw(font, "위험", fs) + gap
+		total += 17.0 * ms + _legend_tw(font, L10N.t("위험").capitalize(), fs) + gap
 	total += 42.0 * ms + _legend_tw(font, "남긴 물·식량·장막", fs)
 	var band := Rect2(lx - 12.0 * ms, ly - fs * 1.2, total + 24.0 * ms, fs * 1.2 + 10.0 * ms)
 	draw_rect(band, Color(LABEL_HALO.r, LABEL_HALO.g, LABEL_HALO.b, 0.62))
@@ -1631,7 +1634,7 @@ func _draw_map_legend(font: Font, ms: float, area: Rect2) -> void:
 	if warn != null:
 		_draw_sketch(warn, Vector2(lx + 7.0 * ms, ly - fs * 0.32), 15.0 * ms)
 		lx += 17.0 * ms
-		lx = _legend_text(font, lx, ly, "위험", fs, tcol) + gap
+		lx = _legend_text(font, lx, ly, L10N.t("위험").capitalize(), fs, tcol) + gap  # 태그 소문자 danger 와 키 공유 — 범례만 올림
 	# 남긴 자원 점 셋 — 글 순서대로 물·식량·장막(색↔자원 대응).
 	var trace_cols: Array = [TRACE_WATER, TRACE_FOOD, TRACE_SHELTER]
 	for i in trace_cols.size():
@@ -1640,13 +1643,13 @@ func _draw_map_legend(font: Font, ms: float, area: Rect2) -> void:
 	lx += 42.0 * ms
 	_legend_text(font, lx, ly, "남긴 물·식량·장막", fs, tcol)
 
-## 범례 글씨 한 토막 — 그린 끝 x 를 돌려준다(다음 항목이 이어 붙게).
+## 범례 글씨 한 토막 — 그린 끝 x 를 돌려준다(다음 항목이 이어 붙게). 번역은 여기서(측정도 _legend_tw 가 번역 후 폭).
 func _legend_text(font: Font, x: float, y: float, text: String, fs: int, col: Color) -> float:
-	draw_string(font, Vector2(x, y), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
+	draw_string(font, Vector2(x, y), L10N.t(text), HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 	return x + _legend_tw(font, text, fs)
 
 func _legend_tw(font: Font, text: String, fs: int) -> float:
-	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
+	return font.get_string_size(L10N.t(text), HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 
 # --- "살아있는 잉크" 헬퍼 (핸드오프 MAP_지도화면.md §2~4) ---
 
@@ -1723,6 +1726,12 @@ func _draw_red_path(pts: PackedVector2Array, icon_size: float) -> void:
 func _draw_map_label(font: Font, pos: Vector2, text: String, width: float, fs: int, col: Color) -> void:
 	if font == null:
 		return
+	text = L10N.t(text)  # 로컬라이제이션 관문 — 노드 이름 등 지도 라벨 전부가 여기를 지난다
+	# 영어는 한국어보다 길다 — 주어진 폭을 넘치면 중앙 기준으로 폭을 넓혀 잘림을 막는다("Villag…" 방지).
+	var tw0: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x
+	if tw0 > width:
+		pos.x -= (tw0 - width) * 0.5
+		width = tw0
 	if _label_pool_tex != null:
 		# 실제 글자 폭에 맞춘 타원 웅덩이 — 텍스트보다 사방 한 뼘 넓게.
 		var tw: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x

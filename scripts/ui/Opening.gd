@@ -149,7 +149,7 @@ func _advance() -> void:
 		_title_mode = true
 		_title_guard_until = Time.get_ticks_msec() + TITLE_GUARD_MS
 		if _hint != null:
-			_hint.text = "탭하여 시작"
+			_hint.text = L10N.t("탭하여 시작")
 		_set_illus(-1)  # 제목 카드 — 삽화 없이(어두운 배경 위 제목만)
 		if _logo != null:
 			_reveal_logo()

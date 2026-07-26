@@ -506,10 +506,10 @@ func _refresh_meta() -> void:
 	var lgt: int = maxi(0, ExpeditionRun.WEIGHT_FREE - wgt) / maxi(1, ExpeditionRun.WEIGHT_STEP) if wgt > 0 else 0
 	var pen_str: String = ""
 	if pen > 0:
-		pen_str = "  · 짐이 무거워 걸음마다 물 +%d" % pen
+		pen_str = L10N.t("  · 짐이 무거워 걸음마다 물 +%d") % pen
 	elif lgt > 0:
-		pen_str = "  · 짐이 가벼워 먼 길에서 물 -%d" % lgt  # 바닥 1 — 실효는 소모가 오른 구간부터(water_cost)
-	_preview.text = "물 %d · 식량 %d · %s · 무게 %d%s" % [
+		pen_str = L10N.t("  · 짐이 가벼워 먼 길에서 물 -%d") % lgt  # 바닥 1 — 실효는 소모가 오른 구간부터(water_cost)
+	_preview.text = L10N.t("물 %d · 식량 %d · %s · 무게 %d%s") % [
 		int(res["water"]), int(res["food"]), Items.tools_summary(res), wgt, pen_str]
 	if _count_n != null:
 		_count_n.text = str(_bag.size())
@@ -541,7 +541,7 @@ func _make_slot_filled(idx: int, key: String) -> Control:
 	slot.add_theme_stylebox_override("hover", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("pressed", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("focus", _slot_stylebox(true))
-	slot.tooltip_text = "%s  (다시 눌러서 제거)" % Items.label_of(key)
+	slot.tooltip_text = L10N.t("%s  (다시 눌러서 제거)") % L10N.t(Items.label_of(key))
 	slot.pressed.connect(_remove_slot.bind(idx, slot))
 	slot.add_child(_slot_icon(key))
 	return slot
@@ -554,7 +554,7 @@ func _make_pouch_slot(key: String) -> Control:
 	slot.add_theme_stylebox_override("hover", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("pressed", _slot_stylebox(true))
 	slot.add_theme_stylebox_override("focus", _slot_stylebox(true))
-	slot.tooltip_text = "%s  (다시 눌러서 제거)" % Items.label_of(key)
+	slot.tooltip_text = L10N.t("%s  (다시 눌러서 제거)") % L10N.t(Items.label_of(key))
 	slot.pressed.connect(_clear_pouch_from.bind(slot))
 	slot.add_child(_slot_icon(key))
 	return slot

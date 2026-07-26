@@ -148,7 +148,7 @@ func _refresh() -> void:
 
 func _show_desc(key: String) -> void:
 	var item: Dictionary = Items.by_key(key)
-	_desc.text = "%s — %s" % [str(item.get("label", key)), str(item.get("desc", ""))]
+	_desc.text = "%s — %s" % [L10N.t(str(item.get("label", key))), L10N.t(str(item.get("desc", "")))]
 	_desc.add_theme_color_override("font_color", NAME_COL)
 
 ## 헤어라인 — 가운데가 밝은 1px 모래선.

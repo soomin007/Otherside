@@ -203,7 +203,7 @@ func memory_line(i: int) -> String:
 	var res: Dictionary = spot.get("_result", {})
 	match str(res.get("type", "")):
 		"empty":
-			return "지난 원정 때 빈손이었다"
+			return L10N.t("지난 원정 때 빈손이었다")
 		"delta":
 			var items: Array = []
 			var effect: Dictionary = res.get("effect", {})
@@ -211,12 +211,18 @@ func memory_line(i: int) -> String:
 				if int(effect.get(k, 0)) > 0 and RESOURCE_WORDS.has(str(k)):
 					items.append(str(RESOURCE_WORDS[str(k)]))
 			if items.is_empty():
-				return "지난 원정도 여기를 살폈다"
+				return L10N.t("지난 원정도 여기를 살폈다")
+			if L10N.is_en():
+				# 영어는 조사(이/가) 문법이 없다 — 자원 단어만 번역해 평서 한 줄로.
+				var en_items: Array = []
+				for it in items:
+					en_items.append(L10N.t(str(it)))
+				return "Last time, this gave %s" % " · ".join(PackedStringArray(en_items))
 			var joined: String = "·".join(PackedStringArray(items))
 			var last: String = str(items[items.size() - 1])
 			return "지난 원정 때 %s%s 나왔다" % [joined, _josa_iga(last)]
 		_:
-			return "지난 원정도 여기를 살폈다"
+			return L10N.t("지난 원정도 여기를 살폈다")
 
 ## 지금까지 조사한 지점 수 (첫 도착 안내 표시 판단용 — 0이면 아직 아무것도 안 봤다).
 func probed_count() -> int:

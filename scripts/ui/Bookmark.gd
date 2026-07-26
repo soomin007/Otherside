@@ -92,9 +92,9 @@ class Ribbon extends Control:
 			if f != null:
 				var tfs: int = clampi(int(h * 0.48), 12, 19)  # 리본 높이에 비례(모바일 확대 탭도 글씨가 따라 큼)
 				if flip:
-					draw_string(f, Vector2(size.x - length + 7.0, h * 0.5 + tfs * 0.38), text, HORIZONTAL_ALIGNMENT_RIGHT, length - 16.0, tfs, Color(0.96, 0.92, 0.86, 0.95))
+					draw_string(f, Vector2(size.x - length + 7.0, h * 0.5 + tfs * 0.38), L10N.t(text), HORIZONTAL_ALIGNMENT_RIGHT, length - 16.0, tfs, Color(0.96, 0.92, 0.86, 0.95))
 				else:
-					draw_string(f, Vector2(9.0, h * 0.5 + tfs * 0.38), text, HORIZONTAL_ALIGNMENT_LEFT, length - 16.0, tfs, Color(0.96, 0.92, 0.86, 0.95))
+					draw_string(f, Vector2(9.0, h * 0.5 + tfs * 0.38), L10N.t(text), HORIZONTAL_ALIGNMENT_LEFT, length - 16.0, tfs, Color(0.96, 0.92, 0.86, 0.95))
 
 	## 그림 리본 — 원본 비율 그대로, 보이는 길이만큼만 잘라 그린다(늘이지 않는다 — 2026-07-12 사용자:
 	## 캡+몸통 늘임 방식이 좌우로 쪼그라져 보였다). 잘린 끝은 화면/책 모서리와 겹쳐 안 보인다.
@@ -540,7 +540,7 @@ func _build() -> void:
 	var th: float = 46.0 if _touch_ui() else 28.0
 	for i in range(CHAPTERS.size()):
 		var tab := Ribbon.new()
-		tab.text = str(CHAPTERS[i])
+		tab.text = L10N.t(str(CHAPTERS[i]))
 		tab.ribbon_h = th
 		tab.col = RED if i == 0 else Color(RED.r, RED.g, RED.b, 0.62)
 		tab.size = Vector2(170.0 if _touch_ui() else 120.0, th)  # 히트 영역(그리기는 length 만큼) — 터치 여유
@@ -738,7 +738,7 @@ func _apply_tab_state() -> void:
 		var tfs: int = clampi(int(h * 0.48), 12, 19)
 		var wmax: float = 0.0
 		for ch in CHAPTERS:
-			wmax = maxf(wmax, f.get_string_size(str(ch), HORIZONTAL_ALIGNMENT_LEFT, -1, tfs).x)
+			wmax = maxf(wmax, f.get_string_size(L10N.t(str(ch)), HORIZONTAL_ALIGNMENT_LEFT, -1, tfs).x)
 		base_len = maxf(base_len, 9.0 + wmax + h * 0.85 + 10.0)
 	for i in range(_tabs.size()):
 		var tab: Ribbon = _tabs[i]
@@ -780,11 +780,11 @@ func _show_chronicle() -> void:
 			_box_l.add_child(_chronicle_line(exp))
 		_box_r.add_child(_page_heading("행적", 32, INK))
 		_box_r.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
-		_box_r.add_child(_ledger_row("보낸 원정", "%d회" % GameState.expedition_count))
+		_box_r.add_child(_ledger_row("보낸 원정", L10N.t("%d회") % GameState.expedition_count))
 		_box_r.add_child(_ledger_row("남긴 흔적", "%d" % GameState.traces.size()))
 		_box_r.add_child(_ledger_row("죽은 자리", "%d" % GameState.deaths.size()))
 		_box_r.add_child(_ledger_row("기린 자리", "%d" % GameState.mourn_count()))
-		_box_r.add_child(_ledger_row("끝에 닿음", "%d번" % GameState.arrivals.size()))
+		_box_r.add_child(_ledger_row("끝에 닿음", L10N.t("%d번") % GameState.arrivals.size()))
 	else:
 		var start: int = CHRON_PER_PAGE + (_chron_idx - 1) * CHRON_PER_PAGE * 2
 		for i in range(start, mini(n, start + CHRON_PER_PAGE * 2)):
@@ -874,11 +874,11 @@ func _person_entry(f: Dictionary, opened: Array) -> Control:
 	var nm: String = Vocations.name_of(vid)
 	if opened.has(vid):
 		# 온 사람은 이름을 붉은 잉크로 — 잠긴 줄들 사이에서 한눈에 띈다.
-		v.add_child(_rich_label("[color=#8a2f1b]%s[/color] · 마을에 있다" % nm, UITheme.FS_LABEL, INK))
+		v.add_child(_rich_label(L10N.t("[color=#8a2f1b]%s[/color] · 마을에 있다") % nm, UITheme.FS_LABEL, INK))
 		if str(f.get("done", "")) != "":
 			v.add_child(_indent_small(str(f.get("done", ""))))
 	else:
-		v.add_child(_ink_label("%s · 아직 소식이 없다" % nm, UITheme.FS_LABEL, INK))
+		v.add_child(_ink_label(L10N.t("%s · 아직 소식이 없다") % nm, UITheme.FS_LABEL, INK))
 		v.add_child(_indent_small(str(f.get("cond", ""))))
 	return v
 
@@ -1042,7 +1042,7 @@ func _sec_contents(box: VBoxContainer) -> void:
 	_toc_row(box, "이야기", 2)
 	_toc_row(box, "Credit", 2)
 	_toc_row(box, "여정", 3)
-	_toc_row(box, "위험", 3)
+	_toc_row(box, L10N.t("위험").capitalize(), 3)  # 태그 단어와 키 공유(소문자 danger) — 목차에선 첫 글자만 올림
 
 ## 차례 오른쪽 면 — 짧은 안내(빈 면이 고장처럼 보이지 않게).
 func _sec_contents_note(box: VBoxContainer) -> void:
@@ -1100,6 +1100,20 @@ func _sec_screen(box: VBoxContainer) -> void:
 		box.add_child(fs)
 	_add_motion_row(box, AppSettings.load_motion())
 	_add_scale_row(box, AppSettings.load_text_scale())
+	_add_language_row(box)
+
+## 언어 줄(2026-07-26) — 한국어 ↔ English. 라벨은 의도적으로 이중 표기(번역 표를 안 탄다).
+## 일지는 즉시 다시 그려지고, 그림·카드류는 새로 뜰 때부터, 타이틀은 바로 다시 짓는다.
+func _add_language_row(box: VBoxContainer) -> void:
+	var pill := UITheme.make_pill("Language: English" if L10N.is_en() else "언어: 한국어",
+		INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
+	pill.pressed.connect(func() -> void:
+		AppSettings.set_language("ko" if L10N.is_en() else "en")
+		_show_settings()
+		var cs: Node = get_tree().current_scene
+		if cs != null and cs.scene_file_path == "res://scenes/main.tscn":
+			get_tree().reload_current_scene.call_deferred())
+	box.add_child(pill)
 
 ## 이야기(오프닝 다시보기·조작 안내 다시보기).
 func _sec_story(box: VBoxContainer) -> void:
@@ -1189,7 +1203,7 @@ func _show_confirm_page(warn: String, title: String, desc: String, yes_txt: Stri
 ## 세계 지우기 확인.
 func _confirm_wipe() -> void:
 	_show_confirm_page("되돌릴 수 없다", "이 세계를 지울까",
-		"모래폭풍이 모든 원정과 흔적을 쓸어 간다.\n처음부터 다시 시작한다.\n원정 %d번 · 흔적 %d개가 사라진다." % [GameState.expedition_count, GameState.traces.size()],
+		L10N.t("모래폭풍이 모든 원정과 흔적을 쓸어 간다.\n처음부터 다시 시작한다.\n원정 %d번 · 흔적 %d개가 사라진다.") % [GameState.expedition_count, GameState.traces.size()],
 		"지운다", _do_reset)
 
 func _do_reset() -> void:
@@ -1369,7 +1383,7 @@ func _add_close(_box: VBoxContainer) -> void:
 ## 본문과 같은 명조(기본 폰트)를 크기만 키워 장을 연다.
 func _page_heading(txt: String, fs: int, col: Color) -> Label:
 	var l := Label.new()
-	l.text = txt
+	l.text = L10N.t(txt)  # 로컬라이제이션 관문
 	l.add_theme_font_size_override("font_size", fs)
 	l.add_theme_color_override("font_color", col)
 	return l
@@ -1400,13 +1414,13 @@ func _rich_label(bb: String, fs: int, col: Color) -> RichTextLabel:
 	r.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	r.add_theme_font_size_override("normal_font_size", fs)
 	r.add_theme_color_override("default_color", col)
-	r.text = bb
+	r.text = L10N.t(bb)  # 로컬라이제이션 관문(BBCode 포함 원문 그대로 키)
 	return r
 
 ## 잉크 각인 버튼 — 상자 없이 글자만, hover 시 붉은 잉크.
 func _ink_btn(txt: String, cb: Callable, size: int = UITheme.FS_LABEL) -> Button:
 	var b := Button.new()
-	b.text = txt
+	b.text = L10N.t(txt)  # 로컬라이제이션 관문
 	b.flat = false
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = Vector2(0, 46)
@@ -1429,29 +1443,29 @@ func _chronicle_line(exp: int) -> Label:
 	if not arrival.is_empty():
 		if str(arrival.get("ending", "")) == "reunion":
 			return _ink_label(
-				"%d번째 원정 · %s\n    건너편에서 모두와 다시 만났다." % [exp, nm],
+				L10N.t("%d번째 원정 · %s\n    건너편에서 모두와 다시 만났다.") % [exp, nm],
 				UITheme.FS_LABEL, RED)
 		return _ink_label(
-			"%d번째 원정 · %s\n    끝에 닿았다. 다음 원정대가 이곳으로 온다." % [exp, nm],
+			L10N.t("%d번째 원정 · %s\n    끝에 닿았다. 다음 원정대가 이곳으로 온다.") % [exp, nm],
 			UITheme.FS_LABEL, INK)
 	# ② 스러진 원정 — 장소·거리·사인.
 	var death: Dictionary = _death_of(exp)
 	if not death.is_empty():
 		var node_id: String = str(death.get("node_id", ""))
-		var place: String = str(MapGraph.node(node_id).get("name", ""))
+		var place: String = L10N.t(str(MapGraph.node(node_id).get("name", "")))
 		if place == "":
-			place = "이름 모를 곳"
+			place = L10N.t("이름 모를 곳")
 		var leg: int = int(death.get("leg", 0))
 		return _ink_label(
-			"%d번째 원정 · %s\n    %s에서 %d걸음째 스러졌다.%s" % [exp, nm, place, leg, _cause_text(node_id)],
+			L10N.t("%d번째 원정 · %s\n    %s에서 %d걸음째 스러졌다.%s") % [exp, nm, place, leg, _cause_text(node_id)],
 			UITheme.FS_LABEL, INK)
 	# ③ 아직 길 위 — 지금 진행 중인 원정(살아 있음). 그 외(옛 세이브 등)는 지워진 기록.
 	if exp == GameState.expedition_count and GameState.current_run != null and GameState.current_run.alive:
 		return _ink_label(
-			"%d번째 원정 · %s\n    아직 길 위에 있다." % [exp, nm],
+			L10N.t("%d번째 원정 · %s\n    아직 길 위에 있다.") % [exp, nm],
 			UITheme.FS_LABEL, INK_FADE)
 	return _ink_label(
-		"%d번째 원정 · %s\n    기록이 모래에 지워졌다." % [exp, nm],
+		L10N.t("%d번째 원정 · %s\n    기록이 모래에 지워졌다.") % [exp, nm],
 		UITheme.FS_LABEL, INK_FADE)
 
 func _arrival_of(exp: int) -> Dictionary:
@@ -1477,9 +1491,9 @@ func _cause_text(node_id: String) -> String:
 			continue
 		var tg: Array = raw.get("tags", [])
 		if tg.has("갈증"):
-			return " 갈증이었다."
+			return L10N.t(" 갈증이었다.")
 		if tg.has("없다"):
-			return " 식량이 없었다."
+			return L10N.t(" 식량이 없었다.")
 		return ""
 	return ""
 

@@ -1,7 +1,8 @@
-# itch.io 공개 핸드오프 — 베타 0.1
+# itch.io 공개 핸드오프 — 베타 0.2 (영어판 포함)
 
-itch.io 에 웹 빌드를 올려 더 넓은 사람들에게 공개하기 위한 준비 문서. (2026-07-26 작성)
+itch.io 에 웹 빌드를 올려 더 넓은 사람들에게 공개하기 위한 준비 문서. (2026-07-26 작성·영어 이식 반영)
 페이지 개설·업로드는 itch 계정이 필요해 사용자 몫이고, 붙여넣을 내용과 설정값은 전부 여기 준비돼 있다.
+**영어 로컬라이제이션 완료(0.2)** — 첫 실행 시 OS 언어로 자동 선택(한국어 외 = 영어), 일지 설정에서 전환.
 
 ## 0. 대전제 — 완전 무료로만 배포한다 (라이선스)
 
@@ -18,8 +19,7 @@ itch.io 에 웹 빌드를 올려 더 넓은 사람들에게 공개하기 위한 
 - [ ] itch.io 계정 생성 → 새 프로젝트 생성
 - [ ] URL 슬러그 결정 (§2 — 나중에 바꾸면 링크가 깨지니 신중히)
 - [ ] §3 설정값 그대로 입력, §4 소개문 복붙, §5 이미지 업로드
-- [ ] 빌드 zip 업로드 (경로는 §6 — Claude 가 만들어 둠. **사용자 결정 2026-07-26: 업로드는 영어
-      로컬라이제이션 완료 후.** 그 전엔 페이지 개설·꾸미기까지만 진행해도 됨)
+- [ ] 빌드 zip 업로드 (경로는 §6 — Claude 가 만들어 둠. 영어 로컬라이제이션 완료(0.2)로 **업로드 가능**)
 - [x] 영어 설문 폼 개설 완료 (2026-07-26): https://forms.gle/B8qrsZJY7Fse3ybi6 — 소개문 §4 반영됨
 - [ ] 공개 전 검증 2건 (§7 — 세이브 영속성, 폰 브라우저 동작)
 
@@ -58,7 +58,7 @@ itch.io 에 웹 빌드를 올려 더 넓은 사람들에게 공개하기 위한 
   `2d`, `godot`, `desert`, `short`, `korean`
 - AI generated content 공개(disclosure): **Yes** 로 체크하고 그래픽·오디오 명시
   (itch 규정상 필수. 텍스트·코드는 AI 보조로 사람이 작성 — 폼이 항목을 나누면 그렇게 구분해 표기)
-- Language: Korean (영어판 나오면 English 추가)
+- Language: **English, Korean**
 - Multiplayer: No
 - Accessibility: 해당 없음(현재)
 - Community: **Comments** 켜기 (해외 피드백의 기본 창구가 된다)
@@ -81,9 +81,9 @@ itch.io 에 웹 빌드를 올려 더 넓은 사람들에게 공개하기 위한 
 >
 > ---
 >
-> **BETA 0.1 — Korean language only (for now).**
-> The game is fully playable but text-heavy and currently in Korean.
-> English localization is planned. Wishlist-follow if you'd like to know when it lands.
+> **BETA 0.2 — English & Korean.**
+> The language is picked from your system on first launch, and can be changed
+> any time in the journal's Settings.
 >
 > - Playable in browser, desktop and mobile (landscape).
 > - A single run takes about 10–20 minutes. The story unfolds across many runs.
@@ -104,7 +104,7 @@ itch.io 에 웹 빌드를 올려 더 넓은 사람들에게 공개하기 위한 
 > 폭풍이 글씨를 지우는 세계라서, 죽기 전에 남길 수 있는 건 물건 하나뿐입니다.
 > 협곡에 걸어 둔 밧줄, 마른 우물가의 물주머니. 실패가 다음 원정대의 길이 됩니다.
 >
-> 베타 0.1, 한국어. 브라우저에서 바로 플레이할 수 있습니다(폰은 가로 화면).
+> 베타 0.2, 한국어·영어. 브라우저에서 바로 플레이할 수 있습니다(폰은 가로 화면).
 > 한 원정은 10~20분, 이야기는 여러 원정에 걸쳐 쌓입니다.
 >
 > 의견은 아래 댓글 또는 1분 설문으로: forms.gle/uqAhLzuZxVuZRJj76
@@ -116,10 +116,9 @@ itch.io 에 웹 빌드를 올려 더 넓은 사람들에게 공개하기 위한 
 
 - **커버 630×500 (필수):** 시안 있음 — [`itch_커버_시안_630x500.png`](itch_커버_시안_630x500.png)
   (타이틀 키아트 좌측 크롭 + 로고, 2026-07-26). 마음에 안 들면 크롭 위치·로고 크기 조정 요청.
-- **스크린샷 5장 준비됨 (2026-07-26):** [`itch_스크린샷/`](itch_스크린샷/) — 지도·단면(오아시스)·
-  원정대 꾸리기·폭풍 막간·타이틀, 1280×720, DEV 버튼·토스트 없음. 그대로 업로드하면 된다.
-  (영어 로컬라이제이션 완료 후 영어 UI 로 다시 뽑는 것도 가능 — 같은 드라이버 절차.)
-- **GIF 1개 (여유 되면):** 지도에서 마커가 이동하고 안개가 걷히는 6~10초.
+- **스크린샷 6장 + GIF 준비됨 (2026-07-26, 영어 UI):** [`itch_스크린샷/`](itch_스크린샷/) —
+  타이틀·지도·단면(오아시스)·원정대 꾸리기·폭풍 막간·오프닝(01~06) + `map_travel.gif`(지도 이동, 0.3MB).
+  1280×720, DEV 버튼·토스트 없음. 그대로 업로드하면 된다.
 
 ## 6. 빌드 업로드
 
@@ -127,9 +126,10 @@ itch.io 에 웹 빌드를 올려 더 넓은 사람들에게 공개하기 위한 
 # 로컬 export (프로젝트 루트에서)
 godot --headless --path . --export-release "Web" build/web/index.html
 # zip (index.html 이 zip 루트에 오도록 내용물만 압축)
-Compress-Archive -Path build\web\* -DestinationPath build\syotos_web_v0.1.zip -Force
+Compress-Archive -Path build\web\* -DestinationPath build\syotos_web_v0.2.zip -Force
 ```
 
+- 최신 zip: `build\syotos_web_v0.2.zip` (0.2 = 영어판 포함. v0.1 zip 은 폐기).
 - `build/` 는 gitignore 라 zip 은 커밋되지 않는다. 업로드 후 지워도 됨.
 - 업로드 시 "This file will be played in the browser" 체크.
 - **버전을 올릴 때:** project.godot `config/version` 갱신 → 재 export → 새 zip 업로드(기존 파일 교체).

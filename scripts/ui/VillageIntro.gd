@@ -101,14 +101,14 @@ func _draw() -> void:
 
 	# 장소 이름(명조 — 지도 지명과 같은 결. 붓 폰트 폐지, 2026-07-19) — 왼쪽 아래.
 	var base := Vector2(44.0, s.y - 66.0)
-	draw_string(font, base + Vector2(0.0, 2.5), "마을", HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(0.0, 0.0, 0.0, 0.75))
-	draw_string(font, base, "마을", HORIZONTAL_ALIGNMENT_LEFT, -1, 36, UITheme.FG)
+	draw_string(font, base + Vector2(0.0, 2.5), L10N.t("마을"), HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(0.0, 0.0, 0.0, 0.75))
+	draw_string(font, base, L10N.t("마을"), HORIZONTAL_ALIGNMENT_LEFT, -1, 36, UITheme.FG)
 
 	# "조사" + 램프 점 — 남은 조사 횟수(채운 점)/쓴 것(빈 점). 실제 단면과 같은 표현.
 	if _budget > 0:
 		var by: float = s.y - 30.0
-		draw_string(font, Vector2(46.0, by), "조사", HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_LABEL, UITheme.SAND)
-		var tw: float = font.get_string_size("조사", HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_LABEL).x
+		draw_string(font, Vector2(46.0, by), L10N.t("조사"), HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_LABEL, UITheme.SAND)
+		var tw: float = font.get_string_size(L10N.t("조사"), HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_LABEL).x
 		var px: float = 46.0 + tw + 14.0
 		var py: float = by - float(UITheme.FS_LABEL) * 0.32
 		for k in range(BUDGET):
@@ -135,4 +135,4 @@ func _draw() -> void:
 	elif _budget <= 0:
 		guide = "이제 길을 나설 때다.  '떠난다'를 누르게."
 	if guide != "":
-		draw_string(font, Vector2(0.0, s.y - 140.0), guide, HORIZONTAL_ALIGNMENT_CENTER, s.x, UITheme.FS_SMALL, Color(0.88, 0.84, 0.76))
+		draw_string(font, Vector2(0.0, s.y - 140.0), L10N.t(guide), HORIZONTAL_ALIGNMENT_CENTER, s.x, UITheme.FS_SMALL, Color(0.88, 0.84, 0.76))

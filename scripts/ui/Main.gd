@@ -287,7 +287,7 @@ func _build_stat() -> void:
 	_stat_node = _stat_label
 
 func _stat_text() -> String:
-	return "보낸 원정 %d  ·  남긴 흔적 %d" % [GameState.expedition_count, GameState.traces.size()]
+	return L10N.t("보낸 원정 %d  ·  남긴 흔적 %d") % [GameState.expedition_count, GameState.traces.size()]
 
 # --- 의견 카드(우하단) ---
 
@@ -330,7 +330,7 @@ func _build_feedback_card() -> void:
 	var top_line := UITheme.make_hairline(Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.35), 1.0)
 	box.add_child(top_line)
 	_fb_label = Label.new()
-	_fb_label.text = "의견 보내기"
+	_fb_label.text = L10N.t("의견 보내기")
 	_fb_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_fb_label.add_theme_font_size_override("font_size", 18)
 	_fb_label.add_theme_color_override("font_color", FB_COL_REST)
@@ -384,7 +384,7 @@ func _build_credits_entry() -> void:
 	b.offset_bottom = -8.0
 	b.pressed.connect(_open_credits)
 	var l := Label.new()
-	l.text = "베타 %s  ·  만든 이들" % _version_text()
+	l.text = L10N.t("베타 %s  ·  만든 이들") % _version_text()
 	l.set_anchors_preset(Control.PRESET_FULL_RECT)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

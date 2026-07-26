@@ -230,15 +230,15 @@ func _build_death_panel() -> void:
 
 func _refresh() -> void:
 	var food_per_leg: String = String.num(1.0 / float(ExpeditionRun.FOOD_EVERY), 2)
-	_status_label.text = "%d번째 원정 · %d걸음 · 행렬 %d명\n걸음마다 물 %d · 식량 %s" % [GameState.expedition_count, _run.leg, _run.party_left(), _run.water_cost(), food_per_leg]
+	_status_label.text = L10N.t("%d번째 원정 · %d걸음 · 행렬 %d명\n걸음마다 물 %d · 식량 %s") % [GameState.expedition_count, _run.leg, _run.party_left(), _run.water_cost(), food_per_leg]
 	var water: int = maxi(0, _run.get_res("water"))
 	var food: int = maxi(0, _run.get_res("food"))
 	AudioManager.warn_thirst(water)  # 물이 임계로 떨어지는 순간 경고음 1회(지도와 공용 상태)
-	_water_label.text = "물 %d" % water
-	_food_label.text = "식량 %d" % food
+	_water_label.text = L10N.t("물 %d") % water
+	_food_label.text = L10N.t("식량 %d") % food
 	_water_label.add_theme_color_override("font_color", _res_color(water, 3, Color(0.55, 0.78, 0.97)))
 	_food_label.add_theme_color_override("font_color", _res_color(food, 2, Color(0.88, 0.72, 0.42)))
-	_aux_label.text = "지닌 것: %s" % Items.tools_summary(_run.resources)
+	_aux_label.text = L10N.t("지닌 것: %s") % Items.tools_summary(_run.resources)
 	_update_leave_btn()
 	queue_redraw()
 
@@ -309,12 +309,12 @@ func _on_next_party() -> void:
 func _show_situation() -> void:
 	var sit: Dictionary = _run.pending_situation
 	var place_name: String = str(sit.get("name", ""))
-	_sit_name_label.text = place_name
+	_sit_name_label.text = L10N.t(place_name)
 	_sit_name_label.visible = place_name != ""
 	var threat_kind: int = int(sit.get("threat", Threats.Kind.CONSUMPTION))
 	AudioManager.play_situation_card(threat_kind)  # 카드 열림 — 위협 종류별 소리(폭풍 돌풍·갈라진 울림·양피지)
 	var threat_info: Dictionary = Threats.info(threat_kind)
-	_sit_threat_label.text = "[ %s ]" % str(threat_info.get("label", "상황"))
+	_sit_threat_label.text = "[ %s ]" % L10N.t(str(threat_info.get("label", "상황")))
 	_sit_text_label.text = str(sit.get("text", ""))
 
 	_clear_choices()
@@ -378,7 +378,7 @@ func _on_choice(event_id: String, idx: int, label: String, effect: Dictionary, a
 	if note != "":
 		party = ResultPopup.party_state(_run, "lose")
 	elif rescued and _run.alive:
-		note = "한 사람이 행렬에 들어선다.\n행렬은 %d명이 되었다." % _run.party_left()
+		note = L10N.t("한 사람이 행렬에 들어선다.\n행렬은 %d명이 되었다.") % _run.party_left()
 		note_color = UITheme.SAND
 		party = ResultPopup.party_state(_run, "gain")
 	_result_popup.show_result(label, effect, _after_choice, note, note_color, party)
@@ -456,9 +456,9 @@ func _death_tags(cause: String) -> Array[String]:
 
 func _death_message(cause: String) -> String:
 	match cause:
-		"thirst": return "물이 떨어졌다. 여기서 갈증으로 끝났다."
-		"hunger": return "식량이 떨어졌다. 더 가지 못했다."
-		_: return "여기서 끝났다."
+		"thirst": return L10N.t("물이 떨어졌다. 여기서 갈증으로 끝났다.")
+		"hunger": return L10N.t("식량이 떨어졌다. 더 가지 못했다.")
+		_: return L10N.t("여기서 끝났다.")
 
 func _show_death(cause: String, tags: Array[String], kind: int = TraceData.ObjectKind.BODY) -> void:
 	AudioManager.play_sfx(AudioManager.DEATH)  # 스러짐 — 낮게 울리고 잦아든다
@@ -466,16 +466,19 @@ func _show_death(cause: String, tags: Array[String], kind: int = TraceData.Objec
 	_sit_panel.visible = false
 	if _bequeath != null:
 		_bequeath.visible = false
-	var left: String = _obj_name(kind)
+	var left: String = L10N.t(_obj_name(kind))
+	var tags_en: Array = []
+	for tg in tags:
+		tags_en.append(L10N.t(str(tg)))
 	if tags.is_empty():
-		_death_label.text = "%s\n\n남긴 것: %s" % [_death_message(cause), left]
+		_death_label.text = L10N.t("%s\n\n남긴 것: %s") % [_death_message(cause), left]
 	else:
-		_death_label.text = "%s\n\n남긴 것: %s  [ %s ]" % [_death_message(cause), left, " · ".join(PackedStringArray(tags))]
+		_death_label.text = L10N.t("%s\n\n남긴 것: %s  [ %s ]") % [_death_message(cause), left, " · ".join(PackedStringArray(tags_en))]
 	# 거두어 데려가던 낙오자는 런과 운명을 같이한다(기획서 §3 ②) — 잃었음을 여기서 말한다.
 	if _run.party_gained == 1:
-		_death_label.text += "\n\n거두어 함께 걷던 한 사람도\n여기서 걸음을 멈췄다."
+		_death_label.text += L10N.t("\n\n거두어 함께 걷던 한 사람도\n여기서 걸음을 멈췄다.")
 	elif _run.party_gained >= 2:
-		_death_label.text += "\n\n거두어 함께 걷던 %d명도\n여기서 걸음을 멈췄다." % _run.party_gained
+		_death_label.text += L10N.t("\n\n거두어 함께 걷던 %d명도\n여기서 걸음을 멈췄다.") % _run.party_gained
 	_death_panel.move_to_front()  # 죽음은 항상 최상단(팝업·카드 위)
 	_death_panel.visible = true
 	queue_redraw()
@@ -627,13 +630,13 @@ func _draw() -> void:
 	if node_id != "":
 		var nm: String = str(MapGraph.node(node_id).get("name", ""))
 		var base := Vector2(44.0, rect.y - 66.0)
-		draw_string(font, base + Vector2(0.0, 2.5), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(0.0, 0.0, 0.0, 0.75))
-		draw_string(font, base, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 36, UITheme.FG)
+		draw_string(font, base + Vector2(0.0, 2.5), L10N.t(nm), HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(0.0, 0.0, 0.0, 0.75))
+		draw_string(font, base, L10N.t(nm), HORIZONTAL_ALIGNMENT_LEFT, -1, 36, UITheme.FG)
 		if _section != null and _section.spot_count() > 0 and _section.budget_left() > 0:
 			# "조사" + 램프 점 — 남은 조사 횟수(채워진 점) / 쓴 것(빈 점). 숫자보다 한눈에.
 			var by: float = rect.y - 30.0
-			draw_string(font, Vector2(46.0, by), "조사", HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_LABEL, UITheme.SAND)
-			var tw: float = font.get_string_size("조사", HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_LABEL).x
+			draw_string(font, Vector2(46.0, by), L10N.t("조사"), HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_LABEL, UITheme.SAND)
+			var tw: float = font.get_string_size(L10N.t("조사"), HORIZONTAL_ALIGNMENT_LEFT, -1, UITheme.FS_LABEL).x
 			var px: float = 46.0 + tw + 14.0
 			var py: float = by - float(UITheme.FS_LABEL) * 0.32
 			for k in range(_section.budget_start):
@@ -664,7 +667,7 @@ func _draw() -> void:
 		if is_main and st == 0 and str(spot.get("_result", {}).get("event", {}).get("kind", "")) == "straggler":
 			SectionArt.draw_straggler(self, _spot_screen(at))
 	if _section.spot_count() == 0:
-		draw_string(font, Vector2(0.0, rect.y * 0.5), "둘러볼 것이 없다. 떠난다.", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_BODY, UITheme.FG)
+		draw_string(font, Vector2(0.0, rect.y * 0.5), L10N.t("둘러볼 것이 없다. 떠난다."), HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_BODY, UITheme.FG)
 	elif _section.has_unresolved_threat():
 		# 필수 위협(폭풍/차단)을 아직 안 열었다 — 마주해야 떠날 수 있다고 짚어준다(모래빛 경고 톤).
 		var gate_msg: String = "이곳의 위협을 마주하기 전엔 떠날 수 없다"
@@ -673,14 +676,14 @@ func _draw() -> void:
 				gate_msg = "폭풍을 지나기 전엔 떠날 수 없다"
 			Threats.Kind.BLOCKAGE:
 				gate_msg = "막힌 길을 넘기 전엔 떠날 수 없다"
-		draw_string(font, Vector2(0.0, rect.y - 140.0), gate_msg, HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, UITheme.SAND)
+		draw_string(font, Vector2(0.0, rect.y - 140.0), L10N.t(gate_msg), HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, UITheme.SAND)
 	elif _section.budget_left() > 0 and _section.probed_count() == 0:
 		# 첫 도착 안내 — 지점을 눌러 조사한다는 걸 짚어준다. 한 번이라도 조사하면 숨긴다(학습).
 		# 하단 버튼 위 스크림 자리(그림에 안 묻히게 — 예전엔 그림 위 잉크색이라 안 읽혔다).
-		draw_string(font, Vector2(0.0, rect.y - 140.0), "표시된 곳을 눌러 살핀다", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, Color(0.88, 0.84, 0.76))
+		draw_string(font, Vector2(0.0, rect.y - 140.0), L10N.t("표시된 곳을 눌러 살핀다"), HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, Color(0.88, 0.84, 0.76))
 	elif _section.gate_opened() and _section.probed_count() == 1 and _section.budget_left() > 0 and _section.spot_count() > 1:
 		# 두 단계 안내 — 통과(위협/다리)를 막 열어 보조 지점이 드러났다. 한 곳이라도 살피면 숨긴다.
-		draw_string(font, Vector2(0.0, rect.y - 140.0), "건너온 자리다. 이제 주변을 둘러볼 수 있다", HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, Color(0.88, 0.84, 0.76))
+		draw_string(font, Vector2(0.0, rect.y - 140.0), L10N.t("건너온 자리다. 이제 주변을 둘러볼 수 있다"), HORIZONTAL_ALIGNMENT_CENTER, rect.x, UITheme.FS_SMALL, Color(0.88, 0.84, 0.76))
 
 # --- 결말 (목적지 도달: 순환과 재회) ---
 # (옛 결말 카드 패널은 폐기 — 엔딩 슬라이드쇼 오버레이(Ending.gd)가 전부 맡는다. 2026-07-06 죽은 코드 정리.)

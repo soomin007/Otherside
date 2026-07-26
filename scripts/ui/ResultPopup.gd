@@ -149,9 +149,9 @@ func show_result(body: String, effect: Dictionary, cb: Callable = Callable(), no
 	_cb = cb
 	_closing = false
 	move_to_front()  # 연속 모달에서 새로 뜬 팝업이 다른 패널 아래에 깔리지 않게 — 항상 맨 위
-	_body_label.text = body
+	_body_label.text = L10N.t(body)
 	_body_label.visible = body != ""
-	_note_label.text = note
+	_note_label.text = L10N.t(note)
 	_note_label.visible = note != ""
 	_note_label.add_theme_color_override("font_color", note_color)
 	_party_strip.visible = not party.is_empty()
@@ -173,7 +173,7 @@ func show_result(body: String, effect: Dictionary, cb: Callable = Callable(), no
 			AudioManager.play_sfx(AudioManager.RESOURCE, -4.0)
 	elif body == "" and note == "":
 		# 묘사도 변화도 없을 때만 명시 (묘사가 있으면 그게 결과를 말한다).
-		_delta_label.text = "달라진 건 없다."
+		_delta_label.text = L10N.t("달라진 건 없다.")
 		_delta_label.add_theme_color_override("font_color", UITheme.MUTED)
 		_delta_label.visible = true
 	else:

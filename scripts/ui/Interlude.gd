@@ -159,7 +159,7 @@ func _calm_lines() -> Array:
 ## ③ 채비 — 다음 원정대 지명.
 func _muster_lines() -> Array:
 	var n: int = GameState.expedition_count + 1
-	var out: Array = [{"text": "%d번째 원정대가 떠날 채비를 한다." % n, "fs": UITheme.FS_BODY, "color": UITheme.MUTED}]
+	var out: Array = [{"text": L10N.t("%d번째 원정대가 떠날 채비를 한다.") % n, "fs": UITheme.FS_BODY, "color": UITheme.MUTED}]
 	if GameState.pending_expedition_name != "":
 		out.append({"text": GameState.pending_expedition_name, "fs": UITheme.FS_H1, "color": UITheme.SAND})
 	return out
@@ -181,7 +181,7 @@ func _last_run_summary() -> String:
 		var nid: String = str(d.get("node_id", ""))
 		var nname: String = str(MapGraph.node(nid).get("name", "")) if nid != "" else ""
 		if nname != "":
-			return "지난 원정은 %s에서 멈췄다.\n돌아온 사람은 없다." % nname
+			return L10N.t("지난 원정은 %s에서 멈췄다.\n돌아온 사람은 없다.") % L10N.t(nname)
 		return "지난 원정은 길 위에서 멈췄다.\n돌아온 사람은 없다."
 	return ""
 

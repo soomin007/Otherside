@@ -63,7 +63,8 @@
 - `SectionRun.gd` — 도착 노드 단면 탐색(주요 지점=arrival_event + 보조 지점=node.spots, 조사 횟수 예산, `probe`→결과 디스크립터, `probed_count`). 순수(-s 검증 가능).
 - `Situations.gd` — `CATALOG`(이동 중 상황), `pick_event`(노드 events), `pick_crisis`(**위기 순간 전용 풀** — 위기는 일반 회전에 안 섞인다, 2026-07-12), `crossed_blockage`, `pickup_trace`, `can_choose`. 선택지 `then` = 후속 장면 체인(같은 걸음에서 두 번째 카드 — 저작 규칙은 기획서 §4.2·헤더의 **대가 문법**). **`LANDMARKS`는 폐기됨(⑤).**
 - `TraceData.gd` — 흔적(`object_kind`, **`node_id`**, tags, uses). `Threats.gd` — 위협 종류.
-- `Feats.gd` — 공훈(업적) 정의·판정(순수). **직능은 공훈 보상으로 해금**(2026-07-11 확정): 첫 원정은 평범한 대장 고정, 이룬 일이 마을에 새 직능을 부른다(갈증사 2번 → 물지기 등, 기획서 §4.5). 통계·해금은 `GameState.feat_stats`/`feats_unlocked`(영속), 표시는 일지 "마을" 챕터(펼침 넘김 — 사람들|이룬 일). **기록형 공훈 4종**(끝까지 간 원정·아무도 잃지 않은 원정·모든 길·재회 — 직능 없음, 달성 전 비노출)과 **해금 내력 한 줄(done)**·해금 연출 모달(Loadout, 새 얼굴 인물 등장)은 2026-07-13.
+- `Feats.gd` — 공훈(업적) 정의·판정(순수).
+- `L10N.gd` / `LangEN.gd` — **영어 로컬라이제이션(2026-07-26).** 원문은 늘 한국어(코드·데이터·세이브), 영어는 표시 순간 `L10N.t()` 치환(표 874키, `tools/gen_lang_en.py` 생성). 관문 = UITheme.make_label/make_pill·EngravedItem·Bookmark 헬퍼 + draw_string 사이트. 언어는 설정(일지)에서 전환, 첫 실행은 OS 언어 자동. 함정은 known_issues "로컬라이제이션" 절. **직능은 공훈 보상으로 해금**(2026-07-11 확정): 첫 원정은 평범한 대장 고정, 이룬 일이 마을에 새 직능을 부른다(갈증사 2번 → 물지기 등, 기획서 §4.5). 통계·해금은 `GameState.feat_stats`/`feats_unlocked`(영속), 표시는 일지 "마을" 챕터(펼침 넘김 — 사람들|이룬 일). **기록형 공훈 4종**(끝까지 간 원정·아무도 잃지 않은 원정·모든 길·재회 — 직능 없음, 달성 전 비노출)과 **해금 내력 한 줄(done)**·해금 연출 모달(Loadout, 새 얼굴 인물 등장)은 2026-07-13.
 
 **ui (`scripts/ui/`, 렌더·입력) + scenes:**
 - `Main.gd`(타이틀) → `Opening.gd`(서사 5장+제목) → `Loadout.gd`(가방·시장 NPC) → [첫 원정만] `VillageIntro.gd`(마을 단면 탐색 연습, 사장된 13_단면_마을 재활용) → `Map.gd`(양피지 지도, 마커 이동, 이동 중 상황 카드) → `Expedition.gd`(도착 단면 탐색 + 남기기 + 죽음 + **결말 엔딩**). 원정 종료(죽음/순환) 후 `Interlude.gd`(폭풍 막간 — 지도 쓸기·흔적 묻힘·다음 원정대 지명, 절차적 draw + CPUParticles2D)를 거쳐 다시 `Loadout`.

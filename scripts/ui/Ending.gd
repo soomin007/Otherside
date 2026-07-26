@@ -59,7 +59,7 @@ func _cycle_slides() -> Array:
 		return CYCLE_SLIDES
 	var s: Array = CYCLE_SLIDES.duplicate(true)
 	var first: Dictionary = s[0]
-	first["text"] = "재앙의 자리에 선 것은\n'%s'.\n우리가 보낸 사람들이었다." % GameState.expedition_name(prev)
+	first["text"] = L10N.t("재앙의 자리에 선 것은\n'%s'.\n우리가 보낸 사람들이었다.") % GameState.expedition_name(prev)
 	return s
 
 func _build() -> void:
@@ -108,7 +108,7 @@ func _build() -> void:
 
 	# 순환 암전 뒤 화면 가운데 독백 — 재회(다른 결말)가 있음을 짧게 암시. 어둠(dim) 위에 얹는다.
 	_hint = Label.new()
-	_hint.text = "다시 한 번, 완벽한 원정을 해낸다면\n무언가 바꿀 수 있지 않을까."
+	_hint.text = L10N.t("다시 한 번, 완벽한 원정을 해낸다면\n무언가 바꿀 수 있지 않을까.")
 	_hint.add_theme_font_size_override("font_size", UITheme.FS_H2)
 	_hint.add_theme_color_override("font_color", UITheme.SAND)
 	_hint.add_theme_constant_override("line_spacing", 10)
@@ -222,13 +222,13 @@ func _start_credits() -> void:
 		_credits_add("먼저 간 원정대", UITheme.FS_SMALL, UITheme.MUTED)
 		_credits_spacer(26.0)
 		for exp in range(1, n):
-			_credits_add("%d번째 원정" % exp, UITheme.FS_SMALL, UITheme.MUTED)
+			_credits_add(L10N.t("%d번째 원정") % exp, UITheme.FS_SMALL, UITheme.MUTED)
 			_credits_add(GameState.expedition_name(exp), UITheme.FS_H2, UITheme.FG)
 			_credits_spacer(22.0)
 		_credits_spacer(30.0)
 		_credits_add("그리고", UITheme.FS_SMALL, UITheme.MUTED)
 		_credits_spacer(8.0)
-	_credits_add("%d번째 원정" % n, UITheme.FS_SMALL, UITheme.MUTED)
+	_credits_add(L10N.t("%d번째 원정") % n, UITheme.FS_SMALL, UITheme.MUTED)
 	_credits_add(GameState.expedition_name(n), UITheme.FS_H2, UITheme.SAND)
 	_credits_add("건너편에 닿았다.", UITheme.FS_SMALL, UITheme.MUTED)
 	_credits_spacer(56.0)

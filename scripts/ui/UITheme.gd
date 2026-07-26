@@ -95,7 +95,7 @@ static func make_card(width: float = COLUMN_W) -> PanelContainer:
 ## 풀폭 버튼(터치 타깃 보장). primary=true 면 크고 본문 크기, false 면 낮고 라벨 크기.
 static func make_button(text: String, primary: bool = true) -> Button:
 	var b := Button.new()
-	b.text = text
+	b.text = L10N.t(text)
 	b.custom_minimum_size = Vector2(0, BTN_H if primary else BTN_H_SM)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.add_theme_font_size_override("font_size", FS_BODY if primary else FS_LABEL)
@@ -126,7 +126,7 @@ static func make_button(text: String, primary: bool = true) -> Button:
 ## 자동 줄바꿈 라벨. 컬럼/카드 안에 넣으면 그 폭에서 줄바꿈된다.
 static func make_label(text: String, size: int = FS_BODY, color: Color = FG, center: bool = true) -> Label:
 	var l := Label.new()
-	l.text = text
+	l.text = L10N.t(text)  # 로컬라이제이션 관문 — 한국어 원문이 여기서 치환된다(표에 없으면 원문 그대로)
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
 	l.add_theme_constant_override("line_spacing", 8)  # 여러 줄 본문 줄간격 넉넉히(기본 3은 답답)
@@ -325,12 +325,12 @@ const RES_KO: Dictionary = {"water": "물", "food": "식량", "rope": "로프", 
 ## 자원 델타를 읽기 쉬운 한 줄로 ("물 -2 · 식량 +1"). 빈 효과는 "그대로".
 static func effect_hint(effect: Dictionary) -> String:
 	if effect.is_empty():
-		return "그대로"
+		return L10N.t("그대로")
 	var parts: PackedStringArray = []
 	for key in effect:
 		var v: int = int(effect[key])
 		var sign_str: String = "+" if v > 0 else ""
-		parts.append("%s %s%d" % [str(RES_KO.get(key, key)), sign_str, v])
+		parts.append("%s %s%d" % [L10N.t(str(RES_KO.get(key, key))), sign_str, v])
 	return " · ".join(parts)
 
 ## needs(자원 게이트)를 짧게 ("로프", "물 3 · 식량 2"). 양이 1 이면 자원명만.
@@ -339,9 +339,9 @@ static func needs_bare(needs: Dictionary) -> String:
 	for key in needs:
 		var v: int = int(needs[key])
 		if v <= 1:
-			parts.append(str(RES_KO.get(key, key)))
+			parts.append(L10N.t(str(RES_KO.get(key, key))))
 		else:
-			parts.append("%s %d" % [str(RES_KO.get(key, key)), v])
+			parts.append("%s %d" % [L10N.t(str(RES_KO.get(key, key))), v])
 	return " · ".join(parts)
 
 ## 선택지 버튼 텍스트 (blind choice — 가보기 전엔 결과를 모른다).
@@ -350,16 +350,16 @@ static func needs_bare(needs: Dictionary) -> String:
 ##  seen=false + needs 있음 → 조건만 노출("로프 필요"). 가진 것이 있어야 고르므로 조건은 알아야 한다.
 ##  seen=false + needs 없음 → "?" — 눌러봐야 안다.
 static func choice_text(choice: Dictionary, enabled: bool, seen: bool) -> String:
-	var label: String = str(choice.get("label", ""))
+	var label: String = L10N.t(str(choice.get("label", "")))
 	var needs: Dictionary = choice.get("needs", {})
 	if not enabled:
 		if needs.is_empty():
-			return "%s   (가진 것 부족)" % label
-		return "%s   (%s 부족)" % [label, needs_bare(needs)]
+			return L10N.t("%s   (가진 것 부족)") % label
+		return L10N.t("%s   (%s 부족)") % [label, needs_bare(needs)]
 	if seen:
 		return "%s   (%s)" % [label, effect_hint(choice.get("effect", {}))]
 	if not needs.is_empty():
-		return "%s   (%s 필요)" % [label, needs_bare(needs)]
+		return L10N.t("%s   (%s 필요)") % [label, needs_bare(needs)]
 	return "%s   (?)" % label
 
 # --- 다듬기 헬퍼 (설정 등 정적 화면용) ---
@@ -375,7 +375,7 @@ static func make_hairline(color: Color = Color(SAND.r, SAND.g, SAND.b, 0.18), th
 ## 면/테두리를 가진 버튼(pill) — 기본 회색 크롬 대신 의도된 모양. fill 을 투명하게 주면 외곽선 버튼.
 static func make_pill(text: String, fg: Color, fill: Color, border: Color, primary: bool = false) -> Button:
 	var b := Button.new()
-	b.text = text
+	b.text = L10N.t(text)  # 로컬라이제이션 관문
 	b.custom_minimum_size = Vector2(0, BTN_H if primary else BTN_H_SM)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.add_theme_font_size_override("font_size", FS_BODY if primary else FS_LABEL)

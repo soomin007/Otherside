@@ -89,6 +89,37 @@ static func apply_text_scale(win: Window) -> void:
 	if win != null:
 		win.content_scale_factor = load_text_scale()
 
+## 언어(2026-07-26) — "ko"/"en". 저장값이 없으면 OS 언어로 추정(한국어 외 = 영어, itch 해외 공개 대비).
+## 사용자가 일지 설정에서 고르면 그때부터 저장값이 진실.
+const KEY_LANGUAGE: String = "language"
+
+static var _lang_cache: String = ""
+
+static func load_language() -> String:
+	if _lang_cache != "":
+		return _lang_cache
+	var cfg := ConfigFile.new()
+	var saved: String = ""
+	if cfg.load(PATH) == OK:
+		saved = str(cfg.get_value(SECTION_DISPLAY, KEY_LANGUAGE, ""))
+	if saved == "ko" or saved == "en":
+		_lang_cache = saved
+	else:
+		_lang_cache = "ko" if OS.get_locale_language() == "ko" else "en"
+	return _lang_cache
+
+static func set_language(v: String) -> void:
+	_lang_cache = "en" if v == "en" else "ko"
+	L10N.locale = _lang_cache
+	var cfg := ConfigFile.new()
+	cfg.load(PATH)  # 실패해도 빈 cfg 로 진행
+	cfg.set_value(SECTION_DISPLAY, KEY_LANGUAGE, _lang_cache)
+	cfg.save(PATH)
+
+## 앱 시작 시 저장된(또는 추정된) 언어를 L10N 에 적용 — 첫 화면이 뜨기 전에 불러야 한다.
+static func apply_language() -> void:
+	L10N.locale = load_language()
+
 static func _load_key(key: String, def: float) -> float:
 	var cfg := ConfigFile.new()
 	if cfg.load(PATH) != OK:

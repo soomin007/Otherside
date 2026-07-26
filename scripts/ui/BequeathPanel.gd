@@ -222,7 +222,7 @@ func _make_candidate(kind: int, label: String, res_key: String) -> Control:
 	v.add_child(nm)
 	var cost: int = _run.leave_cost(res_key)
 	var have: int = _run.get_res(res_key)
-	var cl := UITheme.make_label("%s -%d · 보유 %d" % [str(UITheme.RES_KO.get(res_key, res_key)), cost, have], 13, COST_COL)
+	var cl := UITheme.make_label(L10N.t("%s -%d · 보유 %d") % [L10N.t(str(UITheme.RES_KO.get(res_key, res_key))), cost, have], 13, COST_COL)
 	v.add_child(cl)
 	btn.add_child(v)
 	if _run.can_leave(res_key):
@@ -336,13 +336,13 @@ func _step_tags() -> void:
 	if _mourning:
 		_box.add_child(UITheme.make_label("여기 잠든 이를 기린다. 돌 위의 말은 다음 원정대도 읽는다.", 13, NOTE_COL))
 	else:
-		_box.add_child(UITheme.make_label("%s 곁에 한두 마디. 다음 원정대가 읽는다." % _obj_name(_picked_kind), 13, NOTE_COL))
+		_box.add_child(UITheme.make_label(L10N.t("%s 곁에 한두 마디. 다음 원정대가 읽는다.") % L10N.t(_obj_name(_picked_kind)), 13, NOTE_COL))
 	# 새길 말 미리보기 — 크게, 지도 두루마리에 펼쳐질 모습 그대로(두루마리도 기본 명조.
 	# 붓 폰트 폐지, 2026-07-19). 비었으면 말 없이 두는 것도 답.
 	var prev := Label.new()
 	prev.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	if _picked_tags.is_empty():
-		prev.text = "말 없이 기린다" if _mourning else "말 없이 남긴다"
+		prev.text = L10N.t("말 없이 기린다") if _mourning else L10N.t("말 없이 남긴다")
 		prev.add_theme_font_size_override("font_size", 24)
 		prev.add_theme_color_override("font_color", Color(NOTE_COL.r, NOTE_COL.g, NOTE_COL.b, 0.85))
 	else:
@@ -362,7 +362,7 @@ func _step_tags() -> void:
 		for w in cat:
 			var word: String = str(w)
 			var tb := Button.new()
-			tb.text = word
+			tb.text = L10N.t(word)  # 표시만 번역 — 실제 저장 태그는 한국어 원문(word)
 			tb.toggle_mode = true
 			tb.button_pressed = _picked_tags.has(word)
 			tb.custom_minimum_size = Vector2(0, 46)

@@ -448,12 +448,12 @@ static func straggler_event(brief: Dictionary = {}) -> Dictionary:
 	var text: String = "바람을 피한 그늘에\n사람이 웅크리고 있다.\n지난 원정에서 뒤처진 이가,\n여기까지 버티고 있었다."
 	var word: String = "그는 물을 아주 조금씩\n오래 나눠 마신다.\n어느 원정이었는지 물어도\n고개만 젓는다.\n걸음만은 아직 원정대의 것이다."
 	if nm != "":
-		var fell: String = "다친 몸으로 뒤처진 채,"
+		var fell: String = L10N.t("다친 몸으로 뒤처진 채,")
 		match str(brief.get("cause", "")):
-			"thirst": fell = "물이 끊겨 뒤처진 채,"
-			"hunger": fell = "굶주려 뒤처진 채,"
-		text = "바람을 피한 그늘에\n사람이 웅크리고 있다.\n'%s' 원정의 사람이다.\n%s\n여기까지 버티고 있었다." % [nm, fell]
-		word = "그는 물을 아주 조금씩\n오래 나눠 마신다.\n그러고는 갈라진 목소리로\n한 마디를 꺼낸다.\n\"%s... 우리 이름이었소.\"" % nm
+			"thirst": fell = L10N.t("물이 끊겨 뒤처진 채,")
+			"hunger": fell = L10N.t("굶주려 뒤처진 채,")
+		text = L10N.t("바람을 피한 그늘에\n사람이 웅크리고 있다.\n'%s' 원정의 사람이다.\n%s\n여기까지 버티고 있었다.") % [nm, fell]
+		word = L10N.t("그는 물을 아주 조금씩\n오래 나눠 마신다.\n그러고는 갈라진 목소리로\n한 마디를 꺼낸다.\n\"%s... 우리 이름이었소.\"") % nm
 	return {
 		"id": "straggler",
 		"kind": "straggler",
@@ -519,12 +519,15 @@ static func pickup_trace(info: Dictionary) -> Dictionary:
 			obj_name = "정화천"
 	var tag_str: String = ""
 	if not tags.is_empty():
-		tag_str = "\n곁의 표식: [ %s ]" % " · ".join(PackedStringArray(tags))
+		var tags_disp: Array = []
+		for tg in tags:
+			tags_disp.append(L10N.t(str(tg)))  # 태그는 데이터(한국어) — 표시만 번역
+		tag_str = L10N.t("\n곁의 표식: [ %s ]") % " · ".join(PackedStringArray(tags_disp))
 	return {
 		"id": "pickup",
 		"kind": "pickup",
 		"threat": Threats.Kind.CONSUMPTION,
-		"text": "이전 원정대가 남긴 %s.\n아직 쓸 만하다.%s" % [obj_name, tag_str],
+		"text": L10N.t("이전 원정대가 남긴 %s.\n아직 쓸 만하다.%s") % [L10N.t(obj_name), tag_str],
 		"choices": [
 			{"label": "집는다", "effect": {res_key: amount}, "action": "pickup", "trace_kind": kind},
 			{"label": "남겨둔다 (다음 원정대에게)", "effect": {}},
