@@ -34,16 +34,29 @@ func _ready() -> void:
 	if not ENABLED or not _web:
 		set_process_input(false)
 		return
+	# 일지(트리 일시정지) 중에도 전체화면 재진입·복귀 치유·진단이 살아 있어야 한다 —
+	# INHERIT 이면 일지가 열린 채 전체화면을 나갔다 오는 경로에서 이 노드가 통째로 잠든다(2026-07-26).
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_in_iframe = bool(JavaScriptBridge.eval("window.self !== window.top", true))
 	_build_hint()
+	_build_probe()
 	get_viewport().size_changed.connect(_refresh_hint)
 	_refresh_hint()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_IN and _web:
 		_release_stuck_touches()
+		_probe_wake()
 
 func _input(event: InputEvent) -> void:
+	# 진단 프로브 — Node._input 은 GUI 보다 먼저 받으므로, 여기 기록이 갱신되면 입력이 엔진까지는 온 것.
+	if _probe != null and _probe.visible:
+		var desc: String = event.get_class().trim_prefix("InputEvent")
+		var st := event as InputEventScreenTouch
+		if st != null:
+			desc += "#%d %s" % [st.index, "dn" if st.pressed else "up"]
+		_last_ev = desc
+		_last_ev_ms = Time.get_ticks_msec()
 	var tap: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed)
 	if not tap:
 		return
@@ -73,6 +86,53 @@ func _release_stuck_touches() -> void:
 		ev.pressed = false
 		ev.position = Vector2(-1, -1)
 		Input.parse_input_event(ev)
+
+# --- 복귀 진단 프로브 (임시, 베타 전용 — 원인 잡히면 제거) ---
+# 폰 itch "복귀 후 일지 터치 먹통"(2026-07-26) 이분 진단: 포커스 복귀·리사이즈 후 20초 동안
+# 좌상단에 상태 한 줄을 띄운다. 죽은 상태에서 탭할 때 ev 가 갱신되면 입력이 엔진까지 오는 것
+# (= 게임 안 GUI 라우팅 문제), 안 갱신되면 밖(래퍼 오버레이)이 먹는 것(= itch 쪽).
+
+var _probe: CanvasLayer
+var _probe_lbl: Label
+var _probe_until_ms: int = 0
+var _last_ev: String = "-"
+var _last_ev_ms: int = 0
+
+func _build_probe() -> void:
+	_probe = CanvasLayer.new()
+	_probe.layer = 300
+	_probe.visible = false
+	add_child(_probe)
+	_probe_lbl = Label.new()
+	_probe_lbl.position = Vector2(6, 4)
+	_probe_lbl.add_theme_font_size_override("font_size", 11)
+	_probe_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4, 0.85))
+	_probe_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_probe.add_child(_probe_lbl)
+
+## 진단 창을 20초 연다 — 터치 기기에서만(데스크톱 알트탭마다 뜨지 않게).
+func _probe_wake() -> void:
+	if _probe == null or not DisplayServer.is_touchscreen_available():
+		return
+	_probe_until_ms = Time.get_ticks_msec() + 20000
+
+func _process(_delta: float) -> void:
+	if _probe == null:
+		return
+	var now: int = Time.get_ticks_msec()
+	_probe.visible = now < _probe_until_ms
+	if not _probe.visible:
+		return
+	var vp: Vector2 = get_viewport().get_visible_rect().size
+	var open_txt: String = "?"
+	var bm: Node = get_node_or_null("/root/Bookmark")
+	if bm != null:
+		open_txt = str(bm.call("is_open"))
+	_probe_lbl.text = "v%s p:%s j:%s vp:%dx%d h:%s ev:%s +%.1fs" % [
+		str(ProjectSettings.get_setting("application/config/version", "?")),
+		"1" if get_tree().paused else "0", open_txt, int(vp.x), int(vp.y),
+		"1" if (_hint != null and _hint.visible) else "0",
+		_last_ev, float(now - _last_ev_ms) / 1000.0]
 
 ## 화면을 가로로 잠근다(양방향 가로) — 브라우저 orientation API 를 JS 로 직접 호출.
 ## DisplayServer.screen_set_orientation 은 웹에서 동작하지 않음(실기기 확인 2026-07-06, known_issues).
@@ -121,6 +181,7 @@ func _refresh_hint() -> void:
 	if _hint == null:
 		return
 	_release_stuck_touches()  # 전체화면 이탈·복귀는 반드시 리사이즈를 동반 — 고착 터치 치유 2차 트리거
+	_probe_wake()             # 복귀 진단 프로브도 같은 트리거로 연다
 	var s: Vector2 = get_viewport().get_visible_rect().size
 	_hint.visible = s.y > s.x
 	if _hint.visible:
