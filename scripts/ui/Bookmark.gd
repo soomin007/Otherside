@@ -608,6 +608,15 @@ func _open() -> void:
 func is_open() -> bool:
 	return _panel != null and _panel.visible
 
+## 복귀 치유(Fullscreen 이 부른다) — 전체화면/가시성 왕복 뒤 일지가 그려는 지는데 반응이 없는
+## 폰 itch 사례(2026-07-26) 방어: 배치를 다시 재고 현재 챕터를 **새 컨트롤로** 다시 짓는다.
+## 낡은 컨트롤이 어떤 상태로 굳었든 새로 지으면 무관해진다. 열려 있지 않으면 아무 것도 안 한다.
+func heal_after_restore() -> void:
+	if not is_open() or _flipping:
+		return
+	_layout_book()
+	_render_chapter()
+
 func _close() -> void:
 	get_tree().paused = false  # 일지를 덮으면 세계가 다시 흐른다(이동·연출 재개)
 	AudioManager.play_sfx(AudioManager.CARD_CLOSE)  # 일지를 덮는 소리

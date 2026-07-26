@@ -19,8 +19,12 @@
 1. itch.io 가입 → Dashboard → Create new project
 2. Title: `See you on the other side` · URL: `see-you-on-the-other-side`
 3. Kind of project: **HTML** · Pricing: **No payments** (후원 금지 — 라이선스, 핸드오프 §0)
-4. Uploads: 이 폴더의 `syotos_web_v0.3.2.zip` 업로드 → "This file will be played in the browser" 체크
-5. Embed: 1280 × 720 · Fullscreen button ✔ · Mobile friendly ✔ (Orientation: Landscape)
+4. Uploads: 이 폴더의 `syotos_web_v0.3.3.zip` 업로드 → "This file will be played in the browser" 체크
+5. Embed: **640 × 360** · Fullscreen button ✔ · Mobile friendly ✔ (Orientation: Landscape)
+   — 임베드 크기는 "페이지에 박힌 상자" 크기일 뿐이다. 실제 플레이는 폰 = 항상 전체화면,
+   PC = 전체화면 버튼. 크게(1280) 잡으면 **페이지 본문 폭이 따라 넓어져** 배경의 어둠 채널(중앙
+   1120px)을 침범한다 — 테마가 다시 안 맞으면 이 값부터 의심. ⚠️ zip 재업로드가 이 값을
+   640×360 으로 되돌릴 수 있다(Fixed 처럼) — 되돌아가 있으면 그대로 두면 된다(정답이 640).
 6. Details: 소개문 복붙(영어 먼저, 아래 한국어) · Genre: Adventure · Tags: roguelite, narrative,
    turn-based, atmospheric, singleplayer, 2d, godot, desert, short, korean
    · **AI generated content: Yes**(그래픽·오디오 명시) · Language: English, Korean
@@ -68,9 +72,9 @@
 
 ## 빌드
 
-- `syotos_web_v0.3.2.zip` (이 폴더, git 미추적) — 0.3.2 = Fullscreen 을 일시정지 무시(ALWAYS)로
-  + 복귀 진단 프로브(터치 기기, 복귀 후 20초 좌상단 한 줄 — 원인 잡히면 제거).
-  0.3.1 = 고착 터치 해제 + iframe 전체화면 소유권 양보. 0.3 = 언어 전환 즉시 적용 + 설정 재편.
+- `syotos_web_v0.3.3.zip` (이 폴더, git 미추적) — 0.3.3 = 복귀 치유 강화(JS 전체화면 감시 0.5s,
+  마우스 캡처·포커스 해제, 일지 열려 있으면 새로 짓기) + 이름칸 밖 탭 시 키보드 내리기.
+  0.3.2 = Fullscreen 일시정지 무시 + 진단 프로브. 0.3.1 = 고착 터치 해제 + iframe 전체화면 양보.
 - 재빌드가 필요하면: `project.godot` 의 `config/version` 올리기 → 프로젝트 루트에서
   `godot --headless --path . --export-release "Web" build/web/index.html` →
   `Compress-Archive -Path build\web\* -DestinationPath itch_업로드\syotos_web_v<버전>.zip -Force`

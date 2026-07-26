@@ -892,6 +892,17 @@ func _depart() -> void:
 func stash_for_language_reload() -> void:
 	GameState.pending_expedition_name = _pending_name
 
+## 이름칸 밖을 탭하면 포커스를 놓아 가상 키보드를 내린다 — 폰 웹에서 밖을 눌러도 포커스가
+## 남아 키보드가 무한으로 다시 열리던 버그(2026-07-26 사용자 제보). make_input_local 이
+## 스트레치·캔버스 변환을 알아서 흡수하므로 좌표계 걱정 없이 칸 안/밖만 가른다.
+func _input(event: InputEvent) -> void:
+	var st := event as InputEventScreenTouch
+	if st == null or not st.pressed or _name_edit == null or not _name_edit.has_focus():
+		return
+	var local := _name_edit.make_input_local(event) as InputEventScreenTouch
+	if not Rect2(Vector2.ZERO, _name_edit.size).grow(8.0).has_point(local.position):
+		_name_edit.release_focus()
+
 func _on_name_edited(text: String) -> void:
 	_pending_name = text
 

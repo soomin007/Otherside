@@ -86,6 +86,18 @@ func _release_stuck_touches() -> void:
 		ev.pressed = false
 		ev.position = Vector2(-1, -1)
 		Input.parse_input_event(ev)
+	# 에뮬레이션 마우스의 눌림/캡처도 해제 — 복귀 전 눌림이 GUI 캡처로 남으면 이후 모든 입력이
+	# 그 컨트롤로만 흘러 화면이 통째로 무반응처럼 보인다.
+	var mv := InputEventMouseButton.new()
+	mv.button_index = MOUSE_BUTTON_LEFT
+	mv.pressed = false
+	mv.position = Vector2(-1, -1)
+	Input.parse_input_event(mv)
+	get_viewport().gui_release_focus()  # 이름칸 등 잔류 포커스 해제(가상 키보드 재출현 방지 겸)
+	# 일지(일시정지 오버레이)가 열려 있으면 새 컨트롤로 다시 짓는다 — "일지만 무반응" 방어.
+	var bm: Node = get_node_or_null("/root/Bookmark")
+	if bm != null and bool(bm.call("is_open")):
+		bm.call("heal_after_restore")
 
 # --- 복귀 진단 프로브 (임시, 베타 전용 — 원인 잡히면 제거) ---
 # 폰 itch "복귀 후 일지 터치 먹통"(2026-07-26) 이분 진단: 포커스 복귀·리사이즈 후 20초 동안
@@ -116,9 +128,22 @@ func _probe_wake() -> void:
 		return
 	_probe_until_ms = Time.get_ticks_msec() + 20000
 
+var _fs_accum: float = 0.0
+var _was_fs: bool = false
+
 func _process(_delta: float) -> void:
 	if _probe == null:
-		return
+		return  # 웹이 아니면 _build_probe 를 안 지났다 — 아래는 전부 웹 전용
+	# itch 래퍼가 소유한 전체화면 전환은 엔진 쪽 포커스/리사이즈 알림이 안 올 수 있다(0.3.2 프로브가
+	# 안 떴다는 제보) — JS 로 문서 전체화면 상태를 0.5초마다 직접 감시해 전환 순간 치유를 건다.
+	_fs_accum += _delta
+	if _fs_accum >= 0.5:
+		_fs_accum = 0.0
+		var fs: bool = bool(JavaScriptBridge.eval("!!document.fullscreenElement", true))
+		if fs != _was_fs:
+			_was_fs = fs
+			_release_stuck_touches()
+			_probe_wake()
 	var now: int = Time.get_ticks_msec()
 	_probe.visible = now < _probe_until_ms
 	if not _probe.visible:
