@@ -27,15 +27,21 @@ const LOCK_JS: String = """
 var _hint: CanvasLayer
 var _hint_sub: Label   ## 안내 보조 줄 — 잠금 실패 사유 진단 표시
 var _web: bool = false
+var _in_iframe: bool = false   ## itch 등 임베드 안인가 — 전체화면 소유권 판단(아래 참조)
 
 func _ready() -> void:
 	_web = OS.has_feature("web")
 	if not ENABLED or not _web:
 		set_process_input(false)
 		return
+	_in_iframe = bool(JavaScriptBridge.eval("window.self !== window.top", true))
 	_build_hint()
 	get_viewport().size_changed.connect(_refresh_hint)
 	_refresh_hint()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_IN and _web:
+		_release_stuck_touches()
 
 func _input(event: InputEvent) -> void:
 	var tap: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed)
@@ -44,10 +50,29 @@ func _input(event: InputEvent) -> void:
 	# 창모드일 때만 전체화면으로 — 이미 전체화면이면 이 클릭은 게임 입력으로 흘려보낸다.
 	if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_FULLSCREEN:
 		_lock_landscape()  # 전체화면이 "되는 순간" 잠기도록 fullscreenchange 에 먼저 건다
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-		get_tree().create_timer(1.2).timeout.connect(_lock_landscape)  # 보험(이벤트가 씹힌 경우)
+		# itch 같은 iframe 임베드 + 터치 기기에선 전체화면을 호스트(래퍼)가 소유한다 — 폰 itch 는
+		# 항상 자기가 전체화면으로 띄우고, 우리가 캔버스로 전체화면을 뺏으면 래퍼가 "나갔다"고
+		# 오판해 오버레이를 덮을 수 있다(뒤로가기→Restore 후 터치 먹통 후보 ②, 2026-07-26).
+		# 가로 잠금(_lock_landscape)은 누가 전체화면이든 fullscreenchange 에 걸리므로 계속 우리 몫.
+		if not (_in_iframe and DisplayServer.is_touchscreen_available()):
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+			get_tree().create_timer(1.2).timeout.connect(_lock_landscape)  # 보험(이벤트가 씹힌 경우)
 	elif _hint != null and _hint.visible:
 		_lock_landscape()  # 전체화면인데 아직 세로 — 안내 탭에서 재시도
+
+## 복귀 자기 치유 — 전체화면 이탈(안드로이드 뒤로가기 = 가장자리 스와이프 제스처)이 touchend 없이
+## 끊기면 엔진에 "눌린 손가락"이 남고, 이후 모든 탭이 두 번째 손가락 취급이 된다(마우스 에뮬레이션은
+## 0번 손가락만 따라감 → UI 전체 먹통. 폰 itch 뒤로가기→Restore 후 터치 사망 후보 ①, 2026-07-26).
+## 포커스 복귀·화면 재배치 때 남은 손가락을 전부 뗀 것으로 주입한다(안 눌린 index 의 release 는 no-op).
+func _release_stuck_touches() -> void:
+	if not DisplayServer.is_touchscreen_available():
+		return
+	for i in range(10):
+		var ev := InputEventScreenTouch.new()
+		ev.index = i
+		ev.pressed = false
+		ev.position = Vector2(-1, -1)
+		Input.parse_input_event(ev)
 
 ## 화면을 가로로 잠근다(양방향 가로) — 브라우저 orientation API 를 JS 로 직접 호출.
 ## DisplayServer.screen_set_orientation 은 웹에서 동작하지 않음(실기기 확인 2026-07-06, known_issues).
@@ -95,6 +120,7 @@ func _build_hint() -> void:
 func _refresh_hint() -> void:
 	if _hint == null:
 		return
+	_release_stuck_touches()  # 전체화면 이탈·복귀는 반드시 리사이즈를 동반 — 고착 터치 치유 2차 트리거
 	var s: Vector2 = get_viewport().get_visible_rect().size
 	_hint.visible = s.y > s.x
 	if _hint.visible:

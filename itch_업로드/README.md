@@ -19,7 +19,7 @@
 1. itch.io 가입 → Dashboard → Create new project
 2. Title: `See you on the other side` · URL: `see-you-on-the-other-side`
 3. Kind of project: **HTML** · Pricing: **No payments** (후원 금지 — 라이선스, 핸드오프 §0)
-4. Uploads: 이 폴더의 `syotos_web_v0.3.zip` 업로드 → "This file will be played in the browser" 체크
+4. Uploads: 이 폴더의 `syotos_web_v0.3.1.zip` 업로드 → "This file will be played in the browser" 체크
 5. Embed: 1280 × 720 · Fullscreen button ✔ · Mobile friendly ✔ (Orientation: Landscape)
 6. Details: 소개문 복붙(영어 먼저, 아래 한국어) · Genre: Adventure · Tags: roguelite, narrative,
    turn-based, atmospheric, singleplayer, 2d, godot, desert, short, korean
@@ -68,8 +68,9 @@
 
 ## 빌드
 
-- `syotos_web_v0.3.zip` (이 폴더, git 미추적) — 0.3 = 언어 전환 즉시 적용 + 설정 재편(언어가 첫 화면).
+- `syotos_web_v0.3.1.zip` (이 폴더, git 미추적) — 0.3.1 = 폰 뒤로가기→Restore 후 터치 먹통 방어
+  (고착 터치 해제 + iframe 전체화면 소유권 양보). 0.3 = 언어 전환 즉시 적용 + 설정 재편.
 - 재빌드가 필요하면: `project.godot` 의 `config/version` 올리기 → 프로젝트 루트에서
   `godot --headless --path . --export-release "Web" build/web/index.html` →
-  `Compress-Archive -Path build\web\* -DestinationPath itch_업로드\syotos_web_v0.3.zip -Force`
+  `Compress-Archive -Path build\web\* -DestinationPath itch_업로드\syotos_web_v<버전>.zip -Force`
 - itch 재업로드는 기존 파일 교체로(경로가 바뀌어 캐시 문제는 없다).
