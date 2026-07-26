@@ -112,11 +112,12 @@ itch.io 에 웹 빌드를 올려 더 넓은 사람들에게 공개하기 위한 
 - 소개문 수정 시 규칙: 한글 사이 em dash 금지, 세계관 어휘는 페이지에서는 풀어 쓴다(메타 채널).
 - "BETA 0.1" 표기는 인게임 타이틀 하단 버전과 일치시킨다(빌드 올릴 때마다 확인).
 
-## 5. 이미지·복붙 재료 → 전부 [`itch_업로드/`](itch_업로드/) 폴더에 (2026-07-26 통합)
+## 5. 이미지·복붙 재료 → 전부 **프로젝트 루트 `itch_업로드/`** 폴더에 (2026-07-26 통합, 루트로 이동)
 
-- 커버 630×500 · 배너 960×400(로고 포함) · 배경 1920×1080(테마용) · 영어 UI 스크린샷 6장 ·
-  지도 이동 GIF(0.3MB) · 소개문 복붙 txt(영/한, 인용 기호 없이 본문만) · README(순서·테마 색상값).
+- 빌드 zip · 커버 630×500 · 배너 960×400(로고 포함) · 배경 1920×1080(테마용) · 영어 UI 스크린샷 6장 ·
+  지도 이동 GIF(0.3MB) · 소개문 복붙 txt(영/한) + HTML 버전 · README(순서·테마 색상값·배너 위치 안내).
 - **그 폴더의 README 대로만 하면 된다** — 이 문서는 규칙·이유(라이선스·검증)의 참고용.
+- 폴더에 `.gdignore` 필수(루트라 Godot 임포트 대상 — 지우면 홍보 이미지가 게임 pck 에 실린다).
 
 ## 6. 빌드 업로드
 
@@ -127,8 +128,8 @@ godot --headless --path . --export-release "Web" build/web/index.html
 Compress-Archive -Path build\web\* -DestinationPath build\syotos_web_v0.2.zip -Force
 ```
 
-- 최신 zip: `build\syotos_web_v0.2.zip` (0.2 = 영어판 포함. v0.1 zip 은 폐기).
-- `build/` 는 gitignore 라 zip 은 커밋되지 않는다. 업로드 후 지워도 됨.
+- 최신 zip: **`itch_업로드\syotos_web_v0.2.zip`** (0.2 = 영어판 + 직능 번역 수정. v0.1 은 폐기).
+- zip 은 `*.zip` gitignore 라 커밋되지 않는다(로컬 보관 — 지우면 위 명령으로 재생성).
 - 업로드 시 "This file will be played in the browser" 체크.
 - **버전을 올릴 때:** project.godot `config/version` 갱신 → 재 export → 새 zip 업로드(기존 파일 교체).
   itch 는 업로드마다 새 경로로 서빙하므로 Pages 같은 브라우저 캐시 문제는 없다.
