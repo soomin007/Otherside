@@ -19,7 +19,7 @@
 1. itch.io 가입 → Dashboard → Create new project
 2. Title: `See you on the other side` · URL: `see-you-on-the-other-side`
 3. Kind of project: **HTML** · Pricing: **No payments** (후원 금지 — 라이선스, 핸드오프 §0)
-4. Uploads: 이 폴더의 `syotos_web_v0.3.5.zip` 업로드 → "This file will be played in the browser" 체크
+4. Uploads: 이 폴더의 `syotos_web_v0.3.6.zip` 업로드 → "This file will be played in the browser" 체크
 5. Embed: **640 × 360** · Fullscreen button ✔ · Mobile friendly ✔ (Orientation: Landscape)
    — 임베드 크기는 "페이지에 박힌 상자" 크기일 뿐이다. 실제 플레이는 폰 = 항상 전체화면,
    PC = 전체화면 버튼. 크게(1280) 잡으면 **페이지 본문 폭이 따라 넓어져** 배경의 어둠 채널(중앙
@@ -72,12 +72,14 @@
 
 ## 빌드
 
-- `syotos_web_v0.3.5.zip` (이 폴더, git 미추적) — 0.3.5 = **유령 드래그 재합성**: 0.3.4 프로브로
-  "죽은 상태의 모든 터치가 드래그로만 도착"(눌림이 위에서 먹힘)이 확인돼, 눌림 없는 드래그가 오면
-  그 자리에 누름을 합성하고 드래그가 끊기면 뗌을 합성해 탭·드래그를 살린다. 보조로 복귀 치유 때
-  브라우저 입력 층에 touchcancel/pointercancel 을 직접 쏴 청소. 진단 줄에 gh(재합성 횟수) 추가.
-  0.3.4 = 챕터 탭·스크림 "뗄 때" 반응 + 넘김 워치독. 0.3.3 = 복귀 치유(JS 전체화면 감시·포커스
-  해제) + 이름칸 키보드 무한 수정. 0.3.1~2 = 방어 층.
+- `syotos_web_v0.3.6.zip` (이 폴더, git 미추적) — 0.3.6 = **유령 뗌 재합성 + arming**: 0.3.5 폰
+  확인에서 "대기 중 마지막 이벤트가 up"으로, 움직임 없는 탭은 드래그 없이 뗌만 오는 것이 드러남.
+  누름 없는 뗌을 삼키고 그 자리에 누름+뗌 짝을 합성(깨끗한 탭 복원), 챕터 탭·스크림은 같은 컨트롤
+  위 누름이 선행해야 뗌이 유효(유령 뗌의 넘김·닫힘 오발 차단), 매달린 넘김은 _process 폴링
+  워치독이 2.5초에 강제 정리(책갈피 사라짐 고착 방어).
+  0.3.5 = 유령 드래그 재합성(누름 없는 드래그에 누름 합성, 공백 시 뗌 합성) + touchcancel JS 청소
+  + 진단 줄 gh(재합성 횟수). 0.3.4 = 챕터 탭·스크림 "뗄 때" 반응 + 넘김 워치독. 0.3.3 = 복귀 치유
+  (JS 전체화면 감시·포커스 해제) + 이름칸 키보드 무한 수정. 0.3.1~2 = 방어 층.
 - 재빌드가 필요하면: `project.godot` 의 `config/version` 올리기 → 프로젝트 루트에서
   `godot --headless --path . --export-release "Web" build/web/index.html` →
   `Compress-Archive -Path build\web\* -DestinationPath itch_업로드\syotos_web_v<버전>.zip -Force`

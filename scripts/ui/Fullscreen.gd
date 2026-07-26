@@ -116,6 +116,24 @@ func _track_ghost(event: InputEvent) -> void:
 		if st.pressed:
 			_touch_down[st.index] = true
 		else:
+			# 유령 뗌(0.3.6) — 움직임 없는 깨끗한 탭은 드래그조차 없이 뗌만 온다(0.3.5 폰 프로브:
+			# 대기 중 마지막 ev 가 up). 누름 없는 뗌이 GUI 에 닿으면 release 기준 핸들러(챕터 탭 등)를
+			# 오발시킨다(복귀 후 첫 터치 = 설정 차례로 넘김). 삼키고 그 자리에 dn+up 짝을 합성한다.
+			# 치유 주입분(위치 -1,-1)은 제외 — 재합성 재귀·gh 오염 방지.
+			if not _touch_down.has(st.index) and st.position.x >= 0.0:
+				get_viewport().set_input_as_handled()
+				_ghost_count += 1
+				var pdn := InputEventScreenTouch.new()
+				pdn.index = st.index
+				pdn.pressed = true
+				pdn.position = st.position
+				Input.parse_input_event(pdn)
+				var pup := InputEventScreenTouch.new()
+				pup.index = st.index
+				pup.pressed = false
+				pup.position = st.position
+				Input.parse_input_event(pup)
+				return
 			_touch_down.erase(st.index)
 			_ghost.erase(st.index)  # 진짜 up 이 오면 재합성 마감 불필요(자연 release 완료)
 		return
