@@ -3,7 +3,7 @@ extends RefCounted
 
 ## 영어 번역 표 — 한국어 원문(코드·데이터의 리터럴과 바이트 단위 일치) → 영어.
 ## ⚠️ tools/gen_lang_en.py 가 생성한다. 손으로 고칠 땐 값(영어)만 고치고 키는 절대 건드리지 말 것
-## (키가 원문과 1글자라도 다르면 그 문구는 조용히 한국어로 남는다). 항목 수: 875
+## (키가 원문과 1글자라도 다르면 그 문구는 조용히 한국어로 남는다). 항목 수: 876
 
 const TABLE: Dictionary = {
 	"\n\n거두어 함께 걷던 %d명도\n여기서 걸음을 멈췄다.": "\n\nThe %d they took in stop walking here as well.",
@@ -770,6 +770,7 @@ const TABLE: Dictionary = {
 	"죽은 자리": "Where they fell",
 	"죽음을 앞둔 이들은\n다음 원정대를 위해\n물건 하나를 남깁니다.\n건너편에서 다시 만나자는\n약속입니다.": "Those about to die\nleave one thing behind\nfor the next expedition.\nIt is a promise\nto meet again on the other side.",
 	"지금 마셔 힘을 낸다": "Drink now for strength",
+	"지금 화면부터 바로 바뀝니다.": "Takes effect right away, from this screen on.",
 	"지금 원정은 돌아오지 못한다": "This expedition will not come back",
 	"지금 이 원정대가 선 자리.": "Where this expedition stands now.",
 	"지금은 지나친다 (다음 원정대가 거둔다)": "Pass by for now (the next expedition will take them in)",

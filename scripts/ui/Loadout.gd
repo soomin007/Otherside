@@ -886,6 +886,12 @@ func _depart() -> void:
 
 # --- 원정대 이름 / 직능 / 도구 (단계 1 핸들러) ---
 
+## 일지에서 언어를 바꾸면 이 씬이 통째로 다시 지어진다(Bookmark._reload_scene_for_language).
+## 쓰던 이름이 랜덤으로 갈리지 않게 되돌려 둔다(_ready 가 도로 소비). 이름을 새 언어로 받고
+## 싶으면 "다시 뽑기"가 바로 옆에 있다. 직능·짐은 초기 상태로 돌아간다(언어 전환은 드문 일).
+func stash_for_language_reload() -> void:
+	GameState.pending_expedition_name = _pending_name
+
 func _on_name_edited(text: String) -> void:
 	_pending_name = text
 

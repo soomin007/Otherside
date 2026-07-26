@@ -1,7 +1,7 @@
 # itch 업로드 폴더 — 여기 있는 것만 쓰면 된다
 
 페이지 개설에 필요한 재료 전부(빌드 zip 포함). 규칙·이유가 궁금하면 `docs/handoffs/itch_핸드오프.md`.
-(2026-07-26, 베타 0.2 기준. `.gdignore` 는 Godot 이 이 폴더를 게임에 안 싣게 하는 장치 — 지우지 말 것.)
+(2026-07-26, 베타 0.3 기준. `.gdignore` 는 Godot 이 이 폴더를 게임에 안 싣게 하는 장치 — 지우지 말 것.)
 
 ## ⚠️ 복붙 주의
 
@@ -16,7 +16,7 @@
 1. itch.io 가입 → Dashboard → Create new project
 2. Title: `See you on the other side` · URL: `see-you-on-the-other-side`
 3. Kind of project: **HTML** · Pricing: **No payments** (후원 금지 — 라이선스, 핸드오프 §0)
-4. Uploads: 이 폴더의 `syotos_web_v0.2.zip` 업로드 → "This file will be played in the browser" 체크
+4. Uploads: 이 폴더의 `syotos_web_v0.3.zip` 업로드 → "This file will be played in the browser" 체크
 5. Embed: 1280 × 720 · Fullscreen button ✔ · Mobile friendly ✔ (Orientation: Landscape)
 6. Details: 소개문 복붙(영어 먼저, 아래 한국어) · Genre: Adventure · Tags: roguelite, narrative,
    turn-based, atmospheric, singleplayer, 2d, godot, desert, short, korean
@@ -40,6 +40,8 @@
   ① 본문이 가리는 **중앙은 비우고, 실제로 보이는 양옆 여백에 그림**(왼쪽 = 노을의 대장,
   오른쪽 = 폭풍 벽) ② 모든 가장자리를 **#141017 로 완전 용해** — 작은 창에서는 여백부터 잘려
   나가는데 잘린 자리가 전부 같은 색이라 어떤 해상도에서도 경계선이 없다.
+  ③ **위쪽은 특히 길게 용해** — 페이지 상단(배너 높이)에선 양옆도 거의 배경색이라 배너의 녹은
+  가장자리와 색이 이어지고, 그림은 스크롤 중간부터 배어 나온다(상단 색 안 맞는다는 피드백 반영).
 - **Colors**: **전부 `#141017` 로 통일** — BG · BG 2(본문 칸, Alpha 오른쪽 끝 불투명) 모두.
   배경 그림의 용해 색과 같아서 경계선이 어디에도 안 생긴다. Text `#F6ECD4` · Link `#D6B278`
 - **Font**: Serif · Size Large
@@ -60,8 +62,8 @@
 
 ## 빌드
 
-- `syotos_web_v0.2.zip` (이 폴더, git 미추적) — 0.2 = 영어판 + 직능 번역 수정 포함.
+- `syotos_web_v0.3.zip` (이 폴더, git 미추적) — 0.3 = 언어 전환 즉시 적용 + 설정 재편(언어가 첫 화면).
 - 재빌드가 필요하면: `project.godot` 의 `config/version` 올리기 → 프로젝트 루트에서
   `godot --headless --path . --export-release "Web" build/web/index.html` →
-  `Compress-Archive -Path build\web\* -DestinationPath itch_업로드\syotos_web_v0.2.zip -Force`
+  `Compress-Archive -Path build\web\* -DestinationPath itch_업로드\syotos_web_v0.3.zip -Force`
 - itch 재업로드는 기존 파일 교체로(경로가 바뀌어 캐시 문제는 없다).

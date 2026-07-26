@@ -972,11 +972,12 @@ func _legend_row(kind: String, title: String, meaning: String) -> HBoxContainer:
 	row.add_child(col)
 	return row
 
-# --- 챕터: 설정 (펼침 넘김 — 한 펼침에 두 부분: 소리|화면 · 이야기|Credit · 여정|위험) ---
+# --- 챕터: 설정 (펼침 넘김 — 차례|언어·Credit · 소리|화면 · 이야기·여정|위험) ---
 
-const SETTINGS_SPREADS: int = 4  ## 펼침 4장. 첫 장 = 차례(목차), 이후 왼쪽·오른쪽 한 부분씩.
+const SETTINGS_SPREADS: int = 3  ## 펼침 3장. 빈 면 없이 채운다(빈 공간 지적, 2026-07-26 사용자).
 
 ## 왼쪽·오른쪽 페이지 각각 한 부분. 넘김(이전/다음)과 덮기는 오른쪽 아래 슬림 줄로.
+## 언어는 첫 펼침 오른쪽 — 열자마자 보이는 자리(어디 있는지 모르겠다는 지적, 2026-07-26 사용자).
 ## 웹에선 게임 끝내기·전체화면 토글을 숨긴다(브라우저가 관장 — Fullscreen autoload 가 자동 전체화면).
 func _show_settings() -> void:
 	_in_confirm = false
@@ -985,14 +986,13 @@ func _show_settings() -> void:
 	match _set_idx:
 		0:
 			_sec_contents(_box_l)
-			_sec_contents_note(_box_r)
+			_sec_language(_box_r)
 		1:
 			_sec_sound(_box_l)
 			_sec_screen(_box_r)
-		2:
-			_sec_story(_box_l)
-			_sec_credits(_box_r)
 		_:
+			_sec_story(_box_l)
+			_box_l.add_child(_gap(18))
 			_sec_journey(_box_l)
 			_sec_danger(_box_r)
 	_settings_nav()
@@ -1040,17 +1040,83 @@ func _sec_contents(box: VBoxContainer) -> void:
 	_toc_row(box, "소리", 1)
 	_toc_row(box, "화면", 1)
 	_toc_row(box, "이야기", 2)
-	_toc_row(box, "Credit", 2)
-	_toc_row(box, "여정", 3)
-	_toc_row(box, L10N.t("위험").capitalize(), 3)  # 태그 단어와 키 공유(소문자 danger) — 목차에선 첫 글자만 올림
-
-## 차례 오른쪽 면 — 짧은 안내(빈 면이 고장처럼 보이지 않게).
-func _sec_contents_note(box: VBoxContainer) -> void:
-	var sp := Control.new()
-	sp.custom_minimum_size = Vector2(0, 44)
-	sp.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(sp)
+	_toc_row(box, "여정", 2)
+	_toc_row(box, L10N.t("위험").capitalize(), 2)  # 태그 단어와 키 공유(소문자 danger) — 목차에선 첫 글자만 올림
+	box.add_child(_gap(10))
 	box.add_child(_ink_label("가고 싶은 곳을 누르면\n그 장으로 넘어갑니다.", UITheme.FS_SMALL, INK_FADE))
+
+## 언어 + Credit — 차례 맞은편(첫 펼침 오른쪽). 언어를 열자마자 보이는 자리에 둔다.
+## 언어 이름은 각 언어 자신의 표기라 번역 표를 태우지 않는다(표에 키가 없어 그대로 나온다).
+func _sec_language(box: VBoxContainer) -> void:
+	box.add_child(_page_heading("언어 · Language", 32, INK))
+	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	row.add_child(_lang_pill("한국어", "ko"))
+	row.add_child(_lang_pill("English", "en"))
+	box.add_child(row)
+	box.add_child(_ink_label("지금 화면부터 바로 바뀝니다.", UITheme.FS_SMALL, INK_FADE))
+	box.add_child(_gap(14))
+	box.add_child(_page_heading("Credit", 24, INK))
+	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.2), 1.0))
+	box.add_child(_ink_label("See you on the other side", UITheme.FS_LABEL, INK))
+	box.add_child(_ink_label("만든 이   soomin007", UITheme.FS_LABEL, INK))
+	box.add_child(_ink_label("Fonts   MaruBuri · Cinzel (OFL)\nMusic   Suno · SFX   ElevenLabs · freesound.org\nEngine   Godot 4.6",
+		UITheme.FS_SMALL, INK_FADE))
+
+## 언어 pill — 지금 쓰는 언어는 잉크로 채워 표시.
+func _lang_pill(label_txt: String, code: String) -> Button:
+	var active: bool = (code == "en") == L10N.is_en()
+	var pill: Button
+	if active:
+		pill = UITheme.make_pill(label_txt, PAPER, INK, INK)
+	else:
+		pill = UITheme.make_pill(label_txt, INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
+	pill.pressed.connect(func() -> void: _switch_language(code))
+	return pill
+
+## 언어 바꾸기 — 일지는 즉시 다시 그리고, 밑의 화면도 안전하면 바로 새로 짓는다.
+## (일지만 갈아입고 씬을 안 지으면 "돌아가 보니 여전히 옛 언어" — 2026-07-26 사용자 제보.)
+func _switch_language(code: String) -> void:
+	if AppSettings.load_language() == code:
+		return
+	AppSettings.set_language(code)
+	_show_settings()
+	_apply_tab_state()  # 탭 길이 재계산(언어마다 챕터명 폭이 다르다)
+	for t in _tabs:     # 탭·리본 글자는 그리기 시점 번역(Ribbon._draw) — 새 언어로 다시 그린다
+		(t as Control).queue_redraw()
+	if _ribbon != null:
+		_ribbon.queue_redraw()
+	_reload_scene_for_language()
+
+## 씬별 안전 가드 — 지도는 run 이 죽어 있으면 _ready 가 새 원정을 만들어 세이브를 오염시킨다
+## (begin_run_in_place 함정, known_issues). 단면은 스냅샷 정밀 복원 설계(2026-07-10)라 다시 지어도 그대로.
+## 목록 밖 씬(오프닝·막간·마을 안내)은 안 짓는다 — 다음 씬부터 새 언어.
+func _reload_scene_for_language() -> void:
+	var cs: Node = get_tree().current_scene
+	if cs == null:
+		return
+	var alive: bool = GameState.current_run != null and GameState.current_run.alive
+	var safe: bool = false
+	match cs.scene_file_path:
+		"res://scenes/main.tscn", "res://scenes/loadout.tscn":
+			safe = true
+		"res://scenes/map.tscn":
+			safe = alive
+		"res://scenes/expedition.tscn":
+			safe = GameState.current_run != null
+	if not safe:
+		return
+	if cs.has_method("stash_for_language_reload"):
+		cs.stash_for_language_reload()
+	get_tree().reload_current_scene.call_deferred()
+
+## 세로 여백(고정 높이) — 페이지 안 소단락 구분용.
+func _gap(h: int) -> Control:
+	var sp := Control.new()
+	sp.custom_minimum_size = Vector2(0, h)
+	sp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return sp
 
 ## 차례 한 줄 — 왼쪽 항목 이름(잉크 버튼, 줄 전체가 탭 영역), 오른쪽 펼침 번호(옅은 잉크).
 func _toc_row(box: VBoxContainer, name_txt: String, target: int) -> void:
@@ -1100,20 +1166,6 @@ func _sec_screen(box: VBoxContainer) -> void:
 		box.add_child(fs)
 	_add_motion_row(box, AppSettings.load_motion())
 	_add_scale_row(box, AppSettings.load_text_scale())
-	_add_language_row(box)
-
-## 언어 줄(2026-07-26) — 한국어 ↔ English. 라벨은 의도적으로 이중 표기(번역 표를 안 탄다).
-## 일지는 즉시 다시 그려지고, 그림·카드류는 새로 뜰 때부터, 타이틀은 바로 다시 짓는다.
-func _add_language_row(box: VBoxContainer) -> void:
-	var pill := UITheme.make_pill("Language: English" if L10N.is_en() else "언어: 한국어",
-		INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
-	pill.pressed.connect(func() -> void:
-		AppSettings.set_language("ko" if L10N.is_en() else "en")
-		_show_settings()
-		var cs: Node = get_tree().current_scene
-		if cs != null and cs.scene_file_path == "res://scenes/main.tscn":
-			get_tree().reload_current_scene.call_deferred())
-	box.add_child(pill)
 
 ## 이야기(오프닝 다시보기·조작 안내 다시보기).
 func _sec_story(box: VBoxContainer) -> void:
@@ -1130,18 +1182,6 @@ func _sec_story(box: VBoxContainer) -> void:
 		var tut := UITheme.make_pill("조작 안내 다시보기", INK, Color(0, 0, 0, 0), Color(INK.r, INK.g, INK.b, 0.4))
 		tut.pressed.connect(_replay_tutorial)
 		box.add_child(tut)
-
-## Credit(제목·내용·만든 이·출처). 기술 출처는 영어로.
-func _sec_credits(box: VBoxContainer) -> void:
-	box.add_child(_page_heading("Credit", 32, INK))
-	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
-	box.add_child(_ink_label("See you on the other side", UITheme.FS_BODY, INK))
-	box.add_child(_ink_label("폭풍이 지날 때마다 원정대가 떠나고, 거의 다 죽는다.\n죽기 전 단 한 번, 다음 원정대에게 물건을 남긴다.",
-		UITheme.FS_SMALL, INK_FADE))
-	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.2), 1.0))
-	box.add_child(_ink_label("만든 이   soomin007", UITheme.FS_LABEL, INK))
-	box.add_child(_ink_label("Fonts   MaruBuri · Cinzel (OFL)\nMusic   Suno\nSFX   ElevenLabs · freesound.org\nEngine   Godot 4.6",
-		UITheme.FS_SMALL, INK_FADE))
 
 ## 여정(타이틀로·게임 끝내기). 타이틀+웹처럼 나갈 것이 없으면 비운다.
 func _sec_journey(box: VBoxContainer) -> void:
