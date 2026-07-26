@@ -28,6 +28,10 @@ var _fb_lines: Array = []     ## 위아래 헤어라인(반짝임 대상)
 var _fb_hover: bool = false
 const FB_COL_REST := Color(0.965, 0.925, 0.831, 0.8)  ## 평상시 글자색(UITheme.FG 의 0.8)
 
+# 만든 이들(하단 중앙) — 버전 표기 겸 크레딧·라이선스 고지 진입줄(itch 등 외부 공개 대비).
+var _credits_entry: Control
+var _credits_panel: Control
+
 func _ready() -> void:
 	AppSettings.apply_saved()  # 저장된 음량 복원(앱 시작 = 항상 타이틀 경유)
 	Bookmark.data_reset.connect(_on_data_reset)  # 일지 설정 챕터에서 세계를 지우면 통계 갱신
@@ -38,6 +42,7 @@ func _ready() -> void:
 	_build_menu()
 	_build_stat()
 	_build_feedback_card()
+	_build_credits_entry()
 	# 등장 stagger(스펙 inScatter) — 로고 → 메뉴 → 통계 → 의견 카드 순으로 "모래가 모여 형체를 이루듯".
 	# 구현은 Transition.appear(공용) — 배경(키아트)은 움직이지 않는다(원칙: 배경/UI 분리).
 	for n in _logo_nodes:
@@ -48,6 +53,8 @@ func _ready() -> void:
 		Transition.appear(_stat_node, 0.30)
 	if _fb_card != null:
 		Transition.appear(_fb_card, 0.42)
+	if _credits_entry != null:
+		Transition.appear(_credits_entry, 0.36)
 
 # --- 배경(키아트 + 스크림) ---
 
@@ -354,6 +361,108 @@ func _fb_apply(k: float) -> void:
 		var line := hl as ColorRect
 		if line != null:
 			line.color = Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, lerpf(0.35, 0.9, k))
+
+# --- 만든 이들(하단 중앙) ---
+
+## 만든 이들 진입줄 — 하단 중앙의 작은 글줄. 베타 버전 표기를 겸하고, 누르면 만든 이들 판이 열린다.
+## 좌하단 통계와 같은 결(작은 글자·낮은 알파). 터치 타깃은 56px 확보.
+func _build_credits_entry() -> void:
+	var b := Button.new()
+	b.flat = true
+	b.focus_mode = Control.FOCUS_NONE
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	var empty := StyleBoxEmpty.new()
+	for s in ["normal", "hover", "pressed", "focus", "disabled"]:
+		b.add_theme_stylebox_override(s, empty)
+	b.anchor_left = 0.5
+	b.anchor_right = 0.5
+	b.anchor_top = 1.0
+	b.anchor_bottom = 1.0
+	b.offset_left = -130.0
+	b.offset_right = 130.0
+	b.offset_top = -64.0
+	b.offset_bottom = -8.0
+	b.pressed.connect(_open_credits)
+	var l := Label.new()
+	l.text = "베타 %s  ·  만든 이들" % _version_text()
+	l.set_anchors_preset(Control.PRESET_FULL_RECT)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.add_theme_font_size_override("font_size", 14)
+	l.add_theme_color_override("font_color", Color(UITheme.FG.r, UITheme.FG.g, UITheme.FG.b, 0.55))
+	l.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
+	l.add_theme_constant_override("shadow_offset_y", 2)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(l)
+	b.add_to_group("ui_scatter")
+	add_child(b)
+	_credits_entry = b
+
+func _version_text() -> String:
+	return str(ProjectSettings.get_setting("application/config/version", "0.1"))
+
+func _open_credits() -> void:
+	if _credits_panel == null:
+		_credits_panel = _build_credits_panel()
+		add_child(_credits_panel)
+	UITheme.fade_in(_credits_panel)
+	UITheme.recenter_modal.call_deferred(_credits_panel)  # 웹 레이아웃 레이스 대비(known_issues)
+
+## 만든 이들 판 — 각인 모달 + 스크롤 본문. 엔진(MIT)·글꼴(OFL) 고지와
+## AI 생성 소리 표기(ElevenLabs 무료 플랜 조건)를 담는다. 배포 전 제거 금지.
+func _build_credits_panel() -> Control:
+	var panel := Control.new()
+	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.visible = false
+	var dim := ColorRect.new()
+	dim.color = Color(0.0, 0.0, 0.0, 0.74)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.add_child(dim)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	panel.add_child(center)
+	var parts: Array = UITheme.make_engraved_modal()
+	var outer: Control = parts[0]
+	var inner: VBoxContainer = parts[1]
+	center.add_child(outer)
+	inner.add_child(UITheme.make_label("만든 이들", 24, UITheme.SAND))
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	var vp: Vector2 = get_viewport_rect().size
+	scroll.custom_minimum_size = Vector2(UITheme.COLUMN_W, minf(vp.y * 0.55, 420.0))
+	inner.add_child(scroll)
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", UITheme.GAP)
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(body)
+	_credits_section(body, "만든 사람", "soomin007")
+	_credits_section(body, "엔진", "Godot Engine\n무료 오픈 소스 엔진입니다.\nMIT 라이선스를 따릅니다.")
+	_credits_section(body, "글꼴", "마루 부리 © NAVER\nCinzel © Natanael Gama\n두 글꼴 모두 SIL 오픈 폰트\n라이선스(OFL 1.1)를 따릅니다.")
+	_credits_section(body, "음악 · 효과음", "음악은 Suno로,\n효과음은 ElevenLabs로 만든\nAI 생성 소리입니다.\nSound effects generated\nwith ElevenLabs.")
+	_credits_section(body, "그림", "AI 이미지 도구로 만들고\n직접 고르고 다듬었습니다.")
+	_credits_section(body, "함께한 도구", "Claude Code와 함께\n만들었습니다.")
+	# 고지 전문(작은 글씨) — Godot MIT 는 저작권·허가 고지 포함이 라이선스 조건.
+	var lic_head := UITheme.make_label("라이선스 고지", 15, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.7))
+	body.add_child(lic_head)
+	var lic := UITheme.make_label(
+		Engine.get_license_text().strip_edges()
+		+ "\n\nFonts are licensed under the\nSIL Open Font License 1.1\n(scripts.sil.org/OFL).",
+		12, Color(UITheme.FG.r, UITheme.FG.g, UITheme.FG.b, 0.5))
+	lic.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	body.add_child(lic)
+	body.add_child(UITheme.make_label("베타 %s" % _version_text(), 13, Color(UITheme.FG.r, UITheme.FG.g, UITheme.FG.b, 0.45)))
+	var close := UITheme.make_engraved_button("닫는다", 22)
+	close.pressed.connect(func() -> void:
+		UITheme.fade_out(_credits_panel))
+	inner.add_child(close)
+	return panel
+
+## 크레딧 한 절 — 모래색 작은 머리글 + 본문(수동 줄바꿈, 의미 단위).
+func _credits_section(parent: Control, head: String, text: String) -> void:
+	var h := UITheme.make_label(head, 15, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.7))
+	parent.add_child(h)
+	var b := UITheme.make_label(text, 18)
+	parent.add_child(b)
 
 # --- 액션 ---
 
