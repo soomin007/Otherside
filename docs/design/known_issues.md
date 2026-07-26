@@ -68,7 +68,7 @@
 
 - **증상:** UI 미감(레이아웃·색·폰트 렌더)을 확인하려는데 헤드리스 스크린샷이 안 나온다(`get_viewport().get_texture().get_image()` 가 null). (2026-07-05)
   **원인:** `--headless` 는 dummy 렌더러라 실제 렌더 이미지가 없다.
-  **방지:** **창 모드**로 잠깐 띄워 캡처 — 임시 `tools/shot.tscn`(Node: 대상 씬 instantiate → 몇 프레임 대기 → `get_image().save_png("user://..")` → quit)를 `godot --path . res://tools/shot.tscn`(--headless 없이) 로. 창이 1~2초 뜬다. 세이브 오염 방지(`begin_run_in_place` 는 save 안 함, 노드 클릭 금지). **외부 HTML 디자인 대조**는 `chrome --headless=new --screenshot=out.png --window-size=1280,720 --virtual-time-budget=6000 "file:///..."` 로 원본을 렌더해 픽셀 비교(짐작 금지).
+  **방지:** **창 모드**로 잠깐 띄워 캡처 — 임시 `tools/shot.tscn`(Node: 대상 씬 instantiate → 몇 프레임 대기 → `get_image().save_png("user://..")` → quit)를 `godot --path . res://tools/shot.tscn`(--headless 없이) 로. 창이 1~2초 뜬다. 세이브 오염 방지는 아래 "드라이버가 세이브를 오염" 항목(2026-07-26)의 규칙을 따른다 — **`begin_run_in_place` 를 드라이버에서 쓰지 말 것**(옛 서술 "save 안 함"은 낡은 정보). **외부 HTML 디자인 대조**는 `chrome --headless=new --screenshot=out.png --window-size=1280,720 --virtual-time-budget=6000 "file:///..."` 로 원본을 렌더해 픽셀 비교(짐작 금지).
 
 - **증상:** 스톰 노드 단면에서 중앙 "폭풍의 눈"(메인 이벤트 마커)과 지점 버튼(f1 돌무더기·c2 바람 그늘)이 **완전히 포개짐**. (2026-07-07)
   **원인:** `SectionRun._default_main_at("storm")` = `Vector2(0.5, 0.42)` 인데 MapGraph 의 c2 `wall_burrow`·f1 `gate_cairn` spot `at` 이 정확히 같은 `(0.5, 0.42)` 로 저작됨. 메인 마커와 spot 이 같은 정규화 좌표계를 쓰는데 우연히 동일값이라 겹침.
@@ -151,6 +151,11 @@
 - **증상:** 스크린샷 드라이버로 `expedition.tscn` 에 진입하면 **실제 세이브 파일이 덮일 수 있다**. (2026-07-16 발견 — 이번엔 7-10의 옛 이어하기 잔재(node_id "")가 우연히 방패가 되어 무사)
   **원인:** `Expedition._ready` 가 단면을 새로 만들 때 `GameState.autosave_run()` → `save_game()` 을 부른다(도착 카드 재추첨 방지용 정식 경로). 드라이버가 가짜 `current_run` 을 넣고 진입하면 그 가짜 런이 진짜 세이브의 이어하기 슬롯에 저장된다.
   **방지:** 단면 드라이버는 **`GameState.section_state` 를 선주입**한다 — `run._target_node = nid` 세팅 후 `SectionRun.new(run, node).to_dict()` 를 넣으면 from_dict 복원 경로를 타서 저장이 없다. 드라이버 실행 전후 **세이브 파일 해시 비교를 항상 포함**(mtime 아닌 해시).
+
+- **증상:** 스크린샷 드라이버 실행 후 세이브가 오염 — 원정 수 +1·랜덤 원정 이름 추가·유령 이어하기 런 생성·공훈 3종 무단 해금(달성 토스트가 스샷에까지 찍힘). (2026-07-26 — 실제 발생, 수복함)
+  **원인:** 드라이버가 런 상태를 만들려고 부른 **`GameState.begin_run_in_place()` 가 "테스트용 무해 함수"가 아니다** — `begin_run_with` 로 위임되어 `expedition_count += 1` → 이름 지명(append) → `check_feats()`(조건 차면 즉시 해금+토스트) → **`autosave_run()`(= 디스크 저장)** 까지 전부 실행한다. 07-16 항목의 "begin_run_in_place 는 save 안 함" 서술은 이어하기 저장(07-10) 이전의 낡은 정보였다.
+  **수복:** 단계별 mtime 프로브로 저장 지점을 특정(다른 단계는 전부 무해 확인) → JSON 수술로 run 슬롯 비움·count/이름 원복·공훈 비움(스탯은 그대로라 다음 실제 출발 때 정상 연출과 함께 재해금).
+  **재발 방지(3줄 규칙):** ① 드라이버에서 `begin_run_in_place`/`begin_run_with` **금지** — 런이 필요하면 `GameState.current_run = ExpeditionRun.new(GameState.START_RESOURCES, GameState.bridged_nodes(), GameState.flags, GameState.pickup_traces_by_node(), "", 0, GameState.straggler_briefs())` 로 **직접 대입**(저장·카운트·공훈 없음). ② 실행 전 **세이브 파일을 통째로 복사 백업**(해시 기록만으로는 탐지만 되고 복구가 안 된다 — 이번에 뼈저림). ③ 실행 후 해시 대조, 다르면 백업으로 원복부터. 토스트·DEV 버튼은 `FeatToast.visible = false`·`Debug.visible = false` 로 가린다.
 
 ## GDScript (전역 규칙 위반 흔한 패턴)
 

@@ -419,7 +419,7 @@ class LegendMark extends Control:
 var _chapter: int = 0
 var _chron_idx: int = 0        ## 일대기 챕터 펼침(0=목록 첫 장|행적 · 1..=목록 계속) — 책 원칙: 스크롤 대신 넘김
 var _ctrl_idx: int = 0         ## 조작 챕터 펼침(0=안내 글·1=표식 읽기) — 양면에 둘씩, 넘겨서 본다
-var _set_idx: int = 0          ## 설정 챕터 펼침(소리|화면 · 이야기|Credit · 여정|위험)
+var _set_idx: int = 0          ## 설정 챕터 펼침(차례 · 소리|화면 · 이야기|Credit · 여정|위험)
 var _village_idx: int = 0      ## 마을 챕터 펼침(0=사람들·1..=이룬 일) — 책 원칙: 스크롤 대신 넘김
 var _flipping: bool = false
 var _relayout_wanted: bool = false  ## 넘김 중 도착한 리사이즈 — 넘김이 끝나면 반영(버리면 낡은 배치가 남는다)
@@ -594,7 +594,7 @@ func open_journal(chapter: int = 0) -> void:
 	_chapter = clampi(chapter, 0, CHAPTERS.size() - 1)
 	_chron_idx = 0       # 일대기 챕터는 첫 장(목록|행적)부터
 	_ctrl_idx = 0        # 조작 챕터는 안내 글부터(표식은 넘겨서)
-	_set_idx = 0         # 설정 챕터는 첫 펼침(소리|화면)부터
+	_set_idx = 0         # 설정 챕터는 차례(목차)부터 — 갈래가 많아 길잡이가 먼저(2026-07-26)
 	_village_idx = 0     # 마을 챕터는 사람들부터(이룬 일은 넘겨서)
 	_book.thickness_cf = float(_chapter)  # 페이지 두께 스택(§5) 초기 위치
 	_apply_tab_state()
@@ -974,7 +974,7 @@ func _legend_row(kind: String, title: String, meaning: String) -> HBoxContainer:
 
 # --- 챕터: 설정 (펼침 넘김 — 한 펼침에 두 부분: 소리|화면 · 이야기|Credit · 여정|위험) ---
 
-const SETTINGS_SPREADS: int = 3  ## 펼침 3장. 왼쪽 한 부분·오른쪽 한 부분(양면 다 채운다).
+const SETTINGS_SPREADS: int = 4  ## 펼침 4장. 첫 장 = 차례(목차), 이후 왼쪽·오른쪽 한 부분씩.
 
 ## 왼쪽·오른쪽 페이지 각각 한 부분. 넘김(이전/다음)과 덮기는 오른쪽 아래 슬림 줄로.
 ## 웹에선 게임 끝내기·전체화면 토글을 숨긴다(브라우저가 관장 — Fullscreen autoload 가 자동 전체화면).
@@ -984,9 +984,12 @@ func _show_settings() -> void:
 	_clear(_box_r)
 	match _set_idx:
 		0:
+			_sec_contents(_box_l)
+			_sec_contents_note(_box_r)
+		1:
 			_sec_sound(_box_l)
 			_sec_screen(_box_r)
-		1:
+		2:
 			_sec_story(_box_l)
 			_sec_credits(_box_r)
 		_:
@@ -1028,6 +1031,50 @@ func _set_next() -> void:
 	_flip_page(1, func() -> void:
 		_set_idx = mini(SETTINGS_SPREADS - 1, _set_idx + 1)
 		_show_settings())
+
+## 차례(설정 챕터 첫 펼침) — 갈래가 많아 찾기 어렵다는 지적(2026-07-26 사용자).
+## 항목을 누르면 그 펼침으로 넘김 연출과 함께 이동한다.
+func _sec_contents(box: VBoxContainer) -> void:
+	box.add_child(_page_heading("차례", 32, INK))
+	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.35), 2.0))
+	_toc_row(box, "소리", 1)
+	_toc_row(box, "화면", 1)
+	_toc_row(box, "이야기", 2)
+	_toc_row(box, "Credit", 2)
+	_toc_row(box, "여정", 3)
+	_toc_row(box, "위험", 3)
+
+## 차례 오른쪽 면 — 짧은 안내(빈 면이 고장처럼 보이지 않게).
+func _sec_contents_note(box: VBoxContainer) -> void:
+	var sp := Control.new()
+	sp.custom_minimum_size = Vector2(0, 44)
+	sp.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(sp)
+	box.add_child(_ink_label("가고 싶은 곳을 누르면\n그 장으로 넘어갑니다.", UITheme.FS_SMALL, INK_FADE))
+
+## 차례 한 줄 — 왼쪽 항목 이름(잉크 버튼, 줄 전체가 탭 영역), 오른쪽 펼침 번호(옅은 잉크).
+func _toc_row(box: VBoxContainer, name_txt: String, target: int) -> void:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var b := _ink_btn(name_txt, func() -> void: _set_jump(target), UITheme.FS_BODY)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(b)
+	var num := _ink_label(str(target + 1), UITheme.FS_LABEL, INK_FADE)
+	num.autowrap_mode = TextServer.AUTOWRAP_OFF
+	row.add_child(num)
+	box.add_child(row)
+
+## 차례에서 펼침으로 점프 — 거리만큼 낱장을 넘긴다(2장 이상은 리플, 챕터 점프와 같은 결).
+func _set_jump(target: int) -> void:
+	if _flipping or target == _set_idx:
+		return
+	var dist: int = absi(target - _set_idx)
+	var dir: int = 1 if target > _set_idx else -1
+	_run_flip(dir, dist, 0.45 if dist > 1 else 0.0, 0.5 if dist > 1 else 1.0, dist > 1,
+		float(_chapter), float(_chapter), func() -> void:
+			_set_idx = target
+			_show_settings())
 
 ## 소리(음소거·배경음악·효과음). 음소거는 자기 줄로(헤딩 옆 두면 큰 글자 크기에서 페이지를 넘침).
 func _sec_sound(box: VBoxContainer) -> void:
@@ -1079,7 +1126,7 @@ func _sec_credits(box: VBoxContainer) -> void:
 		UITheme.FS_SMALL, INK_FADE))
 	box.add_child(UITheme.make_hairline(Color(INK.r, INK.g, INK.b, 0.2), 1.0))
 	box.add_child(_ink_label("만든 이   soomin007", UITheme.FS_LABEL, INK))
-	box.add_child(_ink_label("Fonts   MaruBuri · Nanum Brush · Cinzel (OFL)\nMusic   Suno\nSFX   ElevenLabs · freesound.org\nEngine   Godot 4.6",
+	box.add_child(_ink_label("Fonts   MaruBuri · Cinzel (OFL)\nMusic   Suno\nSFX   ElevenLabs · freesound.org\nEngine   Godot 4.6",
 		UITheme.FS_SMALL, INK_FADE))
 
 ## 여정(타이틀로·게임 끝내기). 타이틀+웹처럼 나갈 것이 없으면 비운다.

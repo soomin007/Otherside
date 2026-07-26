@@ -18,8 +18,9 @@ itch.io 에 웹 빌드를 올려 더 넓은 사람들에게 공개하기 위한 
 - [ ] itch.io 계정 생성 → 새 프로젝트 생성
 - [ ] URL 슬러그 결정 (§2 — 나중에 바꾸면 링크가 깨지니 신중히)
 - [ ] §3 설정값 그대로 입력, §4 소개문 복붙, §5 이미지 업로드
-- [ ] 빌드 zip 업로드 (경로는 §6 — Claude 가 만들어 둠)
-- [ ] 영어 설문 폼 개설 (`docs/design/feedback_form_en_v0.1.md` 복붙) → URL 을 소개문과 그 문서에 기입
+- [ ] 빌드 zip 업로드 (경로는 §6 — Claude 가 만들어 둠. **사용자 결정 2026-07-26: 업로드는 영어
+      로컬라이제이션 완료 후.** 그 전엔 페이지 개설·꾸미기까지만 진행해도 됨)
+- [x] 영어 설문 폼 개설 완료 (2026-07-26): https://forms.gle/B8qrsZJY7Fse3ybi6 — 소개문 §4 반영됨
 - [ ] 공개 전 검증 2건 (§7 — 세이브 영속성, 폰 브라우저 동작)
 
 **Claude 완료 (이 커밋):**
@@ -91,10 +92,7 @@ itch.io 에 웹 빌드를 올려 더 넓은 사람들에게 공개하기 위한 
 > Music generated with Suno. Sound effects generated with ElevenLabs.
 > Art created with AI image tools, curated and edited by hand.
 >
-> Feedback: comments below are very welcome.
-
-(영어 설문 폼이 개설되면 마지막 줄을 다음으로 교체:
-`Feedback: comments below, or the 1-minute survey → <폼 URL>`)
+> Feedback: comments below, or the 1-minute survey → https://forms.gle/B8qrsZJY7Fse3ybi6
 
 ### 한국어 (아래에 덧붙임)
 
@@ -118,8 +116,9 @@ itch.io 에 웹 빌드를 올려 더 넓은 사람들에게 공개하기 위한 
 
 - **커버 630×500 (필수):** 시안 있음 — [`itch_커버_시안_630x500.png`](itch_커버_시안_630x500.png)
   (타이틀 키아트 좌측 크롭 + 로고, 2026-07-26). 마음에 안 들면 크롭 위치·로고 크기 조정 요청.
-- **스크린샷 4~5장 (권장):** 지도(양피지)·단면 탐색·상황 카드·남기기·폭풍 막간 각 1장.
-  데스크톱 1280×720 창에서 F12 아닌 실제 플레이 화면 캡처(DEV 오버레이 버튼이 안 보이는 상태로).
+- **스크린샷 5장 준비됨 (2026-07-26):** [`itch_스크린샷/`](itch_스크린샷/) — 지도·단면(오아시스)·
+  원정대 꾸리기·폭풍 막간·타이틀, 1280×720, DEV 버튼·토스트 없음. 그대로 업로드하면 된다.
+  (영어 로컬라이제이션 완료 후 영어 UI 로 다시 뽑는 것도 가능 — 같은 드라이버 절차.)
 - **GIF 1개 (여유 되면):** 지도에서 마커가 이동하고 안개가 걷히는 6~10초.
 
 ## 6. 빌드 업로드

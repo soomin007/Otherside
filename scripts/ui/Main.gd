@@ -405,17 +405,32 @@ func _open_credits() -> void:
 	if _credits_panel == null:
 		_credits_panel = _build_credits_panel()
 		add_child(_credits_panel)
+	# 뒤 타이틀 글씨(로고·메뉴·통계·카드)를 숨긴다 — 어둠막만으론 밝은 글자가 비쳐 겹친다(2026-07-26 사용자).
+	# 배경 키아트는 어둠막 너머로 은은하게 남긴다.
+	_set_title_ui_visible(false)
 	UITheme.fade_in(_credits_panel)
 	UITheme.recenter_modal.call_deferred(_credits_panel)  # 웹 레이아웃 레이스 대비(known_issues)
 
-## 만든 이들 판 — 각인 모달 + 스크롤 본문. 엔진(MIT)·글꼴(OFL) 고지와
-## AI 생성 소리 표기(ElevenLabs 무료 플랜 조건)를 담는다. 배포 전 제거 금지.
+## 크레딧이 열리고 닫힐 때 타이틀 글씨 층을 통째로 끄고 켠다(배경 그림·리본은 그대로).
+func _set_title_ui_visible(on: bool) -> void:
+	for n in _logo_nodes:
+		var c := n as CanvasItem
+		if c != null:
+			c.visible = on
+	for m in [_menu_node, _stat_node, _fb_card, _credits_entry]:
+		var c2 := m as CanvasItem
+		if c2 != null:
+			c2.visible = on
+
+## 만든 이들 판 — 각인 모달. 본문은 개괄식(스크롤 없음 — 잘림 방지, 2026-07-26 사용자),
+## 라이선스 전문만 하위 보기로 분리. 엔진(MIT)·글꼴(OFL) 고지와 AI 생성 소리 표기
+## (ElevenLabs 무료 플랜 조건)를 담는다. 배포 전 제거 금지.
 func _build_credits_panel() -> Control:
 	var panel := Control.new()
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	panel.visible = false
 	var dim := ColorRect.new()
-	dim.color = Color(0.0, 0.0, 0.0, 0.74)
+	dim.color = Color(0.0, 0.0, 0.0, 0.72)  # 글씨 층은 _set_title_ui_visible 로 숨기므로 배경 그림만 은은히
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	panel.add_child(dim)
 	var center := CenterContainer.new()
@@ -426,43 +441,68 @@ func _build_credits_panel() -> Control:
 	var inner: VBoxContainer = parts[1]
 	center.add_child(outer)
 	inner.add_child(UITheme.make_label("만든 이들", 24, UITheme.SAND))
+
+	# 본문(개괄식) — 항목당 머리글 + 한두 줄. 전부 한눈에 보인다.
+	var main_box := VBoxContainer.new()
+	main_box.add_theme_constant_override("separation", 13)
+	inner.add_child(main_box)
+	_credits_row(main_box, "만든 사람", "soomin007")
+	_credits_row(main_box, "엔진", "Godot Engine · MIT 라이선스")
+	_credits_row(main_box, "글꼴", "마루 부리 © NAVER · Cinzel © Natanael Gama\nSIL 오픈 폰트 라이선스(OFL 1.1)")
+	_credits_row(main_box, "소리", "음악 Suno · 효과음 ElevenLabs · AI 생성\n일부 효과음 freesound.org (CC0)")
+	_credits_row(main_box, "그림", "AI 생성 · 직접 골라 다듬음")
+	_credits_row(main_box, "도구", "Claude Code")
+
+	# 라이선스 전문(하위 보기) — 본문과 자리를 맞바꾼다. MIT 는 고지 전문 포함이 조건.
+	var lic_box := VBoxContainer.new()
+	lic_box.add_theme_constant_override("separation", UITheme.GAP)
+	lic_box.visible = false
+	inner.add_child(lic_box)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var vp: Vector2 = get_viewport_rect().size
-	scroll.custom_minimum_size = Vector2(UITheme.COLUMN_W, minf(vp.y * 0.55, 420.0))
-	inner.add_child(scroll)
-	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", UITheme.GAP)
-	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(body)
-	_credits_section(body, "만든 사람", "soomin007")
-	_credits_section(body, "엔진", "Godot Engine\n무료 오픈 소스 엔진입니다.\nMIT 라이선스를 따릅니다.")
-	_credits_section(body, "글꼴", "마루 부리 © NAVER\nCinzel © Natanael Gama\n두 글꼴 모두 SIL 오픈 폰트\n라이선스(OFL 1.1)를 따릅니다.")
-	_credits_section(body, "음악 · 효과음", "음악은 Suno로,\n효과음은 ElevenLabs로 만든\nAI 생성 소리입니다.\nSound effects generated\nwith ElevenLabs.")
-	_credits_section(body, "그림", "AI 이미지 도구로 만들고\n직접 고르고 다듬었습니다.")
-	_credits_section(body, "함께한 도구", "Claude Code와 함께\n만들었습니다.")
-	# 고지 전문(작은 글씨) — Godot MIT 는 저작권·허가 고지 포함이 라이선스 조건.
-	var lic_head := UITheme.make_label("라이선스 고지", 15, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.7))
-	body.add_child(lic_head)
+	scroll.custom_minimum_size = Vector2(UITheme.COLUMN_W, minf(vp.y * 0.5, 360.0))
+	lic_box.add_child(scroll)
 	var lic := UITheme.make_label(
 		Engine.get_license_text().strip_edges()
-		+ "\n\nFonts are licensed under the\nSIL Open Font License 1.1\n(scripts.sil.org/OFL).",
-		12, Color(UITheme.FG.r, UITheme.FG.g, UITheme.FG.b, 0.5))
+		+ "\n\nMaruBuri, Cinzel:\nSIL Open Font License 1.1\n(scripts.sil.org/OFL)"
+		+ "\n\nMusic generated with Suno.\nSound effects generated with ElevenLabs.",
+		12, Color(UITheme.FG.r, UITheme.FG.g, UITheme.FG.b, 0.55))
 	lic.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	body.add_child(lic)
-	body.add_child(UITheme.make_label("베타 %s" % _version_text(), 13, Color(UITheme.FG.r, UITheme.FG.g, UITheme.FG.b, 0.45)))
+	lic.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(lic)
+
+	var lic_btn := UITheme.make_engraved_button("라이선스 전문", 16)
+	var back_btn := UITheme.make_engraved_button("돌아간다", 16)
+	back_btn.visible = false
+	var toggle := func() -> void:
+		var to_lic: bool = not lic_box.visible
+		lic_box.visible = to_lic
+		main_box.visible = not to_lic
+		lic_btn.visible = not to_lic
+		back_btn.visible = to_lic
+		UITheme.recenter_modal.call_deferred(panel)
+	lic_btn.pressed.connect(toggle)
+	back_btn.pressed.connect(toggle)
+	inner.add_child(lic_btn)
+	inner.add_child(back_btn)
 	var close := UITheme.make_engraved_button("닫는다", 22)
 	close.pressed.connect(func() -> void:
-		UITheme.fade_out(_credits_panel))
+		lic_box.visible = false
+		main_box.visible = true
+		lic_btn.visible = true
+		back_btn.visible = false
+		UITheme.fade_out(_credits_panel, _set_title_ui_visible.bind(true)))
 	inner.add_child(close)
 	return panel
 
-## 크레딧 한 절 — 모래색 작은 머리글 + 본문(수동 줄바꿈, 의미 단위).
-func _credits_section(parent: Control, head: String, text: String) -> void:
-	var h := UITheme.make_label(head, 15, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.7))
-	parent.add_child(h)
-	var b := UITheme.make_label(text, 18)
-	parent.add_child(b)
+## 크레딧 한 항목 — 모래색 머리글 + 개괄식 본문(줄글 금지, 2026-07-26 사용자).
+func _credits_row(parent: Control, head: String, text: String) -> void:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	parent.add_child(box)
+	box.add_child(UITheme.make_label(head, 14, Color(UITheme.SAND.r, UITheme.SAND.g, UITheme.SAND.b, 0.7)))
+	box.add_child(UITheme.make_label(text, 18))
 
 # --- 액션 ---
 
