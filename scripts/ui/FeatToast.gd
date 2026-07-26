@@ -70,7 +70,7 @@ func _next() -> void:
 	if f.is_empty():
 		_next()
 		return
-	_name_lbl.text = str(f.get("name", ""))
+	_name_lbl.text = L10N.t(str(f.get("name", "")))
 	AudioManager.play_sfx(SFX_PATH)
 	_panel.visible = true
 	_panel.offset_right = -12.0

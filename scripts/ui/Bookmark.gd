@@ -871,7 +871,7 @@ func _person_entry(f: Dictionary, opened: Array) -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 4)
 	var vid: String = str(f.get("unlocks", ""))
-	var nm: String = Vocations.name_of(vid)
+	var nm: String = L10N.t(Vocations.name_of(vid))
 	if opened.has(vid):
 		# 온 사람은 이름을 붉은 잉크로 — 잠긴 줄들 사이에서 한눈에 띈다.
 		v.add_child(_rich_label(L10N.t("[color=#8a2f1b]%s[/color] · 마을에 있다") % nm, UITheme.FS_LABEL, INK))

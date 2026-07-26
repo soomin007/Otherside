@@ -258,7 +258,7 @@ func _build_step1() -> void:
 		voc.custom_minimum_size = Vector2(340, UITheme.BTN_H_SM)
 		voc.size_flags_horizontal = Control.SIZE_SHRINK_CENTER  # 컬럼 폭 다 채우지 말고 내용 폭 + 가운데(빈 공간 축소)
 		for i in range(_voc_open.size()):
-			voc.add_item(Vocations.name_of(str(_voc_open[i])))
+			voc.add_item(L10N.t(Vocations.name_of(str(_voc_open[i]))))  # OptionButton 은 관문을 안 지난다
 			if str(_voc_open[i]) == _pending_vocation:
 				voc.select(i)
 		voc.item_selected.connect(_on_voc_selected)
@@ -657,7 +657,7 @@ func _make_photo_label(entry: Dictionary) -> Control:
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	btn.custom_minimum_size = Vector2(float(entry.get("w", 140.0)), float(entry.get("h", 250.0)))
 	btn.size = btn.custom_minimum_size  # 컨테이너 밖 절대 배치 — size 직접 확정(정렬 계산용)
-	btn.tooltip_text = str(item.get("desc", ""))
+	btn.tooltip_text = L10N.t(str(item.get("desc", "")))
 	var emp := StyleBoxEmpty.new()
 	for st in ["normal", "pressed", "focus", "disabled"]:
 		btn.add_theme_stylebox_override(st, emp)
@@ -900,7 +900,7 @@ func _on_voc_selected(idx: int) -> void:
 		return
 	_pending_vocation = str(_voc_open[idx])
 	if _voc_desc != null:
-		_voc_desc.text = str(Vocations.by_id(_pending_vocation).get("desc", ""))
+		_voc_desc.text = L10N.t(str(Vocations.by_id(_pending_vocation).get("desc", "")))
 
 ## (옛 "마을에 새 얼굴" 인라인 안내 한 줄은 공훈 연출 모달(_show_feat_panel)로 승격 — 2026-07-13.)
 
