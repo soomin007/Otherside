@@ -24,6 +24,24 @@ const LOCK_JS: String = """
 })();
 """
 
+## 엔진 JS 입력 층 강제 청소 — 캔버스에 touchcancel/pointercancel 을 합성 dispatch 해 브라우저 쪽
+## 리스너에 남았을 활성 터치 추적을 끊는다. GDScript 로 주입한 release 는 엔진 내부 Input 까지만
+## 닿고 이 층을 못 닦는다는 것이 0.3.4 프로브로 확인됨(죽은 상태의 모든 터치가 ScreenDrag 로 도착).
+const TOUCH_CANCEL_JS: String = """
+(function(){
+	var c = document.getElementById('canvas') || document.querySelector('canvas');
+	if (!c) { return; }
+	try {
+		var ts = [];
+		for (var i = 0; i < 10; i++) {
+			ts.push(new Touch({identifier: i, target: c, clientX: 0, clientY: 0}));
+		}
+		c.dispatchEvent(new TouchEvent('touchcancel', {changedTouches: ts, touches: [], bubbles: true}));
+	} catch (e) {}
+	try { c.dispatchEvent(new PointerEvent('pointercancel', {bubbles: true})); } catch (e) {}
+})();
+"""
+
 var _hint: CanvasLayer
 var _hint_sub: Label   ## 안내 보조 줄 — 잠금 실패 사유 진단 표시
 var _web: bool = false
@@ -55,8 +73,12 @@ func _input(event: InputEvent) -> void:
 		var st := event as InputEventScreenTouch
 		if st != null:
 			desc += "#%d %s" % [st.index, "dn" if st.pressed else "up"]
+		var dr := event as InputEventScreenDrag
+		if dr != null:
+			desc += "#%d" % dr.index
 		_last_ev = desc
 		_last_ev_ms = Time.get_ticks_msec()
+	_track_ghost(event)
 	var tap: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed)
 	if not tap:
 		return
@@ -73,6 +95,62 @@ func _input(event: InputEvent) -> void:
 	elif _hint != null and _hint.visible:
 		_lock_landscape()  # 전체화면인데 아직 세로 — 안내 탭에서 재시도
 
+# --- 유령 드래그 재합성 (0.3.5) ---
+# 0.3.4 프로브 판독: 죽은 상태의 모든 터치가 ScreenDrag 로만 도착 = touchstart 를 위(itch 래퍼
+# 오버레이 추정)에서 먹혀, 눌림 없는 이동만 엔진에 들어온다. 눌림이 확인 안 된 손가락의 드래그가
+# 오면 그 자리에 dn 을 합성해 스트림을 살리고, 드래그가 GHOST_GAP_MS 동안 끊기면 마지막 위치에
+# up 을 합성해 탭·드래그를 완성한다. 정상 스트림(dn 이 먼저 온 손가락)에는 개입하지 않는다.
+
+const GHOST_GAP_MS: int = 180
+var _touch_down: Dictionary = {}   ## index → true, dn 이 실제로 확인된 손가락
+var _ghost: Dictionary = {}        ## index → {pos, ms}, 재합성으로 살린 유령 손가락
+var _ghost_count: int = 0          ## 재합성 발동 횟수(프로브 표시용)
+var _ghost_test: bool = false      ## 데스크톱 검증 드라이버용 — touchscreen 가드 우회
+
+## 매 _input 마다 손가락 눌림 상태를 추적하고, 눌림 없는 드래그(유령)를 재합성으로 살린다.
+func _track_ghost(event: InputEvent) -> void:
+	if not (DisplayServer.is_touchscreen_available() or _ghost_test):
+		return
+	var st := event as InputEventScreenTouch
+	if st != null:
+		if st.pressed:
+			_touch_down[st.index] = true
+		else:
+			_touch_down.erase(st.index)
+			_ghost.erase(st.index)  # 진짜 up 이 오면 재합성 마감 불필요(자연 release 완료)
+		return
+	var dr := event as InputEventScreenDrag
+	if dr == null:
+		return
+	if _ghost.has(dr.index):
+		var g: Dictionary = _ghost[dr.index]
+		g["pos"] = dr.position
+		g["ms"] = Time.get_ticks_msec()
+	elif not _touch_down.has(dr.index):
+		_touch_down[dr.index] = true
+		_ghost[dr.index] = {"pos": dr.position, "ms": Time.get_ticks_msec()}
+		_ghost_count += 1
+		var dn := InputEventScreenTouch.new()
+		dn.index = dr.index
+		dn.pressed = true
+		dn.position = dr.position
+		Input.parse_input_event(dn)
+
+## 유령 손가락 마감 — 드래그가 GHOST_GAP_MS 동안 끊기면 마지막 위치에서 뗀 것으로 합성(탭 완성).
+func _sweep_ghosts() -> void:
+	if _ghost.is_empty():
+		return
+	var now: int = Time.get_ticks_msec()
+	for idx: int in _ghost.keys():
+		var g: Dictionary = _ghost[idx]
+		if now - int(g["ms"]) >= GHOST_GAP_MS:
+			_ghost.erase(idx)
+			var up := InputEventScreenTouch.new()
+			up.index = idx
+			up.pressed = false
+			up.position = g["pos"]
+			Input.parse_input_event(up)
+
 ## 복귀 자기 치유 — 전체화면 이탈(안드로이드 뒤로가기 = 가장자리 스와이프 제스처)이 touchend 없이
 ## 끊기면 엔진에 "눌린 손가락"이 남고, 이후 모든 탭이 두 번째 손가락 취급이 된다(마우스 에뮬레이션은
 ## 0번 손가락만 따라감 → UI 전체 먹통. 폰 itch 뒤로가기→Restore 후 터치 사망 후보 ①, 2026-07-26).
@@ -81,6 +159,11 @@ func _release_stuck_touches() -> void:
 	if not DisplayServer.is_touchscreen_available():
 		return
 	_heal_count += 1
+	# 브라우저 입력 층부터 청소(TOUCH_CANCEL_JS 주석 참조) — 그 다음 엔진 내부 주입.
+	if _web:
+		JavaScriptBridge.eval(TOUCH_CANCEL_JS, true)
+	_touch_down.clear()
+	_ghost.clear()
 	for i in range(10):
 		var ev := InputEventScreenTouch.new()
 		ev.index = i
@@ -134,6 +217,7 @@ var _fs_accum: float = 0.0
 var _was_fs: bool = false
 
 func _process(_delta: float) -> void:
+	_sweep_ghosts()  # 유령 손가락 마감은 웹 여부와 무관하게 위에서(드라이버 검증 포함)
 	if _probe == null:
 		return  # 웹이 아니면 _build_probe 를 안 지났다 — 아래는 전부 웹 전용
 	# itch 래퍼가 소유한 전체화면 전환은 엔진 쪽 포커스/리사이즈 알림이 안 올 수 있다(0.3.2 프로브가
@@ -155,10 +239,10 @@ func _process(_delta: float) -> void:
 		return
 	var vp: Vector2 = get_viewport().get_visible_rect().size
 	var bm_txt: String = str(bm.call("debug_state")) if bm != null and jopen else "-"
-	_probe_lbl.text = "v%s p:%s vp:%dx%d h:%s heal:%d | %s | ev:%s +%.1fs" % [
+	_probe_lbl.text = "v%s p:%s vp:%dx%d h:%s heal:%d gh:%d | %s | ev:%s +%.1fs" % [
 		str(ProjectSettings.get_setting("application/config/version", "?")),
 		"1" if get_tree().paused else "0", int(vp.x), int(vp.y),
-		"1" if (_hint != null and _hint.visible) else "0", _heal_count,
+		"1" if (_hint != null and _hint.visible) else "0", _heal_count, _ghost_count,
 		bm_txt, _last_ev, float(now - _last_ev_ms) / 1000.0]
 
 ## 화면을 가로로 잠근다(양방향 가로) — 브라우저 orientation API 를 JS 로 직접 호출.
