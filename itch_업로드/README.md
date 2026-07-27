@@ -19,7 +19,7 @@
 1. itch.io 가입 → Dashboard → Create new project
 2. Title: `See you on the other side` · URL: `see-you-on-the-other-side`
 3. Kind of project: **HTML** · Pricing: **No payments** (후원 금지 — 라이선스, 핸드오프 §0)
-4. Uploads: 이 폴더의 `syotos_web_v0.3.10.zip` 업로드 → "This file will be played in the browser" 체크
+4. Uploads: 이 폴더의 `syotos_web_v0.3.11.zip` 업로드 → "This file will be played in the browser" 체크
 5. Embed: **640 × 360** · Fullscreen button ✔ · Mobile friendly ✔ (Orientation: Landscape)
    — 임베드 크기는 "페이지에 박힌 상자" 크기일 뿐이다. 실제 플레이는 폰 = 항상 전체화면,
    PC = 전체화면 버튼. 크게(1280) 잡으면 **페이지 본문 폭이 따라 넓어져** 배경의 어둠 채널(중앙
@@ -72,7 +72,11 @@
 
 ## 빌드
 
-- `syotos_web_v0.3.10.zip` (이 폴더, git 미추적) — 0.3.10 = **먹통 정체 확정 + 탭 배치 강제 복구**:
+- `syotos_web_v0.3.11.zip` (이 폴더, git 미추적) — 0.3.11 = **키보드·탭 마감 3건**:
+  ① 이름칸 가상 키보드가 뜨자마자 닫히던 것(키보드 리사이즈 → 치유가 포커스를 지우던 자충수,
+  리사이즈 경로는 포커스 보존) ② 데스크톱 1280 에서 챕터 탭 잘림(책을 탭 길이만큼 왼쪽으로 이동,
+  언어별 동적 계산) ③ 언어 전환 후에도 탭 글씨가 영어로 남던 것(이중 번역 — 원문 키 저장으로).
+  0.3.10 = 먹통 정체 확정(탭 (0,0) 이탈이 터치를 삼킴) + 탭 배치 강제 복구 — **폰 해결 확인됨**.
   0.3.9 계측 폰 판독 tv:VVVV@0,0 + nv:fl3 = **챕터 탭들이 화면 원점으로 이탈**해 안 보이면서
   히트 영역이 터치를 다 삼킴(첫 터치 = 보이지 않는 설정 탭 → ch:3, 이후 같은 챕터라 전부 무시
   = "전부 먹통"). _layout_book 이 탭 앵커·크기·자리를 매번 강제로 되돌린다(이탈 경로 불문,

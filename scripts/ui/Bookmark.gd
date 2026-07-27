@@ -555,7 +555,9 @@ func _build() -> void:
 	var th: float = 46.0 if _touch_ui() else 28.0
 	for i in range(CHAPTERS.size()):
 		var tab := Ribbon.new()
-		tab.text = L10N.t(str(CHAPTERS[i]))
+		# 원문(한국어 키)을 저장 — 번역은 Ribbon._draw 의 표시 순간에만. 여기서 t() 를 거치면
+		# 번역된 결과("Chronicle")가 키가 되어 이후 언어 전환이 영영 안 먹는다(이중 번역, 2026-07-27).
+		tab.text = str(CHAPTERS[i])
 		tab.ribbon_h = th
 		tab.col = RED if i == 0 else Color(RED.r, RED.g, RED.b, 0.62)
 		tab.size = Vector2(170.0 if _touch_ui() else 120.0, th)  # 히트 영역(그리기는 length 만큼) — 터치 여유
@@ -748,7 +750,11 @@ func _layout_book() -> void:
 	var w: float = minf(vp.x * 0.9, minf(1080.0, vp.x - 200.0))
 	var h: float = minf(vp.y * 0.86, 640.0)
 	_book.size = Vector2(w, h)
-	_book.position = (vp - Vector2(w, h)) * 0.5
+	# 책을 필요한 만큼 왼쪽으로 민다 — 중앙 고정이면 오른쪽 여백((vp.x-w)/2)이 언어에 따라
+	# 탭 길이보다 좁아져 탭이 화면 밖으로 잘린다(영어 데스크톱 1280 제보, 2026-07-27).
+	var tab_need: float = _tab_base_len() + 26.0 + 10.0
+	var bx: float = minf((vp.x - w) * 0.5, vp.x - w + 4.0 - tab_need)
+	_book.position = Vector2(maxf(0.0, bx), (vp.y - h) * 0.5)
 	_book.relayout()
 	# 페이지 내용 배치. ★ 자식(_box_l) 최소폭을 rect 기준으로 "먼저" 줄인다 — Control.set_size 는
 	# 최소 크기 밑으로 못 줄어서, 자식 최소폭이 큰 채로 scroll.size 를 대입하면 축소가 막힌다
@@ -868,19 +874,25 @@ func _capture_page(r_local: Rect2) -> ImageTexture:
 		return ImageTexture.create_from_image(Image.create(2, 2, false, Image.FORMAT_RGBA8))
 	return ImageTexture.create_from_image(img.get_region(rect))
 
-## 현재 챕터 책갈피는 진하고 길게, 나머지는 옅고 짧게.
-## 탭 길이 — 모든 탭이 같은 길이(글자별 재단은 열림/닫힘과 헷갈린다 — 2026-07-12 사용자).
-## 가장 긴 챕터명("일대기")이 V 홈을 침범하지 않는 길이를 기준으로, 펼침(현재 챕터)만 더 길다.
-func _apply_tab_state() -> void:
+## 탭 기본 길이 — 현재 언어의 가장 긴 챕터명이 V 홈을 침범하지 않는 길이(펼침 탭은 +26).
+## _layout_book 의 책 자리 계산도 이 값을 쓴다(탭이 화면 밖으로 잘리지 않을 조건).
+func _tab_base_len() -> float:
 	var f: Font = _book.get_theme_default_font() if _book != null else null
 	var base_len: float = 96.0 if _touch_ui() else 72.0
-	if f != null and not _tabs.is_empty():
+	if f != null and not _tabs.is_empty() and is_instance_valid(_tabs[0]):
 		var h: float = (_tabs[0] as Ribbon).ribbon_h
 		var tfs: int = clampi(int(h * 0.48), 12, 19)
 		var wmax: float = 0.0
 		for ch in CHAPTERS:
 			wmax = maxf(wmax, f.get_string_size(L10N.t(str(ch)), HORIZONTAL_ALIGNMENT_LEFT, -1, tfs).x)
 		base_len = maxf(base_len, 9.0 + wmax + h * 0.85 + 10.0)
+	return base_len
+
+## 현재 챕터 책갈피는 진하고 길게, 나머지는 옅고 짧게.
+## 탭 길이 — 모든 탭이 같은 길이(글자별 재단은 열림/닫힘과 헷갈린다 — 2026-07-12 사용자).
+## 가장 긴 챕터명("일대기")이 V 홈을 침범하지 않는 길이를 기준으로, 펼침(현재 챕터)만 더 길다.
+func _apply_tab_state() -> void:
+	var base_len: float = _tab_base_len()
 	for i in range(_tabs.size()):
 		var tab: Ribbon = _tabs[i]
 		tab.col = RED if i == _chapter else Color(RED.r, RED.g, RED.b, 0.62)
@@ -1224,6 +1236,7 @@ func _switch_language(code: String) -> void:
 	AppSettings.set_language(code)
 	_show_settings()
 	_apply_tab_state()  # 탭 길이 재계산(언어마다 챕터명 폭이 다르다)
+	_layout_book()      # 언어별 탭 길이에 맞춰 책 자리도 다시(탭 화면 밖 잘림 방지)
 	for t in _tabs:     # 탭·리본 글자는 그리기 시점 번역(Ribbon._draw) — 새 언어로 다시 그린다
 		(t as Control).queue_redraw()
 	if _ribbon != null:

@@ -183,7 +183,7 @@ func _sweep_ghosts() -> void:
 ## 끊기면 엔진에 "눌린 손가락"이 남고, 이후 모든 탭이 두 번째 손가락 취급이 된다(마우스 에뮬레이션은
 ## 0번 손가락만 따라감 → UI 전체 먹통. 폰 itch 뒤로가기→Restore 후 터치 사망 후보 ①, 2026-07-26).
 ## 포커스 복귀·화면 재배치 때 남은 손가락을 전부 뗀 것으로 주입한다(안 눌린 index 의 release 는 no-op).
-func _release_stuck_touches() -> void:
+func _release_stuck_touches(clear_focus: bool = true) -> void:
 	if not DisplayServer.is_touchscreen_available():
 		return
 	_heal_count += 1
@@ -205,7 +205,8 @@ func _release_stuck_touches() -> void:
 	mv.pressed = false
 	mv.position = Vector2(-1, -1)
 	Input.parse_input_event(mv)
-	get_viewport().gui_release_focus()  # 이름칸 등 잔류 포커스 해제(가상 키보드 재출현 방지 겸)
+	if clear_focus:
+		get_viewport().gui_release_focus()  # 이름칸 등 잔류 포커스 해제(가상 키보드 재출현 방지 겸)
 	# 일지(일시정지 오버레이)가 열려 있으면 새 컨트롤로 다시 짓는다 — "일지만 무반응" 방어.
 	var bm: Node = get_node_or_null("/root/Bookmark")
 	if bm != null and bool(bm.call("is_open")):
@@ -320,7 +321,9 @@ func _build_hint() -> void:
 func _refresh_hint() -> void:
 	if _hint == null:
 		return
-	_release_stuck_touches()  # 전체화면 이탈·복귀는 반드시 리사이즈를 동반 — 고착 터치 치유 2차 트리거
+	# 리사이즈는 가상 키보드가 뜰 때도 온다 — 여기서 포커스까지 지우면 이름칸 키보드가
+	# 뜨자마자 닫힌다(0.3.10 폰 제보). 리사이즈 경로는 고착 터치 해제만, 포커스는 남긴다.
+	_release_stuck_touches(false)
 	_probe_wake()             # 복귀 진단 프로브도 같은 트리거로 연다
 	var s: Vector2 = get_viewport().get_visible_rect().size
 	_hint.visible = s.y > s.x
