@@ -681,8 +681,9 @@ func _force_end_flip() -> void:
 	if not _in_confirm:
 		_render_chapter()
 
-## 임시 진단 문자열(Fullscreen 프로브가 읽는다) — 원인이 확정되면 프로브와 함께 제거.
-## tv = 탭 4개 각각 V(정상)/H(숨김)/X(해제됨), @ 뒤는 첫 탭의 화면 좌표. nv = 마지막 챕터 이동 출처.
+## 진단 문자열 — 화면 프로브는 0.4 에서 제거됐고, 이 함수는 휴면 상태로 남긴다(런타임 비용 없음).
+## 먹통類 재발 시 드라이버·임시 프로브가 이걸 읽어 상태를 찍는다(0.3.x 사냥에서 결정적이었다).
+## tv = 탭 4개 각각 V(정상)/H(숨김)/X(해제됨), @ 뒤는 첫 탭의 좌표/크기/부모/트리. nv = 마지막 챕터 이동 출처.
 func debug_state() -> String:
 	var decks: int = 0
 	for c in _book.get_children():

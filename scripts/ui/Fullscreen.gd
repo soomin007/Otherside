@@ -57,28 +57,14 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_in_iframe = bool(JavaScriptBridge.eval("window.self !== window.top", true))
 	_build_hint()
-	_build_probe()
 	get_viewport().size_changed.connect(_refresh_hint)
 	_refresh_hint()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_IN and _web:
 		_release_stuck_touches()
-		_probe_wake()
 
 func _input(event: InputEvent) -> void:
-	# 진단 프로브 — Node._input 은 GUI 보다 먼저 받으므로, 여기 기록이 갱신되면 입력이 엔진까지는 온 것.
-	if _probe != null and _probe.visible:
-		var desc: String = event.get_class().trim_prefix("InputEvent")
-		var st := event as InputEventScreenTouch
-		if st != null:
-			desc += "#%d %s(%d,%d)" % [st.index, "dn" if st.pressed else ("cx" if st.canceled else "up"),
-				int(st.position.x), int(st.position.y)]
-		var dr := event as InputEventScreenDrag
-		if dr != null:
-			desc += "#%d(%d,%d)" % [dr.index, int(dr.position.x), int(dr.position.y)]
-		_last_ev = desc
-		_last_ev_ms = Time.get_ticks_msec()
 	_track_ghost(event)
 	var tap: bool = (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed)
 	if not tap:
@@ -105,7 +91,6 @@ func _input(event: InputEvent) -> void:
 const GHOST_GAP_MS: int = 180
 var _touch_down: Dictionary = {}   ## index → true, dn 이 실제로 확인된 손가락
 var _ghost: Dictionary = {}        ## index → {pos, ms}, 재합성으로 살린 유령 손가락
-var _ghost_count: int = 0          ## 재합성 발동 횟수(프로브 표시용)
 var _ghost_test: bool = false      ## 데스크톱 검증 드라이버용 — touchscreen 가드 우회
 
 ## 재주입 좌표 보정 — Input.parse_input_event 는 이벤트를 "창 좌표"로 받아 스트레치 변환을 다시
@@ -132,7 +117,6 @@ func _track_ghost(event: InputEvent) -> void:
 			# 제외: 취소를 탭으로 되살리면 뒤로가기 스와이프가 매번 가짜 탭이 된다(0.3.7).
 			if not _touch_down.has(st.index) and st.position.x >= 0.0 and not st.canceled:
 				get_viewport().set_input_as_handled()
-				_ghost_count += 1
 				var pdn := InputEventScreenTouch.new()
 				pdn.index = st.index
 				pdn.pressed = true
@@ -157,7 +141,6 @@ func _track_ghost(event: InputEvent) -> void:
 	elif not _touch_down.has(dr.index):
 		_touch_down[dr.index] = true
 		_ghost[dr.index] = {"pos": dr.position, "ms": Time.get_ticks_msec()}
-		_ghost_count += 1
 		var dn := InputEventScreenTouch.new()
 		dn.index = dr.index
 		dn.pressed = true
@@ -193,7 +176,6 @@ func _release_stuck_touches(clear_focus: bool = true) -> void:
 		var fo: Control = get_viewport().gui_get_focus_owner()
 		if fo != null and (fo is LineEdit or fo is TextEdit):
 			return
-	_heal_count += 1
 	# 브라우저 입력 층부터 청소(TOUCH_CANCEL_JS 주석 참조) — 그 다음 엔진 내부 주입.
 	if _web:
 		JavaScriptBridge.eval(TOUCH_CANCEL_JS, true)
@@ -219,45 +201,17 @@ func _release_stuck_touches(clear_focus: bool = true) -> void:
 	if bm != null and bool(bm.call("is_open")):
 		bm.call("heal_after_restore")
 
-# --- 복귀 진단 프로브 (임시, 베타 전용 — 원인 잡히면 제거) ---
-# 폰 itch "복귀 후 일지 터치 먹통"(2026-07-26) 이분 진단: 포커스 복귀·리사이즈 후 20초 동안
-# 좌상단에 상태 한 줄을 띄운다. 죽은 상태에서 탭할 때 ev 가 갱신되면 입력이 엔진까지 오는 것
-# (= 게임 안 GUI 라우팅 문제), 안 갱신되면 밖(래퍼 오버레이)이 먹는 것(= itch 쪽).
-
-var _probe: CanvasLayer
-var _probe_lbl: Label
-var _probe_until_ms: int = 0
-var _last_ev: String = "-"
-var _last_ev_ms: int = 0
-var _heal_count: int = 0   ## 복귀 치유가 몇 번 돌았나(프로브 표시용)
-
-func _build_probe() -> void:
-	_probe = CanvasLayer.new()
-	_probe.layer = 300
-	_probe.visible = false
-	add_child(_probe)
-	_probe_lbl = Label.new()
-	_probe_lbl.position = Vector2(6, 4)
-	_probe_lbl.add_theme_font_size_override("font_size", 11)
-	_probe_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4, 0.85))
-	_probe_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_probe.add_child(_probe_lbl)
-
-## 진단 창을 20초 연다 — 터치 기기에서만(데스크톱 알트탭마다 뜨지 않게).
-func _probe_wake() -> void:
-	if _probe == null or not DisplayServer.is_touchscreen_available():
-		return
-	_probe_until_ms = Time.get_ticks_msec() + 20000
+# (복귀 진단 프로브는 0.4 에서 제거 — 0.3.x 먹통 사냥 종료. 재발 시 Bookmark.debug_state() 로 재구성.)
 
 var _fs_accum: float = 0.0
 var _was_fs: bool = false
 
 func _process(_delta: float) -> void:
 	_sweep_ghosts()  # 유령 손가락 마감은 웹 여부와 무관하게 위에서(드라이버 검증 포함)
-	if _probe == null:
-		return  # 웹이 아니면 _build_probe 를 안 지났다 — 아래는 전부 웹 전용
-	# itch 래퍼가 소유한 전체화면 전환은 엔진 쪽 포커스/리사이즈 알림이 안 올 수 있다(0.3.2 프로브가
-	# 안 떴다는 제보) — JS 로 문서 전체화면 상태를 0.5초마다 직접 감시해 전환 순간 치유를 건다.
+	if not _web:
+		return
+	# itch 래퍼가 소유한 전체화면 전환은 엔진 쪽 포커스/리사이즈 알림이 안 올 수 있다(0.3.2 에서
+	# 확인) — JS 로 문서 전체화면 상태를 0.5초마다 직접 감시해 전환 순간 치유를 건다.
 	_fs_accum += _delta
 	if _fs_accum >= 0.5:
 		_fs_accum = 0.0
@@ -265,22 +219,6 @@ func _process(_delta: float) -> void:
 		if fs != _was_fs:
 			_was_fs = fs
 			_release_stuck_touches()
-			_probe_wake()
-	var now: int = Time.get_ticks_msec()
-	var bm: Node = get_node_or_null("/root/Bookmark")
-	var jopen: bool = bm != null and bool(bm.call("is_open"))
-	# 표시는 복귀 후 20초만(0.3.12 — 먹통이 잡혀 일지 상시 표시 해제. 잔여 과제 마감 후 완전 제거 예정).
-	_probe.visible = now < _probe_until_ms
-	if not _probe.visible:
-		return
-	var vp: Vector2 = get_viewport().get_visible_rect().size
-	var bm_txt: String = str(bm.call("debug_state")) if bm != null and jopen else "-"
-	_probe_lbl.text = "v%s p:%s vp:%dx%d h:%s heal:%d gh:%d tb:%s | %s | ev:%s +%.1fs" % [
-		str(ProjectSettings.get_setting("application/config/version", "?")),
-		"1" if get_tree().paused else "0", int(vp.x), int(vp.y),
-		"1" if (_hint != null and _hint.visible) else "0", _heal_count, _ghost_count,
-		"1" if Transition.busy() else "0",
-		bm_txt, _last_ev, float(now - _last_ev_ms) / 1000.0]
 
 ## 화면을 가로로 잠근다(양방향 가로) — 브라우저 orientation API 를 JS 로 직접 호출.
 ## DisplayServer.screen_set_orientation 은 웹에서 동작하지 않음(실기기 확인 2026-07-06, known_issues).
@@ -331,7 +269,6 @@ func _refresh_hint() -> void:
 	# 리사이즈는 가상 키보드가 뜰 때도 온다 — 여기서 포커스까지 지우면 이름칸 키보드가
 	# 뜨자마자 닫힌다(0.3.10 폰 제보). 리사이즈 경로는 고착 터치 해제만, 포커스는 남긴다.
 	_release_stuck_touches(false)
-	_probe_wake()             # 복귀 진단 프로브도 같은 트리거로 연다
 	var s: Vector2 = get_viewport().get_visible_rect().size
 	_hint.visible = s.y > s.x
 	if _hint.visible:

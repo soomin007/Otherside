@@ -6,7 +6,7 @@ Each time the great sandstorm passes, an expedition sets out to stop the calamit
 
 In this world, the storm erases all writing. Before dying, each expedition may leave behind one single item for the next. A rope across a chasm. A waterskin by a dry well. A marker on a grave. Your failures become the road.
 
-BETA 0.2 — English & Korean. The language is picked from your system on first launch, and can be changed any time in the journal's Settings.
+BETA 0.4 — English & Korean. The language is picked from your system on first launch, and can be changed any time in the journal's Settings.
 
 - Playable in browser, desktop and mobile (landscape).
 - A single run takes about 10–20 minutes. The story unfolds across many runs.

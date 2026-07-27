@@ -19,7 +19,7 @@
 1. itch.io 가입 → Dashboard → Create new project
 2. Title: `See you on the other side` · URL: `see-you-on-the-other-side`
 3. Kind of project: **HTML** · Pricing: **No payments** (후원 금지 — 라이선스, 핸드오프 §0)
-4. Uploads: 이 폴더의 `syotos_web_v0.3.14.zip` 업로드 → "This file will be played in the browser" 체크
+4. Uploads: 이 폴더의 `syotos_web_v0.4.zip` 업로드 → "This file will be played in the browser" 체크
 5. Embed: **640 × 360** · Fullscreen button ✔ · Mobile friendly ✔ (Orientation: Landscape)
    — 임베드 크기는 "페이지에 박힌 상자" 크기일 뿐이다. 실제 플레이는 폰 = 항상 전체화면,
    PC = 전체화면 버튼. 크게(1280) 잡으면 **페이지 본문 폭이 따라 넓어져** 배경의 어둠 채널(중앙
@@ -72,12 +72,13 @@
 
 ## 빌드
 
-- `syotos_web_v0.3.14.zip` (이 폴더, git 미추적) — 0.3.14 = **키보드 가림 회피 2차**: 0.3.13 의
-  visualViewport 측정은 itch(교차 출처 iframe) 안에서 키보드 가림을 반영 안 해 실패. 측정 대신
-  "포커스 중 + 뷰포트 변화(키보드가 뜨면 시스템 바 몫은 변함, 프로브 1509→1419 확인)"를 신호로
-  이름칸을 화면 맨 위 띠(y≈72px)로 올린다. 물리 키보드 환경은 리사이즈가 없어 안 밀림.
-  0.3.13 = 피드백 폼 언어 분기(영어 = forms.gle/B8qr…, 문항 일대일) — **폰 적용 확인**.
-  0.3.12 = 입력 중 리사이즈 치유 스킵(키보드 유지) + 일지 왼쪽 닫기 공간 복원 — **폰 먹통 회귀 없음 확인**.
+- `syotos_web_v0.4.zip` (이 폴더, git 미추적) — **베타 0.4**: 0.3.x 안정화 라운드 총정리 판.
+  ⚠ 업로드와 함께 **itch 페이지 소개문의 "BETA 0.2" 표기도 0.4 로 교체**(이 폴더 소개문 파일들
+  이미 0.4 로 갱신됨 — 해당 문단만 다시 복붙하면 됨).
+  0.4 = 진단 줄 제거(먹통 사냥 종료) + 0.3.1~14 누적: 폰 itch 복귀 먹통 해결(탭 배치 강제 복구),
+  뒤로가기 제스처 방어(release 기준·arming·취소 무효·워치독), 재주입 좌표 보정, 이름칸 가상
+  키보드 유지·가림 회피(입력 중 상단 배치), 일지 탭 잘림·이중 번역 수정, 좁은 화면 닫기 공간,
+  피드백 폼 언어 분기.
   ① 0.3.11 포커스 보존으로도 키보드가 닫혀서, 글자 입력 중(LineEdit 포커스)에는 리사이즈 치유를
   통째로 건너뛴다(JS 청소 포함 원천 차단) ② 0.3.11 의 책 왼쪽 이동이 좁은 화면(1280)에서 "바깥을
   눌러 덮기" 공간을 없앴던 것 — 공간이 부족하면 책 폭을 줄여 왼쪽 여백(88px)과 탭 자리를 함께

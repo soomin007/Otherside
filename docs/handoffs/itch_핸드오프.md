@@ -1,8 +1,8 @@
-# itch.io 공개 핸드오프 — 베타 0.3
+# itch.io 공개 핸드오프 — 베타 0.4
 
 ## ✅ 공개됨 (2026-07-26): https://soominsnu.itch.io/see-you-on-the-other-side
 
-베타 0.3(영어판 + 언어 즉시 전환) · Pricing "No payments" · 폰 전체화면 가로 확인 · 재업로드 세이브 유지 확인.
+베타 0.4(영어판 + 언어 즉시 전환) · Pricing "No payments" · 폰 전체화면 가로 확인 · 재업로드 세이브 유지 확인.
 아래는 개설 당시의 준비 문서다. 재업로드·설정 변경 때 §6~7 만 다시 보면 된다.
 **영어 로컬라이제이션 완료** — 첫 실행 시 OS 언어로 자동 선택(한국어 외 = 영어), 일지 설정 첫 펼침에서 전환.
 
@@ -82,7 +82,7 @@
 >
 > ---
 >
-> **BETA 0.2 — English & Korean.**
+> **BETA 0.4 — English & Korean.**
 > The language is picked from your system on first launch, and can be changed
 > any time in the journal's Settings.
 >
@@ -105,7 +105,7 @@
 > 폭풍이 글씨를 지우는 세계라서, 죽기 전에 남길 수 있는 건 물건 하나뿐입니다.
 > 협곡에 걸어 둔 밧줄, 마른 우물가의 물주머니. 실패가 다음 원정대의 길이 됩니다.
 >
-> 베타 0.2, 한국어·영어. 브라우저에서 바로 플레이할 수 있습니다(폰은 가로 화면).
+> 베타 0.4, 한국어·영어. 브라우저에서 바로 플레이할 수 있습니다(폰은 가로 화면).
 > 한 원정은 10~20분, 이야기는 여러 원정에 걸쳐 쌓입니다.
 >
 > 의견은 아래 댓글 또는 1분 설문으로: forms.gle/uqAhLzuZxVuZRJj76
