@@ -12,6 +12,7 @@ const SAVE_VERSION: int = 2  ## v2(2026-07-10): 이어하기 저장(run·run_sec
 ## 플레이 의견 설문(구글 폼) — 타이틀의 "의견 보내기"가 연다. 비어 있으면 버튼 자체를 안 만든다.
 ## 문항·폼 설정: docs/design/feedback_form_v0.1.md (개설 2026-07-19, EoY 와 같은 패턴)
 const FEEDBACK_URL: String = "https://forms.gle/uqAhLzuZxVuZRJj76"
+const FEEDBACK_URL_EN: String = "https://forms.gle/B8qrsZJY7Fse3ybi6"  ## 영어 폼 — 문항 번호 한국어판과 일대일(합산 가능)
 
 signal feat_achieved(feat_id: String)  ## 공훈을 방금 달성 — FeatToast 가 즉시 안내(효과음 포함, 2026-07-14 사용자)
 
@@ -774,7 +775,9 @@ func reset_save() -> void:
 func open_feedback() -> void:
 	if FEEDBACK_URL.is_empty():
 		return
+	# 폼은 선택된 언어를 따른다(2026-07-27 사용자 확정 — 지역 추정은 동의 문제, 언어 선택이 단순·정확).
+	var url: String = FEEDBACK_URL_EN if L10N.is_en() and not FEEDBACK_URL_EN.is_empty() else FEEDBACK_URL
 	if OS.has_feature("web"):
-		JavaScriptBridge.eval("window.open('%s', '_blank')" % FEEDBACK_URL, true)
+		JavaScriptBridge.eval("window.open('%s', '_blank')" % url, true)
 	else:
-		OS.shell_open(FEEDBACK_URL)
+		OS.shell_open(url)

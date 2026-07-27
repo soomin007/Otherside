@@ -892,6 +892,32 @@ func _depart() -> void:
 func stash_for_language_reload() -> void:
 	GameState.pending_expedition_name = _pending_name
 
+# --- 이름 입력 중 가상 키보드 회피(웹 폰) ---
+# 키보드가 떠도 캔버스는 시스템 바 폭만큼만 리사이즈돼, 이름칸이 키보드 뒤에 가려 입력 중인
+# 글씨가 안 보인다(2026-07-27 사용자). visualViewport 로 실제 보이는 높이를 재서 이름칸이
+# 그 위쪽(42% 지점)에 오도록 화면 전체를 위로 밀고, 포커스가 풀리면 원위치한다.
+var _kb_accum: float = 0.0
+
+func _process(delta: float) -> void:
+	_kb_accum += delta
+	if _kb_accum < 0.25:
+		return
+	_kb_accum = 0.0
+	if not (OS.has_feature("web") and DisplayServer.is_touchscreen_available()):
+		set_process(false)  # 해당 없는 환경이면 폴링 자체를 끈다
+		return
+	var target: float = 0.0
+	if _name_edit != null and is_instance_valid(_name_edit) and _name_edit.has_focus():
+		var rv: Variant = JavaScriptBridge.eval(
+			"window.visualViewport ? (visualViewport.height / window.innerHeight) : 1.0", true)
+		var ratio: float = clampf(float(rv), 0.3, 1.0) if rv != null else 1.0
+		if ratio < 0.95:
+			var visible_px: float = get_viewport().get_visible_rect().size.y * ratio
+			var base_mid: float = _name_edit.global_position.y + _name_edit.size.y * 0.5 - position.y
+			target = maxf(0.0, base_mid - visible_px * 0.42)
+	if absf(position.y + target) > 1.0:
+		position.y = -target
+
 ## 이름칸 밖을 탭하면 포커스를 놓아 가상 키보드를 내린다 — 폰 웹에서 밖을 눌러도 포커스가
 ## 남아 키보드가 무한으로 다시 열리던 버그(2026-07-26 사용자 제보). make_input_local 이
 ## 스트레치·캔버스 변환을 알아서 흡수하므로 좌표계 걱정 없이 칸 안/밖만 가른다.

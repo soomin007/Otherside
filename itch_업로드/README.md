@@ -19,7 +19,7 @@
 1. itch.io 가입 → Dashboard → Create new project
 2. Title: `See you on the other side` · URL: `see-you-on-the-other-side`
 3. Kind of project: **HTML** · Pricing: **No payments** (후원 금지 — 라이선스, 핸드오프 §0)
-4. Uploads: 이 폴더의 `syotos_web_v0.3.12.zip` 업로드 → "This file will be played in the browser" 체크
+4. Uploads: 이 폴더의 `syotos_web_v0.3.13.zip` 업로드 → "This file will be played in the browser" 체크
 5. Embed: **640 × 360** · Fullscreen button ✔ · Mobile friendly ✔ (Orientation: Landscape)
    — 임베드 크기는 "페이지에 박힌 상자" 크기일 뿐이다. 실제 플레이는 폰 = 항상 전체화면,
    PC = 전체화면 버튼. 크게(1280) 잡으면 **페이지 본문 폭이 따라 넓어져** 배경의 어둠 채널(중앙
@@ -72,7 +72,11 @@
 
 ## 빌드
 
-- `syotos_web_v0.3.12.zip` (이 폴더, git 미추적) — 0.3.12 = **키보드 2차 수정 + 닫기 공간 복원**:
+- `syotos_web_v0.3.13.zip` (이 폴더, git 미추적) — 0.3.13 = **키보드 가림 회피 + 피드백 폼 언어 분기**:
+  ① 이름 입력 중 visualViewport 로 실제 보이는 높이를 재서 이름칸이 키보드 위 영역에 오도록
+  화면을 위로 밀어 준다(입력 글씨 보임, 포커스 풀리면 원위치) ② "의견 보내기"가 선택 언어에
+  맞는 폼으로 연결(영어 = forms.gle/B8qr…, 문항 번호 한국어판과 일대일).
+  0.3.12 = 입력 중 리사이즈 치유 스킵(키보드 유지) + 일지 왼쪽 닫기 공간 복원 — **폰 먹통 회귀 없음 확인**.
   ① 0.3.11 포커스 보존으로도 키보드가 닫혀서, 글자 입력 중(LineEdit 포커스)에는 리사이즈 치유를
   통째로 건너뛴다(JS 청소 포함 원천 차단) ② 0.3.11 의 책 왼쪽 이동이 좁은 화면(1280)에서 "바깥을
   눌러 덮기" 공간을 없앴던 것 — 공간이 부족하면 책 폭을 줄여 왼쪽 여백(88px)과 탭 자리를 함께
