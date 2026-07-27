@@ -749,12 +749,17 @@ func _layout_book() -> void:
 	var vp: Vector2 = get_viewport().get_visible_rect().size
 	var w: float = minf(vp.x * 0.9, minf(1080.0, vp.x - 200.0))
 	var h: float = minf(vp.y * 0.86, 640.0)
-	_book.size = Vector2(w, h)
-	# 책을 필요한 만큼 왼쪽으로 민다 — 중앙 고정이면 오른쪽 여백((vp.x-w)/2)이 언어에 따라
-	# 탭 길이보다 좁아져 탭이 화면 밖으로 잘린다(영어 데스크톱 1280 제보, 2026-07-27).
+	# 책 자리 — 탭(오른쪽)이 화면 안에 들어오고, 왼쪽엔 "바깥을 눌러 덮기" 공간이 남아야 한다.
+	# 0.3.11 은 책을 왼쪽으로만 밀어 좁은 화면(1280)에서 닫기 공간이 사라졌다(사용자 제보) —
+	# 공간이 부족하면 책 폭을 줄여 왼쪽 여백(left_min)과 탭 자리를 함께 확보한다(0.3.12).
 	var tab_need: float = _tab_base_len() + 26.0 + 10.0
+	var left_min: float = 88.0   # 가드 36 을 빼고도 ~52px 가 "눌러서 덮기" 공간으로 남는 폭
 	var bx: float = minf((vp.x - w) * 0.5, vp.x - w + 4.0 - tab_need)
-	_book.position = Vector2(maxf(0.0, bx), (vp.y - h) * 0.5)
+	if bx < left_min:
+		w = maxf(560.0, vp.x - left_min - tab_need + 4.0)
+		bx = left_min
+	_book.size = Vector2(w, h)
+	_book.position = Vector2(bx, (vp.y - h) * 0.5)
 	_book.relayout()
 	# 페이지 내용 배치. ★ 자식(_box_l) 최소폭을 rect 기준으로 "먼저" 줄인다 — Control.set_size 는
 	# 최소 크기 밑으로 못 줄어서, 자식 최소폭이 큰 채로 scroll.size 를 대입하면 축소가 막힌다

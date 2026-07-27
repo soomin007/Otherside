@@ -186,6 +186,13 @@ func _sweep_ghosts() -> void:
 func _release_stuck_touches(clear_focus: bool = true) -> void:
 	if not DisplayServer.is_touchscreen_available():
 		return
+	# 글자 입력 중(이름칸 등)의 리사이즈 치유는 통째로 건너뛴다 — 가상 키보드가 뜨는 것 자체가
+	# 리사이즈라, 치유(JS touchcancel 청소 등)가 갓 열린 키보드를 닫아 버린다(0.3.11 폰 제보,
+	# 포커스 보존만으론 부족했음). 복귀 경로(clear_focus=true)는 그대로 전체 치유.
+	if not clear_focus:
+		var fo: Control = get_viewport().gui_get_focus_owner()
+		if fo != null and (fo is LineEdit or fo is TextEdit):
+			return
 	_heal_count += 1
 	# 브라우저 입력 층부터 청소(TOUCH_CANCEL_JS 주석 참조) — 그 다음 엔진 내부 주입.
 	if _web:
@@ -262,8 +269,8 @@ func _process(_delta: float) -> void:
 	var now: int = Time.get_ticks_msec()
 	var bm: Node = get_node_or_null("/root/Bookmark")
 	var jopen: bool = bm != null and bool(bm.call("is_open"))
-	# 일지가 열려 있는 동안엔 상시 표시(20초 만료 X) — 먹통이 20초 넘게 이어져 관찰을 놓치던 것 방지.
-	_probe.visible = (jopen and DisplayServer.is_touchscreen_available()) or now < _probe_until_ms
+	# 표시는 복귀 후 20초만(0.3.12 — 먹통이 잡혀 일지 상시 표시 해제. 잔여 과제 마감 후 완전 제거 예정).
+	_probe.visible = now < _probe_until_ms
 	if not _probe.visible:
 		return
 	var vp: Vector2 = get_viewport().get_visible_rect().size
