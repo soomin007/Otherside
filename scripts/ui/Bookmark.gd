@@ -427,6 +427,7 @@ var _flip_started_ms: int = 0       ## 넘김 시작 시각 — 폴링 워치독
 var _tab_armed: int = -1            ## 누름이 확인된 탭 index — 누름 없는 뗌(유령)의 넘김 오발 방지(0.3.6)
 var _scrim_armed: bool = false      ## 스크림 위 누름 확인 — 유령 뗌이 일지를 닫는 것 방지(0.3.6)
 var _repause_count: int = 0         ## "열림+정지 풀림" 자가 수리 횟수 — 프로브 rp(0.3.7, 경로 추적용)
+var _last_nav: String = "-"         ## 마지막 챕터 이동의 출처(op=열기·fl=탭·sj=차례·cl=덮음) — 프로브 nv(0.3.9)
 var _relayout_wanted: bool = false  ## 넘김 중 도착한 리사이즈 — 넘김이 끝나면 반영(버리면 낡은 배치가 남는다)
 var _rib_tw: Tween
 var _opened_ms: int = 0        ## 일지를 연 시각 — 여는 클릭이 스크림 닫기로 새는 것 방지 가드
@@ -628,6 +629,7 @@ func open_journal(chapter: int = 0) -> void:
 	_scrim_armed = false
 	AudioManager.play_sfx("res://assets/sfx/sfx_page_1.wav")
 	_chapter = clampi(chapter, 0, CHAPTERS.size() - 1)
+	_last_nav = "op%d" % _chapter
 	_chron_idx = 0       # 일대기 챕터는 첫 장(목록|행적)부터
 	_ctrl_idx = 0        # 조작 챕터는 안내 글부터(표식은 넘겨서)
 	_set_idx = 0         # 설정 챕터는 차례(목차)부터 — 갈래가 많아 길잡이가 먼저(2026-07-26)
@@ -678,15 +680,30 @@ func _force_end_flip() -> void:
 		_render_chapter()
 
 ## 임시 진단 문자열(Fullscreen 프로브가 읽는다) — 원인이 확정되면 프로브와 함께 제거.
+## tv = 탭 4개 각각 V(정상)/H(숨김)/X(해제됨), @ 뒤는 첫 탭의 화면 좌표. nv = 마지막 챕터 이동 출처.
 func debug_state() -> String:
 	var decks: int = 0
 	for c in _book.get_children():
 		if c is FlipDeck:
 			decks += 1
-	return "fl:%s dk:%d ch:%d sp:%d rw:%s rp:%d" % ["1" if _flipping else "0", decks, _chapter, _set_idx,
-		"1" if _relayout_wanted else "0", _repause_count]
+	var tv: String = ""
+	var tx: String = "-"
+	for t in _tabs:
+		if not is_instance_valid(t):
+			tv += "X"
+		elif not (t as Control).visible:
+			tv += "H"
+		else:
+			tv += "V"
+	if not _tabs.is_empty() and is_instance_valid(_tabs[0]):
+		var gp: Vector2 = (_tabs[0] as Control).global_position
+		tx = "%d,%d" % [int(gp.x), int(gp.y)]
+	return "fl:%s dk:%d ch:%d sp:%d rp:%d nv:%s tv:%s@%s bw:%d" % ["1" if _flipping else "0",
+		decks, _chapter, _set_idx, _repause_count, _last_nav, tv, tx,
+		int(_book.size.x) if _book != null else -1]
 
 func _close() -> void:
+	_last_nav = "cl"
 	get_tree().paused = false  # 일지를 덮으면 세계가 다시 흐른다(이동·연출 재개)
 	AudioManager.play_sfx(AudioManager.CARD_CLOSE)  # 일지를 덮는 소리
 	_panel.visible = false
@@ -757,6 +774,7 @@ func _layout_book() -> void:
 func _flip_to(idx: int) -> void:
 	if _flipping or idx == _chapter:
 		return
+	_last_nav = "fl%d" % idx
 	var dir: int = 1 if idx > _chapter else -1
 	_run_flip(dir, 8, 0.45, 0.5, true, float(_chapter), float(idx), func() -> void:
 		_chapter = idx
@@ -1248,6 +1266,7 @@ func _toc_row(box: VBoxContainer, name_txt: String, target: int) -> void:
 func _set_jump(target: int) -> void:
 	if _flipping or target == _set_idx:
 		return
+	_last_nav = "sj%d" % target
 	var dist: int = absi(target - _set_idx)
 	var dir: int = 1 if target > _set_idx else -1
 	_run_flip(dir, dist, 0.45 if dist > 1 else 0.0, 0.5 if dist > 1 else 1.0, dist > 1,

@@ -72,10 +72,11 @@ func _input(event: InputEvent) -> void:
 		var desc: String = event.get_class().trim_prefix("InputEvent")
 		var st := event as InputEventScreenTouch
 		if st != null:
-			desc += "#%d %s" % [st.index, "dn" if st.pressed else ("cx" if st.canceled else "up")]
+			desc += "#%d %s(%d,%d)" % [st.index, "dn" if st.pressed else ("cx" if st.canceled else "up"),
+				int(st.position.x), int(st.position.y)]
 		var dr := event as InputEventScreenDrag
 		if dr != null:
-			desc += "#%d" % dr.index
+			desc += "#%d(%d,%d)" % [dr.index, int(dr.position.x), int(dr.position.y)]
 		_last_ev = desc
 		_last_ev_ms = Time.get_ticks_msec()
 	_track_ghost(event)
