@@ -19,7 +19,7 @@
 1. itch.io 가입 → Dashboard → Create new project
 2. Title: `See you on the other side` · URL: `see-you-on-the-other-side`
 3. Kind of project: **HTML** · Pricing: **No payments** (후원 금지 — 라이선스, 핸드오프 §0)
-4. Uploads: 이 폴더의 `syotos_web_v0.3.7.zip` 업로드 → "This file will be played in the browser" 체크
+4. Uploads: 이 폴더의 `syotos_web_v0.3.8.zip` 업로드 → "This file will be played in the browser" 체크
 5. Embed: **640 × 360** · Fullscreen button ✔ · Mobile friendly ✔ (Orientation: Landscape)
    — 임베드 크기는 "페이지에 박힌 상자" 크기일 뿐이다. 실제 플레이는 폰 = 항상 전체화면,
    PC = 전체화면 버튼. 크게(1280) 잡으면 **페이지 본문 폭이 따라 넓어져** 배경의 어둠 채널(중앙
@@ -72,7 +72,13 @@
 
 ## 빌드
 
-- `syotos_web_v0.3.7.zip` (이 폴더, git 미추적) — 0.3.7 = **취소 터치 무효 + pause 자가 수리**:
+- `syotos_web_v0.3.8.zip` (이 폴더, git 미추적) — 0.3.8 = **재주입 좌표 이중 변환 수정(핵심)**:
+  0.3.7 폰 스크린샷 판독(gh 10→40 인데 전부 무반응)으로, `Input.parse_input_event` 재주입 이벤트가
+  스트레치 변환을 한 번 더 받아 **폰에서 합성 뗌이 전부 좌상단 엉뚱한 곳에 떨어지던 것**을 특정.
+  누름(진짜)과 뗌(합성) 위치가 갈려 모든 탭이 무반응이 되던 원인 — 좌표를 창 좌표로 되돌려 주입.
+  추가로 넘김 코루틴이 화면 숨김을 통과했으면(await 전후 1초 이상) 스왑 없이 중단(복귀 시
+  "저절로 설정 차례로 넘어감" 차단), 복귀 치유 때 책갈피 강제 표시 보험.
+  0.3.7 = 취소 터치 무효 + pause 자가 수리(rp)·프로브 cx/tb.
   0.3.5 폰 프로브 판독(gh:0 = 죽은 상태에서도 누름이 도착)으로, 뒤로가기 제스처가 남기는
   **canceled 터치를 탭 핸들러가 진짜 탭으로 오인**하는 것이 설정 차례 오발의 유력 원인으로 특정됨.
   canceled 뗌은 탭·스크림·재합성 모두에서 무효 처리, "일지 열림 = 일시정지" 불변식 자가 수리(rp),

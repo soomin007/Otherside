@@ -107,6 +107,14 @@ var _ghost: Dictionary = {}        ## index → {pos, ms}, 재합성으로 살�
 var _ghost_count: int = 0          ## 재합성 발동 횟수(프로브 표시용)
 var _ghost_test: bool = false      ## 데스크톱 검증 드라이버용 — touchscreen 가드 우회
 
+## 재주입 좌표 보정 — Input.parse_input_event 는 이벤트를 "창 좌표"로 받아 스트레치 변환을 다시
+## 적용한다. _input 에서 본 좌표(뷰포트 로컬)를 그대로 주입하면 이중 변환으로 축소·이동된다.
+## 폰(창 2340x1080·뷰포트 1509x720)에서 합성 뗌이 전부 좌상단행 → 누름과 뗌 위치가 갈려
+## 모든 탭이 무반응이 되던 원인(0.3.7 까지의 자가 치유가 폰에서 헛발이던 이유, gh:40 판독 2026-07-27).
+## 데스크톱 검증은 창=뷰포트 1:1 이라 잡지 못했다. 주입 전에 창 좌표로 되돌려 준다.
+func _to_window(pos: Vector2) -> Vector2:
+	return get_viewport().get_final_transform() * pos
+
 ## 매 _input 마다 손가락 눌림 상태를 추적하고, 눌림 없는 드래그(유령)를 재합성으로 살린다.
 func _track_ghost(event: InputEvent) -> void:
 	if not (DisplayServer.is_touchscreen_available() or _ghost_test):
@@ -127,12 +135,12 @@ func _track_ghost(event: InputEvent) -> void:
 				var pdn := InputEventScreenTouch.new()
 				pdn.index = st.index
 				pdn.pressed = true
-				pdn.position = st.position
+				pdn.position = _to_window(st.position)
 				Input.parse_input_event(pdn)
 				var pup := InputEventScreenTouch.new()
 				pup.index = st.index
 				pup.pressed = false
-				pup.position = st.position
+				pup.position = _to_window(st.position)
 				Input.parse_input_event(pup)
 				return
 			_touch_down.erase(st.index)
@@ -152,7 +160,7 @@ func _track_ghost(event: InputEvent) -> void:
 		var dn := InputEventScreenTouch.new()
 		dn.index = dr.index
 		dn.pressed = true
-		dn.position = dr.position
+		dn.position = _to_window(dr.position)
 		Input.parse_input_event(dn)
 
 ## 유령 손가락 마감 — 드래그가 GHOST_GAP_MS 동안 끊기면 마지막 위치에서 뗀 것으로 합성(탭 완성).
@@ -167,7 +175,7 @@ func _sweep_ghosts() -> void:
 			var up := InputEventScreenTouch.new()
 			up.index = idx
 			up.pressed = false
-			up.position = g["pos"]
+			up.position = _to_window(g["pos"])
 			Input.parse_input_event(up)
 
 ## 복귀 자기 치유 — 전체화면 이탈(안드로이드 뒤로가기 = 가장자리 스와이프 제스처)이 touchend 없이

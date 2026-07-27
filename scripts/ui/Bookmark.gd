@@ -652,6 +652,9 @@ func heal_after_restore() -> void:
 		return
 	_tab_armed = -1        # 복귀 전 스와이프가 남긴 낡은 arming 해제(0.3.6)
 	_scrim_armed = false
+	for t in _tabs:        # 책갈피 표시 보험 — 복귀 후 탭이 안 보이던 관측(0.3.7 폰, 기전 미상) 방어
+		(t as Control).visible = true
+		(t as Control).queue_redraw()
 	if _flipping:
 		_force_end_flip()  # 매달린 넘김(뒤로가기로 숨겨진 사이 멎은 것)부터 걷어낸다
 		return
@@ -786,9 +789,17 @@ func _run_flip(dir: int, sheets_n: int, spread: float, flip_win: float, riffle: 
 		if _flipping and _flip_serial == my_flip:
 			_force_end_flip())
 	AudioManager.play_sfx_random(PAGE_SFX)  # 장 집힐 때 1회
+	var t0: int = Time.get_ticks_msec()
 	await RenderingServer.frame_post_draw
 	if not _flipping or _flip_serial != my_flip:
 		return  # 매달린 사이 워치독이 정리했다 — 낡은 캡처·덮개를 얹지 않는다
+	if Time.get_ticks_msec() - t0 > 1000:
+		# 이 await 가 화면 숨김(뒤로가기)을 통과했다 — 스와이프가 남긴 유령 넘김이다(0.3.8).
+		# 복귀 첫 렌더에서 폴링 워치독(_process)보다 먼저 깨는 경합은 없지만, 외출이 2.5초보다
+		# 짧으면 워치독 문턱에 안 걸려 스왑이 완주한다(0.3.7 폰 ch:3 랜딩). 스왑 없이 중단 —
+		# 챕터가 보존된다. 정상 넘김의 await 는 한 프레임(수십 ms)이라 오탐 없음.
+		_force_end_flip()
+		return
 	var tex_l: ImageTexture = _capture_page(_book.rect_l)
 	var tex_r: ImageTexture = _capture_page(_book.rect_r)
 	swap.call()
