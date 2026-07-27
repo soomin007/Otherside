@@ -426,6 +426,7 @@ var _flip_serial: int = 0           ## 넘김 회차 — 워치독이 "그 넘�
 var _flip_started_ms: int = 0       ## 넘김 시작 시각 — 폴링 워치독(_process)용(0.3.6)
 var _tab_armed: int = -1            ## 누름이 확인된 탭 index — 누름 없는 뗌(유령)의 넘김 오발 방지(0.3.6)
 var _scrim_armed: bool = false      ## 스크림 위 누름 확인 — 유령 뗌이 일지를 닫는 것 방지(0.3.6)
+var _repause_count: int = 0         ## "열림+정지 풀림" 자가 수리 횟수 — 프로브 rp(0.3.7, 경로 추적용)
 var _relayout_wanted: bool = false  ## 넘김 중 도착한 리사이즈 — 넘김이 끝나면 반영(버리면 낡은 배치가 남는다)
 var _rib_tw: Tween
 var _opened_ms: int = 0        ## 일지를 연 시각 — 여는 클릭이 스크림 닫기로 새는 것 방지 가드
@@ -466,6 +467,11 @@ func _process(_delta: float) -> void:
 	# 매달린 넘김을 정리한다. get_ticks_msec 는 벽시계라 숨김 중에도 흘러, 복귀 첫 프레임에 잡힌다.
 	if _flipping and Time.get_ticks_msec() - _flip_started_ms > 2500:
 		_force_end_flip()
+	# 불변식 자가 수리(0.3.7) — 일지가 열려 있으면 세계는 반드시 멈춰 있어야 한다.
+	# 폰 프로브(0.3.5)에서 p:0(열림+정지 풀림)이 관측됨 — 경로 미상이라 일단 되잠그고 횟수를 남긴다(rp).
+	if is_open() and not get_tree().paused:
+		get_tree().paused = true
+		_repause_count += 1
 
 ## ESC — 확인 화면이면 설정으로, 열려 있으면 덮는다.
 func _input(event: InputEvent) -> void:
@@ -586,6 +592,9 @@ func _on_tab_input(event: InputEvent, idx: int) -> void:
 		tab.accept_event()  # 누름은 삼키기만 — 스크림 닫기로 새지 않게
 		_tab_armed = idx    # 뗌이 유효하려면 같은 탭의 누름이 선행해야 한다(0.3.6)
 		return
+	if st != null and st.canceled:
+		_tab_armed = -1     # 시스템이 가로챈 터치(뒤로가기 제스처) — 탭으로 치지 않는다(0.3.7).
+		return              # 누름+취소 뗌이 둘 다 탭 위라 arming 만으론 못 거른다(0.3.5 폰 판독).
 	var released: bool = (mb != null and mb.button_index == MOUSE_BUTTON_LEFT and not mb.pressed) \
 		or (st != null and not st.pressed)
 	if not released:
@@ -671,8 +680,8 @@ func debug_state() -> String:
 	for c in _book.get_children():
 		if c is FlipDeck:
 			decks += 1
-	return "fl:%s dk:%d ch:%d sp:%d rw:%s" % ["1" if _flipping else "0", decks, _chapter, _set_idx,
-		"1" if _relayout_wanted else "0"]
+	return "fl:%s dk:%d ch:%d sp:%d rw:%s rp:%d" % ["1" if _flipping else "0", decks, _chapter, _set_idx,
+		"1" if _relayout_wanted else "0", _repause_count]
 
 func _close() -> void:
 	get_tree().paused = false  # 일지를 덮으면 세계가 다시 흐른다(이동·연출 재개)
@@ -686,6 +695,9 @@ func _on_scrim_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed) \
 			or (event is InputEventScreenTouch and event.pressed):
 		_scrim_armed = true
+		return
+	if event is InputEventScreenTouch and (event as InputEventScreenTouch).canceled:
+		_scrim_armed = false  # 취소 터치(뒤로가기 제스처)로는 일지를 닫지 않는다(0.3.7)
 		return
 	var released: bool = (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed) \
 		or (event is InputEventScreenTouch and not event.pressed)

@@ -72,7 +72,7 @@ func _input(event: InputEvent) -> void:
 		var desc: String = event.get_class().trim_prefix("InputEvent")
 		var st := event as InputEventScreenTouch
 		if st != null:
-			desc += "#%d %s" % [st.index, "dn" if st.pressed else "up"]
+			desc += "#%d %s" % [st.index, "dn" if st.pressed else ("cx" if st.canceled else "up")]
 		var dr := event as InputEventScreenDrag
 		if dr != null:
 			desc += "#%d" % dr.index
@@ -119,8 +119,9 @@ func _track_ghost(event: InputEvent) -> void:
 			# 유령 뗌(0.3.6) — 움직임 없는 깨끗한 탭은 드래그조차 없이 뗌만 온다(0.3.5 폰 프로브:
 			# 대기 중 마지막 ev 가 up). 누름 없는 뗌이 GUI 에 닿으면 release 기준 핸들러(챕터 탭 등)를
 			# 오발시킨다(복귀 후 첫 터치 = 설정 차례로 넘김). 삼키고 그 자리에 dn+up 짝을 합성한다.
-			# 치유 주입분(위치 -1,-1)은 제외 — 재합성 재귀·gh 오염 방지.
-			if not _touch_down.has(st.index) and st.position.x >= 0.0:
+			# 치유 주입분(위치 -1,-1)과 취소 터치(canceled — 뒤로가기 제스처를 시스템이 가로챈 것)는
+			# 제외: 취소를 탭으로 되살리면 뒤로가기 스와이프가 매번 가짜 탭이 된다(0.3.7).
+			if not _touch_down.has(st.index) and st.position.x >= 0.0 and not st.canceled:
 				get_viewport().set_input_as_handled()
 				_ghost_count += 1
 				var pdn := InputEventScreenTouch.new()
@@ -257,10 +258,11 @@ func _process(_delta: float) -> void:
 		return
 	var vp: Vector2 = get_viewport().get_visible_rect().size
 	var bm_txt: String = str(bm.call("debug_state")) if bm != null and jopen else "-"
-	_probe_lbl.text = "v%s p:%s vp:%dx%d h:%s heal:%d gh:%d | %s | ev:%s +%.1fs" % [
+	_probe_lbl.text = "v%s p:%s vp:%dx%d h:%s heal:%d gh:%d tb:%s | %s | ev:%s +%.1fs" % [
 		str(ProjectSettings.get_setting("application/config/version", "?")),
 		"1" if get_tree().paused else "0", int(vp.x), int(vp.y),
 		"1" if (_hint != null and _hint.visible) else "0", _heal_count, _ghost_count,
+		"1" if Transition.busy() else "0",
 		bm_txt, _last_ev, float(now - _last_ev_ms) / 1000.0]
 
 ## 화면을 가로로 잠근다(양방향 가로) — 브라우저 orientation API 를 JS 로 직접 호출.
