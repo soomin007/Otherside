@@ -696,8 +696,10 @@ func debug_state() -> String:
 		else:
 			tv += "V"
 	if not _tabs.is_empty() and is_instance_valid(_tabs[0]):
-		var gp: Vector2 = (_tabs[0] as Control).global_position
-		tx = "%d,%d" % [int(gp.x), int(gp.y)]
+		var t0: Control = _tabs[0]
+		var pn: String = str(t0.get_parent().name) if t0.get_parent() != null else "none"
+		tx = "%d,%d/%dx%d/%s/%s" % [int(t0.global_position.x), int(t0.global_position.y),
+			int(t0.size.x), int(t0.size.y), pn, "1" if t0.is_inside_tree() else "0"]
 	return "fl:%s dk:%d ch:%d sp:%d rp:%d nv:%s tv:%s@%s bw:%d" % ["1" if _flipping else "0",
 		decks, _chapter, _set_idx, _repause_count, _last_nav, tv, tx,
 		int(_book.size.x) if _book != null else -1]
@@ -762,8 +764,16 @@ func _layout_book() -> void:
 	_footer_r.position = _book.rect_r.position + Vector2(PAGE_PAD, _book.rect_r.size.y - PAGE_PAD - footer_h)
 	_footer_r.size = Vector2(_book.rect_r.size.x - PAGE_PAD * 2.0, footer_h)
 	var tab_gap: float = 64.0 if _touch_ui() else 44.0
+	var tab_h: float = 46.0 if _touch_ui() else 28.0
 	for i in range(_tabs.size()):
 		var tab: Ribbon = _tabs[i]
+		if not is_instance_valid(tab):
+			continue
+		# 폰 복귀 후 탭이 (0,0)으로 이탈한 채 히트 영역이 화면을 덮어, 모든 터치가 보이지 않는
+		# 설정 탭에 먹히던 관측(0.3.9 프로브 tv:VVVV@0,0 + nv:fl3, 2026-07-27). 이탈 경로 불문
+		# 배치 권위는 여기다 — 앵커·크기·자리를 매번 강제로 되돌린다.
+		tab.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		tab.size = Vector2(170.0 if _touch_ui() else 120.0, tab_h)
 		tab.position = Vector2(w - 4.0, 36.0 + float(i) * tab_gap)
 
 # --- 챕터 (낱장 넘김) ---

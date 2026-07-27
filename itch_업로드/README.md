@@ -19,7 +19,7 @@
 1. itch.io 가입 → Dashboard → Create new project
 2. Title: `See you on the other side` · URL: `see-you-on-the-other-side`
 3. Kind of project: **HTML** · Pricing: **No payments** (후원 금지 — 라이선스, 핸드오프 §0)
-4. Uploads: 이 폴더의 `syotos_web_v0.3.9.zip` 업로드 → "This file will be played in the browser" 체크
+4. Uploads: 이 폴더의 `syotos_web_v0.3.10.zip` 업로드 → "This file will be played in the browser" 체크
 5. Embed: **640 × 360** · Fullscreen button ✔ · Mobile friendly ✔ (Orientation: Landscape)
    — 임베드 크기는 "페이지에 박힌 상자" 크기일 뿐이다. 실제 플레이는 폰 = 항상 전체화면,
    PC = 전체화면 버튼. 크게(1280) 잡으면 **페이지 본문 폭이 따라 넓어져** 배경의 어둠 채널(중앙
@@ -72,11 +72,12 @@
 
 ## 빌드
 
-- `syotos_web_v0.3.9.zip` (이 폴더, git 미추적) — 0.3.9 = **계측 빌드**: 0.3.8 로도 미해결
-  (복귀 시 ch:0 인데 책갈피 이미 실종 → 첫 터치에 ch:3). 진단 줄에 범인 지목 필드 추가 —
-  tv(탭 4개 각각 V정상/H숨김/X해제됨 + 첫 탭 좌표), nv(마지막 챕터 이동 출처: op열기/fl탭/sj차례/cl덮음),
-  bw(책 폭), 터치 좌표(dn/up 위치). 죽은 상태 스크린샷 한 장이면 원인 확정.
-  0.3.8 = 재주입 좌표 이중 변환 수정(합성 이벤트가 좌상단으로 가던 것) + 넘김 숨김 통과 시 스왑 중단.
+- `syotos_web_v0.3.10.zip` (이 폴더, git 미추적) — 0.3.10 = **먹통 정체 확정 + 탭 배치 강제 복구**:
+  0.3.9 계측 폰 판독 tv:VVVV@0,0 + nv:fl3 = **챕터 탭들이 화면 원점으로 이탈**해 안 보이면서
+  히트 영역이 터치를 다 삼킴(첫 터치 = 보이지 않는 설정 탭 → ch:3, 이후 같은 챕터라 전부 무시
+  = "전부 먹통"). _layout_book 이 탭 앵커·크기·자리를 매번 강제로 되돌린다(이탈 경로 불문,
+  복귀 치유마다 실행). 진단 t0 필드(좌표/크기/부모/트리)로 이탈 경로 추적 계속.
+  0.3.9 = 계측(tv·nv·터치 좌표). 0.3.8 = 재주입 좌표 이중 변환 수정 + 넘김 숨김 통과 시 스왑 중단.
   0.3.7 폰 스크린샷 판독(gh 10→40 인데 전부 무반응)으로, `Input.parse_input_event` 재주입 이벤트가
   스트레치 변환을 한 번 더 받아 **폰에서 합성 뗌이 전부 좌상단 엉뚱한 곳에 떨어지던 것**을 특정.
   누름(진짜)과 뗌(합성) 위치가 갈려 모든 탭이 무반응이 되던 원인 — 좌표를 창 좌표로 되돌려 주입.
