@@ -893,28 +893,35 @@ func stash_for_language_reload() -> void:
 	GameState.pending_expedition_name = _pending_name
 
 # --- 이름 입력 중 가상 키보드 회피(웹 폰) ---
-# 키보드가 떠도 캔버스는 시스템 바 폭만큼만 리사이즈돼, 이름칸이 키보드 뒤에 가려 입력 중인
-# 글씨가 안 보인다(2026-07-27 사용자). visualViewport 로 실제 보이는 높이를 재서 이름칸이
-# 그 위쪽(42% 지점)에 오도록 화면 전체를 위로 밀고, 포커스가 풀리면 원위치한다.
+# 키보드가 떠도 캔버스는 거의 리사이즈되지 않아 이름칸이 키보드 뒤에 가린다(2026-07-27 사용자).
+# 키보드 높이는 잴 수 없다 — itch 는 교차 출처 iframe 이고, iframe 안의 visualViewport 는 키보드
+# 가림을 반영하지 않는다(0.3.13 측정 방식 실패 확인). 대신 "포커스 중 + 뷰포트가 변했다(키보드가
+# 뜨면 시스템 바 몫만큼은 변한다 — 폰 프로브 1509→1419 확인)"를 신호로, 이름칸을 화면 맨 위
+# 띠(중앙 y≈72px)로 올린다. 가로 키보드도 상단 ~40% 는 가리지 않는다. 물리 키보드 환경(터치
+# 노트북 등)은 리사이즈가 없어 안 밀린다. 포커스가 풀리면 원위치.
 var _kb_accum: float = 0.0
+var _kb_base_vp: Vector2 = Vector2.ZERO   ## 비포커스 동안 갱신되는 기준 뷰포트 — 포커스 후 변화 감지용
 
 func _process(delta: float) -> void:
 	_kb_accum += delta
-	if _kb_accum < 0.25:
+	if _kb_accum < 0.2:
 		return
 	_kb_accum = 0.0
 	if not (OS.has_feature("web") and DisplayServer.is_touchscreen_available()):
 		set_process(false)  # 해당 없는 환경이면 폴링 자체를 끈다
 		return
+	var vp: Vector2 = get_viewport().get_visible_rect().size
 	var target: float = 0.0
 	if _name_edit != null and is_instance_valid(_name_edit) and _name_edit.has_focus():
 		var rv: Variant = JavaScriptBridge.eval(
 			"window.visualViewport ? (visualViewport.height / window.innerHeight) : 1.0", true)
 		var ratio: float = clampf(float(rv), 0.3, 1.0) if rv != null else 1.0
-		if ratio < 0.95:
-			var visible_px: float = get_viewport().get_visible_rect().size.y * ratio
+		var resized: bool = _kb_base_vp != Vector2.ZERO and vp.distance_to(_kb_base_vp) > 2.0
+		if resized or ratio < 0.95:
 			var base_mid: float = _name_edit.global_position.y + _name_edit.size.y * 0.5 - position.y
-			target = maxf(0.0, base_mid - visible_px * 0.42)
+			target = maxf(0.0, base_mid - 72.0)
+	else:
+		_kb_base_vp = vp  # 키보드가 없는 동안의 크기를 기준으로 유지(회전·전체화면 변화 추종)
 	if absf(position.y + target) > 1.0:
 		position.y = -target
 
